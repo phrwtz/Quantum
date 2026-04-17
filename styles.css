@@ -37,6 +37,57 @@ body {
   width: 100vw;
 }
 
+.tabs-shell {
+  width: 100%;
+  padding: 0.5rem;
+}
+
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.45rem;
+}
+
+.tab-btn {
+  appearance: none;
+  border: 1px solid #6e8799;
+  border-radius: 0.55rem;
+  min-width: 122px;
+  height: 2.1rem;
+  padding: 0 0.8rem;
+  font: 600 0.85rem "Aldrich", sans-serif;
+  letter-spacing: 0.02em;
+  color: #18374f;
+  background: linear-gradient(165deg, #f8fdff, #d9e8f2);
+  box-shadow: 0 2px 4px rgba(16, 41, 63, 0.18);
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  background: linear-gradient(165deg, #ffffff, #e2eef6);
+}
+
+.tab-btn.active {
+  border-color: #376b8f;
+  color: #0f2c43;
+  background: linear-gradient(165deg, #fff3d8, #ffdcae);
+  box-shadow:
+    0 0 0 2px rgba(255, 188, 93, 0.34),
+    0 2px 4px rgba(16, 41, 63, 0.2);
+}
+
+.tab-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(58, 109, 147, 0.22),
+    0 2px 4px rgba(16, 41, 63, 0.2);
+}
+
+.tab-panel {
+  width: 100%;
+}
+
 .gate-panel {
   width: 100%;
   border-radius: 1.4rem;
@@ -46,6 +97,75 @@ body {
     inset 0 2px 0 rgba(255, 255, 255, 0.85);
   border: 2px solid #b0c2d0;
   padding: 1.15rem 1.25rem 1.4rem;
+}
+
+.sim-host {
+  width: 100%;
+}
+
+.two-qubit-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.quantum-sim {
+  width: 100%;
+}
+
+.two-qubit-stack .quantum-sim + .quantum-sim {
+  border-top: 2px solid rgba(120, 145, 164, 0.55);
+  padding-top: 1.1rem;
+}
+
+.two-qubits-panel {
+  padding: 1.05rem 1.08rem 1.2rem;
+}
+
+.two-qubits-panel .two-qubit-stack {
+  border-radius: 1rem;
+  border: 2px solid #9fb3c2;
+  background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
+  box-shadow:
+    inset 0 3px 5px rgba(255, 255, 255, 0.6),
+    inset 0 -4px 7px rgba(15, 43, 66, 0.16);
+  padding: 0.66rem 0.66rem 0.7rem;
+  gap: 0.95rem;
+}
+
+.two-qubits-panel .two-qubit-stack .quantum-sim + .quantum-sim {
+  border-top: 2px solid rgba(120, 145, 164, 0.48);
+  padding-top: 0.72rem;
+}
+
+.two-qubits-panel .top-controls {
+  display: none;
+}
+
+.two-qubits-panel .machine-shell {
+  margin-top: 0;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.two-qubits-panel .gate-stage {
+  width: min(100%, 348px);
+}
+
+.two-qubits-panel .window-wrap {
+  left: calc(56% + 66px);
+  width: min(66%, 232px);
+}
+
+.two-qubits-panel .qubit {
+  width: 64px;
+  left: 36px;
+}
+
+.two-qubits-panel .measurement-stage {
+  display: none;
 }
 
 .top-controls {
@@ -118,7 +238,7 @@ body {
   color: #29465a;
 }
 
-#messageBox {
+.message-box {
   width: 100%;
   height: 2rem;
   border-radius: 0.45rem;
@@ -132,7 +252,7 @@ body {
   cursor: default;
 }
 
-#messageBox:focus {
+.message-box:focus {
   border-color: #3a7ca8;
   box-shadow:
     inset 0 1px 3px rgba(18, 48, 73, 0.18),
@@ -189,6 +309,20 @@ body {
   background: var(--qubit-fill);
   transition: box-shadow 120ms ease, transform 120ms ease;
   touch-action: none;
+}
+
+.qubit-sign {
+  position: absolute;
+  inset: 20px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-family: "Aldrich", "Chakra Petch", sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  font-size: 24px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .qubit.dragging {
@@ -428,41 +562,65 @@ body {
   inset: 0;
 }
 
-#arrowGroup {
+.arrow-group {
   transform-origin: 160px 160px;
   cursor: grab;
   transition: transform 160ms ease-out;
   outline: none;
 }
 
-#arrowGroup.dragging {
+.arrow-group.dragging {
   cursor: grabbing;
   transition: none;
 }
 
-#arrowGroup line {
+.arrow-group line {
   stroke: var(--arrow);
   stroke-width: 9;
   stroke-linecap: round;
 }
 
-#arrowGroup polygon {
+.arrow-group polygon {
   fill: #f05729;
 }
 
-#arrowGroup circle {
+.arrow-group circle {
   fill: #f78d55;
   stroke: #93240f;
   stroke-width: 4;
 }
 
-#arrowGroup:focus-visible circle {
+.arrow-group:focus-visible circle {
   filter: drop-shadow(0 0 5px #ff7a42);
 }
 
 @media (max-width: 500px) {
+  .tabs-shell {
+    padding: 0.35rem;
+  }
+
+  .tab-strip {
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .tab-btn {
+    min-width: 108px;
+    height: 1.95rem;
+    font-size: 0.74rem;
+    padding: 0 0.62rem;
+  }
+
   .gate-panel {
     padding: 0.85rem 0.75rem 1rem;
+  }
+
+  .two-qubit-stack {
+    gap: 0.9rem;
+  }
+
+  .two-qubit-stack .quantum-sim + .quantum-sim {
+    padding-top: 0.8rem;
   }
 
   .top-controls {

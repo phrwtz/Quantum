@@ -8,34 +8,73 @@
   </head>
   <body>
     <main class="scene">
-      <section class="gate-panel" aria-label="Quantum gate control panel">
-        <div class="top-controls" id="topControls">
-          <button id="resetButton" class="reset-btn" type="button">Reset</button>
-          <div class="tube-capacity" id="tubeCapacity"></div>
-
-          <label class="message-wrap" for="messageBox">
-            <span class="message-label">State</span>
-            <input
-              id="messageBox"
-              type="text"
-              readonly
-              aria-label="Qubit state"
-            />
-          </label>
+      <div class="tabs-shell">
+        <div class="tab-strip" role="tablist" aria-label="Quantum simulator tabs">
+          <button
+            id="tab-one-qubit"
+            class="tab-btn active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-one-qubit"
+            data-tab-target="one-qubit"
+          >
+            One qubit
+          </button>
+          <button
+            id="tab-two-qubits"
+            class="tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-two-qubits"
+            data-tab-target="two-qubits"
+            tabindex="-1"
+          >
+            Two qubits
+          </button>
         </div>
 
-        <div class="machine-shell" id="machineShell">
-          <div class="gate-stage" id="gateStage">
-            <button class="qubit" id="qubit" type="button" aria-label="Draggable qubit"></button>
+        <section id="panel-one-qubit" class="tab-panel active" role="tabpanel" aria-labelledby="tab-one-qubit">
+          <section class="gate-panel">
+            <div id="oneQubitHost" class="sim-host"></div>
+          </section>
+        </section>
 
-            <div class="window-wrap" id="windowWrap">
-              <div class="ticks" id="ticks"></div>
+        <section
+          id="panel-two-qubits"
+          class="tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-two-qubits"
+          hidden
+        >
+          <section class="gate-panel two-qubits-panel">
+            <div id="twoQubitsHost" class="sim-host two-qubit-stack"></div>
+          </section>
+        </section>
+      </div>
+    </main>
 
-              <div class="window" id="window">
-                <div class="landing-pad" id="landingPad" aria-live="polite"></div>
+    <template id="simulatorTemplate">
+      <section class="quantum-sim" aria-label="Quantum gate control panel">
+        <div class="top-controls" data-role="top-controls">
+          <button data-role="reset" class="reset-btn" type="button">Reset</button>
+        </div>
+
+        <div class="machine-shell" data-role="machine-shell">
+          <div class="gate-stage" data-role="gate-stage">
+            <button class="qubit" data-role="qubit" type="button" aria-label="Draggable qubit">
+              <span class="qubit-sign" data-role="qubit-sign" aria-hidden="true"></span>
+            </button>
+
+            <div class="window-wrap" data-role="window-wrap">
+              <div class="ticks" data-role="ticks"></div>
+
+              <div class="window" data-role="window">
+                <div class="landing-pad" aria-live="polite"></div>
 
                 <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
-                  <g id="arrowGroup" tabindex="0" aria-label="Move arrow to a tick mark">
+                  <g class="arrow-group" data-role="arrow-group" tabindex="0" aria-label="Move arrow to a tick mark">
                     <line x1="160" y1="160" x2="160" y2="62" />
                     <polygon points="160,35 146,71 174,71" />
                     <circle cx="160" cy="160" r="11" />
@@ -46,24 +85,24 @@
           </div>
 
           <section class="measurement-stage" aria-label="Qubit measurement tool">
-            <div class="tube-rack" id="tubeRack" aria-hidden="true">
+            <div class="tube-rack" data-role="tube-rack" aria-hidden="true">
               <div class="tube-column">
-                <div class="tube-count" id="tubeBlueCount">0</div>
-                <div class="tube" id="tubeBlue">
-                  <div class="tube-liquid tube-liquid-blue" id="tubeBlueLiquid"></div>
+                <div class="tube-count" data-role="tube-blue-count">0</div>
+                <div class="tube" data-role="tube-blue">
+                  <div class="tube-liquid tube-liquid-blue" data-role="tube-blue-liquid"></div>
                 </div>
               </div>
               <div class="tube-column">
-                <div class="tube-count" id="tubeRedCount">0</div>
-                <div class="tube" id="tubeRed">
-                  <div class="tube-liquid tube-liquid-red" id="tubeRedLiquid"></div>
+                <div class="tube-count" data-role="tube-red-count">0</div>
+                <div class="tube" data-role="tube-red">
+                  <div class="tube-liquid tube-liquid-red" data-role="tube-red-liquid"></div>
                 </div>
               </div>
             </div>
 
             <div class="magnifier" aria-hidden="true">
-              <div class="magnifier-lens" id="measureLens">
-                <select id="measurementCount" class="measurement-count" aria-label="Number of measurements">
+              <div class="magnifier-lens" data-role="measure-lens">
+                <select data-role="measurement-count" class="measurement-count" aria-label="Number of measurements">
                   <option value="1" selected>1</option>
                   <option value="5">5</option>
                   <option value="10">10</option>
@@ -76,11 +115,11 @@
             </div>
           </section>
 
-          <div class="lightning" id="boltToGate" aria-hidden="true"></div>
-          <div class="lightning" id="boltToLens" aria-hidden="true"></div>
+          <div class="lightning" data-role="bolt-gate" aria-hidden="true"></div>
+          <div class="lightning" data-role="bolt-lens" aria-hidden="true"></div>
         </div>
       </section>
-    </main>
+    </template>
 
     <script src="app.js"></script>
   </body>
