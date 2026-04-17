@@ -3,28 +3,50 @@ const arrowGroup = document.getElementById("arrowGroup");
 const windowWrap = document.getElementById("windowWrap");
 const gateWindow = document.getElementById("window");
 const gateStage = document.getElementById("gateStage");
+const machineShell = document.getElementById("machineShell");
+const topControls = document.getElementById("topControls");
 const qubit = document.getElementById("qubit");
+const measureLens = document.getElementById("measureLens");
+const boltToGate = document.getElementById("boltToGate");
+const boltToLens = document.getElementById("boltToLens");
+const tubeRack = document.getElementById("tubeRack");
+const tubeBlue = document.getElementById("tubeBlue");
+const tubeRed = document.getElementById("tubeRed");
+const tubeBlueCount = document.getElementById("tubeBlueCount");
+const tubeRedCount = document.getElementById("tubeRedCount");
+const tubeBlueLiquid = document.getElementById("tubeBlueLiquid");
+const tubeRedLiquid = document.getElementById("tubeRedLiquid");
+const tubeCapacity = document.getElementById("tubeCapacity");
+const measurementCount = document.getElementById("measurementCount");
+const resetButton = document.getElementById("resetButton");
 const messageBox = document.getElementById("messageBox");
 
 const STEP_DEG = 30;
 const SNAP_OVERLAP_THRESHOLD = 0.9;
 const QUBIT_START_EDGE_GAP = 20;
+const ARROW_SCALE = 1.27;
 const BLUE_RGB = [38, 111, 247];
 const RED_RGB = [225, 54, 56];
+const INITIAL_TUBE_QUBIT_CAPACITY = 5;
+const AUTO_GATE_PAUSE_MS = 333;
+const AUTO_TRAVEL_MS = 620;
+const AUTO_MELT_MS = 320;
+const MACHINE_DURATION_100_MS = 1000;
+const MACHINE_DURATION_1000_MS = 2000;
 
 const BLUE_RED_MIX_BY_TICK = {
   0: [1, 0],
-  1: [2 / 3, 1 / 3],
-  2: [1 / 2, 1 / 2],
-  3: [1 / 3, 2 / 3],
-  4: [1 / 5, 4 / 5],
-  5: [1 / 12, 11 / 12],
+  1: [5 / 6, 1 / 6],
+  2: [2 / 3, 1 / 3],
+  3: [1 / 2, 1 / 2],
+  4: [1 / 3, 2 / 3],
+  5: [1 / 6, 5 / 6],
   6: [0, 1],
-  7: [1 / 12, 11 / 12],
-  8: [1 / 5, 4 / 5],
-  9: [1 / 3, 2 / 3],
-  10: [1 / 2, 1 / 2],
-  11: [2 / 3, 1 / 3],
+  7: [1 / 6, 5 / 6],
+  8: [1 / 3, 2 / 3],
+  9: [1 / 2, 1 / 2],
+  10: [2 / 3, 1 / 3],
+  11: [5 / 6, 1 / 6],
 };
 
 let activeTick = 0;
@@ -34,6 +56,14 @@ let qubitDocked = false;
 let qubitDragOffsetX = 0;
 let qubitDragOffsetY = 0;
 let qubitInitialized = false;
+let measurementInProgress = false;
+let autoRunInProgress = false;
+let runToken = 0;
+let qubitBlueWeight = 1;
+let qubitRedWeight = 0;
+let tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
+let blueTubeCount = 0;
+let redTubeCount = 0;
 const tickElements = [];
 
 for (let i = 0; i < 12; i += 1) {
@@ -65,6 +95,41 @@ function blendBlueRed(blueWeight, redWeight) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+function formatFraction(value) {
+  if (Math.abs(value) < 1e-9) {
+    return "0";
+  }
+
+  if (Math.abs(value - 1) < 1e-9) {
+    return "1";
+  }
+
+  for (let denominator = 2; denominator <= 24; denominator += 1) {
+    const numerator = Math.round(value * denominator);
+    if (Math.abs(value - numerator / denominator) < 1e-6) {
+      const divisor = gcd(Math.abs(numerator), denominator);
+      return `${numerator / divisor}/${denominator / divisor}`;
+    }
+  }
+
+  return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function gcd(a, b) {
+  let x = a;
+  let y = b;
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x || 1;
+}
+
+function updateStateText(blueWeight, redWeight) {
+  messageBox.value = `${formatFraction(blueWeight)} blue, ${formatFraction(redWeight)} red`;
+}
+
 function applyQubitColorForTick() {
   if (!qubitDocked) {
     return;
@@ -72,6 +137,8 @@ function applyQubitColorForTick() {
 
   const mix = BLUE_RED_MIX_BY_TICK[activeTick] || BLUE_RED_MIX_BY_TICK[0];
   const [blueWeight, redWeight] = mix;
+  qubitBlueWeight = blueWeight;
+  qubitRedWeight = redWeight;
   qubit.style.setProperty("--qubit-fill", blendBlueRed(blueWeight, redWeight));
 }
 
@@ -87,11 +154,17 @@ function stagePointForElementCenter(element) {
 
 function setQubitCenter(x, y) {
   const stageRect = gateStage.getBoundingClientRect();
+  const movementRect = machineShell.getBoundingClientRect();
   const qubitRect = qubit.getBoundingClientRect();
   const radius = qubitRect.width / 2;
 
-  const clampedX = Math.min(Math.max(x, radius), stageRect.width - radius);
-  const clampedY = Math.min(Math.max(y, radius), stageRect.height - radius);
+  const minX = movementRect.left - stageRect.left + radius;
+  const maxX = movementRect.right - stageRect.left - radius;
+  const minY = movementRect.top - stageRect.top + radius;
+  const maxY = movementRect.bottom - stageRect.top - radius;
+
+  const clampedX = Math.min(Math.max(x, minX), maxX);
+  const clampedY = Math.min(Math.max(y, minY), maxY);
 
   qubit.style.left = `${clampedX}px`;
   qubit.style.top = `${clampedY}px`;
@@ -120,16 +193,26 @@ function layoutTicks() {
 }
 
 function setArrowAtTick(tickIndex) {
-  activeTick = ((tickIndex % 12) + 12) % 12;
+  if (autoRunInProgress) {
+    return;
+  }
+
+  const normalizedTick = ((tickIndex % 12) + 12) % 12;
+  const gateStateChanged = normalizedTick !== activeTick;
+  activeTick = normalizedTick;
   const rotation = activeTick * STEP_DEG;
-  arrowGroup.style.transform = `rotate(${rotation}deg)`;
+  arrowGroup.style.transform = `rotate(${rotation}deg) scale(${ARROW_SCALE})`;
 
   tickElements.forEach((tick, index) => {
     tick.classList.toggle("active", index === activeTick);
   });
 
-  const clockLabel = activeTick === 0 ? 12 : activeTick;
-  messageBox.placeholder = `Arrow aligned to tick ${clockLabel}`;
+  if (gateStateChanged) {
+    clearMeasurementApparatus();
+  }
+
+  const [blueWeight, redWeight] = BLUE_RED_MIX_BY_TICK[activeTick] || BLUE_RED_MIX_BY_TICK[0];
+  updateStateText(blueWeight, redWeight);
   applyQubitColorForTick();
 }
 
@@ -243,6 +326,25 @@ function qubitOverlapRatioWithGateWindow() {
   return overlapArea / qubitArea;
 }
 
+function qubitOverlapRatioWithLens() {
+  const qubitRect = qubit.getBoundingClientRect();
+  const lensRect = measureLens.getBoundingClientRect();
+
+  const qRadius = qubitRect.width / 2;
+  const lRadius = lensRect.width / 2;
+
+  const qCx = qubitRect.left + qRadius;
+  const qCy = qubitRect.top + qRadius;
+  const lCx = lensRect.left + lRadius;
+  const lCy = lensRect.top + lRadius;
+
+  const distance = Math.hypot(qCx - lCx, qCy - lCy);
+  const overlapArea = circleIntersectionArea(qRadius, lRadius, distance);
+  const qubitArea = Math.PI * qRadius * qRadius;
+
+  return overlapArea / qubitArea;
+}
+
 function maybeSnapQubit() {
   if (qubitOverlapRatioWithGateWindow() >= SNAP_OVERLAP_THRESHOLD) {
     snapQubitToWindowCenter();
@@ -253,7 +355,340 @@ function maybeSnapQubit() {
   return false;
 }
 
+function getStageCoordsFromViewportPoint(x, y) {
+  const stageRect = gateStage.getBoundingClientRect();
+  return {
+    x: x - stageRect.left,
+    y: y - stageRect.top,
+  };
+}
+
+function moveQubitToStagePoint(x, y, duration = 620) {
+  return new Promise((resolve) => {
+    qubit.style.setProperty("--move-duration", `${duration}ms`);
+    qubit.classList.add("migrating");
+    setQubitCenter(x, y);
+    window.setTimeout(resolve, duration);
+  });
+}
+
+function wait(duration) {
+  return new Promise((resolve) => window.setTimeout(resolve, duration));
+}
+
+function nextFrame() {
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+}
+
+function settleQubitVisualState() {
+  qubit.classList.remove("migrating");
+  qubit.classList.remove("melting");
+  qubit.style.opacity = "";
+}
+
+function updateTubeFills() {
+  const blueFillPercent = Math.min((blueTubeCount / tubeQubitCapacity) * 100, 100);
+  const redFillPercent = Math.min((redTubeCount / tubeQubitCapacity) * 100, 100);
+
+  tubeBlueCount.textContent = String(blueTubeCount);
+  tubeRedCount.textContent = String(redTubeCount);
+  tubeBlueLiquid.style.height = `${blueFillPercent}%`;
+  tubeRedLiquid.style.height = `${redFillPercent}%`;
+}
+
+function clearMeasurementApparatus() {
+  tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
+  blueTubeCount = 0;
+  redTubeCount = 0;
+  updateTubeCapacityText();
+  updateTubeFills();
+}
+
+function updateTubeCapacityText() {
+  tubeCapacity.textContent = `Testtubes hold ${tubeQubitCapacity} qubits`;
+}
+
+function maybeExpandTubeCapacity() {
+  const largestTubeCount = Math.max(blueTubeCount, redTubeCount);
+  let expanded = false;
+
+  while (largestTubeCount > tubeQubitCapacity) {
+    tubeQubitCapacity *= 2;
+    expanded = true;
+  }
+
+  if (expanded) {
+    updateTubeCapacityText();
+  }
+}
+
+function positionTubeCapacityBox() {
+  const topRect = topControls.getBoundingClientRect();
+  const rackRect = tubeRack.getBoundingClientRect();
+  const centerX = rackRect.left + rackRect.width / 2 - topRect.left;
+  tubeCapacity.style.left = `${centerX}px`;
+}
+
+function getElementCenterInMachineCoords(element) {
+  const shellRect = machineShell.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left - shellRect.left + rect.width / 2,
+    y: rect.top - shellRect.top + rect.height / 2,
+  };
+}
+
+function positionLightningBolt(bolt, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+  bolt.style.left = `${start.x}px`;
+  bolt.style.top = `${start.y}px`;
+  bolt.style.width = `${length}px`;
+  bolt.style.transform = `translateY(-50%) rotate(${angle}deg)`;
+}
+
+function positionLightningBolts() {
+  const origin = getElementCenterInMachineCoords(qubit);
+  const gateCenter = getElementCenterInMachineCoords(gateWindow);
+  const lensCenter = getElementCenterInMachineCoords(measureLens);
+
+  positionLightningBolt(boltToGate, origin, gateCenter);
+  positionLightningBolt(boltToLens, gateCenter, lensCenter);
+}
+
+function setLightningActive(active) {
+  boltToGate.classList.toggle("active", active);
+  boltToLens.classList.toggle("active", active);
+}
+
+function collapseQubitState() {
+  const totalWeight = qubitBlueWeight + qubitRedWeight;
+  const blueProbability = totalWeight > 0 ? qubitBlueWeight / totalWeight : 0.5;
+
+  if (blueProbability >= 1) {
+    qubitBlueWeight = 1;
+    qubitRedWeight = 0;
+    qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
+    updateStateText(qubitBlueWeight, qubitRedWeight);
+    return "blue";
+  }
+
+  if (blueProbability <= 0) {
+    qubitBlueWeight = 0;
+    qubitRedWeight = 1;
+    qubit.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
+    updateStateText(qubitBlueWeight, qubitRedWeight);
+    return "red";
+  }
+
+  const collapseToBlue = Math.random() < blueProbability;
+
+  if (collapseToBlue) {
+    qubitBlueWeight = 1;
+    qubitRedWeight = 0;
+    qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
+    updateStateText(qubitBlueWeight, qubitRedWeight);
+    return "blue";
+  }
+
+  qubitBlueWeight = 0;
+  qubitRedWeight = 1;
+  qubit.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
+  updateStateText(qubitBlueWeight, qubitRedWeight);
+  return "red";
+}
+
+async function startMeasurementSequence(
+  expectedRunToken = runToken,
+  { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+) {
+  if (measurementInProgress) {
+    return;
+  }
+
+  if (expectedRunToken !== runToken) {
+    return;
+  }
+
+  if (qubitOverlapRatioWithLens() < SNAP_OVERLAP_THRESHOLD) {
+    return;
+  }
+
+  measurementInProgress = true;
+  qubitDragging = false;
+  qubit.classList.remove("dragging");
+  undockQubit();
+
+  const collapsedColor = collapseQubitState();
+  const targetTube = collapsedColor === "blue" ? tubeBlue : tubeRed;
+  const targetRect = targetTube.getBoundingClientRect();
+  const targetPoint = getStageCoordsFromViewportPoint(
+    targetRect.left + targetRect.width / 2,
+    targetRect.top + targetRect.height * 0.22
+  );
+
+  await moveQubitToStagePoint(targetPoint.x, targetPoint.y, migrationDuration);
+  if (expectedRunToken !== runToken) {
+    measurementInProgress = false;
+    return;
+  }
+
+  qubit.style.setProperty("--melt-duration", `${meltDuration}ms`);
+  qubit.classList.add("melting");
+  await wait(meltDuration);
+  if (expectedRunToken !== runToken) {
+    measurementInProgress = false;
+    return;
+  }
+
+  if (collapsedColor === "blue") {
+    blueTubeCount += 1;
+  } else {
+    redTubeCount += 1;
+  }
+
+  maybeExpandTubeCapacity();
+  updateTubeFills();
+  settleQubitVisualState();
+  placeQubitToLeftOfWindow();
+  measurementInProgress = false;
+}
+
+async function runAutomatedMeasurements(iterations) {
+  if (autoRunInProgress || measurementInProgress) {
+    return;
+  }
+
+  const useMachineMode = iterations >= 100;
+  const speedFactor = iterations >= 10 ? 2 : 1;
+  const travelDuration = Math.round(AUTO_TRAVEL_MS / speedFactor);
+  const gatePauseDuration = Math.round(AUTO_GATE_PAUSE_MS / speedFactor);
+  const meltDuration = Math.round(AUTO_MELT_MS / speedFactor);
+  const machineDuration =
+    iterations === 100
+      ? MACHINE_DURATION_100_MS
+      : iterations === 1000
+        ? MACHINE_DURATION_1000_MS
+        : null;
+
+  const thisRunToken = runToken + 1;
+  runToken = thisRunToken;
+  autoRunInProgress = true;
+  measurementCount.disabled = true;
+  qubitDragging = false;
+  qubit.classList.remove("dragging");
+
+  try {
+    if (useMachineMode) {
+      placeQubitToLeftOfWindow();
+      positionLightningBolts();
+      setLightningActive(true);
+      const processOneMeasurement = () => {
+        const mix = BLUE_RED_MIX_BY_TICK[activeTick] || BLUE_RED_MIX_BY_TICK[0];
+        qubitBlueWeight = mix[0];
+        qubitRedWeight = mix[1];
+        qubit.style.setProperty("--qubit-fill", blendBlueRed(qubitBlueWeight, qubitRedWeight));
+        updateStateText(qubitBlueWeight, qubitRedWeight);
+
+        const collapsedColor = collapseQubitState();
+        if (collapsedColor === "blue") {
+          blueTubeCount += 1;
+        } else {
+          redTubeCount += 1;
+        }
+
+        maybeExpandTubeCapacity();
+      };
+
+      let processed = 0;
+
+      if (machineDuration !== null) {
+        const runStart = performance.now();
+
+        while (processed < iterations) {
+          if (thisRunToken !== runToken) {
+            break;
+          }
+
+          const elapsed = performance.now() - runStart;
+          const progress = Math.min(elapsed / machineDuration, 1);
+          const shouldBeProcessed = Math.floor(progress * iterations);
+
+          if (shouldBeProcessed <= processed) {
+            await nextFrame();
+            continue;
+          }
+
+          while (processed < shouldBeProcessed && processed < iterations) {
+            processOneMeasurement();
+            processed += 1;
+          }
+
+          updateTubeFills();
+          await nextFrame();
+        }
+      } else {
+        await nextFrame();
+        while (processed < iterations && thisRunToken === runToken) {
+          processOneMeasurement();
+          processed += 1;
+        }
+      }
+
+      updateTubeFills();
+      placeQubitToLeftOfWindow();
+      return;
+    }
+
+    for (let i = 0; i < iterations; i += 1) {
+      if (thisRunToken !== runToken) {
+        break;
+      }
+
+      placeQubitToLeftOfWindow();
+      const gateCenter = stagePointForElementCenter(gateWindow);
+      await moveQubitToStagePoint(gateCenter.x, gateCenter.y, travelDuration);
+      if (thisRunToken !== runToken) {
+        break;
+      }
+
+      snapQubitToWindowCenter();
+      await wait(gatePauseDuration);
+      if (thisRunToken !== runToken) {
+        break;
+      }
+
+      const lensRect = measureLens.getBoundingClientRect();
+      const lensCenter = getStageCoordsFromViewportPoint(
+        lensRect.left + lensRect.width / 2,
+        lensRect.top + lensRect.height / 2
+      );
+
+      await moveQubitToStagePoint(lensCenter.x, lensCenter.y, travelDuration);
+      if (thisRunToken !== runToken) {
+        break;
+      }
+
+      await startMeasurementSequence(thisRunToken, {
+        migrationDuration: travelDuration,
+        meltDuration,
+      });
+    }
+  } finally {
+    setLightningActive(false);
+    autoRunInProgress = false;
+    measurementCount.disabled = false;
+  }
+}
+
 function beginQubitDrag(event) {
+  if (measurementInProgress || autoRunInProgress) {
+    return;
+  }
+
   event.preventDefault();
   event.stopPropagation();
 
@@ -269,7 +704,7 @@ function beginQubitDrag(event) {
 }
 
 function continueQubitDrag(event) {
-  if (!qubitDragging) {
+  if (!qubitDragging || measurementInProgress || autoRunInProgress) {
     return;
   }
 
@@ -285,10 +720,11 @@ function continueQubitDrag(event) {
 
   setQubitCenter(nextX, nextY);
   maybeSnapQubit();
+  startMeasurementSequence();
 }
 
 function endQubitDrag() {
-  if (!qubitDragging) {
+  if (!qubitDragging || measurementInProgress || autoRunInProgress) {
     return;
   }
 
@@ -296,21 +732,36 @@ function endQubitDrag() {
   qubit.classList.remove("dragging");
 
   maybeSnapQubit();
+  startMeasurementSequence();
 }
 
 function placeQubitToLeftOfWindow() {
   const windowCenter = stagePointForElementCenter(gateWindow);
+  const stageRect = gateStage.getBoundingClientRect();
+  const movementRect = machineShell.getBoundingClientRect();
   const qubitRect = qubit.getBoundingClientRect();
 
   const radius = qubitRect.width / 2;
-  const x = radius + QUBIT_START_EDGE_GAP;
+  const minX = movementRect.left - stageRect.left + radius;
+  const x = minX + QUBIT_START_EDGE_GAP;
 
   setQubitCenter(x, windowCenter.y);
+  qubitDocked = false;
+  qubitDragging = false;
+  qubit.classList.remove("dragging");
+  qubit.classList.remove("migrating");
+  qubit.classList.remove("melting");
+  qubit.classList.remove("docked");
   qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
+  qubitBlueWeight = 1;
+  qubitRedWeight = 0;
+  updateStateText(qubitBlueWeight, qubitRedWeight);
 }
 
 function handleResize() {
   layoutTicks();
+  positionTubeCapacityBox();
+  positionLightningBolts();
 
   if (!qubitInitialized) {
     placeQubitToLeftOfWindow();
@@ -358,6 +809,10 @@ window.addEventListener("touchcancel", () => {
 });
 
 arrowGroup.addEventListener("keydown", (event) => {
+  if (autoRunInProgress) {
+    return;
+  }
+
   if (event.key === "ArrowRight" || event.key === "ArrowDown") {
     event.preventDefault();
     setArrowAtTick(activeTick + 1);
@@ -369,7 +824,57 @@ arrowGroup.addEventListener("keydown", (event) => {
   }
 });
 
+function handleLensClickRun() {
+  if (autoRunInProgress || measurementInProgress) {
+    return;
+  }
+
+  const iterations = Number(measurementCount.value) || 1;
+  runAutomatedMeasurements(Math.max(1, iterations));
+}
+
+measurementCount.addEventListener("mousedown", (event) => {
+  event.stopPropagation();
+});
+
+measurementCount.addEventListener("touchstart", (event) => {
+  event.stopPropagation();
+});
+
+measurementCount.addEventListener("click", (event) => {
+  event.stopPropagation();
+});
+
+measureLens.addEventListener("click", () => {
+  handleLensClickRun();
+});
+
+resetButton.addEventListener("click", () => {
+  runToken += 1;
+  autoRunInProgress = false;
+  measurementInProgress = false;
+  qubitDragging = false;
+  measurementCount.disabled = false;
+  measurementCount.value = "1";
+  qubit.classList.remove("dragging");
+  qubit.classList.remove("migrating");
+  qubit.classList.remove("melting");
+  qubit.classList.remove("docked");
+  setLightningActive(false);
+
+  tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
+  blueTubeCount = 0;
+  redTubeCount = 0;
+  updateTubeCapacityText();
+  updateTubeFills();
+
+  setArrowAtTick(0);
+  placeQubitToLeftOfWindow();
+});
+
 window.addEventListener("resize", handleResize);
 
 setArrowAtTick(0);
+updateTubeCapacityText();
+updateTubeFills();
 handleResize();

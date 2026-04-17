@@ -30,11 +30,11 @@ body {
     linear-gradient(150deg, var(--bg-a), var(--bg-b));
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: 0;
 }
 
 .scene {
-  width: min(100%, 760px);
+  width: 100vw;
 }
 
 .gate-panel {
@@ -48,11 +48,65 @@ body {
   padding: 1.15rem 1.25rem 1.4rem;
 }
 
+.top-controls {
+  position: relative;
+  min-height: 2.35rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.9rem;
+}
+
+.tube-capacity {
+  width: min(100%, 196px);
+  min-height: 32px;
+  border-radius: 0.45rem;
+  border: 1px solid #869bae;
+  background: #f6fbff;
+  box-shadow: inset 0 1px 2px rgba(24, 56, 84, 0.14);
+  display: grid;
+  place-items: center;
+  color: #1b3953;
+  font: 600 0.82rem "Chakra Petch", sans-serif;
+  letter-spacing: 0.01em;
+  text-align: center;
+  padding: 0.2rem 0.45rem;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.reset-btn {
+  appearance: none;
+  border: 1px solid #6f8799;
+  border-radius: 0.5rem;
+  min-width: 78px;
+  height: 2rem;
+  background: linear-gradient(165deg, #fdfefe, #dce9f3);
+  color: #17334d;
+  font: 600 0.85rem "Chakra Petch", sans-serif;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(17, 42, 64, 0.18);
+}
+
+.reset-btn:focus-visible {
+  outline: none;
+  border-color: #3a6d93;
+  box-shadow:
+    0 0 0 3px rgba(58, 109, 147, 0.22),
+    0 2px 4px rgba(17, 42, 64, 0.18);
+}
+
 .message-wrap {
   display: grid;
   gap: 0.3rem;
   width: 210px;
-  margin-inline: auto;
+  margin-inline: 0;
+  position: absolute;
+  bottom: 0;
+  left: calc(min(100%, 390px) / 2);
+  transform: translateX(-50%);
 }
 
 .message-label {
@@ -75,6 +129,7 @@ body {
   font: 600 0.9rem "Chakra Petch", sans-serif;
   outline: none;
   box-shadow: inset 0 1px 3px rgba(18, 48, 73, 0.16);
+  cursor: default;
 }
 
 #messageBox:focus {
@@ -85,6 +140,7 @@ body {
 }
 
 .machine-shell {
+  position: relative;
   margin-top: 0.75rem;
   border-radius: 1rem;
   padding: 0.7rem 0.7rem 0.9rem;
@@ -93,21 +149,25 @@ body {
   box-shadow:
     inset 0 3px 5px rgba(255, 255, 255, 0.6),
     inset 0 -4px 7px rgba(15, 43, 66, 0.16);
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1.3rem;
 }
 
 .gate-stage {
   position: relative;
-  width: min(100%, 620px);
-  aspect-ratio: 620 / 390;
-  margin-inline: auto;
+  width: min(100%, 390px);
+  aspect-ratio: 1 / 1;
+  margin-inline: 0;
   user-select: none;
 }
 
 .window-wrap {
   position: absolute;
-  left: 50%;
+  left: calc(56% + 40px);
   top: 50%;
-  width: min(64%, 330px);
+  width: min(66%, 260px);
   aspect-ratio: 1 / 1;
   transform: translate(-50%, -50%);
 }
@@ -133,6 +193,180 @@ body {
 
 .qubit.dragging {
   cursor: grabbing;
+}
+
+.qubit.migrating {
+  transition:
+    left var(--move-duration, 620ms) ease-in-out,
+    top var(--move-duration, 620ms) ease-in-out,
+    transform var(--melt-duration, 280ms) ease,
+    opacity var(--melt-duration, 280ms) ease;
+  pointer-events: none;
+}
+
+.qubit.melting {
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+}
+
+.measurement-stage {
+  width: min(36vw, 290px);
+  min-width: 210px;
+  align-self: stretch;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  grid-template-rows: 1fr;
+  row-gap: 0;
+  padding: 0.35rem 0.45rem 0.2rem;
+}
+
+.lightning {
+  position: absolute;
+  height: 8px;
+  border-radius: 999px;
+  background:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255, 245, 170, 1) 0 10px,
+      rgba(255, 185, 62, 1) 10px 16px
+    );
+  box-shadow:
+    0 0 8px rgba(255, 191, 80, 0.95),
+    0 0 14px rgba(255, 230, 140, 0.62);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lightning.active {
+  opacity: 1;
+  animation: lightning-flicker 120ms steps(2, jump-none) infinite;
+}
+
+@keyframes lightning-flicker {
+  0% {
+    filter: brightness(0.9);
+  }
+  100% {
+    filter: brightness(1.2);
+  }
+}
+
+.tube-rack {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.95rem;
+}
+
+.tube-column {
+  display: grid;
+  justify-items: center;
+  gap: 0.28rem;
+}
+
+.tube-count {
+  width: 42px;
+  min-height: 26px;
+  border-radius: 0.38rem;
+  border: 1px solid #7d93a6;
+  background: #f7fbff;
+  color: #1d3f5b;
+  font: 600 0.8rem "Chakra Petch", sans-serif;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 1px 2px rgba(20, 52, 78, 0.14);
+}
+
+.tube {
+  width: 42px;
+  height: 150px;
+  border-radius: 0 0 14px 14px;
+  border: 3px solid #6a7f91;
+  border-top-width: 8px;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.58), rgba(230, 241, 250, 0.2)),
+    rgba(237, 246, 253, 0.7);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.42),
+    0 4px 8px rgba(14, 35, 53, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.tube-liquid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0%;
+  transition: height 360ms ease-out;
+}
+
+.tube-liquid-blue {
+  background: rgba(38, 111, 247, 0.9);
+}
+
+.tube-liquid-red {
+  background: rgba(225, 54, 56, 0.9);
+}
+
+.magnifier {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  display: grid;
+  place-items: center;
+}
+
+.magnifier-lens {
+  width: 158px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 11px solid #5d768b;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.78), rgba(206, 228, 247, 0.44) 56%, rgba(169, 198, 220, 0.5));
+  box-shadow:
+    inset 0 8px 16px rgba(255, 255, 255, 0.45),
+    inset 0 -10px 16px rgba(53, 80, 102, 0.24);
+}
+
+.measurement-count {
+  appearance: none;
+  width: 62px;
+  height: 36px;
+  border-radius: 0.45rem;
+  border: 1px solid #73889a;
+  background: rgba(247, 252, 255, 0.95);
+  color: #17344f;
+  font: 700 1rem "Aldrich", sans-serif;
+  text-align: center;
+  text-align-last: center;
+  cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(20, 48, 73, 0.17);
+}
+
+.measurement-count:focus {
+  outline: none;
+  border-color: #386a8f;
+  box-shadow:
+    0 0 0 2px rgba(56, 106, 143, 0.2),
+    inset 0 1px 2px rgba(20, 48, 73, 0.17);
+}
+
+.magnifier-handle {
+  position: absolute;
+  width: 84px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #c88d4e, #9f6532);
+  right: 4px;
+  bottom: 18px;
+  transform: rotate(42deg);
+  box-shadow: 0 2px 5px rgba(18, 36, 53, 0.3);
 }
 
 .window {
@@ -231,8 +465,78 @@ body {
     padding: 0.85rem 0.75rem 1rem;
   }
 
+  .top-controls {
+    flex-wrap: wrap;
+    min-height: 2.15rem;
+  }
+
+  .reset-btn {
+    min-width: 72px;
+    height: 1.9rem;
+  }
+
+  .message-wrap {
+    width: min(100%, 210px);
+    left: calc(min(100%, 360px) / 2);
+  }
+
+  .machine-shell {
+    gap: 0.55rem;
+  }
+
   .gate-stage {
-    width: min(100%, 470px);
+    width: min(100%, 360px);
+  }
+
+  .measurement-stage {
+    min-width: 150px;
+    width: min(38vw, 176px);
+    padding: 0.2rem 0;
+    row-gap: 0.36rem;
+  }
+
+  .tube-capacity {
+    width: min(100%, 168px);
+    min-height: 28px;
+    font-size: 0.7rem;
+  }
+
+  .tube-rack {
+    gap: 0.55rem;
+  }
+
+  .tube {
+    width: 28px;
+    height: 106px;
+  }
+
+  .tube-count {
+    width: 28px;
+    min-height: 21px;
+    font-size: 0.68rem;
+  }
+
+  .magnifier {
+    width: 128px;
+    height: 128px;
+  }
+
+  .magnifier-lens {
+    width: 102px;
+    border-width: 8px;
+  }
+
+  .measurement-count {
+    width: 48px;
+    height: 30px;
+    font-size: 0.86rem;
+  }
+
+  .magnifier-handle {
+    width: 54px;
+    height: 14px;
+    right: 4px;
+    bottom: 12px;
   }
 
   .qubit {

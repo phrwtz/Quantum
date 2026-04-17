@@ -9,18 +9,22 @@
   <body>
     <main class="scene">
       <section class="gate-panel" aria-label="Quantum gate control panel">
-        <label class="message-wrap" for="messageBox">
-          <span class="message-label">Message</span>
-          <input
-            id="messageBox"
-            type="text"
-            maxlength="60"
-            placeholder="Route qubit and calibrate gate"
-            aria-label="Gate message"
-          />
-        </label>
+        <div class="top-controls" id="topControls">
+          <button id="resetButton" class="reset-btn" type="button">Reset</button>
+          <div class="tube-capacity" id="tubeCapacity"></div>
 
-        <div class="machine-shell">
+          <label class="message-wrap" for="messageBox">
+            <span class="message-label">State</span>
+            <input
+              id="messageBox"
+              type="text"
+              readonly
+              aria-label="Qubit state"
+            />
+          </label>
+        </div>
+
+        <div class="machine-shell" id="machineShell">
           <div class="gate-stage" id="gateStage">
             <button class="qubit" id="qubit" type="button" aria-label="Draggable qubit"></button>
 
@@ -40,6 +44,40 @@
               </div>
             </div>
           </div>
+
+          <section class="measurement-stage" aria-label="Qubit measurement tool">
+            <div class="tube-rack" id="tubeRack" aria-hidden="true">
+              <div class="tube-column">
+                <div class="tube-count" id="tubeBlueCount">0</div>
+                <div class="tube" id="tubeBlue">
+                  <div class="tube-liquid tube-liquid-blue" id="tubeBlueLiquid"></div>
+                </div>
+              </div>
+              <div class="tube-column">
+                <div class="tube-count" id="tubeRedCount">0</div>
+                <div class="tube" id="tubeRed">
+                  <div class="tube-liquid tube-liquid-red" id="tubeRedLiquid"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="magnifier" aria-hidden="true">
+              <div class="magnifier-lens" id="measureLens">
+                <select id="measurementCount" class="measurement-count" aria-label="Number of measurements">
+                  <option value="1" selected>1</option>
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="100">100</option>
+                  <option value="1000">1000</option>
+                  <option value="10000">10000</option>
+                </select>
+              </div>
+              <div class="magnifier-handle"></div>
+            </div>
+          </section>
+
+          <div class="lightning" id="boltToGate" aria-hidden="true"></div>
+          <div class="lightning" id="boltToLens" aria-hidden="true"></div>
         </div>
       </section>
     </main>
