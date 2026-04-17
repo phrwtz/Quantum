@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quantum Gate Console</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="scene">
+      <section class="gate-panel" aria-label="Quantum gate control panel">
+        <label class="message-wrap" for="messageBox">
+          <span class="message-label">Message</span>
+          <input
+            id="messageBox"
+            type="text"
+            maxlength="60"
+            placeholder="Route qubit and calibrate gate"
+            aria-label="Gate message"
+          />
+        </label>
+
+        <div class="machine-shell">
+          <div class="gate-stage" id="gateStage">
+            <button class="qubit" id="qubit" type="button" aria-label="Draggable qubit"></button>
+
+            <div class="window-wrap" id="windowWrap">
+              <div class="ticks" id="ticks"></div>
+
+              <div class="window" id="window">
+                <div class="landing-pad" id="landingPad" aria-live="polite"></div>
+
+                <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
+                  <g id="arrowGroup" tabindex="0" aria-label="Move arrow to a tick mark">
+                    <line x1="160" y1="160" x2="160" y2="62" />
+                    <polygon points="160,35 146,71 174,71" />
+                    <circle cx="160" cy="160" r="11" />
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
