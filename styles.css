@@ -122,7 +122,7 @@ body {
 }
 
 #panel-one-qubit .quantum-sim {
-  width: calc(var(--two-mode-inner-width) - 200px);
+  width: calc(var(--two-mode-inner-width) + 40px);
   max-width: 100%;
 }
 
@@ -218,7 +218,7 @@ body {
   flex: 0 0 auto;
   width: 348px;
   min-width: 348px;
-  margin-left: 141px;
+  margin-left: 121px;
   margin-right: 350px;
   display: grid;
   gap: 2.1rem;
@@ -412,7 +412,7 @@ body {
   width: max-content;
   min-width: 314px;
   margin-left: auto;
-  margin-right: calc(20px - 0.7rem);
+  margin-right: calc(220px - 0.7rem);
   margin-top: 0;
   display: grid;
   justify-items: stretch;
@@ -483,16 +483,79 @@ body {
   justify-self: center;
   width: 100%;
   max-width: 314px;
-  aspect-ratio: 246 / 90;
-  height: auto;
-  border-radius: 1rem;
-  border: 8px solid #5d768b;
+  height: 188px;
+  border-radius: 999px;
+  border: 3px solid #5f6f7f;
   background:
-    radial-gradient(circle at 22% 26%, rgba(255, 255, 255, 0.74), rgba(206, 228, 247, 0.4) 46%, rgba(169, 198, 220, 0.48)),
-    linear-gradient(160deg, rgba(230, 240, 248, 0.7), rgba(177, 201, 220, 0.55));
+    linear-gradient(
+      180deg,
+      rgba(239, 245, 251, 0.95) 0%,
+      rgba(186, 199, 212, 0.92) 38%,
+      rgba(122, 137, 151, 0.96) 50%,
+      rgba(171, 185, 198, 0.94) 66%,
+      rgba(212, 222, 232, 0.95) 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.14) 0 2px,
+      rgba(255, 255, 255, 0) 2px 8px
+    );
   box-shadow:
-    inset 0 5px 10px rgba(255, 255, 255, 0.38),
-    inset 0 -8px 12px rgba(53, 80, 102, 0.2);
+    inset 0 8px 10px rgba(255, 255, 255, 0.5),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 3px 7px rgba(16, 35, 52, 0.25);
+}
+
+.pair-magnifier::before {
+  content: none;
+}
+
+.pair-measurement-funnel {
+  position: absolute;
+  left: -70px;
+  top: 50%;
+  width: 84px;
+  height: 172px;
+  transform: translateY(-50%);
+  clip-path: polygon(0 12%, 0 88%, 100% 50%);
+  border-radius: 0.42rem 0 0 0.42rem;
+  border: 2px solid #687888;
+  background:
+    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
+    repeating-linear-gradient(
+      -8deg,
+      rgba(255, 255, 255, 0.34) 0 4px,
+      rgba(255, 255, 255, 0) 4px 11px
+    );
+  box-shadow:
+    inset 0 3px 5px rgba(255, 255, 255, 0.5),
+    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
+    0 2px 5px rgba(22, 40, 57, 0.28);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pair-magnifier::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 20px;
+  height: 140px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(84, 99, 113, 0.92);
+  background:
+    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.2) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+  z-index: 1;
 }
 
 .pair-slot {
@@ -501,26 +564,69 @@ body {
   width: 62px;
   height: 62px;
   border-radius: 50%;
-  border: 2px dashed rgba(46, 82, 110, 0.4);
+  border: 3px solid rgba(53, 80, 102, 0.72);
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.78), rgba(206, 228, 247, 0.44) 56%, rgba(169, 198, 220, 0.5));
+  box-shadow:
+    inset 0 8px 16px rgba(255, 255, 255, 0.45),
+    inset 0 -10px 16px rgba(53, 80, 102, 0.24);
   transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .pair-slot-left {
-  left: 30%;
+  left: 50%;
+  top: calc(50% - 41px);
 }
 
 .pair-slot-right {
-  left: 70%;
+  left: 50%;
+  top: calc(50% + 41px);
 }
 
 .pair-measurement-count {
+  width: 70px;
+  justify-self: center;
+}
+
+.pair-measurement-platform {
+  --spring-height: 56px;
+  --spring-length: 132px;
   position: absolute;
-  left: 50%;
+  left: calc(100% - 4px);
   top: 50%;
-  transform: translate(-50%, -50%);
-  width: 58px;
-  height: 32px;
-  z-index: 1;
+  width: var(--spring-length);
+  height: var(--spring-height);
+  transform-origin: left center;
+  border: 0;
+  border-radius: calc(var(--spring-height) / 2);
+  background:
+    radial-gradient(
+      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+      transparent 56%,
+      rgba(154, 170, 186, 0.95) 60%,
+      rgba(52, 67, 83, 0.98) 69%,
+      transparent 75%
+    );
+  background-size: 16px 100%;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.04);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 1000ms;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pair-magnifier.platform-extended .pair-measurement-platform {
+  opacity: 1;
+  transform: translateY(-50%) scaleX(1);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 0ms;
 }
 
 .pair-lightning {
@@ -635,8 +741,10 @@ body {
 }
 
 #panel-one-qubit .machine-shell {
+  --one-qubit-lower-offset: 100px;
   width: 100%;
   gap: 0.7rem;
+  padding-right: 5rem;
 }
 
 .gate-stage {
@@ -658,6 +766,7 @@ body {
 
 #panel-one-qubit .window-wrap {
   left: calc(52% + 58px);
+  top: calc(50% + var(--one-qubit-lower-offset));
   width: min(86%, 418px);
   height: 170px;
   aspect-ratio: auto;
@@ -918,6 +1027,17 @@ body {
   transition: box-shadow 120ms ease, transform 120ms ease, background-color 1000ms linear;
 }
 
+.qubit.measurement-pellet {
+  width: 20px;
+  height: 12px;
+  aspect-ratio: auto;
+  border-radius: 3px;
+  border: 1px solid rgba(18, 40, 62, 0.45);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.45),
+    0 2px 4px rgba(18, 40, 62, 0.3);
+}
+
 .qubit.dragging {
   cursor: grabbing;
 }
@@ -943,7 +1063,7 @@ body {
   display: grid;
   justify-items: center;
   align-content: start;
-  row-gap: 0.45rem;
+  row-gap: 0.52rem;
   padding: 0.35rem 0.45rem 0.2rem;
 }
 
@@ -951,7 +1071,7 @@ body {
   width: max-content;
   min-width: 290px;
   margin-left: auto;
-  margin-right: calc(20px - 0.7rem);
+  margin-right: 96px;
 }
 
 .lightning {
@@ -1047,24 +1167,127 @@ body {
 
 .magnifier {
   position: relative;
-  width: 190px;
-  height: 190px;
+  width: 314px;
+  height: 94px;
+  border-radius: 999px;
+  border: 3px solid #5f6f7f;
   display: grid;
   place-items: center;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(239, 245, 251, 0.95) 0%,
+      rgba(186, 199, 212, 0.92) 38%,
+      rgba(122, 137, 151, 0.96) 50%,
+      rgba(171, 185, 198, 0.94) 66%,
+      rgba(212, 222, 232, 0.95) 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.14) 0 2px,
+      rgba(255, 255, 255, 0) 2px 8px
+    );
+  box-shadow:
+    inset 0 8px 10px rgba(255, 255, 255, 0.5),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 3px 7px rgba(16, 35, 52, 0.25);
+}
+
+.magnifier::before {
+  content: "";
+  position: absolute;
+  left: -38px;
+  top: 50%;
+  width: 48px;
+  height: 86px;
+  transform: translateY(-50%);
+  clip-path: polygon(0 8%, 0 92%, 100% 50%);
+  border-radius: 0.42rem 0 0 0.42rem;
+  border: 2px solid #687888;
+  background:
+    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
+    repeating-linear-gradient(
+      -8deg,
+      rgba(255, 255, 255, 0.34) 0 4px,
+      rgba(255, 255, 255, 0) 4px 11px
+    );
+  box-shadow:
+    inset 0 3px 5px rgba(255, 255, 255, 0.5),
+    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
+    0 2px 5px rgba(22, 40, 57, 0.28);
+}
+
+.magnifier::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 14px;
+  height: 64px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(84, 99, 113, 0.92);
+  background:
+    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.2) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
 }
 
 .magnifier-lens {
-  width: 158px;
+  width: 62px;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  border: 11px solid #5d768b;
-  display: grid;
-  place-items: center;
+  border: 3px solid rgba(53, 80, 102, 0.72);
   background:
     radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.78), rgba(206, 228, 247, 0.44) 56%, rgba(169, 198, 220, 0.5));
   box-shadow:
     inset 0 8px 16px rgba(255, 255, 255, 0.45),
     inset 0 -10px 16px rgba(53, 80, 102, 0.24);
+  z-index: 1;
+}
+
+.measurement-platform {
+  --spring-height: 30px;
+  --spring-length: 108px;
+  position: absolute;
+  left: calc(100% - 4px);
+  top: 50%;
+  width: var(--spring-length);
+  height: var(--spring-height);
+  transform-origin: left center;
+  border: 0;
+  border-radius: calc(var(--spring-height) / 2);
+  background:
+    radial-gradient(
+      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+      transparent 56%,
+      rgba(154, 170, 186, 0.95) 60%,
+      rgba(52, 67, 83, 0.98) 69%,
+      transparent 75%
+    );
+  background-size: 16px 100%;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.04);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 1000ms;
+  pointer-events: none;
+}
+
+.magnifier.platform-extended .measurement-platform {
+  opacity: 1;
+  transform: translateY(-50%) scaleX(1);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 0ms;
 }
 
 .measurement-count {
@@ -1090,16 +1313,13 @@ body {
     inset 0 1px 2px rgba(20, 48, 73, 0.17);
 }
 
+.measurement-count-inline {
+  width: 70px;
+  justify-self: center;
+}
+
 .magnifier-handle {
-  position: absolute;
-  width: 84px;
-  height: 18px;
-  border-radius: 999px;
-  background: linear-gradient(to right, #c88d4e, #9f6532);
-  right: 4px;
-  bottom: 18px;
-  transform: rotate(42deg);
-  box-shadow: 0 2px 5px rgba(18, 36, 53, 0.3);
+  display: none;
 }
 
 .window {
@@ -1223,6 +1443,11 @@ body {
     width: 100%;
   }
 
+  #panel-one-qubit .machine-shell {
+    --one-qubit-lower-offset: 100px;
+    padding-right: 0.7rem;
+  }
+
   .two-qubit-pair-host {
     width: 100%;
   }
@@ -1255,7 +1480,7 @@ body {
   .pair-measurement {
     width: min(100%, 314px);
     margin-left: 0;
-    margin-right: calc(20px - 0.45rem);
+    margin-right: calc(220px - 0.45rem);
     margin-top: 0.1rem;
   }
 
@@ -1338,16 +1563,42 @@ body {
 
   .pair-magnifier {
     width: 100%;
-    border-width: 6px;
+    max-width: 252px;
+    height: 132px;
+  }
+
+  .pair-measurement-funnel {
+    left: -46px;
+    width: 56px;
+    height: 124px;
+  }
+
+  .pair-magnifier::after {
+    right: -7px;
+    width: 16px;
+    height: 94px;
   }
 
   .pair-slot {
-    width: 45px;
-    height: 45px;
+    width: 46px;
+    height: 46px;
+  }
+
+  .pair-slot-left {
+    top: calc(50% - 33px);
+  }
+
+  .pair-slot-right {
+    top: calc(50% + 33px);
+  }
+
+  .pair-measurement-platform {
+    --spring-height: 36px;
+    --spring-length: 98px;
   }
 
   .pair-measurement-count {
-    width: 48px;
+    width: 52px;
     height: 28px;
     font-size: 0.8rem;
   }
@@ -1440,6 +1691,10 @@ body {
     row-gap: 0.36rem;
   }
 
+  #panel-one-qubit .measurement-stage {
+    margin-right: calc(20px - 0.45rem);
+  }
+
   .tube-capacity {
     width: min(100%, 290px);
     min-height: 28px;
@@ -1462,13 +1717,13 @@ body {
   }
 
   .magnifier {
-    width: 128px;
-    height: 128px;
+    width: 220px;
+    height: 74px;
   }
 
   .magnifier-lens {
-    width: 102px;
-    border-width: 8px;
+    width: 44px;
+    border-width: 2px;
   }
 
   .measurement-count {
@@ -1478,10 +1733,7 @@ body {
   }
 
   .magnifier-handle {
-    width: 54px;
-    height: 14px;
-    right: 4px;
-    bottom: 12px;
+    display: none;
   }
 
   .qubit {

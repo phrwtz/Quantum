@@ -7,6 +7,7 @@ const twoQubitsHost = document.getElementById("twoQubitsHost");
 
 const STEP_DEG = 30;
 const SNAP_OVERLAP_THRESHOLD = 0.9;
+const MEASUREMENT_OVERLAP_THRESHOLD = 0.3;
 const QUBIT_START_EDGE_GAP = 20;
 const TWO_QUBIT_START_SHIFT_PX = 50;
 const ARROW_SCALE = 1.27;
@@ -355,6 +356,8 @@ function setupSimulator(root) {
   const gateStage = root.querySelector('[data-role="gate-stage"]');
   const machineShell = root.querySelector('[data-role="machine-shell"]');
   const qubit = root.querySelector('[data-role="qubit"]');
+  const measurementStage = root.querySelector(".measurement-stage");
+  const measurementTool = root.querySelector('[data-role="measurement-tool"]');
   const measureLens = root.querySelector('[data-role="measure-lens"]');
   const boltToGate = root.querySelector('[data-role="bolt-gate"]');
   const boltToLens = root.querySelector('[data-role="bolt-lens"]');
@@ -369,6 +372,7 @@ function setupSimulator(root) {
   const measurementCount = root.querySelector('[data-role="measurement-count"]');
   const resetButton = root.querySelector('[data-role="reset"]');
   const messageBox = root.querySelector('[data-role="message-box"]');
+  const messageWrap = root.querySelector(".message-wrap");
 
   if (
     !ticksWrap ||
@@ -380,6 +384,8 @@ function setupSimulator(root) {
     !gateStage ||
     !machineShell ||
     !qubit ||
+    !measurementStage ||
+    !measurementTool ||
     !measureLens ||
     !boltToGate ||
     !boltToLens ||
@@ -413,6 +419,7 @@ function setupSimulator(root) {
   let tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
   let blueTubeCount = 0;
   let redTubeCount = 0;
+  let measurementStageShiftY = 0;
 
   const tickElements = [];
   const gateSelectorName = `gate-selector-${Math.random().toString(36).slice(2)}`;
@@ -648,6 +655,76 @@ function setupSimulator(root) {
     return false;
   }
 
+  function qubitReachedMeasurementFunnelMidpoint() {
+    const measurementRect = measurementTool.getBoundingClientRect();
+    const qubitRect = qubit.getBoundingClientRect();
+    const funnelMidX = measurementRect.left - measurementRect.height * 0.2;
+    const funnelTipX = measurementRect.left + measurementRect.height * 0.08;
+    const verticalOverlap = Math.max(
+      0,
+      Math.min(qubitRect.bottom, measurementRect.bottom) - Math.max(qubitRect.top, measurementRect.top)
+    );
+
+    return (
+      qubitRect.right >= funnelMidX &&
+      qubitRect.left < funnelTipX &&
+      verticalOverlap >= qubitRect.height * 0.25
+    );
+  }
+
+  async function runMeasurementIngressAndSequence(
+    expectedRunToken = runToken,
+    { travelDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+  ) {
+    if (expectedRunToken !== runToken || gateTransitInProgress || measurementInProgress) {
+      return false;
+    }
+
+    qubitDragging = false;
+    qubit.classList.remove("dragging");
+    undockQubit();
+
+    const measurementRect = measurementTool.getBoundingClientRect();
+    const funnelPoint = getStageCoordsFromViewportPoint(
+      measurementRect.left - measurementRect.height * 0.16,
+      measurementRect.top + measurementRect.height / 2
+    );
+    await moveQubitToStagePoint(funnelPoint.x, funnelPoint.y, travelDuration);
+    if (expectedRunToken !== runToken || gateTransitInProgress || measurementInProgress) {
+      return false;
+    }
+
+    const lensRect = measureLens.getBoundingClientRect();
+    const lensCenter = getStageCoordsFromViewportPoint(
+      lensRect.left + lensRect.width / 2,
+      lensRect.top + lensRect.height / 2
+    );
+    await moveQubitToStagePoint(lensCenter.x, lensCenter.y, travelDuration);
+    if (expectedRunToken !== runToken || gateTransitInProgress || measurementInProgress) {
+      return false;
+    }
+
+    await startMeasurementSequence(expectedRunToken, {
+      migrationDuration: travelDuration,
+      meltDuration,
+      requireLensOverlap: false,
+    });
+    return true;
+  }
+
+  function maybeSnapQubitToMeasurementFunnel() {
+    if (
+      qubitReachedMeasurementFunnelMidpoint() &&
+      !gateTransitInProgress &&
+      !autoRunInProgress &&
+      !measurementInProgress
+    ) {
+      runMeasurementIngressAndSequence(runToken).catch(() => {});
+      return true;
+    }
+    return false;
+  }
+
   function preventManualPipeOverlap() {
     if (gateTransitInProgress || autoRunInProgress || measurementInProgress) {
       return false;
@@ -695,6 +772,28 @@ function setupSimulator(root) {
     });
   }
 
+  function createMeasurementPayload(color, startPoint) {
+    const payload = document.createElement("span");
+    payload.className = "qubit measurement-pellet";
+    payload.setAttribute("aria-hidden", "true");
+    payload.style.left = `${startPoint.x}px`;
+    payload.style.top = `${startPoint.y}px`;
+    payload.style.pointerEvents = "none";
+    payload.style.setProperty("--qubit-fill", color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+    gateStage.appendChild(payload);
+    return payload;
+  }
+
+  function movePayloadToStagePoint(payload, x, y, duration = AUTO_TRAVEL_MS) {
+    return new Promise((resolve) => {
+      payload.style.setProperty("--move-duration", `${duration}ms`);
+      payload.classList.add("migrating");
+      payload.style.left = `${x}px`;
+      payload.style.top = `${y}px`;
+      window.setTimeout(resolve, duration);
+    });
+  }
+
   function wait(duration) {
     return new Promise((resolve) => window.setTimeout(resolve, duration));
   }
@@ -703,9 +802,17 @@ function setupSimulator(root) {
     windowWrap.classList.toggle("platform-extended", extended);
   }
 
+  function setMeasurementPlatformExtended(extended) {
+    measurementTool.classList.toggle("platform-extended", extended);
+  }
+
   async function runGateTransit(
     expectedRunToken = runToken,
-    { travelDuration = AUTO_TRAVEL_MS, dwellDuration = GATE_TUBE_DWELL_MS } = {}
+    {
+      travelDuration = AUTO_TRAVEL_MS,
+      dwellDuration = GATE_TUBE_DWELL_MS,
+      retractPauseDuration = GATE_PLATFORM_RETRACT_MS,
+    } = {}
   ) {
     if (gateTransitInProgress || expectedRunToken !== runToken) {
       return false;
@@ -756,9 +863,11 @@ function setupSimulator(root) {
 
       settleQubitVisualState();
       setPlatformExtended(false);
-      await wait(GATE_PLATFORM_RETRACT_MS);
-      if (expectedRunToken !== runToken) {
-        return false;
+      if (retractPauseDuration > 0) {
+        await wait(retractPauseDuration);
+        if (expectedRunToken !== runToken) {
+          return false;
+        }
       }
 
       return true;
@@ -777,7 +886,10 @@ function setupSimulator(root) {
     qubit.classList.remove("migrating");
     qubit.classList.remove("melting");
     qubit.classList.remove("collapse-animating");
+    qubit.classList.remove("measurement-pellet");
     qubit.style.opacity = "";
+    qubit.style.removeProperty("--move-duration");
+    qubit.style.removeProperty("--melt-duration");
   }
 
   function updateTubeFills() {
@@ -816,6 +928,17 @@ function setupSimulator(root) {
       return;
     }
     tubeCapacity.style.left = "";
+  }
+
+  function alignMeasurementToolCenterWithGate() {
+    const gateCenterY = stagePointForElementCenter(gateWindow).y;
+    const measurementCenterY = stagePointForElementCenter(measurementTool).y;
+    const deltaY = gateCenterY - measurementCenterY;
+    measurementStageShiftY += deltaY;
+    measurementStage.style.transform = `translateY(${measurementStageShiftY}px)`;
+    if (messageWrap) {
+      messageWrap.style.transform = `translateX(-50%) translateY(${measurementStageShiftY}px)`;
+    }
   }
 
   function getElementCenterInMachineCoords(element) {
@@ -886,9 +1009,54 @@ function setupSimulator(root) {
     return "red";
   }
 
+  async function animateMeasurementPayloadToTube(
+    collapsedColor,
+    startPoint,
+    expectedRunToken,
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+  ) {
+    const payload = createMeasurementPayload(collapsedColor, startPoint);
+    try {
+      const targetTube = collapsedColor === "blue" ? tubeBlue : tubeRed;
+      const targetRect = targetTube.getBoundingClientRect();
+      const targetPoint = getStageCoordsFromViewportPoint(
+        targetRect.left + targetRect.width / 2,
+        targetRect.top + targetRect.height * 0.22
+      );
+
+      await movePayloadToStagePoint(payload, targetPoint.x, targetPoint.y, migrationDuration);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      payload.style.setProperty("--melt-duration", `${meltDuration}ms`);
+      payload.classList.add("melting");
+      await wait(meltDuration);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      if (collapsedColor === "blue") {
+        blueTubeCount += 1;
+      } else {
+        redTubeCount += 1;
+      }
+
+      maybeExpandTubeCapacity();
+      updateTubeFills();
+      return true;
+    } finally {
+      payload.remove();
+    }
+  }
+
   async function startMeasurementSequence(
     expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+    {
+      migrationDuration = AUTO_TRAVEL_MS,
+      meltDuration = AUTO_MELT_MS,
+      requireLensOverlap = true,
+    } = {}
   ) {
     if (measurementInProgress || gateTransitInProgress) {
       return;
@@ -898,7 +1066,7 @@ function setupSimulator(root) {
       return;
     }
 
-    if (qubitOverlapRatioWithLens() < SNAP_OVERLAP_THRESHOLD) {
+    if (requireLensOverlap && qubitOverlapRatioWithLens() < MEASUREMENT_OVERLAP_THRESHOLD) {
       return;
     }
 
@@ -906,48 +1074,43 @@ function setupSimulator(root) {
     qubitDragging = false;
     qubit.classList.remove("dragging");
     undockQubit();
+    setMeasurementPlatformExtended(false);
 
-    qubit.classList.add("collapse-animating");
-    const collapsedColor = collapseQubitState();
-    await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
-    qubit.classList.remove("collapse-animating");
-    if (expectedRunToken !== runToken) {
+    try {
+      qubit.classList.add("collapse-animating");
+      const collapsedColor = collapseQubitState();
+      await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
+      qubit.classList.remove("collapse-animating");
+      if (expectedRunToken !== runToken) {
+        return;
+      }
+
+      const stageRect = gateStage.getBoundingClientRect();
+      const measurementRect = measurementTool.getBoundingClientRect();
+      const qubitRect = qubit.getBoundingClientRect();
+      const ejectedPoint = {
+        x: measurementRect.right - stageRect.left + 20 + qubitRect.width / 2,
+        y: measurementRect.top - stageRect.top + measurementRect.height / 2,
+      };
+
+      setMeasurementPlatformExtended(true);
+      await moveQubitToStagePoint(ejectedPoint.x, ejectedPoint.y, GATE_PLATFORM_EXTEND_MS);
+      setMeasurementPlatformExtended(false);
+      if (expectedRunToken !== runToken) {
+        return;
+      }
+      settleQubitVisualState();
+      setQubitCenter(ejectedPoint.x, ejectedPoint.y);
+
+      await animateMeasurementPayloadToTube(collapsedColor, ejectedPoint, expectedRunToken, {
+        migrationDuration,
+        meltDuration,
+      });
+    } finally {
+      setMeasurementPlatformExtended(false);
+      qubit.classList.remove("collapse-animating");
       measurementInProgress = false;
-      return;
     }
-
-    const targetTube = collapsedColor === "blue" ? tubeBlue : tubeRed;
-    const targetRect = targetTube.getBoundingClientRect();
-    const targetPoint = getStageCoordsFromViewportPoint(
-      targetRect.left + targetRect.width / 2,
-      targetRect.top + targetRect.height * 0.22
-    );
-
-    await moveQubitToStagePoint(targetPoint.x, targetPoint.y, migrationDuration);
-    if (expectedRunToken !== runToken) {
-      measurementInProgress = false;
-      return;
-    }
-
-    qubit.style.setProperty("--melt-duration", `${meltDuration}ms`);
-    qubit.classList.add("melting");
-    await wait(meltDuration);
-    if (expectedRunToken !== runToken) {
-      measurementInProgress = false;
-      return;
-    }
-
-    if (collapsedColor === "blue") {
-      blueTubeCount += 1;
-    } else {
-      redTubeCount += 1;
-    }
-
-    maybeExpandTubeCapacity();
-    updateTubeFills();
-    settleQubitVisualState();
-    placeQubitToLeftOfWindow();
-    measurementInProgress = false;
   }
 
   async function runAutomatedMeasurements(iterations) {
@@ -1110,8 +1273,10 @@ function setupSimulator(root) {
     if (maybeSnapQubit()) {
       return;
     }
+    if (maybeSnapQubitToMeasurementFunnel()) {
+      return;
+    }
     preventManualPipeOverlap();
-    startMeasurementSequence();
   }
 
   function endQubitDrag() {
@@ -1125,8 +1290,10 @@ function setupSimulator(root) {
     if (maybeSnapQubit()) {
       return;
     }
+    if (maybeSnapQubitToMeasurementFunnel()) {
+      return;
+    }
     preventManualPipeOverlap();
-    startMeasurementSequence();
   }
 
   function placeQubitToLeftOfWindow() {
@@ -1134,6 +1301,7 @@ function setupSimulator(root) {
     qubit.classList.remove("migrating");
     qubit.classList.remove("melting");
     qubit.classList.remove("docked");
+    qubit.classList.remove("measurement-pellet");
     const windowCenter = stagePointForElementCenter(gateWindow);
     const stageRect = gateStage.getBoundingClientRect();
     const movementRect = machineShell.getBoundingClientRect();
@@ -1146,6 +1314,7 @@ function setupSimulator(root) {
     qubitDocked = false;
     qubitDragging = false;
     setPlatformExtended(false);
+    setMeasurementPlatformExtended(false);
     windowWrap.classList.remove("gate-busy");
     qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
     setQubitVector([1, 0]);
@@ -1160,6 +1329,7 @@ function setupSimulator(root) {
     }
 
     positionTubeCapacityBox();
+    alignMeasurementToolCenterWithGate();
     positionLightningBolts();
 
     if (!qubitInitialized) {
@@ -1198,7 +1368,9 @@ function setupSimulator(root) {
     qubit.classList.remove("migrating");
     qubit.classList.remove("melting");
     qubit.classList.remove("docked");
+    qubit.classList.remove("measurement-pellet");
     setLightningActive(false);
+    setMeasurementPlatformExtended(false);
     qubitHasEnteredGate = false;
 
     tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
@@ -1251,10 +1423,11 @@ function setupSimulator(root) {
   });
 
   measurementCount.addEventListener("change", () => {
+    clearMeasurementApparatus();
     handleLensClickRun();
   });
 
-  measureLens.addEventListener("click", () => {
+  measurementTool.addEventListener("click", () => {
     handleLensClickRun();
   });
 
@@ -1290,9 +1463,12 @@ function setupTwoQubitPair(root) {
   const qubitA = root.querySelector('[data-role="pair-qubit-a"]');
   const qubitB = root.querySelector('[data-role="pair-qubit-b"]');
   const pairLens = root.querySelector('[data-role="pair-lens"]');
+  const pairMeasurementFunnel = root.querySelector('[data-role="pair-measurement-funnel"]');
   const pairSlotLeft = root.querySelector('[data-role="pair-slot-left"]');
   const pairSlotRight = root.querySelector('[data-role="pair-slot-right"]');
+  const pairMeasurementPlatform = root.querySelector(".pair-measurement-platform");
   const pairMeasurementCount = root.querySelector('[data-role="pair-measurement-count"]');
+  const pairMeasurementBlock = root.querySelector(".pair-measurement");
   const tubeBB = root.querySelector('[data-role="pair-tube-bb"]');
   const tubeBR = root.querySelector('[data-role="pair-tube-br"]');
   const tubeRB = root.querySelector('[data-role="pair-tube-rb"]');
@@ -1329,9 +1505,12 @@ function setupTwoQubitPair(root) {
     !qubitA ||
     !qubitB ||
     !pairLens ||
+    !pairMeasurementFunnel ||
     !pairSlotLeft ||
     !pairSlotRight ||
+    !pairMeasurementPlatform ||
     !pairMeasurementCount ||
+    !pairMeasurementBlock ||
     !tubeBB ||
     !tubeBR ||
     !tubeRB ||
@@ -1444,6 +1623,7 @@ function setupTwoQubitPair(root) {
   let runToken = 0;
   let initialized = false;
   let arrowDraggingIndex = null;
+  let pairMeasurementShiftY = 0;
   const arrowDragStartTickByGate = [0, 0];
   const arrowDragCenterByGate = [null, null];
   const arrowDragAngleByGate = [null, null];
@@ -1487,13 +1667,8 @@ function setupTwoQubitPair(root) {
   }
 
   function getLensSlotCenter(slot) {
-    const shellRect = pairShell.getBoundingClientRect();
-    const lensRect = pairLens.getBoundingClientRect();
-    const xRatio = slot === "left" ? 0.3 : 0.7;
-    return {
-      x: lensRect.left - shellRect.left + lensRect.width * xRatio,
-      y: lensRect.top - shellRect.top + lensRect.height / 2,
-    };
+    const slotElement = slot === "left" ? pairSlotLeft : pairSlotRight;
+    return stagePointForElementCenter(slotElement);
   }
 
   function applyGateStateToQubit(qubit, selectionIndex) {
@@ -1695,6 +1870,50 @@ function setupTwoQubitPair(root) {
     return false;
   }
 
+  async function runPairMeasurementIngress(qubit, expectedRunToken = runToken) {
+    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
+      return false;
+    }
+
+    const chosenSlot = qubit.gateIndex === 0 ? "left" : "right";
+    if (slotOccupants[chosenSlot] && slotOccupants[chosenSlot] !== qubit) {
+      return false;
+    }
+
+    clearGateIngestAnimation(qubit);
+    qubit.dragging = false;
+    qubit.element.classList.remove("dragging");
+    qubit.docked = false;
+    qubit.element.classList.remove("docked");
+
+    if (qubit.lensSlot && qubit.lensSlot !== chosenSlot && slotOccupants[qubit.lensSlot] === qubit) {
+      slotOccupants[qubit.lensSlot] = null;
+    }
+    slotOccupants[chosenSlot] = qubit;
+    qubit.lensSlot = chosenSlot;
+
+    const slotCenter = getLensSlotCenter(chosenSlot);
+    await moveQubitToPoint(qubit, slotCenter.x, slotCenter.y, Math.max(220, Math.round(AUTO_TRAVEL_MS * 0.45)));
+    if (expectedRunToken !== runToken || measurementInProgress || autoRunInProgress) {
+      return false;
+    }
+
+    maybeTriggerManualPairMeasurement();
+    return true;
+  }
+
+  function maybeSnapQubitToMeasurementFunnel(qubit) {
+    if (!qubitReachedFunnelMidpoint(qubit, pairMeasurementFunnel)) {
+      return false;
+    }
+    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
+      return false;
+    }
+
+    runPairMeasurementIngress(qubit, runToken).catch(() => {});
+    return true;
+  }
+
   function maybeSnapQubitToLens(qubit) {
     const lensRect = pairLens.getBoundingClientRect();
     const qubitRect = qubit.element.getBoundingClientRect();
@@ -1709,15 +1928,9 @@ function setupTwoQubitPair(root) {
       return false;
     }
 
-    const preferredSlot = qubitCx <= lensRect.left + lensRect.width / 2 ? "left" : "right";
-    const fallbackSlot = preferredSlot === "left" ? "right" : "left";
-    let chosenSlot = preferredSlot;
+    const chosenSlot = qubit.gateIndex === 0 ? "left" : "right";
     if (slotOccupants[chosenSlot] && slotOccupants[chosenSlot] !== qubit) {
-      if (!slotOccupants[fallbackSlot] || slotOccupants[fallbackSlot] === qubit) {
-        chosenSlot = fallbackSlot;
-      } else {
-        return false;
-      }
+      return false;
     }
 
     if (qubit.lensSlot && qubit.lensSlot !== chosenSlot && slotOccupants[qubit.lensSlot] === qubit) {
@@ -1805,6 +2018,7 @@ function setupTwoQubitPair(root) {
     qubit.element.classList.remove("migrating");
     qubit.element.classList.remove("melting");
     qubit.element.classList.remove("docked");
+    qubit.element.classList.remove("measurement-pellet");
     qubit.blue = 1;
     qubit.red = 0;
     qubit.element.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
@@ -1819,15 +2033,106 @@ function setupTwoQubitPair(root) {
     });
   }
 
+  function createPairMeasurementPayload(color, startPoint) {
+    const payload = document.createElement("span");
+    payload.className = "qubit measurement-pellet";
+    payload.setAttribute("aria-hidden", "true");
+    payload.style.left = `${startPoint.x}px`;
+    payload.style.top = `${startPoint.y}px`;
+    payload.style.pointerEvents = "none";
+    payload.style.setProperty("--qubit-fill", color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+    pairShell.appendChild(payload);
+    return payload;
+  }
+
+  function movePairPayloadToPoint(payload, x, y, duration = AUTO_TRAVEL_MS) {
+    return new Promise((resolve) => {
+      payload.style.setProperty("--move-duration", `${duration}ms`);
+      payload.classList.add("migrating");
+      payload.style.left = `${x}px`;
+      payload.style.top = `${y}px`;
+      window.setTimeout(resolve, duration);
+    });
+  }
+
+  async function animatePairMeasurementPayloadsToTube(
+    outcomeKey,
+    topColor,
+    bottomColor,
+    topStartPoint,
+    bottomStartPoint,
+    expectedRunToken = runToken,
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+  ) {
+    const topPayload = createPairMeasurementPayload(topColor, topStartPoint);
+    const bottomPayload = createPairMeasurementPayload(bottomColor, bottomStartPoint);
+
+    try {
+      const shellRect = pairShell.getBoundingClientRect();
+      const targetTube = tubeElementsByKey[outcomeKey];
+      const targetRect = targetTube.getBoundingClientRect();
+      const targetPoint = {
+        x: targetRect.left - shellRect.left + targetRect.width / 2,
+        y: targetRect.top - shellRect.top + targetRect.height * 0.22,
+      };
+      const payloadHeight = topPayload.getBoundingClientRect().height;
+      const targetOffset = payloadHeight * 0.8;
+
+      await Promise.all([
+        movePairPayloadToPoint(topPayload, targetPoint.x, targetPoint.y - targetOffset, migrationDuration),
+        movePairPayloadToPoint(bottomPayload, targetPoint.x, targetPoint.y + targetOffset, migrationDuration),
+      ]);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      topPayload.style.setProperty("--melt-duration", `${meltDuration}ms`);
+      bottomPayload.style.setProperty("--melt-duration", `${meltDuration}ms`);
+      topPayload.classList.add("melting");
+      bottomPayload.classList.add("melting");
+      await wait(meltDuration);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      tubeCountState[outcomeKey] += 2;
+      maybeExpandTubeCapacity();
+      updateTubeFills();
+      return true;
+    } finally {
+      topPayload.remove();
+      bottomPayload.remove();
+    }
+  }
+
   function settleQubitVisualState(qubit) {
     qubit.element.classList.remove("migrating");
     qubit.element.classList.remove("melting");
     qubit.element.classList.remove("collapse-animating");
+    qubit.element.classList.remove("measurement-pellet");
     qubit.element.style.opacity = "";
+    qubit.element.style.removeProperty("--move-duration");
+    qubit.element.style.removeProperty("--melt-duration");
   }
 
   function wait(duration) {
     return new Promise((resolve) => window.setTimeout(resolve, duration));
+  }
+
+  function setPairMeasurementPlatformExtended(extended) {
+    pairLens.classList.toggle("platform-extended", extended);
+  }
+
+  function pairMeasurementSpringTipX() {
+    const lensRect = pairLens.getBoundingClientRect();
+    const shellRect = pairShell.getBoundingClientRect();
+    const springStyles = window.getComputedStyle(pairMeasurementPlatform);
+    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const usableSpringLength = Number.isFinite(springLength)
+      ? springLength
+      : pairMeasurementPlatform.getBoundingClientRect().width;
+    const springOriginX = lensRect.right - shellRect.left - 4;
+    return springOriginX + usableSpringLength;
   }
 
   function nextFrame() {
@@ -1870,6 +2175,23 @@ function setupTwoQubitPair(root) {
 
     layoutBolt(boltA, qa, lensCenter);
     layoutBolt(boltB, qb, lensCenter);
+  }
+
+  function alignPairMeasurementBlockToGateMidpoint() {
+    const flexDirection = window.getComputedStyle(pairShell).flexDirection;
+    if (flexDirection === "column") {
+      pairMeasurementShiftY = 0;
+      pairMeasurementBlock.style.transform = "";
+      return;
+    }
+
+    const topGateCenter = stagePointForElementCenter(gates[0].window);
+    const bottomGateCenter = stagePointForElementCenter(gates[1].window);
+    const targetY = (topGateCenter.y + bottomGateCenter.y) / 2;
+    const measurementCenterY = stagePointForElementCenter(pairLens).y;
+    const deltaY = targetY - measurementCenterY;
+    pairMeasurementShiftY += deltaY;
+    pairMeasurementBlock.style.transform = `translateY(${pairMeasurementShiftY}px)`;
   }
 
   function syncPairGateSelectorUI(gate) {
@@ -1970,59 +2292,73 @@ function setupTwoQubitPair(root) {
       qubit.dragging = false;
       qubit.element.classList.remove("dragging");
     });
+    setPairMeasurementPlatformExtended(false);
 
-    const leftQubit = slotOccupants.left;
-    const rightQubit = slotOccupants.right;
-    leftQubit.element.classList.add("collapse-animating");
-    rightQubit.element.classList.add("collapse-animating");
-    const leftResult = collapseQubitState(leftQubit);
-    const rightResult = collapseQubitState(rightQubit);
-    await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
-    leftQubit.element.classList.remove("collapse-animating");
-    rightQubit.element.classList.remove("collapse-animating");
-    if (expectedRunToken !== runToken) {
+    try {
+      const topQubit = slotOccupants.left;
+      const bottomQubit = slotOccupants.right;
+      topQubit.element.classList.add("collapse-animating");
+      bottomQubit.element.classList.add("collapse-animating");
+      const topResult = collapseQubitState(topQubit);
+      const bottomResult = collapseQubitState(bottomQubit);
+      await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
+      topQubit.element.classList.remove("collapse-animating");
+      bottomQubit.element.classList.remove("collapse-animating");
+      if (expectedRunToken !== runToken) {
+        return;
+      }
+
+      const shellRect = pairShell.getBoundingClientRect();
+      const qubitWidth = topQubit.element.getBoundingClientRect().width;
+      const springTipX = pairMeasurementSpringTipX();
+      const ejectionCenterX = springTipX + 6 + qubitWidth / 2;
+      const topSlotCenter = getLensSlotCenter("left");
+      const bottomSlotCenter = getLensSlotCenter("right");
+      const topEjectedPoint = { x: ejectionCenterX, y: topSlotCenter.y };
+      const bottomEjectedPoint = { x: ejectionCenterX, y: bottomSlotCenter.y };
+
+      setPairMeasurementPlatformExtended(true);
+      await Promise.all([
+        moveQubitToPoint(topQubit, topEjectedPoint.x, topEjectedPoint.y, GATE_PLATFORM_EXTEND_MS),
+        moveQubitToPoint(bottomQubit, bottomEjectedPoint.x, bottomEjectedPoint.y, GATE_PLATFORM_EXTEND_MS),
+      ]);
+      setPairMeasurementPlatformExtended(false);
+      if (expectedRunToken !== runToken) {
+        return;
+      }
+
+      settleQubitVisualState(topQubit);
+      settleQubitVisualState(bottomQubit);
+      setQubitCenter(topQubit, topEjectedPoint.x, topEjectedPoint.y);
+      setQubitCenter(bottomQubit, bottomEjectedPoint.x, bottomEjectedPoint.y);
+      topQubit.docked = false;
+      bottomQubit.docked = false;
+      topQubit.element.classList.remove("docked");
+      bottomQubit.element.classList.remove("docked");
+      clearLensSlotForQubit(topQubit);
+      clearLensSlotForQubit(bottomQubit);
+
+      const outcomeKey = pairTubeOutcomeKey(topResult, bottomResult);
+      const payloadsCompleted = await animatePairMeasurementPayloadsToTube(
+        outcomeKey,
+        topResult,
+        bottomResult,
+        topEjectedPoint,
+        bottomEjectedPoint,
+        expectedRunToken,
+        { migrationDuration, meltDuration }
+      );
+      if (!payloadsCompleted || expectedRunToken !== runToken) {
+        return;
+      }
+    } finally {
+      setPairMeasurementPlatformExtended(false);
+      qubits.forEach((qubit) => {
+        qubit.element.classList.remove("collapse-animating");
+        qubit.element.classList.remove("measurement-pellet");
+      });
       measurementInProgress = false;
-      return;
     }
-
-    const outcomeKey = pairTubeOutcomeKey(leftResult, rightResult);
-    const targetTube = tubeElementsByKey[outcomeKey];
-    const targetRect = targetTube.getBoundingClientRect();
-    const shellRect = pairShell.getBoundingClientRect();
-    const targetX = targetRect.left - shellRect.left + targetRect.width / 2;
-    const targetY = targetRect.top - shellRect.top + targetRect.height * 0.22;
-    const offset = leftQubit.element.getBoundingClientRect().width * 0.36;
-
-    await Promise.all([
-      moveQubitToPoint(leftQubit, targetX - offset, targetY, migrationDuration),
-      moveQubitToPoint(rightQubit, targetX + offset, targetY, migrationDuration),
-    ]);
-    if (expectedRunToken !== runToken) {
-      measurementInProgress = false;
-      return;
-    }
-
-    leftQubit.element.style.setProperty("--melt-duration", `${meltDuration}ms`);
-    rightQubit.element.style.setProperty("--melt-duration", `${meltDuration}ms`);
-    leftQubit.element.classList.add("melting");
-    rightQubit.element.classList.add("melting");
-    await wait(meltDuration);
-    if (expectedRunToken !== runToken) {
-      measurementInProgress = false;
-      return;
-    }
-
-    tubeCountState[outcomeKey] += 2;
-    maybeExpandTubeCapacity();
-    updateTubeFills();
-
-    settleQubitVisualState(leftQubit);
-    settleQubitVisualState(rightQubit);
-    clearLensSlotForQubit(leftQubit);
-    clearLensSlotForQubit(rightQubit);
-    placeQubitAtStart(leftQubit);
-    placeQubitAtStart(rightQubit);
-    measurementInProgress = false;
   }
 
   async function runAutomatedPairMeasurements(iterations) {
@@ -2196,6 +2532,9 @@ function setupTwoQubitPair(root) {
       const nextX = point.clientX - shellRect.left - qubit.dragOffsetX;
       const nextY = point.clientY - shellRect.top - qubit.dragOffsetY;
       setQubitCenter(qubit, nextX, nextY);
+      if (maybeSnapQubitToMeasurementFunnel(qubit)) {
+        return;
+      }
       const snappedLens = maybeSnapQubitToLens(qubit);
       if (!snappedLens) {
         if (!maybeSnapQubitToGate(qubit)) {
@@ -2209,19 +2548,26 @@ function setupTwoQubitPair(root) {
     if (measurementInProgress || autoRunInProgress) {
       return;
     }
+    let measurementIngressTriggered = false;
     qubits.forEach((qubit) => {
       if (!qubit.dragging) {
         return;
       }
       qubit.dragging = false;
       qubit.element.classList.remove("dragging");
+      if (maybeSnapQubitToMeasurementFunnel(qubit)) {
+        measurementIngressTriggered = true;
+        return;
+      }
       if (!maybeSnapQubitToLens(qubit)) {
         if (!maybeSnapQubitToGate(qubit)) {
           preventManualPipeOverlapForPairQubit(qubit);
         }
       }
     });
-    maybeTriggerManualPairMeasurement();
+    if (!measurementIngressTriggered) {
+      maybeTriggerManualPairMeasurement();
+    }
   }
 
   function nearestTickForGate(gateIndex, clientX, clientY, center = null) {
@@ -2320,6 +2666,7 @@ function setupTwoQubitPair(root) {
       });
     });
 
+    alignPairMeasurementBlockToGateMidpoint();
     positionLightning();
 
     if (!initialized) {
@@ -2351,6 +2698,7 @@ function setupTwoQubitPair(root) {
     pairMeasurementCount.disabled = false;
     pairMeasurementCount.value = "1";
     setLightningActive(false);
+    setPairMeasurementPlatformExtended(false);
 
     gates.forEach((gate) => {
       gate.arrow.classList.remove("dragging");
@@ -2422,6 +2770,7 @@ function setupTwoQubitPair(root) {
   pairMeasurementCount.addEventListener("touchstart", (event) => event.stopPropagation());
   pairMeasurementCount.addEventListener("click", (event) => event.stopPropagation());
   pairMeasurementCount.addEventListener("change", () => {
+    clearMeasurementApparatus();
     const iterations = Number(pairMeasurementCount.value) || 1;
     runAutomatedPairMeasurements(Math.max(1, iterations));
   });

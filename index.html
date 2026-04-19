@@ -98,18 +98,18 @@
               </div>
             </div>
 
-            <div class="magnifier" aria-hidden="true">
-              <div class="magnifier-lens" data-role="measure-lens">
-                <select data-role="measurement-count" class="measurement-count" aria-label="Number of measurements">
-                  <option value="1" selected>1</option>
-                  <option value="5">5</option>
-                  <option value="10">10</option>
-                  <option value="100">100</option>
-                  <option value="1000">1000</option>
-                  <option value="10000">10000</option>
-                </select>
-              </div>
+            <div class="magnifier" data-role="measurement-tool" aria-hidden="true">
+              <div class="magnifier-lens" data-role="measure-lens"></div>
+              <div class="measurement-platform" aria-hidden="true"></div>
             </div>
+            <select data-role="measurement-count" class="measurement-count measurement-count-inline" aria-label="Number of measurements">
+              <option value="1" selected>1</option>
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="100">100</option>
+              <option value="1000">1000</option>
+              <option value="10000">10000</option>
+            </select>
           </section>
 
           <div class="lightning" data-role="bolt-gate" aria-hidden="true"></div>
@@ -216,17 +216,19 @@
             </div>
 
             <div class="pair-magnifier" data-role="pair-lens">
+              <div class="pair-measurement-funnel" data-role="pair-measurement-funnel" aria-hidden="true"></div>
               <div class="pair-slot pair-slot-left" data-role="pair-slot-left"></div>
               <div class="pair-slot pair-slot-right" data-role="pair-slot-right"></div>
-              <select data-role="pair-measurement-count" class="measurement-count pair-measurement-count" aria-label="Number of pair measurements">
-                <option value="1" selected>1</option>
-                <option value="5">5</option>
-                <option value="10">10</option>
-                <option value="100">100</option>
-                <option value="1000">1000</option>
-                <option value="10000">10000</option>
-              </select>
+              <div class="pair-measurement-platform" aria-hidden="true"></div>
             </div>
+            <select data-role="pair-measurement-count" class="measurement-count pair-measurement-count" aria-label="Number of pair measurements">
+              <option value="1" selected>1</option>
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="100">100</option>
+              <option value="1000">1000</option>
+              <option value="10000">10000</option>
+            </select>
           </section>
 
           <div class="lightning pair-lightning" data-role="pair-bolt-a" aria-hidden="true"></div>
