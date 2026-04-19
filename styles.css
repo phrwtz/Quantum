@@ -236,6 +236,169 @@ body {
   width: min(66%, 232px);
 }
 
+.pair-window-wrap::before {
+  content: none;
+}
+
+.pair-window-wrap .pair-tube-funnel {
+  position: absolute;
+  left: -38px;
+  top: 50%;
+  width: 48px;
+  height: 86px;
+  transform: translateY(-50%);
+  clip-path: polygon(0 8%, 0 92%, 100% 50%);
+  border-radius: 0.42rem 0 0 0.42rem;
+  border: 2px solid #687888;
+  background:
+    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
+    repeating-linear-gradient(
+      -8deg,
+      rgba(255, 255, 255, 0.34) 0 4px,
+      rgba(255, 255, 255, 0) 4px 11px
+    );
+  box-shadow:
+    inset 0 3px 5px rgba(255, 255, 255, 0.5),
+    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
+    0 2px 5px rgba(22, 40, 57, 0.28);
+  pointer-events: none;
+}
+
+.pair-window-wrap .window {
+  position: absolute;
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 84%;
+  height: 88px;
+  border-radius: 999px;
+  border: 3px solid #5f6f7f;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(239, 245, 251, 0.95) 0%,
+      rgba(186, 199, 212, 0.92) 38%,
+      rgba(122, 137, 151, 0.96) 50%,
+      rgba(171, 185, 198, 0.94) 66%,
+      rgba(212, 222, 232, 0.95) 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.14) 0 2px,
+      rgba(255, 255, 255, 0) 2px 8px
+    );
+  box-shadow:
+    inset 0 8px 10px rgba(255, 255, 255, 0.5),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 3px 7px rgba(16, 35, 52, 0.25);
+  overflow: visible;
+}
+
+.pair-window-wrap .landing-pad {
+  display: none;
+}
+
+.pair-window-wrap .window::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 14px;
+  height: 64px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(84, 99, 113, 0.92);
+  background:
+    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.2) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+}
+
+.pair-window-wrap .window::before {
+  content: none;
+}
+
+.pair-window-wrap .pair-tube-platform-bay {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 18px;
+  height: 34px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.pair-window-wrap .pair-tube-platform {
+  --spring-height: 30px;
+  --spring-length: 108px;
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  width: var(--spring-length);
+  height: var(--spring-height);
+  transform-origin: left center;
+  border: 0;
+  border-radius: calc(var(--spring-height) / 2);
+  background:
+    radial-gradient(
+      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+      transparent 56%,
+      rgba(154, 170, 186, 0.95) 60%,
+      rgba(52, 67, 83, 0.98) 69%,
+      transparent 75%
+    );
+  background-size: 16px 100%;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.04);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 1000ms;
+}
+
+.pair-window-wrap.platform-extended .pair-tube-platform {
+  opacity: 1;
+  transform: translateY(-50%) scaleX(1);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 0ms;
+}
+
+.pair-window-wrap .pair-gate-radio-row {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  padding: 0.16rem 0.24rem;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  z-index: 2;
+}
+
+/* Two-qubit mode: hide directional arrows and tick marks on gate faces. */
+.pair-window-wrap .ticks,
+.pair-window-wrap .arrow-layer {
+  display: none;
+}
+
 .pair-qubit {
   width: 64px;
   left: -9999px;
@@ -493,6 +656,245 @@ body {
   transform: translate(-50%, -50%);
 }
 
+#panel-one-qubit .window-wrap {
+  left: calc(52% + 58px);
+  width: min(86%, 418px);
+  height: 170px;
+  aspect-ratio: auto;
+  display: grid;
+  grid-template-columns: 64px minmax(220px, 1fr);
+  align-items: center;
+  gap: 0;
+}
+
+#panel-one-qubit .tube-funnel {
+  position: relative;
+  width: 60px;
+  height: 102px;
+  justify-self: end;
+  margin-right: -6px;
+  clip-path: polygon(0 7%, 0 93%, 100% 50%);
+  border-radius: 0.45rem 0 0 0.45rem;
+  border: 2px solid #687888;
+  background:
+    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
+    repeating-linear-gradient(
+      -8deg,
+      rgba(255, 255, 255, 0.34) 0 4px,
+      rgba(255, 255, 255, 0) 4px 11px
+    );
+  box-shadow:
+    inset 0 3px 5px rgba(255, 255, 255, 0.52),
+    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
+    0 2px 5px rgba(22, 40, 57, 0.3);
+}
+
+#panel-one-qubit .tube-funnel::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 14px;
+  height: 74px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(96, 112, 126, 0.9);
+  background:
+    linear-gradient(180deg, #d7e1ea, #a9b8c6 58%, #8a98a6),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.24) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.48),
+    inset 0 -3px 4px rgba(46, 66, 84, 0.26);
+}
+
+#panel-one-qubit .window {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 102px;
+  border-radius: 999px;
+  border: 3px solid #5f6f7f;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(239, 245, 251, 0.95) 0%,
+      rgba(186, 199, 212, 0.92) 38%,
+      rgba(122, 137, 151, 0.96) 50%,
+      rgba(171, 185, 198, 0.94) 66%,
+      rgba(212, 222, 232, 0.95) 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.14) 0 2px,
+      rgba(255, 255, 255, 0) 2px 8px
+    );
+  box-shadow:
+    inset 0 8px 10px rgba(255, 255, 255, 0.54),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 3px 7px rgba(16, 35, 52, 0.28);
+  overflow: visible;
+}
+
+#panel-one-qubit .tube-core {
+  display: none;
+}
+
+#panel-one-qubit .window::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 16px;
+  height: 78px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(84, 99, 113, 0.92);
+  background:
+    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.2) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+}
+
+#panel-one-qubit .gate-radio-row {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+  padding: 0.16rem 0.24rem;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  z-index: 2;
+}
+
+.gate-radio {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.gate-radio-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gate-radio-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid rgba(239, 244, 250, 0.7);
+  box-shadow: 0 1px 2px rgba(9, 19, 29, 0.35);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.gate-radio-input:checked + .gate-radio-dot {
+  transform: scale(1.2);
+  box-shadow:
+    0 0 0 2px rgba(247, 252, 255, 0.95),
+    0 0 8px var(--ring-glow, #ffffff);
+}
+
+.gate-radio-input:focus-visible + .gate-radio-dot {
+  box-shadow:
+    0 0 0 2px rgba(247, 252, 255, 0.95),
+    0 0 0 4px rgba(47, 117, 171, 0.42);
+}
+
+#panel-one-qubit .tube-platform-bay {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 22px;
+  height: 42px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+#panel-one-qubit .tube-platform-bay::before {
+  content: none;
+}
+
+#panel-one-qubit .tube-platform {
+  --spring-height: 38px;
+  --spring-length: 132px;
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  width: var(--spring-length);
+  height: var(--spring-height);
+  transform-origin: left center;
+  border: 0;
+  border-radius: calc(var(--spring-height) / 2);
+  background:
+    radial-gradient(
+      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+      transparent 56%,
+      rgba(154, 170, 186, 0.95) 60%,
+      rgba(52, 67, 83, 0.98) 69%,
+      transparent 75%
+    );
+  background-size: 16px 100%;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.04);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 1000ms;
+}
+
+#panel-one-qubit .tube-platform::after {
+  content: none;
+}
+
+#panel-one-qubit .window-wrap.platform-extended .tube-platform {
+  opacity: 1;
+  transform: translateY(-50%) scaleX(1);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 0ms;
+}
+
+#panel-one-qubit .tube-drop-zone {
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+#panel-one-qubit .window-wrap.gate-busy .window {
+  box-shadow:
+    inset 0 8px 10px rgba(255, 255, 255, 0.52),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 0 0 2px rgba(255, 188, 93, 0.48),
+    0 0 12px rgba(255, 195, 109, 0.45);
+}
+
 .qubit {
   --qubit-fill: rgb(38, 111, 247);
   appearance: none;
@@ -507,23 +909,13 @@ body {
   cursor: grab;
   z-index: 4;
   box-shadow: 0 5px 10px rgba(18, 41, 64, 0.28);
-  background: var(--qubit-fill);
+  background-color: var(--qubit-fill);
   transition: box-shadow 120ms ease, transform 120ms ease;
   touch-action: none;
 }
 
-.qubit-sign {
-  position: absolute;
-  inset: 20px;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  font-family: "Aldrich", "Chakra Petch", sans-serif;
-  font-weight: 700;
-  line-height: 1;
-  font-size: 24px;
-  pointer-events: none;
-  user-select: none;
+.qubit.collapse-animating {
+  transition: box-shadow 120ms ease, transform 120ms ease, background-color 1000ms linear;
 }
 
 .qubit.dragging {
@@ -878,6 +1270,50 @@ body {
     width: min(66%, 208px);
   }
 
+  .pair-window-wrap::before {
+    content: none;
+  }
+
+  .pair-window-wrap .pair-tube-funnel {
+    left: -30px;
+    width: 38px;
+    height: 70px;
+  }
+
+  .pair-window-wrap .window {
+    width: 84%;
+    height: 72px;
+  }
+
+  .pair-window-wrap .window::after {
+    height: 52px;
+    width: 12px;
+  }
+
+  .pair-window-wrap .window::before {
+    right: 7px;
+    width: 28px;
+    height: 11px;
+  }
+
+  .pair-window-wrap .pair-tube-platform-bay {
+    right: 8px;
+    width: 14px;
+    height: 24px;
+  }
+
+  .pair-window-wrap .pair-tube-platform {
+    --spring-height: 22px;
+    --spring-length: 92px;
+    left: -1px;
+  }
+
+  .pair-window-wrap .pair-gate-radio-row {
+    top: 50%;
+    gap: 0.24rem;
+    padding: 0.12rem 0.18rem;
+  }
+
   .pair-qubit {
     width: 58px;
   }
@@ -941,6 +1377,60 @@ body {
 
   .window-wrap {
     left: calc(56% + 40px);
+  }
+
+  #panel-one-qubit .window-wrap {
+    left: calc(52% + 44px);
+    width: min(90%, 322px);
+    height: 146px;
+    grid-template-columns: 48px minmax(150px, 1fr);
+    gap: 0;
+  }
+
+  #panel-one-qubit .tube-funnel {
+    width: 44px;
+    height: 80px;
+    margin-right: -5px;
+  }
+
+  #panel-one-qubit .window {
+    height: 84px;
+  }
+
+  #panel-one-qubit .gate-radio-row {
+    top: 50%;
+    gap: 0.24rem;
+    padding: 0.12rem 0.18rem;
+  }
+
+  .gate-radio {
+    width: 20px;
+    height: 20px;
+  }
+
+  .gate-radio-dot {
+    width: 12px;
+    height: 12px;
+  }
+
+  #panel-one-qubit .tube-platform-bay {
+    right: 9px;
+    width: 18px;
+    height: 30px;
+  }
+
+  #panel-one-qubit .tube-platform {
+    --spring-height: 26px;
+    --spring-length: 116px;
+    left: -2px;
+  }
+
+  #panel-one-qubit .tube-platform::after {
+    content: none;
+  }
+
+  #panel-one-qubit .tube-drop-zone {
+    right: -20px;
   }
 
   .measurement-stage {

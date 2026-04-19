@@ -63,24 +63,21 @@
 
         <div class="machine-shell" data-role="machine-shell">
           <div class="gate-stage" data-role="gate-stage">
-            <button class="qubit" data-role="qubit" type="button" aria-label="Draggable qubit">
-              <span class="qubit-sign" data-role="qubit-sign" aria-hidden="true"></span>
-            </button>
+            <button class="qubit" data-role="qubit" type="button" aria-label="Draggable qubit"></button>
 
             <div class="window-wrap" data-role="window-wrap">
-              <div class="ticks" data-role="ticks"></div>
+              <div class="tube-funnel" data-role="tube-funnel" aria-hidden="true"></div>
 
-              <div class="window" data-role="window">
-                <div class="landing-pad" aria-live="polite"></div>
-
-                <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
-                  <g class="arrow-group" data-role="arrow-group" tabindex="0" aria-label="Move arrow to a tick mark">
-                    <line x1="160" y1="160" x2="160" y2="62" />
-                    <polygon points="160,35 146,71 174,71" />
-                    <circle cx="160" cy="160" r="11" />
-                  </g>
-                </svg>
+              <div class="window tube-body" data-role="window">
+                <div class="landing-pad tube-core" aria-live="polite"></div>
+                <div class="ticks gate-radio-row" data-role="ticks" role="radiogroup" aria-label="Gate color selector"></div>
               </div>
+
+              <div class="tube-platform-bay" aria-hidden="true">
+                <div class="tube-platform" data-role="tube-platform"></div>
+              </div>
+
+              <div class="tube-drop-zone" data-role="tube-drop-zone" aria-hidden="true"></div>
             </div>
           </div>
 
@@ -131,9 +128,16 @@
           <div class="pair-gate-stack">
             <div class="pair-gate-stage" data-role="pair-stage-a">
               <div class="window-wrap pair-window-wrap" data-role="pair-window-wrap-a">
+                <div class="pair-tube-funnel" data-role="pair-tube-funnel-a" aria-hidden="true"></div>
                 <div class="ticks" data-role="pair-ticks-a"></div>
                 <div class="window" data-role="pair-window-a">
                   <div class="landing-pad" aria-live="polite"></div>
+                  <div
+                    class="pair-gate-radio-row gate-radio-row"
+                    data-role="pair-gate-controls-a"
+                    role="radiogroup"
+                    aria-label="Upper gate color selector"
+                  ></div>
                   <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
                     <g class="arrow-group" data-role="pair-arrow-a" tabindex="0" aria-label="Move arrow to a tick mark">
                       <line x1="160" y1="160" x2="160" y2="62" />
@@ -142,14 +146,24 @@
                     </g>
                   </svg>
                 </div>
+                <div class="pair-tube-platform-bay" aria-hidden="true">
+                  <div class="pair-tube-platform" data-role="pair-tube-platform-a"></div>
+                </div>
               </div>
             </div>
 
             <div class="pair-gate-stage" data-role="pair-stage-b">
               <div class="window-wrap pair-window-wrap" data-role="pair-window-wrap-b">
+                <div class="pair-tube-funnel" data-role="pair-tube-funnel-b" aria-hidden="true"></div>
                 <div class="ticks" data-role="pair-ticks-b"></div>
                 <div class="window" data-role="pair-window-b">
                   <div class="landing-pad" aria-live="polite"></div>
+                  <div
+                    class="pair-gate-radio-row gate-radio-row"
+                    data-role="pair-gate-controls-b"
+                    role="radiogroup"
+                    aria-label="Lower gate color selector"
+                  ></div>
                   <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
                     <g class="arrow-group" data-role="pair-arrow-b" tabindex="0" aria-label="Move arrow to a tick mark">
                       <line x1="160" y1="160" x2="160" y2="62" />
@@ -158,16 +172,15 @@
                     </g>
                   </svg>
                 </div>
+                <div class="pair-tube-platform-bay" aria-hidden="true">
+                  <div class="pair-tube-platform" data-role="pair-tube-platform-b"></div>
+                </div>
               </div>
             </div>
           </div>
 
-          <button class="qubit pair-qubit" data-role="pair-qubit-a" type="button" aria-label="First draggable qubit">
-            <span class="qubit-sign" data-role="pair-sign-a" aria-hidden="true"></span>
-          </button>
-          <button class="qubit pair-qubit" data-role="pair-qubit-b" type="button" aria-label="Second draggable qubit">
-            <span class="qubit-sign" data-role="pair-sign-b" aria-hidden="true"></span>
-          </button>
+          <button class="qubit pair-qubit" data-role="pair-qubit-a" type="button" aria-label="First draggable qubit"></button>
+          <button class="qubit pair-qubit" data-role="pair-qubit-b" type="button" aria-label="Second draggable qubit"></button>
 
           <section class="pair-measurement" aria-label="Two qubit measurement tool">
             <div class="pair-capacity" data-role="pair-capacity"></div>

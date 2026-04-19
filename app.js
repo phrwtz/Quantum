@@ -16,8 +16,25 @@ const INITIAL_TUBE_QUBIT_CAPACITY = 5;
 const AUTO_GATE_PAUSE_MS = 333;
 const AUTO_TRAVEL_MS = 620;
 const AUTO_MELT_MS = 320;
+const OBSERVABLE_COLLAPSE_PAUSE_MS = 1000;
 const MACHINE_DURATION_100_MS = 1000;
 const MACHINE_DURATION_1000_MS = 2000;
+const GATE_TUBE_DWELL_MS = 1000;
+const GATE_PLATFORM_EXTEND_MS = 1000;
+const GATE_PLATFORM_RETRACT_MS = 1000;
+
+const ONE_QUBIT_GATE_OPTIONS = [
+  { label: "Blue", buttonIndex: 0, hsv: { h: 219.0, s: 84.6, v: 96.9 } },
+  { label: "Bluish Purple", buttonIndex: 1, hsv: { h: 279.4, s: 100.0, v: 99.6 } },
+  { label: "Purple", buttonIndex: 2, hsv: { h: 289.2, s: 100.0, v: 98.0 } },
+  { label: "Reddish Purple", buttonIndex: 3, hsv: { h: 312.3, s: 98.8, v: 96.5 } },
+  { label: "Red", buttonIndex: 4, hsv: { h: 359.3, s: 76.0, v: 88.2 } },
+];
+
+// One-qubit gate model by button position.
+// Button 0: P(0)=1, button 1: P(0)=3/4, button 2: P(0)=1/2, button 3: P(0)=1/4, button 4: P(0)=0
+const ONE_QUBIT_BUTTON_BLUE_PROBABILITIES = [1, 3 / 4, 1 / 2, 1 / 4, 0];
+const DEFAULT_GATE_BUTTON_INDEX = Math.floor(ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length / 2);
 
 const BLUE_RED_MIX_BY_TICK = {
   0: [1, 0],
@@ -75,6 +92,39 @@ function normalizedAngleFromTopDegrees(clientX, clientY, centerX, centerY) {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function resolveCircleRectOverlap(centerX, centerY, radius, rect, gap = 1) {
+  const overlaps =
+    centerX + radius > rect.left &&
+    centerX - radius < rect.right &&
+    centerY + radius > rect.top &&
+    centerY - radius < rect.bottom;
+
+  if (!overlaps) {
+    return { x: centerX, y: centerY, overlapped: false };
+  }
+
+  const candidates = [
+    { x: rect.left - radius - gap, y: centerY },
+    { x: rect.right + radius + gap, y: centerY },
+    { x: centerX, y: rect.top - radius - gap },
+    { x: centerX, y: rect.bottom + radius + gap },
+  ];
+
+  let best = candidates[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  candidates.forEach((candidate) => {
+    const dx = candidate.x - centerX;
+    const dy = candidate.y - centerY;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq < bestDistance) {
+      bestDistance = distanceSq;
+      best = candidate;
+    }
+  });
+
+  return { x: best.x, y: best.y, overlapped: true };
 }
 
 function rgbToHsv(rgb) {
@@ -194,6 +244,76 @@ function blendBlueRed(blueWeight, redWeight) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+function hsvSpecToCss(hsv) {
+  const [r, g, b] = hsvToRgb(hsv.h, hsv.s / 100, hsv.v / 100);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function vectorTimesMatrix2(vector, matrix) {
+  return [
+    vector[0] * matrix[0][0] + vector[1] * matrix[1][0],
+    vector[0] * matrix[0][1] + vector[1] * matrix[1][1],
+  ];
+}
+
+function normalizeVector2(vector) {
+  const magnitude = Math.hypot(vector[0], vector[1]);
+  if (!Number.isFinite(magnitude) || magnitude <= 1e-12) {
+    return [1, 0];
+  }
+  return [vector[0] / magnitude, vector[1] / magnitude];
+}
+
+function probabilitiesFromVector2(vector) {
+  const blue = vector[0] * vector[0];
+  const red = vector[1] * vector[1];
+  const total = blue + red;
+  if (total <= 1e-12) {
+    return [1, 0];
+  }
+  return [clamp(blue / total, 0, 1), clamp(red / total, 0, 1)];
+}
+
+function gateMatrixForTick(tick) {
+  const normalizedTick = ((tick % 12) + 12) % 12;
+  const mix = BLUE_RED_MIX_BY_TICK[normalizedTick] || BLUE_RED_MIX_BY_TICK[0];
+  const blueAmplitudeMagnitude = Math.sqrt(clamp(mix[0], 0, 1));
+  const redAmplitudeMagnitude = Math.sqrt(clamp(mix[1], 0, 1));
+  const blueSign = normalizedTick >= 7 && normalizedTick <= 11 ? -1 : 1;
+  const a = blueSign * blueAmplitudeMagnitude;
+  const b = redAmplitudeMagnitude;
+
+  return [
+    [a, b],
+    [-b, a],
+  ];
+}
+
+function oneQubitGateMatrixForButton(buttonIndex) {
+  const normalizedIndex =
+    ((buttonIndex % ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length) +
+      ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length) %
+    ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length;
+  const blueProbability = ONE_QUBIT_BUTTON_BLUE_PROBABILITIES[normalizedIndex];
+  const redProbability = 1 - blueProbability;
+  const a = Math.sqrt(clamp(blueProbability, 0, 1));
+  const b = Math.sqrt(clamp(redProbability, 0, 1));
+
+  return [
+    [a, b],
+    [-b, a],
+  ];
+}
+
+function oneQubitGateWeightsForButton(buttonIndex) {
+  const normalizedIndex =
+    ((buttonIndex % ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length) +
+      ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length) %
+    ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length;
+  const blueProbability = ONE_QUBIT_BUTTON_BLUE_PROBABILITIES[normalizedIndex];
+  return [blueProbability, 1 - blueProbability];
+}
+
 function gcd(a, b) {
   let x = a;
   let y = b;
@@ -227,14 +347,14 @@ function formatFraction(value) {
 
 function setupSimulator(root) {
   const ticksWrap = root.querySelector('[data-role="ticks"]');
-  const arrowGroup = root.querySelector('[data-role="arrow-group"]');
   const windowWrap = root.querySelector('[data-role="window-wrap"]');
+  const gateFunnel = root.querySelector('[data-role="tube-funnel"]');
   const gateWindow = root.querySelector('[data-role="window"]');
+  const gatePlatform = root.querySelector('[data-role="tube-platform"]');
+  const gateDropZone = root.querySelector('[data-role="tube-drop-zone"]');
   const gateStage = root.querySelector('[data-role="gate-stage"]');
   const machineShell = root.querySelector('[data-role="machine-shell"]');
-  const topControls = root.querySelector('[data-role="top-controls"]');
   const qubit = root.querySelector('[data-role="qubit"]');
-  const qubitSign = root.querySelector('[data-role="qubit-sign"]');
   const measureLens = root.querySelector('[data-role="measure-lens"]');
   const boltToGate = root.querySelector('[data-role="bolt-gate"]');
   const boltToLens = root.querySelector('[data-role="bolt-lens"]');
@@ -252,14 +372,14 @@ function setupSimulator(root) {
 
   if (
     !ticksWrap ||
-    !arrowGroup ||
     !windowWrap ||
+    !gateFunnel ||
     !gateWindow ||
+    !gatePlatform ||
+    !gateDropZone ||
     !gateStage ||
     !machineShell ||
-    !topControls ||
     !qubit ||
-    !qubitSign ||
     !measureLens ||
     !boltToGate ||
     !boltToLens ||
@@ -276,11 +396,7 @@ function setupSimulator(root) {
     return null;
   }
 
-  let activeTick = 0;
-  let arrowDragging = false;
-  let arrowDragStartTick = 0;
-  let arrowDragCenter = null;
-  let arrowDragAngleDeg = null;
+  let activeGateButtonIndex = 0;
   let qubitDragging = false;
   let qubitDocked = false;
   let qubitDragOffsetX = 0;
@@ -289,24 +405,50 @@ function setupSimulator(root) {
   let measurementInProgress = false;
   let autoRunInProgress = false;
   let runToken = 0;
+  let qubitVector = [1, 0];
   let qubitBlueWeight = 1;
   let qubitRedWeight = 0;
   let qubitHasEnteredGate = false;
+  let gateTransitInProgress = false;
   let tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
   let blueTubeCount = 0;
   let redTubeCount = 0;
 
   const tickElements = [];
+  const gateSelectorName = `gate-selector-${Math.random().toString(36).slice(2)}`;
 
-  for (let i = 0; i < 12; i += 1) {
-    const tick = document.createElement("button");
-    tick.type = "button";
-    tick.className = "tick";
-    tick.setAttribute("aria-label", `Tick ${i + 1}`);
-    tick.addEventListener("click", () => setArrowAtTick(i));
-    ticksWrap.appendChild(tick);
-    tickElements.push(tick);
-  }
+  ONE_QUBIT_GATE_OPTIONS.forEach((option, index) => {
+    const blueProbability = ONE_QUBIT_BUTTON_BLUE_PROBABILITIES[option.buttonIndex];
+    const redProbability = 1 - blueProbability;
+    const wrapper = document.createElement("label");
+    wrapper.className = "gate-radio";
+    wrapper.setAttribute(
+      "aria-label",
+      `${option.label} gate option (P(0)=${formatFraction(blueProbability)}, P(1)=${formatFraction(redProbability)}, hsv(${option.hsv.h.toFixed(1)}, ${option.hsv.s.toFixed(1)}%, ${option.hsv.v.toFixed(1)}%))`
+    );
+
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = gateSelectorName;
+    input.className = "gate-radio-input";
+
+    const dot = document.createElement("span");
+    dot.className = "gate-radio-dot";
+    dot.style.background = hsvSpecToCss(option.hsv);
+    dot.style.setProperty("--ring-glow", hsvSpecToCss(option.hsv));
+    dot.title = `${option.label} - P(0)=${formatFraction(blueProbability)}, P(1)=${formatFraction(redProbability)} - hsv(${option.hsv.h.toFixed(1)}, ${option.hsv.s.toFixed(1)}%, ${option.hsv.v.toFixed(1)}%)`;
+
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        setGateButtonIndex(option.buttonIndex);
+      }
+    });
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(dot);
+    ticksWrap.appendChild(wrapper);
+    tickElements.push({ input, option, index });
+  });
 
   function updateStateText(blueWeight, redWeight) {
     if (!messageBox) {
@@ -315,45 +457,35 @@ function setupSimulator(root) {
     messageBox.value = `${formatFraction(blueWeight)} blue, ${formatFraction(redWeight)} red`;
   }
 
-  function applyQubitColorForTick() {
-    if (!qubitDocked) {
-      return;
-    }
-
-    const mix = BLUE_RED_MIX_BY_TICK[activeTick] || BLUE_RED_MIX_BY_TICK[0];
-    const [blueWeight, redWeight] = mix;
+  function syncWeightsFromVector() {
+    const [blueWeight, redWeight] = probabilitiesFromVector2(qubitVector);
     qubitBlueWeight = blueWeight;
     qubitRedWeight = redWeight;
-    qubit.style.setProperty("--qubit-fill", blendBlueRed(blueWeight, redWeight));
   }
 
-  function updateQubitSignForTick() {
+  function setQubitVector(vector) {
+    qubitVector = normalizeVector2(vector);
+    syncWeightsFromVector();
+  }
+
+  function gateOutputWeightsForCurrentTickFromBlueBasis() {
+    const transformed = vectorTimesMatrix2([1, 0], oneQubitGateMatrixForButton(activeGateButtonIndex));
+    return probabilitiesFromVector2(normalizeVector2(transformed));
+  }
+
+  function applyActiveGateToQubitVector() {
+    setQubitVector(vectorTimesMatrix2(qubitVector, oneQubitGateMatrixForButton(activeGateButtonIndex)));
+  }
+
+  function applyQubitColorForTick() {
     if (!qubitHasEnteredGate) {
-      qubitSign.textContent = "";
       return;
     }
 
-    if (activeTick >= 1 && activeTick <= 5) {
-      qubitSign.textContent = "+";
-      return;
-    }
-
-    if (activeTick >= 7 && activeTick <= 11) {
-      qubitSign.textContent = "\u2212";
-      return;
-    }
-
-    qubitSign.textContent = "";
-  }
-
-  function updateQubitSignSize() {
-    const qubitRect = qubit.getBoundingClientRect();
-    if (!qubitRect.width) {
-      return;
-    }
-
-    const signSize = Math.max(12, Math.round(qubitRect.width - 40));
-    qubitSign.style.fontSize = `${signSize}px`;
+    syncWeightsFromVector();
+    const blueWeight = qubitBlueWeight;
+    const redWeight = qubitRedWeight;
+    qubit.style.setProperty("--qubit-fill", blendBlueRed(blueWeight, redWeight));
   }
 
   function stagePointForElementCenter(element) {
@@ -384,25 +516,9 @@ function setupSimulator(root) {
     qubit.style.top = `${clampedY}px`;
   }
 
-  function layoutTicks() {
-    const rect = windowWrap.getBoundingClientRect();
-    const size = rect.width;
-    if (!size) {
-      return;
-    }
-
-    const center = size / 2;
-    const orbit = center + 11;
-
-    tickElements.forEach((tick, index) => {
-      const angleDeg = index * STEP_DEG;
-      const angleRad = (angleDeg * Math.PI) / 180;
-      const x = center + Math.sin(angleRad) * orbit;
-      const y = center - Math.cos(angleRad) * orbit;
-
-      tick.style.left = `${(x / size) * 100}%`;
-      tick.style.top = `${(y / size) * 100}%`;
-      tick.style.setProperty("--rotation", `${angleDeg}deg`);
+  function syncGateSelectorUI() {
+    tickElements.forEach((entry) => {
+      entry.input.checked = entry.option.buttonIndex === activeGateButtonIndex;
     });
   }
 
@@ -414,98 +530,24 @@ function setupSimulator(root) {
     updateTubeFills();
   }
 
-  function setArrowAtTick(tickIndex, { deferMeasurementClear = false } = {}) {
+  function setGateButtonIndex(buttonIndex, { deferMeasurementClear = false } = {}) {
     if (autoRunInProgress) {
       return;
     }
 
-    const normalizedTick = ((tickIndex % 12) + 12) % 12;
-    const gateStateChanged = normalizedTick !== activeTick;
-    activeTick = normalizedTick;
-    const rotation = activeTick * STEP_DEG;
-    arrowGroup.style.transform = `rotate(${rotation}deg) scale(${ARROW_SCALE})`;
-
-    tickElements.forEach((tick, index) => {
-      tick.classList.toggle("active", index === activeTick);
-    });
+    const count = ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length;
+    const normalizedButtonIndex = ((buttonIndex % count) + count) % count;
+    const gateStateChanged = normalizedButtonIndex !== activeGateButtonIndex;
+    activeGateButtonIndex = normalizedButtonIndex;
+    syncGateSelectorUI();
 
     if (gateStateChanged && !deferMeasurementClear) {
       clearMeasurementApparatus();
     }
 
-    const [blueWeight, redWeight] = BLUE_RED_MIX_BY_TICK[activeTick] || BLUE_RED_MIX_BY_TICK[0];
+    const [blueWeight, redWeight] = gateOutputWeightsForCurrentTickFromBlueBasis();
     updateStateText(blueWeight, redWeight);
-    if (qubitDocked) {
-      updateQubitSignForTick();
-    }
     applyQubitColorForTick();
-  }
-
-  function nearestTickFromPointer(clientX, clientY, center = null) {
-    const fallbackRect = center ? null : windowWrap.getBoundingClientRect();
-    const cx = center ? center.x : fallbackRect.left + fallbackRect.width / 2;
-    const cy = center ? center.y : fallbackRect.top + fallbackRect.height / 2;
-    const normalized = normalizedAngleFromTopDegrees(clientX, clientY, cx, cy);
-    return Math.round(normalized / STEP_DEG) % 12;
-  }
-
-  function beginArrowDrag(event) {
-    event.preventDefault();
-    arrowDragging = true;
-    arrowGroup.classList.add("dragging");
-    arrowDragStartTick = activeTick;
-    const rect = windowWrap.getBoundingClientRect();
-    arrowDragCenter = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
-
-    const point = getPointer(event);
-    arrowDragAngleDeg = normalizedAngleFromTopDegrees(
-      point.clientX,
-      point.clientY,
-      arrowDragCenter.x,
-      arrowDragCenter.y
-    );
-    arrowGroup.style.transform = `rotate(${arrowDragAngleDeg}deg) scale(${ARROW_SCALE})`;
-  }
-
-  function continueArrowDrag(event) {
-    if (!arrowDragging) {
-      return;
-    }
-
-    if (event.touches) {
-      event.preventDefault();
-    }
-
-    const point = getPointer(event);
-    arrowDragAngleDeg = normalizedAngleFromTopDegrees(
-      point.clientX,
-      point.clientY,
-      arrowDragCenter.x,
-      arrowDragCenter.y
-    );
-    arrowGroup.style.transform = `rotate(${arrowDragAngleDeg}deg) scale(${ARROW_SCALE})`;
-  }
-
-  function endArrowDrag() {
-    if (!arrowDragging) {
-      return;
-    }
-
-    const snappedTick =
-      arrowDragAngleDeg === null ? activeTick : Math.round(arrowDragAngleDeg / STEP_DEG) % 12;
-    setArrowAtTick(snappedTick, { deferMeasurementClear: true });
-
-    if (snappedTick !== arrowDragStartTick) {
-      clearMeasurementApparatus();
-    }
-
-    arrowDragging = false;
-    arrowDragCenter = null;
-    arrowDragAngleDeg = null;
-    arrowGroup.classList.remove("dragging");
   }
 
   function undockQubit() {
@@ -522,10 +564,7 @@ function setupSimulator(root) {
     setQubitCenter(windowCenter.x, windowCenter.y);
 
     qubitDocked = true;
-    qubitHasEnteredGate = true;
     qubit.classList.add("docked");
-    updateQubitSignForTick();
-    applyQubitColorForTick();
   }
 
   function circleIntersectionArea(r1, r2, distance) {
@@ -558,23 +597,22 @@ function setupSimulator(root) {
     return overlap;
   }
 
-  function qubitOverlapRatioWithGateWindow() {
+  function qubitOverlapRatioWithRect(element) {
     const qubitRect = qubit.getBoundingClientRect();
-    const windowRect = gateWindow.getBoundingClientRect();
+    const targetRect = element.getBoundingClientRect();
 
-    const qRadius = qubitRect.width / 2;
-    const wRadius = windowRect.width / 2;
+    const overlapWidth = Math.max(
+      0,
+      Math.min(qubitRect.right, targetRect.right) - Math.max(qubitRect.left, targetRect.left)
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(qubitRect.bottom, targetRect.bottom) - Math.max(qubitRect.top, targetRect.top)
+    );
 
-    const qCx = qubitRect.left + qRadius;
-    const qCy = qubitRect.top + qRadius;
-    const wCx = windowRect.left + wRadius;
-    const wCy = windowRect.top + wRadius;
-
-    const distance = Math.hypot(qCx - wCx, qCy - wCy);
-    const overlapArea = circleIntersectionArea(qRadius, wRadius, distance);
-    const qubitArea = Math.PI * qRadius * qRadius;
-
-    return overlapArea / qubitArea;
+    const overlapArea = overlapWidth * overlapHeight;
+    const qubitArea = qubitRect.width * qubitRect.height;
+    return qubitArea > 0 ? overlapArea / qubitArea : 0;
   }
 
   function qubitOverlapRatioWithLens() {
@@ -597,13 +635,47 @@ function setupSimulator(root) {
   }
 
   function maybeSnapQubit() {
-    if (qubitOverlapRatioWithGateWindow() >= SNAP_OVERLAP_THRESHOLD) {
-      snapQubitToWindowCenter();
+    if (
+      qubitOverlapRatioWithRect(gateFunnel) >= 0.45 &&
+      !gateTransitInProgress &&
+      !autoRunInProgress &&
+      !measurementInProgress
+    ) {
+      runGateTransit(runToken).catch(() => {});
       return true;
     }
 
-    undockQubit();
     return false;
+  }
+
+  function preventManualPipeOverlap() {
+    if (gateTransitInProgress || autoRunInProgress || measurementInProgress) {
+      return false;
+    }
+
+    const stageRect = gateStage.getBoundingClientRect();
+    const pipeRect = gateWindow.getBoundingClientRect();
+    const qubitRect = qubit.getBoundingClientRect();
+    const center = stagePointForElementCenter(qubit);
+    const resolved = resolveCircleRectOverlap(
+      center.x,
+      center.y,
+      qubitRect.width / 2,
+      {
+        left: pipeRect.left - stageRect.left,
+        right: pipeRect.right - stageRect.left,
+        top: pipeRect.top - stageRect.top,
+        bottom: pipeRect.bottom - stageRect.top,
+      },
+      1
+    );
+
+    if (!resolved.overlapped) {
+      return false;
+    }
+
+    setQubitCenter(resolved.x, resolved.y);
+    return true;
   }
 
   function getStageCoordsFromViewportPoint(x, y) {
@@ -627,6 +699,76 @@ function setupSimulator(root) {
     return new Promise((resolve) => window.setTimeout(resolve, duration));
   }
 
+  function setPlatformExtended(extended) {
+    windowWrap.classList.toggle("platform-extended", extended);
+  }
+
+  async function runGateTransit(
+    expectedRunToken = runToken,
+    { travelDuration = AUTO_TRAVEL_MS, dwellDuration = GATE_TUBE_DWELL_MS } = {}
+  ) {
+    if (gateTransitInProgress || expectedRunToken !== runToken) {
+      return false;
+    }
+
+    gateTransitInProgress = true;
+    qubitDragging = false;
+    qubit.classList.remove("dragging");
+    undockQubit();
+    setPlatformExtended(false);
+    windowWrap.classList.add("gate-busy");
+
+    try {
+      const tubeCenter = stagePointForElementCenter(gateWindow);
+      await moveQubitToStagePoint(tubeCenter.x, tubeCenter.y, travelDuration);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      snapQubitToWindowCenter();
+      await wait(dwellDuration);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      applyActiveGateToQubitVector();
+      qubitHasEnteredGate = true;
+      updateStateText(qubitBlueWeight, qubitRedWeight);
+      applyQubitColorForTick();
+
+      const retractedPlatformPoint = stagePointForElementCenter(gatePlatform);
+      setQubitCenter(retractedPlatformPoint.x, retractedPlatformPoint.y);
+      qubit.classList.remove("docked");
+      qubitDocked = false;
+
+      setPlatformExtended(true);
+      const stageRect = gateStage.getBoundingClientRect();
+      const pipeRect = gateWindow.getBoundingClientRect();
+      const qubitRect = qubit.getBoundingClientRect();
+      const ejectedCenter = {
+        x: pipeRect.right - stageRect.left + 100 + qubitRect.width / 2,
+        y: retractedPlatformPoint.y,
+      };
+      await moveQubitToStagePoint(ejectedCenter.x, ejectedCenter.y, GATE_PLATFORM_EXTEND_MS);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      settleQubitVisualState();
+      setPlatformExtended(false);
+      await wait(GATE_PLATFORM_RETRACT_MS);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      return true;
+    } finally {
+      windowWrap.classList.remove("gate-busy");
+      setPlatformExtended(false);
+      gateTransitInProgress = false;
+    }
+  }
+
   function nextFrame() {
     return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
   }
@@ -634,6 +776,7 @@ function setupSimulator(root) {
   function settleQubitVisualState() {
     qubit.classList.remove("migrating");
     qubit.classList.remove("melting");
+    qubit.classList.remove("collapse-animating");
     qubit.style.opacity = "";
   }
 
@@ -711,20 +854,18 @@ function setupSimulator(root) {
   }
 
   function collapseQubitState() {
-    const totalWeight = qubitBlueWeight + qubitRedWeight;
-    const blueProbability = totalWeight > 0 ? qubitBlueWeight / totalWeight : 0.5;
+    syncWeightsFromVector();
+    const blueProbability = qubitBlueWeight;
 
     if (blueProbability >= 1) {
-      qubitBlueWeight = 1;
-      qubitRedWeight = 0;
+      setQubitVector([1, 0]);
       qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
       updateStateText(qubitBlueWeight, qubitRedWeight);
       return "blue";
     }
 
     if (blueProbability <= 0) {
-      qubitBlueWeight = 0;
-      qubitRedWeight = 1;
+      setQubitVector([0, 1]);
       qubit.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
       updateStateText(qubitBlueWeight, qubitRedWeight);
       return "red";
@@ -733,15 +874,13 @@ function setupSimulator(root) {
     const collapseToBlue = Math.random() < blueProbability;
 
     if (collapseToBlue) {
-      qubitBlueWeight = 1;
-      qubitRedWeight = 0;
+      setQubitVector([1, 0]);
       qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
       updateStateText(qubitBlueWeight, qubitRedWeight);
       return "blue";
     }
 
-    qubitBlueWeight = 0;
-    qubitRedWeight = 1;
+    setQubitVector([0, 1]);
     qubit.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
     updateStateText(qubitBlueWeight, qubitRedWeight);
     return "red";
@@ -751,7 +890,7 @@ function setupSimulator(root) {
     expectedRunToken = runToken,
     { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
   ) {
-    if (measurementInProgress) {
+    if (measurementInProgress || gateTransitInProgress) {
       return;
     }
 
@@ -768,7 +907,15 @@ function setupSimulator(root) {
     qubit.classList.remove("dragging");
     undockQubit();
 
+    qubit.classList.add("collapse-animating");
     const collapsedColor = collapseQubitState();
+    await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
+    qubit.classList.remove("collapse-animating");
+    if (expectedRunToken !== runToken) {
+      measurementInProgress = false;
+      return;
+    }
+
     const targetTube = collapsedColor === "blue" ? tubeBlue : tubeRed;
     const targetRect = targetTube.getBoundingClientRect();
     const targetPoint = getStageCoordsFromViewportPoint(
@@ -804,14 +951,13 @@ function setupSimulator(root) {
   }
 
   async function runAutomatedMeasurements(iterations) {
-    if (autoRunInProgress || measurementInProgress) {
+    if (autoRunInProgress || measurementInProgress || gateTransitInProgress) {
       return;
     }
 
     const useMachineMode = iterations >= 100;
     const speedFactor = iterations >= 10 ? 2 : 1;
     const travelDuration = Math.round(AUTO_TRAVEL_MS / speedFactor);
-    const gatePauseDuration = Math.round(AUTO_GATE_PAUSE_MS / speedFactor);
     const meltDuration = Math.round(AUTO_MELT_MS / speedFactor);
     const machineDuration =
       iterations === 100
@@ -834,9 +980,8 @@ function setupSimulator(root) {
         setLightningActive(true);
 
         const processOneMeasurement = () => {
-          const mix = BLUE_RED_MIX_BY_TICK[activeTick] || BLUE_RED_MIX_BY_TICK[0];
-          qubitBlueWeight = mix[0];
-          qubitRedWeight = mix[1];
+          setQubitVector([1, 0]);
+          applyActiveGateToQubitVector();
           qubit.style.setProperty("--qubit-fill", blendBlueRed(qubitBlueWeight, qubitRedWeight));
           updateStateText(qubitBlueWeight, qubitRedWeight);
 
@@ -896,15 +1041,11 @@ function setupSimulator(root) {
         }
 
         placeQubitToLeftOfWindow();
-        const gateCenter = stagePointForElementCenter(gateWindow);
-        await moveQubitToStagePoint(gateCenter.x, gateCenter.y, travelDuration);
-        if (thisRunToken !== runToken) {
-          break;
-        }
-
-        snapQubitToWindowCenter();
-        await wait(gatePauseDuration);
-        if (thisRunToken !== runToken) {
+        await runGateTransit(thisRunToken, {
+          travelDuration,
+          dwellDuration: GATE_TUBE_DWELL_MS,
+        });
+        if (thisRunToken !== runToken || gateTransitInProgress) {
           break;
         }
 
@@ -932,7 +1073,7 @@ function setupSimulator(root) {
   }
 
   function beginQubitDrag(event) {
-    if (measurementInProgress || autoRunInProgress) {
+    if (measurementInProgress || autoRunInProgress || gateTransitInProgress) {
       return;
     }
 
@@ -951,7 +1092,7 @@ function setupSimulator(root) {
   }
 
   function continueQubitDrag(event) {
-    if (!qubitDragging || measurementInProgress || autoRunInProgress) {
+    if (!qubitDragging || measurementInProgress || autoRunInProgress || gateTransitInProgress) {
       return;
     }
 
@@ -966,42 +1107,49 @@ function setupSimulator(root) {
     const nextY = point.clientY - stageRect.top - qubitDragOffsetY;
 
     setQubitCenter(nextX, nextY);
-    maybeSnapQubit();
+    if (maybeSnapQubit()) {
+      return;
+    }
+    preventManualPipeOverlap();
     startMeasurementSequence();
   }
 
   function endQubitDrag() {
-    if (!qubitDragging || measurementInProgress || autoRunInProgress) {
+    if (!qubitDragging || measurementInProgress || autoRunInProgress || gateTransitInProgress) {
       return;
     }
 
     qubitDragging = false;
     qubit.classList.remove("dragging");
 
-    maybeSnapQubit();
+    if (maybeSnapQubit()) {
+      return;
+    }
+    preventManualPipeOverlap();
     startMeasurementSequence();
   }
 
   function placeQubitToLeftOfWindow() {
-    const windowCenter = stagePointForElementCenter(gateWindow);
-    const stageRect = gateStage.getBoundingClientRect();
-    const movementRect = machineShell.getBoundingClientRect();
-    const qubitRect = qubit.getBoundingClientRect();
-
-    const radius = qubitRect.width / 2;
-    const minX = movementRect.left - stageRect.left + radius;
-    const x = minX + QUBIT_START_EDGE_GAP;
-
-    setQubitCenter(x, windowCenter.y);
-    qubitDocked = false;
-    qubitDragging = false;
     qubit.classList.remove("dragging");
     qubit.classList.remove("migrating");
     qubit.classList.remove("melting");
     qubit.classList.remove("docked");
+    const windowCenter = stagePointForElementCenter(gateWindow);
+    const stageRect = gateStage.getBoundingClientRect();
+    const movementRect = machineShell.getBoundingClientRect();
+    const baseWidth = qubit.offsetWidth || qubit.getBoundingClientRect().width;
+    const radius = baseWidth / 2;
+    const minX = movementRect.left - stageRect.left + radius;
+    const x = minX + QUBIT_START_EDGE_GAP + 5;
+
+    setQubitCenter(x, windowCenter.y);
+    qubitDocked = false;
+    qubitDragging = false;
+    setPlatformExtended(false);
+    windowWrap.classList.remove("gate-busy");
     qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
-    qubitBlueWeight = 1;
-    qubitRedWeight = 0;
+    setQubitVector([1, 0]);
+    qubitHasEnteredGate = false;
     updateStateText(qubitBlueWeight, qubitRedWeight);
   }
 
@@ -1011,8 +1159,6 @@ function setupSimulator(root) {
       return;
     }
 
-    layoutTicks();
-    updateQubitSignSize();
     positionTubeCapacityBox();
     positionLightningBolts();
 
@@ -1032,7 +1178,7 @@ function setupSimulator(root) {
   }
 
   function handleLensClickRun() {
-    if (autoRunInProgress || measurementInProgress) {
+    if (autoRunInProgress || measurementInProgress || gateTransitInProgress) {
       return;
     }
 
@@ -1044,6 +1190,7 @@ function setupSimulator(root) {
     runToken += 1;
     autoRunInProgress = false;
     measurementInProgress = false;
+    gateTransitInProgress = false;
     qubitDragging = false;
     measurementCount.disabled = false;
     measurementCount.value = "1";
@@ -1053,7 +1200,6 @@ function setupSimulator(root) {
     qubit.classList.remove("docked");
     setLightningActive(false);
     qubitHasEnteredGate = false;
-    qubitSign.textContent = "";
 
     tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
     blueTubeCount = 0;
@@ -1061,58 +1207,35 @@ function setupSimulator(root) {
     updateTubeCapacityText();
     updateTubeFills();
 
-    setArrowAtTick(0);
+    setGateButtonIndex(DEFAULT_GATE_BUTTON_INDEX);
     placeQubitToLeftOfWindow();
   }
 
-  arrowGroup.addEventListener("mousedown", beginArrowDrag);
-  arrowGroup.addEventListener("touchstart", beginArrowDrag, { passive: false });
   qubit.addEventListener("mousedown", beginQubitDrag);
   qubit.addEventListener("touchstart", beginQubitDrag, { passive: false });
 
   window.addEventListener("mousemove", (event) => {
-    continueArrowDrag(event);
     continueQubitDrag(event);
   });
 
   window.addEventListener(
     "touchmove",
     (event) => {
-      continueArrowDrag(event);
       continueQubitDrag(event);
     },
     { passive: false }
   );
 
   window.addEventListener("mouseup", () => {
-    endArrowDrag();
     endQubitDrag();
   });
 
   window.addEventListener("touchend", () => {
-    endArrowDrag();
     endQubitDrag();
   });
 
   window.addEventListener("touchcancel", () => {
-    endArrowDrag();
     endQubitDrag();
-  });
-
-  arrowGroup.addEventListener("keydown", (event) => {
-    if (autoRunInProgress) {
-      return;
-    }
-
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      event.preventDefault();
-      setArrowAtTick(activeTick + 1);
-    }
-
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      event.preventDefault();
-      setArrowAtTick(activeTick - 1);
-    }
   });
 
   measurementCount.addEventListener("mousedown", (event) => {
@@ -1139,7 +1262,7 @@ function setupSimulator(root) {
     resetAll();
   });
 
-  setArrowAtTick(0);
+  setGateButtonIndex(DEFAULT_GATE_BUTTON_INDEX);
   updateTubeCapacityText();
   updateTubeFills();
 
@@ -1152,16 +1275,20 @@ function setupTwoQubitPair(root) {
   const pairShell = root.querySelector('[data-role="pair-shell"]');
   const pairStageA = root.querySelector('[data-role="pair-stage-a"]');
   const pairStageB = root.querySelector('[data-role="pair-stage-b"]');
+  const pairWindowWrapA = root.querySelector('[data-role="pair-window-wrap-a"]');
+  const pairWindowWrapB = root.querySelector('[data-role="pair-window-wrap-b"]');
+  const pairFunnelA = root.querySelector('[data-role="pair-tube-funnel-a"]');
+  const pairFunnelB = root.querySelector('[data-role="pair-tube-funnel-b"]');
   const pairWindowA = root.querySelector('[data-role="pair-window-a"]');
   const pairWindowB = root.querySelector('[data-role="pair-window-b"]');
+  const pairGateControlsA = root.querySelector('[data-role="pair-gate-controls-a"]');
+  const pairGateControlsB = root.querySelector('[data-role="pair-gate-controls-b"]');
   const pairTicksA = root.querySelector('[data-role="pair-ticks-a"]');
   const pairTicksB = root.querySelector('[data-role="pair-ticks-b"]');
   const pairArrowA = root.querySelector('[data-role="pair-arrow-a"]');
   const pairArrowB = root.querySelector('[data-role="pair-arrow-b"]');
   const qubitA = root.querySelector('[data-role="pair-qubit-a"]');
   const qubitB = root.querySelector('[data-role="pair-qubit-b"]');
-  const signA = root.querySelector('[data-role="pair-sign-a"]');
-  const signB = root.querySelector('[data-role="pair-sign-b"]');
   const pairLens = root.querySelector('[data-role="pair-lens"]');
   const pairSlotLeft = root.querySelector('[data-role="pair-slot-left"]');
   const pairSlotRight = root.querySelector('[data-role="pair-slot-right"]');
@@ -1187,16 +1314,20 @@ function setupTwoQubitPair(root) {
     !pairShell ||
     !pairStageA ||
     !pairStageB ||
+    !pairWindowWrapA ||
+    !pairWindowWrapB ||
+    !pairFunnelA ||
+    !pairFunnelB ||
     !pairWindowA ||
     !pairWindowB ||
+    !pairGateControlsA ||
+    !pairGateControlsB ||
     !pairTicksA ||
     !pairTicksB ||
     !pairArrowA ||
     !pairArrowB ||
     !qubitA ||
     !qubitB ||
-    !signA ||
-    !signB ||
     !pairLens ||
     !pairSlotLeft ||
     !pairSlotRight ||
@@ -1220,15 +1351,36 @@ function setupTwoQubitPair(root) {
   }
 
   const gates = [
-    { stage: pairStageA, window: pairWindowA, ticksWrap: pairTicksA, arrow: pairArrowA, activeTick: 0, ticks: [] },
-    { stage: pairStageB, window: pairWindowB, ticksWrap: pairTicksB, arrow: pairArrowB, activeTick: 0, ticks: [] },
+    {
+      stage: pairStageA,
+      wrap: pairWindowWrapA,
+      funnel: pairFunnelA,
+      window: pairWindowA,
+      controlsWrap: pairGateControlsA,
+      ticksWrap: pairTicksA,
+      arrow: pairArrowA,
+      activeTick: 0,
+      ticks: [],
+      radioEntries: [],
+    },
+    {
+      stage: pairStageB,
+      wrap: pairWindowWrapB,
+      funnel: pairFunnelB,
+      window: pairWindowB,
+      controlsWrap: pairGateControlsB,
+      ticksWrap: pairTicksB,
+      arrow: pairArrowB,
+      activeTick: 0,
+      ticks: [],
+      radioEntries: [],
+    },
   ];
 
   const qubits = [
     {
       key: "a",
       element: qubitA,
-      sign: signA,
       gateIndex: 0,
       blue: 1,
       red: 0,
@@ -1236,13 +1388,13 @@ function setupTwoQubitPair(root) {
       dragging: false,
       dragOffsetX: 0,
       dragOffsetY: 0,
-      hasEnteredGate: false,
       lensSlot: null,
+      gateIngestTimer: null,
+      gateTransitInProgress: false,
     },
     {
       key: "b",
       element: qubitB,
-      sign: signB,
       gateIndex: 1,
       blue: 1,
       red: 0,
@@ -1250,8 +1402,9 @@ function setupTwoQubitPair(root) {
       dragging: false,
       dragOffsetX: 0,
       dragOffsetY: 0,
-      hasEnteredGate: false,
       lensSlot: null,
+      gateIngestTimer: null,
+      gateTransitInProgress: false,
     },
   ];
 
@@ -1295,14 +1448,15 @@ function setupTwoQubitPair(root) {
   const arrowDragCenterByGate = [null, null];
   const arrowDragAngleByGate = [null, null];
 
-  function tickSignForValue(tick) {
-    if (tick >= 1 && tick <= 5) {
-      return "+";
+  function gateWeightsForSelection(selectionIndex) {
+    if (
+      Number.isInteger(selectionIndex) &&
+      selectionIndex >= 0 &&
+      selectionIndex < ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length
+    ) {
+      return oneQubitGateWeightsForButton(selectionIndex);
     }
-    if (tick >= 7 && tick <= 11) {
-      return "\u2212";
-    }
-    return "";
+    return BLUE_RED_MIX_BY_TICK[selectionIndex] || BLUE_RED_MIX_BY_TICK[0];
   }
 
   function stagePointForElementCenter(element) {
@@ -1342,21 +1496,11 @@ function setupTwoQubitPair(root) {
     };
   }
 
-  function updateQubitSignSize(qubit) {
-    const rect = qubit.element.getBoundingClientRect();
-    if (!rect.width) {
-      return;
-    }
-    qubit.sign.style.fontSize = `${Math.max(12, Math.round(rect.width - 40))}px`;
-  }
-
-  function applyGateStateToQubit(qubit, tick) {
-    const mix = BLUE_RED_MIX_BY_TICK[tick] || BLUE_RED_MIX_BY_TICK[0];
-    qubit.blue = mix[0];
-    qubit.red = mix[1];
+  function applyGateStateToQubit(qubit, selectionIndex) {
+    const [blueWeight, redWeight] = gateWeightsForSelection(selectionIndex);
+    qubit.blue = blueWeight;
+    qubit.red = redWeight;
     qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
-    qubit.hasEnteredGate = true;
-    qubit.sign.textContent = tickSignForValue(tick);
   }
 
   function circleIntersectionArea(r1, r2, distance) {
@@ -1401,10 +1545,143 @@ function setupTwoQubitPair(root) {
     return overlapArea / qubitArea;
   }
 
-  function maybeSnapQubitToGate(qubit) {
+  function overlapRatioWithRect(qubit, rect) {
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const overlapWidth = Math.max(0, Math.min(qubitRect.right, rect.right) - Math.max(qubitRect.left, rect.left));
+    const overlapHeight = Math.max(0, Math.min(qubitRect.bottom, rect.bottom) - Math.max(qubitRect.top, rect.top));
+    const overlapArea = overlapWidth * overlapHeight;
+    const qubitArea = qubitRect.width * qubitRect.height;
+    return qubitArea > 0 ? overlapArea / qubitArea : 0;
+  }
+
+  function qubitReachedFunnelMidpoint(qubit, gateFunnel) {
+    const funnelRect = gateFunnel.getBoundingClientRect();
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const funnelMidX = (funnelRect.left + funnelRect.right) / 2;
+    const verticalOverlap = Math.max(
+      0,
+      Math.min(qubitRect.bottom, funnelRect.bottom) - Math.max(qubitRect.top, funnelRect.top)
+    );
+
+    return (
+      qubitRect.right >= funnelMidX &&
+      qubitRect.left < funnelRect.right &&
+      verticalOverlap >= qubitRect.height * 0.25
+    );
+  }
+
+  function clearGateIngestAnimation(qubit) {
+    if (qubit.gateIngestTimer !== null) {
+      window.clearTimeout(qubit.gateIngestTimer);
+      qubit.gateIngestTimer = null;
+    }
+    qubit.element.classList.remove("migrating");
+    qubit.element.style.removeProperty("--move-duration");
+  }
+
+  function preventManualPipeOverlapForPairQubit(qubit) {
+    if (measurementInProgress || autoRunInProgress) {
+      return false;
+    }
+
+    const shellRect = pairShell.getBoundingClientRect();
+    const pipeRect = gates[qubit.gateIndex].window.getBoundingClientRect();
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const center = stagePointForElementCenter(qubit.element);
+    const resolved = resolveCircleRectOverlap(
+      center.x,
+      center.y,
+      qubitRect.width / 2,
+      {
+        left: pipeRect.left - shellRect.left,
+        right: pipeRect.right - shellRect.left,
+        top: pipeRect.top - shellRect.top,
+        bottom: pipeRect.bottom - shellRect.top,
+      },
+      1
+    );
+
+    if (!resolved.overlapped) {
+      return false;
+    }
+
+    setQubitCenter(qubit, resolved.x, resolved.y);
+    return true;
+  }
+
+  async function runPairGateTransit(qubit, expectedRunToken = runToken) {
+    if (qubit.gateTransitInProgress || measurementInProgress || autoRunInProgress) {
+      return false;
+    }
+
+    qubit.gateTransitInProgress = true;
+    qubit.dragging = false;
+    qubit.element.classList.remove("dragging");
+    clearGateIngestAnimation(qubit);
+
+    try {
+      const gate = gates[qubit.gateIndex];
+      const gateCenter = stagePointForElementCenter(gate.window);
+      await moveQubitToPoint(qubit, gateCenter.x, gateCenter.y, Math.max(220, Math.round(AUTO_TRAVEL_MS * 0.45)));
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      qubit.docked = true;
+      qubit.element.classList.add("docked");
+      clearLensSlotForQubit(qubit);
+      await wait(GATE_TUBE_DWELL_MS);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      applyGateStateToQubit(qubit, gate.activeTick);
+      qubit.docked = false;
+      qubit.element.classList.remove("docked");
+      gate.wrap.classList.add("platform-extended");
+
+      const shellRect = pairShell.getBoundingClientRect();
+      const pipeRect = gate.window.getBoundingClientRect();
+      const qubitRect = qubit.element.getBoundingClientRect();
+      const ejectedCenter = {
+        x: pipeRect.right - shellRect.left + 100 + qubitRect.width / 2,
+        y: gateCenter.y,
+      };
+
+      await moveQubitToPoint(qubit, ejectedCenter.x, ejectedCenter.y, GATE_PLATFORM_EXTEND_MS);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+
+      settleQubitVisualState(qubit);
+      gate.wrap.classList.remove("platform-extended");
+      await wait(GATE_PLATFORM_RETRACT_MS);
+      if (expectedRunToken !== runToken) {
+        return false;
+      }
+      return true;
+    } finally {
+      gates[qubit.gateIndex].wrap.classList.remove("platform-extended");
+      qubit.element.classList.remove("migrating");
+      qubit.element.style.removeProperty("--move-duration");
+      qubit.gateTransitInProgress = false;
+    }
+  }
+
+  function maybeSnapQubitToGate(qubit, { allowWindowOverlap = false, runTransit = true } = {}) {
     const gate = gates[qubit.gateIndex];
-    if (overlapRatioWithGate(qubit, gate.window) >= SNAP_OVERLAP_THRESHOLD) {
+    const windowOverlap = overlapRatioWithGate(qubit, gate.window);
+    const funnelReachedMidpoint = qubitReachedFunnelMidpoint(qubit, gate.funnel);
+    if ((allowWindowOverlap && windowOverlap >= SNAP_OVERLAP_THRESHOLD) || funnelReachedMidpoint) {
+      if (runTransit && !allowWindowOverlap) {
+        runPairGateTransit(qubit, runToken).catch(() => {});
+        return true;
+      }
+
       const center = stagePointForElementCenter(gate.window);
+      clearGateIngestAnimation(qubit);
+      qubit.dragging = false;
+      qubit.element.classList.remove("dragging");
       setQubitCenter(qubit, center.x, center.y);
       qubit.docked = true;
       qubit.element.classList.add("docked");
@@ -1514,6 +1791,8 @@ function setupTwoQubitPair(root) {
   }
 
   function placeQubitAtStart(qubit) {
+    clearGateIngestAnimation(qubit);
+    qubit.gateTransitInProgress = false;
     clearLensSlotForQubit(qubit);
     const gateWindow = gates[qubit.gateIndex].window;
     const center = stagePointForElementCenter(gateWindow);
@@ -1529,8 +1808,6 @@ function setupTwoQubitPair(root) {
     qubit.blue = 1;
     qubit.red = 0;
     qubit.element.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
-    qubit.hasEnteredGate = false;
-    qubit.sign.textContent = "";
   }
 
   function moveQubitToPoint(qubit, x, y, duration = AUTO_TRAVEL_MS) {
@@ -1545,6 +1822,7 @@ function setupTwoQubitPair(root) {
   function settleQubitVisualState(qubit) {
     qubit.element.classList.remove("migrating");
     qubit.element.classList.remove("melting");
+    qubit.element.classList.remove("collapse-animating");
     qubit.element.style.opacity = "";
   }
 
@@ -1594,18 +1872,29 @@ function setupTwoQubitPair(root) {
     layoutBolt(boltB, qb, lensCenter);
   }
 
+  function syncPairGateSelectorUI(gate) {
+    gate.radioEntries.forEach((entry) => {
+      entry.input.checked = entry.option.buttonIndex === gate.activeTick;
+    });
+  }
+
   function setGateArrowAtTick(gateIndex, tickIndex, { deferMeasurementClear = false } = {}) {
     if (autoRunInProgress) {
       return;
     }
     const gate = gates[gateIndex];
-    const normalizedTick = ((tickIndex % 12) + 12) % 12;
+    const usingButtonSelector =
+      Number.isInteger(tickIndex) &&
+      tickIndex >= 0 &&
+      tickIndex < ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length;
+    const normalizedTick = usingButtonSelector ? tickIndex : ((tickIndex % 12) + 12) % 12;
     const changed = normalizedTick !== gate.activeTick;
     gate.activeTick = normalizedTick;
     gate.arrow.style.transform = `rotate(${normalizedTick * STEP_DEG}deg) scale(${ARROW_SCALE})`;
     gate.ticks.forEach((tick, idx) => {
       tick.classList.toggle("active", idx === normalizedTick);
     });
+    syncPairGateSelectorUI(gate);
 
     if (changed && !deferMeasurementClear) {
       clearMeasurementApparatus();
@@ -1618,6 +1907,39 @@ function setupTwoQubitPair(root) {
   }
 
   gates.forEach((gate, gateIndex) => {
+    const gateSelectorName = `pair-gate-selector-${gateIndex}-${Math.random().toString(36).slice(2)}`;
+    ONE_QUBIT_GATE_OPTIONS.forEach((option) => {
+      const [blueProbability, redProbability] = oneQubitGateWeightsForButton(option.buttonIndex);
+      const wrapper = document.createElement("label");
+      wrapper.className = "gate-radio";
+      wrapper.setAttribute(
+        "aria-label",
+        `${option.label} gate option (P(0)=${formatFraction(blueProbability)}, P(1)=${formatFraction(redProbability)}, hsv(${option.hsv.h.toFixed(1)}, ${option.hsv.s.toFixed(1)}%, ${option.hsv.v.toFixed(1)}%))`
+      );
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = gateSelectorName;
+      input.className = "gate-radio-input";
+
+      const dot = document.createElement("span");
+      dot.className = "gate-radio-dot";
+      dot.style.background = hsvSpecToCss(option.hsv);
+      dot.style.setProperty("--ring-glow", hsvSpecToCss(option.hsv));
+      dot.title = `${option.label} - P(0)=${formatFraction(blueProbability)}, P(1)=${formatFraction(redProbability)} - hsv(${option.hsv.h.toFixed(1)}, ${option.hsv.s.toFixed(1)}%, ${option.hsv.v.toFixed(1)}%)`;
+
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          setGateArrowAtTick(gateIndex, option.buttonIndex);
+        }
+      });
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(dot);
+      gate.controlsWrap.appendChild(wrapper);
+      gate.radioEntries.push({ input, option });
+    });
+
     for (let i = 0; i < 12; i += 1) {
       const tick = document.createElement("button");
       tick.type = "button";
@@ -1651,8 +1973,18 @@ function setupTwoQubitPair(root) {
 
     const leftQubit = slotOccupants.left;
     const rightQubit = slotOccupants.right;
+    leftQubit.element.classList.add("collapse-animating");
+    rightQubit.element.classList.add("collapse-animating");
     const leftResult = collapseQubitState(leftQubit);
     const rightResult = collapseQubitState(rightQubit);
+    await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
+    leftQubit.element.classList.remove("collapse-animating");
+    rightQubit.element.classList.remove("collapse-animating");
+    if (expectedRunToken !== runToken) {
+      measurementInProgress = false;
+      return;
+    }
+
     const outcomeKey = pairTubeOutcomeKey(leftResult, rightResult);
     const targetTube = tubeElementsByKey[outcomeKey];
     const targetRect = targetTube.getBoundingClientRect();
@@ -1728,9 +2060,9 @@ function setupTwoQubitPair(root) {
 
         const processOne = () => {
           qubits.forEach((qubit, idx) => {
-            const mix = BLUE_RED_MIX_BY_TICK[gates[idx].activeTick] || BLUE_RED_MIX_BY_TICK[0];
-            qubit.blue = mix[0];
-            qubit.red = mix[1];
+            const [blueWeight, redWeight] = gateWeightsForSelection(gates[idx].activeTick);
+            qubit.blue = blueWeight;
+            qubit.red = redWeight;
             qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
           });
           const outcomeKey = pairTubeOutcomeKey(collapseQubitState(qubits[0]), collapseQubitState(qubits[1]));
@@ -1786,8 +2118,8 @@ function setupTwoQubitPair(root) {
           break;
         }
 
-        maybeSnapQubitToGate(qubits[0]);
-        maybeSnapQubitToGate(qubits[1]);
+        maybeSnapQubitToGate(qubits[0], { allowWindowOverlap: true, runTransit: false });
+        maybeSnapQubitToGate(qubits[1], { allowWindowOverlap: true, runTransit: false });
         await wait(gatePauseDuration);
         if (thisRunToken !== runToken) {
           break;
@@ -1833,9 +2165,10 @@ function setupTwoQubitPair(root) {
   }
 
   function beginQubitDrag(qubit, event) {
-    if (measurementInProgress || autoRunInProgress) {
+    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
       return;
     }
+    clearGateIngestAnimation(qubit);
     event.preventDefault();
     event.stopPropagation();
     const point = getPointer(event);
@@ -1865,7 +2198,9 @@ function setupTwoQubitPair(root) {
       setQubitCenter(qubit, nextX, nextY);
       const snappedLens = maybeSnapQubitToLens(qubit);
       if (!snappedLens) {
-        maybeSnapQubitToGate(qubit);
+        if (!maybeSnapQubitToGate(qubit)) {
+          preventManualPipeOverlapForPairQubit(qubit);
+        }
       }
     });
   }
@@ -1881,7 +2216,9 @@ function setupTwoQubitPair(root) {
       qubit.dragging = false;
       qubit.element.classList.remove("dragging");
       if (!maybeSnapQubitToLens(qubit)) {
-        maybeSnapQubitToGate(qubit);
+        if (!maybeSnapQubitToGate(qubit)) {
+          preventManualPipeOverlapForPairQubit(qubit);
+        }
       }
     });
     maybeTriggerManualPairMeasurement();
@@ -1983,7 +2320,6 @@ function setupTwoQubitPair(root) {
       });
     });
 
-    qubits.forEach((qubit) => updateQubitSignSize(qubit));
     positionLightning();
 
     if (!initialized) {
@@ -1994,7 +2330,7 @@ function setupTwoQubitPair(root) {
 
     qubits.forEach((qubit) => {
       if (qubit.docked) {
-        maybeSnapQubitToGate(qubit);
+        maybeSnapQubitToGate(qubit, { allowWindowOverlap: true, runTransit: false });
         return;
       }
       if (qubit.lensSlot) {
@@ -2018,14 +2354,16 @@ function setupTwoQubitPair(root) {
 
     gates.forEach((gate) => {
       gate.arrow.classList.remove("dragging");
+      gate.wrap.classList.remove("platform-extended");
     });
 
     qubits.forEach((qubit) => {
+      qubit.gateTransitInProgress = false;
       placeQubitAtStart(qubit);
     });
 
-    setGateArrowAtTick(0, 0);
-    setGateArrowAtTick(1, 0);
+    setGateArrowAtTick(0, DEFAULT_GATE_BUTTON_INDEX);
+    setGateArrowAtTick(1, DEFAULT_GATE_BUTTON_INDEX);
     clearMeasurementApparatus();
   }
 
@@ -2099,8 +2437,8 @@ function setupTwoQubitPair(root) {
     });
   }
 
-  setGateArrowAtTick(0, 0);
-  setGateArrowAtTick(1, 0);
+  setGateArrowAtTick(0, DEFAULT_GATE_BUTTON_INDEX);
+  setGateArrowAtTick(1, DEFAULT_GATE_BUTTON_INDEX);
   clearMeasurementApparatus();
 
   return {
