@@ -33,6 +33,18 @@
           >
             Two qubits
           </button>
+          <button
+            id="tab-entanglement"
+            class="tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-entanglement"
+            data-tab-target="entanglement"
+            tabindex="-1"
+          >
+            Entanglement
+          </button>
         </div>
 
         <section id="panel-one-qubit" class="tab-panel active" role="tabpanel" aria-labelledby="tab-one-qubit">
@@ -50,6 +62,31 @@
         >
           <section class="gate-panel two-qubits-panel">
             <div id="twoQubitsHost" class="sim-host two-qubit-pair-host"></div>
+          </section>
+        </section>
+
+        <section
+          id="panel-entanglement"
+          class="tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-entanglement"
+          hidden
+        >
+          <section class="gate-panel entanglement-panel">
+            <div class="entanglement-versions" aria-label="Entanglement versions">
+              <article class="entanglement-version">
+                <h2>Local</h2>
+                <div id="entanglementLocalHost" class="sim-host entanglement-host">
+                  <p>Entanglement simulator (local) coming soon.</p>
+                </div>
+              </article>
+              <article class="entanglement-version">
+                <h2>Remote</h2>
+                <div id="entanglementRemoteHost" class="sim-host entanglement-host">
+                  <p>Entanglement simulator (remote) coming soon.</p>
+                </div>
+              </article>
+            </div>
           </section>
         </section>
       </div>
