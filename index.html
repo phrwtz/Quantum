@@ -76,15 +76,11 @@
             <div class="entanglement-versions" aria-label="Entanglement versions">
               <article class="entanglement-version">
                 <h2>Local</h2>
-                <div id="entanglementLocalHost" class="sim-host entanglement-host">
-                  <p>Entanglement simulator (local) coming soon.</p>
-                </div>
+                <div id="entanglementLocalHost" class="sim-host entanglement-host"></div>
               </article>
               <article class="entanglement-version">
                 <h2>Remote</h2>
-                <div id="entanglementRemoteHost" class="sim-host entanglement-host">
-                  <p>Entanglement simulator (remote) coming soon.</p>
-                </div>
+                <div id="entanglementRemoteHost" class="sim-host entanglement-host"></div>
               </article>
             </div>
           </section>
@@ -270,6 +266,91 @@
 
           <div class="lightning pair-lightning" data-role="pair-bolt-a" aria-hidden="true"></div>
           <div class="lightning pair-lightning" data-role="pair-bolt-b" aria-hidden="true"></div>
+        </div>
+      </section>
+    </template>
+
+    <template id="entanglementGateTemplate">
+      <section class="ent-gate-sim" aria-label="Entanglement two-qubit gate">
+        <div class="ent-gate-shell" data-role="ent-shell">
+          <div class="ent-pre-gates" aria-hidden="true">
+            <div class="ent-pre-gate ent-pre-gate-top">
+              <div class="ent-pre-funnel"></div>
+              <div class="ent-pre-pipe">
+                <div class="ent-pre-window"></div>
+              </div>
+              <div class="ent-pre-flange"></div>
+            </div>
+            <div class="ent-pre-gate ent-pre-gate-bottom">
+              <div class="ent-pre-funnel"></div>
+              <div class="ent-pre-pipe">
+                <div class="ent-pre-window"></div>
+              </div>
+              <div class="ent-pre-flange"></div>
+            </div>
+          </div>
+
+          <div class="ent-double-gate" data-role="ent-gate">
+            <div class="ent-input-funnel ent-input-funnel-top" data-role="ent-funnel-top" aria-hidden="true"></div>
+            <div class="ent-input-funnel ent-input-funnel-bottom" data-role="ent-funnel-bottom" aria-hidden="true"></div>
+
+            <div class="ent-pipe" data-role="ent-pipe">
+              <div class="ent-window ent-window-top" data-role="ent-window-top"></div>
+              <div class="ent-window ent-window-bottom" data-role="ent-window-bottom"></div>
+            </div>
+
+            <div class="ent-output-flange ent-output-flange-top" data-role="ent-flange-top" aria-hidden="true">
+              <div class="ent-output-spring" data-role="ent-spring-top"></div>
+            </div>
+            <div class="ent-output-flange ent-output-flange-bottom" data-role="ent-flange-bottom" aria-hidden="true">
+              <div class="ent-output-spring" data-role="ent-spring-bottom"></div>
+            </div>
+          </div>
+
+          <section class="ent-measurement-block" aria-label="Entanglement measurement">
+            <div class="ent-message-box">The testtubes can each hold 5 qubit pairs.</div>
+
+            <div class="pair-tube-rack ent-tube-rack">
+              <div class="pair-tube-column" data-key="bb">
+                <div class="pair-tube-label"><span>Blue</span><span>Blue</span></div>
+                <div class="tube-count">0</div>
+                <div class="tube pair-tube">
+                  <div class="tube-liquid tube-liquid-blue"></div>
+                </div>
+              </div>
+              <div class="pair-tube-column" data-key="rb">
+                <div class="pair-tube-label"><span>Red</span><span>Blue</span></div>
+                <div class="tube-count">0</div>
+                <div class="tube pair-tube">
+                  <div class="tube-liquid pair-liquid-rb"></div>
+                </div>
+              </div>
+              <div class="pair-tube-column" data-key="br">
+                <div class="pair-tube-label"><span>Blue</span><span>Red</span></div>
+                <div class="tube-count">0</div>
+                <div class="tube pair-tube">
+                  <div class="tube-liquid pair-liquid-br"></div>
+                </div>
+              </div>
+              <div class="pair-tube-column" data-key="rr">
+                <div class="pair-tube-label"><span>Red</span><span>Red</span></div>
+                <div class="tube-count">0</div>
+                <div class="tube pair-tube">
+                  <div class="tube-liquid tube-liquid-red"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pair-magnifier ent-measurement-tool" aria-hidden="true">
+              <div class="pair-measurement-funnel" aria-hidden="true"></div>
+              <div class="pair-slot pair-slot-left"></div>
+              <div class="pair-slot pair-slot-right"></div>
+              <div class="pair-measurement-platform" aria-hidden="true"></div>
+            </div>
+          </section>
+
+          <button class="qubit ent-qubit ent-qubit-top" data-role="ent-qubit-top" type="button" aria-label="Top entanglement qubit"></button>
+          <button class="qubit ent-qubit ent-qubit-bottom" data-role="ent-qubit-bottom" type="button" aria-label="Bottom entanglement qubit"></button>
         </div>
       </section>
     </template>

@@ -2,8 +2,11 @@ const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
 const simulatorTemplate = document.getElementById("simulatorTemplate");
 const twoQubitPairTemplate = document.getElementById("twoQubitPairTemplate");
+const entanglementGateTemplate = document.getElementById("entanglementGateTemplate");
 const oneQubitHost = document.getElementById("oneQubitHost");
 const twoQubitsHost = document.getElementById("twoQubitsHost");
+const entanglementLocalHost = document.getElementById("entanglementLocalHost");
+const entanglementRemoteHost = document.getElementById("entanglementRemoteHost");
 
 const STEP_DEG = 30;
 const SNAP_OVERLAP_THRESHOLD = 0.9;
@@ -70,6 +73,17 @@ function mountTwoQubitPair() {
   const fragment = twoQubitPairTemplate.content.cloneNode(true);
   twoQubitsHost.appendChild(fragment);
   return twoQubitsHost.querySelector(".pair-sim");
+}
+
+function mountEntanglementGate(host) {
+  if (!entanglementGateTemplate || !host) {
+    return null;
+  }
+
+  host.innerHTML = "";
+  const fragment = entanglementGateTemplate.content.cloneNode(true);
+  host.appendChild(fragment);
+  return host.querySelector(".ent-gate-sim");
 }
 
 function getPointer(event) {
@@ -2795,11 +2809,469 @@ function setupTwoQubitPair(root) {
   };
 }
 
+function setupEntanglementGate(root) {
+  const shell = root.querySelector('[data-role="ent-shell"]');
+  const pipe = root.querySelector('[data-role="ent-pipe"]');
+  const qubitTop = root.querySelector('[data-role="ent-qubit-top"]');
+  const qubitBottom = root.querySelector('[data-role="ent-qubit-bottom"]');
+  const funnelTop = root.querySelector('[data-role="ent-funnel-top"]');
+  const funnelBottom = root.querySelector('[data-role="ent-funnel-bottom"]');
+  const windowTop = root.querySelector('[data-role="ent-window-top"]');
+  const windowBottom = root.querySelector('[data-role="ent-window-bottom"]');
+  const flangeTop = root.querySelector('[data-role="ent-flange-top"]');
+  const flangeBottom = root.querySelector('[data-role="ent-flange-bottom"]');
+  const springTop = root.querySelector('[data-role="ent-spring-top"]');
+  const springBottom = root.querySelector('[data-role="ent-spring-bottom"]');
+
+  if (
+    !shell ||
+    !pipe ||
+    !qubitTop ||
+    !qubitBottom ||
+    !funnelTop ||
+    !funnelBottom ||
+    !windowTop ||
+    !windowBottom ||
+    !flangeTop ||
+    !flangeBottom ||
+    !springTop ||
+    !springBottom
+  ) {
+    return null;
+  }
+
+  const qubits = [
+    {
+      key: "top",
+      element: qubitTop,
+      funnel: funnelTop,
+      window: windowTop,
+      flange: flangeTop,
+      spring: springTop,
+      dragging: false,
+      dragOffsetX: 0,
+      dragOffsetY: 0,
+      inWindow: false,
+      ingesting: false,
+      locked: false,
+      blue: 1,
+      red: 0,
+    },
+    {
+      key: "bottom",
+      element: qubitBottom,
+      funnel: funnelBottom,
+      window: windowBottom,
+      flange: flangeBottom,
+      spring: springBottom,
+      dragging: false,
+      dragOffsetX: 0,
+      dragOffsetY: 0,
+      inWindow: false,
+      ingesting: false,
+      locked: false,
+      blue: 1,
+      red: 0,
+    },
+  ];
+
+  let initialized = false;
+  let gateBusy = false;
+  let runToken = 0;
+
+  function stagePointForElementCenter(element) {
+    const shellRect = shell.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    return {
+      x: rect.left - shellRect.left + rect.width / 2,
+      y: rect.top - shellRect.top + rect.height / 2,
+    };
+  }
+
+  function setQubitCenter(qubit, x, y) {
+    const shellRect = shell.getBoundingClientRect();
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const radius = qubitRect.width / 2;
+    const clampedX = Math.min(Math.max(x, radius), shellRect.width - radius);
+    const clampedY = Math.min(Math.max(y, radius), shellRect.height - radius);
+    qubit.element.style.left = `${clampedX}px`;
+    qubit.element.style.top = `${clampedY}px`;
+  }
+
+  function wait(duration) {
+    return new Promise((resolve) => window.setTimeout(resolve, duration));
+  }
+
+  function settleQubitVisualState(qubit) {
+    qubit.element.classList.remove("migrating");
+    qubit.element.classList.remove("dragging");
+    qubit.element.classList.remove("ent-hidden");
+    qubit.element.classList.remove("ent-appearing");
+    qubit.element.style.removeProperty("--move-duration");
+  }
+
+  function placeQubitAtStart(qubit) {
+    const funnelCenter = stagePointForElementCenter(qubit.funnel);
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const radius = qubitRect.width / 2;
+    const x = radius + QUBIT_START_EDGE_GAP;
+    setQubitCenter(qubit, x, funnelCenter.y);
+    qubit.dragging = false;
+    qubit.inWindow = false;
+    qubit.ingesting = false;
+    qubit.locked = false;
+    settleQubitVisualState(qubit);
+    qubit.blue = 1;
+    qubit.red = 0;
+    qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
+  }
+
+  function moveQubitToPoint(qubit, x, y, duration = AUTO_TRAVEL_MS) {
+    return new Promise((resolve) => {
+      qubit.element.style.setProperty("--move-duration", `${duration}ms`);
+      qubit.element.classList.add("migrating");
+      setQubitCenter(qubit, x, y);
+      window.setTimeout(resolve, duration);
+    });
+  }
+
+  function qubitReachedFunnelMidpoint(qubit) {
+    const funnelRect = qubit.funnel.getBoundingClientRect();
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const funnelMidX = (funnelRect.left + funnelRect.right) / 2;
+    const verticalOverlap = Math.max(
+      0,
+      Math.min(qubitRect.bottom, funnelRect.bottom) - Math.max(qubitRect.top, funnelRect.top)
+    );
+
+    return (
+      qubitRect.right >= funnelMidX &&
+      qubitRect.left < funnelRect.right &&
+      verticalOverlap >= qubitRect.height * 0.25
+    );
+  }
+
+  function preventManualPipeOverlap(qubit) {
+    if (gateBusy || qubit.ingesting || qubit.inWindow) {
+      return false;
+    }
+
+    const shellRect = shell.getBoundingClientRect();
+    const pipeRect = pipe.getBoundingClientRect();
+    const qubitRect = qubit.element.getBoundingClientRect();
+    const center = stagePointForElementCenter(qubit.element);
+    const resolved = resolveCircleRectOverlap(
+      center.x,
+      center.y,
+      qubitRect.width / 2,
+      {
+        left: pipeRect.left - shellRect.left,
+        right: pipeRect.right - shellRect.left,
+        top: pipeRect.top - shellRect.top,
+        bottom: pipeRect.bottom - shellRect.top,
+      },
+      1
+    );
+
+    if (!resolved.overlapped) {
+      return false;
+    }
+
+    setQubitCenter(qubit, resolved.x, resolved.y);
+    return true;
+  }
+
+  function allQubitsInWindows() {
+    return qubits.every((qubit) => qubit.inWindow);
+  }
+
+  function setSpringExtended(qubit, extended) {
+    qubit.flange.classList.toggle("extended", extended);
+  }
+
+  function springTipX(qubit) {
+    const shellRect = shell.getBoundingClientRect();
+    const flangeRect = qubit.flange.getBoundingClientRect();
+    const springStyles = window.getComputedStyle(qubit.spring);
+    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const usableSpringLength = Number.isFinite(springLength)
+      ? springLength
+      : qubit.spring.getBoundingClientRect().width;
+    const springOriginX = flangeRect.left - shellRect.left + 2;
+    return springOriginX + usableSpringLength;
+  }
+
+  function applyCnotGateToQubits() {
+    const normalizeProbabilities = (qubit) => {
+      const total = qubit.blue + qubit.red;
+      const blue = total > 0 ? qubit.blue / total : 0.5;
+      return {
+        blue,
+        red: 1 - blue,
+      };
+    };
+
+    const control = normalizeProbabilities(qubits[0]);
+    const target = normalizeProbabilities(qubits[1]);
+
+    // Build a two-qubit state vector from single-qubit states.
+    // We model amplitudes as real non-negative values whose squares are probabilities.
+    const c0 = Math.sqrt(control.blue);
+    const c1 = Math.sqrt(control.red);
+    const t0 = Math.sqrt(target.blue);
+    const t1 = Math.sqrt(target.red);
+    const inState = [c0 * t0, c0 * t1, c1 * t0, c1 * t1];
+
+    // CNOT on basis order |00>, |01>, |10>, |11>:
+    // [1 0 0 0]
+    // [0 1 0 0]
+    // [0 0 0 1]
+    // [0 0 1 0]
+    const outState = [inState[0], inState[1], inState[3], inState[2]];
+
+    // Marginal probabilities for displayed qubit colors.
+    const controlBlue = outState[0] ** 2 + outState[1] ** 2;
+    const controlRed = outState[2] ** 2 + outState[3] ** 2;
+    const targetBlue = outState[0] ** 2 + outState[2] ** 2;
+    const targetRed = outState[1] ** 2 + outState[3] ** 2;
+
+    qubits[0].blue = controlBlue;
+    qubits[0].red = controlRed;
+    qubits[1].blue = targetBlue;
+    qubits[1].red = targetRed;
+
+    qubits.forEach((qubit) => {
+      qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
+    });
+  }
+
+  async function runGateCycle(expectedRunToken = runToken) {
+    if (gateBusy || !allQubitsInWindows()) {
+      return;
+    }
+
+    gateBusy = true;
+    try {
+      await wait(GATE_TUBE_DWELL_MS);
+      if (expectedRunToken !== runToken) {
+        return;
+      }
+
+      applyCnotGateToQubits();
+      qubits.forEach((qubit) => setSpringExtended(qubit, true));
+
+      const targets = qubits.map((qubit) => {
+        const qubitRect = qubit.element.getBoundingClientRect();
+        return {
+          qubit,
+          x: springTipX(qubit) + 6 + qubitRect.width / 2,
+          y: stagePointForElementCenter(qubit.window).y,
+        };
+      });
+
+      await Promise.all(
+        targets.map((target) => moveQubitToPoint(target.qubit, target.x, target.y, GATE_PLATFORM_EXTEND_MS))
+      );
+      if (expectedRunToken !== runToken) {
+        return;
+      }
+
+      targets.forEach((target) => {
+        settleQubitVisualState(target.qubit);
+        setQubitCenter(target.qubit, target.x, target.y);
+        target.qubit.inWindow = false;
+        target.qubit.ingesting = false;
+        target.qubit.locked = false;
+      });
+
+      qubits.forEach((qubit) => setSpringExtended(qubit, false));
+      await wait(GATE_PLATFORM_RETRACT_MS);
+    } finally {
+      qubits.forEach((qubit) => setSpringExtended(qubit, false));
+      gateBusy = false;
+    }
+  }
+
+  async function runFunnelIngress(qubit, expectedRunToken = runToken) {
+    if (gateBusy || qubit.ingesting || qubit.inWindow) {
+      return false;
+    }
+
+    qubit.ingesting = true;
+    qubit.dragging = false;
+    qubit.locked = true;
+    qubit.element.classList.remove("dragging");
+    qubit.element.classList.add("ent-hidden");
+
+    await wait(160);
+    if (expectedRunToken !== runToken) {
+      qubit.ingesting = false;
+      qubit.locked = false;
+      qubit.element.classList.remove("ent-hidden");
+      return false;
+    }
+
+    const windowCenter = stagePointForElementCenter(qubit.window);
+    setQubitCenter(qubit, windowCenter.x, windowCenter.y);
+    qubit.element.classList.remove("ent-hidden");
+    qubit.element.classList.add("ent-appearing");
+    await wait(180);
+    qubit.element.classList.remove("ent-appearing");
+
+    if (expectedRunToken !== runToken) {
+      qubit.ingesting = false;
+      qubit.locked = false;
+      return false;
+    }
+
+    qubit.inWindow = true;
+    qubit.ingesting = false;
+    settleQubitVisualState(qubit);
+
+    if (allQubitsInWindows()) {
+      const token = runToken + 1;
+      runToken = token;
+      runGateCycle(token).catch(() => {});
+    }
+    return true;
+  }
+
+  function maybeSnapQubitToFunnel(qubit) {
+    if (!qubitReachedFunnelMidpoint(qubit)) {
+      return false;
+    }
+    if (gateBusy || qubit.ingesting || qubit.inWindow) {
+      return false;
+    }
+
+    runFunnelIngress(qubit, runToken).catch(() => {});
+    return true;
+  }
+
+  function beginQubitDrag(qubit, event) {
+    if (gateBusy || qubit.ingesting || qubit.inWindow || qubit.locked) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const point = getPointer(event);
+    const qubitRect = qubit.element.getBoundingClientRect();
+    qubit.dragging = true;
+    qubit.element.classList.add("dragging");
+    qubit.dragOffsetX = point.clientX - (qubitRect.left + qubitRect.width / 2);
+    qubit.dragOffsetY = point.clientY - (qubitRect.top + qubitRect.height / 2);
+  }
+
+  function continueQubitDrag(event) {
+    const draggingQubits = qubits.filter((qubit) => qubit.dragging);
+    if (!draggingQubits.length || gateBusy) {
+      return;
+    }
+    if (event.touches) {
+      event.preventDefault();
+    }
+
+    const point = getPointer(event);
+    const shellRect = shell.getBoundingClientRect();
+    draggingQubits.forEach((qubit) => {
+      const nextX = point.clientX - shellRect.left - qubit.dragOffsetX;
+      const nextY = point.clientY - shellRect.top - qubit.dragOffsetY;
+      setQubitCenter(qubit, nextX, nextY);
+      if (!maybeSnapQubitToFunnel(qubit)) {
+        preventManualPipeOverlap(qubit);
+      }
+    });
+  }
+
+  function endQubitDrag() {
+    if (gateBusy) {
+      return;
+    }
+
+    qubits.forEach((qubit) => {
+      if (!qubit.dragging) {
+        return;
+      }
+      qubit.dragging = false;
+      qubit.element.classList.remove("dragging");
+      if (!maybeSnapQubitToFunnel(qubit)) {
+        preventManualPipeOverlap(qubit);
+      }
+    });
+  }
+
+  function handleResize() {
+    const shellRect = shell.getBoundingClientRect();
+    if (!shellRect.width || !shellRect.height) {
+      return;
+    }
+
+    if (!initialized) {
+      qubits.forEach((qubit) => placeQubitAtStart(qubit));
+      initialized = true;
+      return;
+    }
+
+    qubits.forEach((qubit) => {
+      if (qubit.inWindow) {
+        const center = stagePointForElementCenter(qubit.window);
+        setQubitCenter(qubit, center.x, center.y);
+        return;
+      }
+      const center = stagePointForElementCenter(qubit.element);
+      setQubitCenter(qubit, center.x, center.y);
+    });
+  }
+
+  qubits.forEach((qubit) => {
+    qubit.element.addEventListener("mousedown", (event) => beginQubitDrag(qubit, event));
+    qubit.element.addEventListener(
+      "touchstart",
+      (event) => beginQubitDrag(qubit, event),
+      { passive: false }
+    );
+  });
+
+  window.addEventListener("mousemove", (event) => {
+    continueQubitDrag(event);
+  });
+  window.addEventListener(
+    "touchmove",
+    (event) => {
+      continueQubitDrag(event);
+    },
+    { passive: false }
+  );
+  window.addEventListener("mouseup", () => {
+    endQubitDrag();
+  });
+  window.addEventListener("touchend", () => {
+    endQubitDrag();
+  });
+  window.addEventListener("touchcancel", () => {
+    endQubitDrag();
+  });
+
+  return {
+    handleResize,
+  };
+}
+
 const oneQubitRoot = mountOneQubitSimulator();
 const oneQubitSimulator = oneQubitRoot ? setupSimulator(oneQubitRoot) : null;
 const pairRoot = mountTwoQubitPair();
 const twoQubitPairSimulator = pairRoot ? setupTwoQubitPair(pairRoot) : null;
-const simulators = [oneQubitSimulator, twoQubitPairSimulator].filter(Boolean);
+const entanglementLocalRoot = mountEntanglementGate(entanglementLocalHost);
+const entanglementRemoteRoot = mountEntanglementGate(entanglementRemoteHost);
+const entanglementLocalSimulator = entanglementLocalRoot ? setupEntanglementGate(entanglementLocalRoot) : null;
+const entanglementRemoteSimulator = entanglementRemoteRoot ? setupEntanglementGate(entanglementRemoteRoot) : null;
+const simulators = [
+  oneQubitSimulator,
+  twoQubitPairSimulator,
+  entanglementLocalSimulator,
+  entanglementRemoteSimulator,
+].filter(Boolean);
 
 function refreshVisibleSimulators() {
   simulators.forEach((simulator) => {
