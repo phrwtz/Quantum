@@ -45,6 +45,33 @@
           >
             Entanglement
           </button>
+          <button
+            id="layoutEditToggle"
+            class="layout-edit-btn"
+            type="button"
+            aria-pressed="false"
+            title="Toggle layout edit mode"
+          >
+            Layout Edit: Off
+          </button>
+          <button
+            id="layoutSaveButton"
+            class="layout-edit-btn"
+            type="button"
+            disabled
+            title="Save manual layout positions and sizes"
+          >
+            Save Layout
+          </button>
+          <button
+            id="layoutResetButton"
+            class="layout-edit-btn"
+            type="button"
+            disabled
+            title="Reset layout edits to defaults"
+          >
+            Reset Layout
+          </button>
         </div>
 
         <section id="panel-one-qubit" class="tab-panel active" role="tabpanel" aria-labelledby="tab-one-qubit">
@@ -73,16 +100,7 @@
           hidden
         >
           <section class="gate-panel entanglement-panel">
-            <div class="entanglement-versions" aria-label="Entanglement versions">
-              <article class="entanglement-version">
-                <h2>Local</h2>
-                <div id="entanglementLocalHost" class="sim-host entanglement-host"></div>
-              </article>
-              <article class="entanglement-version">
-                <h2>Remote</h2>
-                <div id="entanglementRemoteHost" class="sim-host entanglement-host"></div>
-              </article>
-            </div>
+            <div id="entanglementHost" class="sim-host entanglement-host"></div>
           </section>
         </section>
       </div>
@@ -98,12 +116,19 @@
           <div class="gate-stage" data-role="gate-stage">
             <button class="qubit" data-role="qubit" type="button" aria-label="Draggable qubit"></button>
 
-            <div class="window-wrap" data-role="window-wrap">
+            <div class="window-wrap single-qubit-gate" data-role="window-wrap">
               <div class="tube-funnel" data-role="tube-funnel" aria-hidden="true"></div>
 
               <div class="window tube-body" data-role="window">
                 <div class="landing-pad tube-core" aria-live="polite"></div>
-                <div class="ticks gate-radio-row" data-role="ticks" role="radiogroup" aria-label="Gate color selector"></div>
+                <div class="ticks" data-role="ticks" aria-label="Gate selector ticks"></div>
+                <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
+                  <g class="arrow-group" data-role="gate-arrow" tabindex="0" aria-label="Move arrow to a tick mark">
+                    <line x1="160" y1="160" x2="160" y2="62" />
+                    <polygon points="160,35 132,71 188,71" />
+                    <circle cx="160" cy="160" r="11" />
+                  </g>
+                </svg>
               </div>
 
               <div class="tube-platform-bay" aria-hidden="true">
@@ -160,53 +185,41 @@
         <div class="pair-shell" data-role="pair-shell">
           <div class="pair-gate-stack">
             <div class="pair-gate-stage" data-role="pair-stage-a">
-              <div class="window-wrap pair-window-wrap" data-role="pair-window-wrap-a">
-                <div class="pair-tube-funnel" data-role="pair-tube-funnel-a" aria-hidden="true"></div>
-                <div class="ticks" data-role="pair-ticks-a"></div>
-                <div class="window" data-role="pair-window-a">
-                  <div class="landing-pad" aria-live="polite"></div>
-                  <div
-                    class="pair-gate-radio-row gate-radio-row"
-                    data-role="pair-gate-controls-a"
-                    role="radiogroup"
-                    aria-label="Upper gate color selector"
-                  ></div>
+              <div class="window-wrap single-qubit-gate" data-role="pair-window-wrap-a">
+                <div class="tube-funnel" data-role="pair-tube-funnel-a" aria-hidden="true"></div>
+                <div class="window tube-body" data-role="pair-window-a">
+                  <div class="landing-pad tube-core" aria-live="polite"></div>
+                  <div class="ticks" data-role="pair-ticks-a"></div>
                   <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
                     <g class="arrow-group" data-role="pair-arrow-a" tabindex="0" aria-label="Move arrow to a tick mark">
                       <line x1="160" y1="160" x2="160" y2="62" />
-                      <polygon points="160,35 146,71 174,71" />
+                      <polygon points="160,35 132,71 188,71" />
                       <circle cx="160" cy="160" r="11" />
                     </g>
                   </svg>
                 </div>
-                <div class="pair-tube-platform-bay" aria-hidden="true">
-                  <div class="pair-tube-platform" data-role="pair-tube-platform-a"></div>
+                <div class="tube-platform-bay" aria-hidden="true">
+                  <div class="tube-platform" data-role="pair-tube-platform-a"></div>
                 </div>
               </div>
             </div>
 
             <div class="pair-gate-stage" data-role="pair-stage-b">
-              <div class="window-wrap pair-window-wrap" data-role="pair-window-wrap-b">
-                <div class="pair-tube-funnel" data-role="pair-tube-funnel-b" aria-hidden="true"></div>
-                <div class="ticks" data-role="pair-ticks-b"></div>
-                <div class="window" data-role="pair-window-b">
-                  <div class="landing-pad" aria-live="polite"></div>
-                  <div
-                    class="pair-gate-radio-row gate-radio-row"
-                    data-role="pair-gate-controls-b"
-                    role="radiogroup"
-                    aria-label="Lower gate color selector"
-                  ></div>
+              <div class="window-wrap single-qubit-gate" data-role="pair-window-wrap-b">
+                <div class="tube-funnel" data-role="pair-tube-funnel-b" aria-hidden="true"></div>
+                <div class="window tube-body" data-role="pair-window-b">
+                  <div class="landing-pad tube-core" aria-live="polite"></div>
+                  <div class="ticks" data-role="pair-ticks-b"></div>
                   <svg class="arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Directional gate selector">
                     <g class="arrow-group" data-role="pair-arrow-b" tabindex="0" aria-label="Move arrow to a tick mark">
                       <line x1="160" y1="160" x2="160" y2="62" />
-                      <polygon points="160,35 146,71 174,71" />
+                      <polygon points="160,35 132,71 188,71" />
                       <circle cx="160" cy="160" r="11" />
                     </g>
                   </svg>
                 </div>
-                <div class="pair-tube-platform-bay" aria-hidden="true">
-                  <div class="pair-tube-platform" data-role="pair-tube-platform-b"></div>
+                <div class="tube-platform-bay" aria-hidden="true">
+                  <div class="tube-platform" data-role="pair-tube-platform-b"></div>
                 </div>
               </div>
             </div>
@@ -215,54 +228,7 @@
           <button class="qubit pair-qubit" data-role="pair-qubit-a" type="button" aria-label="First draggable qubit"></button>
           <button class="qubit pair-qubit" data-role="pair-qubit-b" type="button" aria-label="Second draggable qubit"></button>
 
-          <section class="pair-measurement" aria-label="Two qubit measurement tool">
-            <div class="pair-capacity" data-role="pair-capacity"></div>
-            <div class="pair-tube-rack">
-              <div class="pair-tube-column" data-key="bb">
-                <div class="pair-tube-label"><span>Blue</span><span>Blue</span></div>
-                <div class="tube-count" data-role="pair-count-bb">0</div>
-                <div class="tube pair-tube" data-role="pair-tube-bb">
-                  <div class="tube-liquid tube-liquid-blue" data-role="pair-liquid-bb"></div>
-                </div>
-              </div>
-              <div class="pair-tube-column" data-key="rb">
-                <div class="pair-tube-label"><span>Red</span><span>Blue</span></div>
-                <div class="tube-count" data-role="pair-count-rb">0</div>
-                <div class="tube pair-tube" data-role="pair-tube-rb">
-                  <div class="tube-liquid pair-liquid-rb" data-role="pair-liquid-rb"></div>
-                </div>
-              </div>
-              <div class="pair-tube-column" data-key="br">
-                <div class="pair-tube-label"><span>Blue</span><span>Red</span></div>
-                <div class="tube-count" data-role="pair-count-br">0</div>
-                <div class="tube pair-tube" data-role="pair-tube-br">
-                  <div class="tube-liquid pair-liquid-br" data-role="pair-liquid-br"></div>
-                </div>
-              </div>
-              <div class="pair-tube-column" data-key="rr">
-                <div class="pair-tube-label"><span>Red</span><span>Red</span></div>
-                <div class="tube-count" data-role="pair-count-rr">0</div>
-                <div class="tube pair-tube" data-role="pair-tube-rr">
-                  <div class="tube-liquid tube-liquid-red" data-role="pair-liquid-rr"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="pair-magnifier" data-role="pair-lens">
-              <div class="pair-measurement-funnel" data-role="pair-measurement-funnel" aria-hidden="true"></div>
-              <div class="pair-slot pair-slot-left" data-role="pair-slot-left"></div>
-              <div class="pair-slot pair-slot-right" data-role="pair-slot-right"></div>
-              <div class="pair-measurement-platform" aria-hidden="true"></div>
-            </div>
-            <select data-role="pair-measurement-count" class="measurement-count pair-measurement-count" aria-label="Number of pair measurements">
-              <option value="1" selected>1</option>
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="100">100</option>
-              <option value="1000">1000</option>
-              <option value="10000">10000</option>
-            </select>
-          </section>
+          <section class="pair-measurement" data-role="pair-measurement-host" aria-label="Two qubit measurement tool"></section>
 
           <div class="lightning pair-lightning" data-role="pair-bolt-a" aria-hidden="true"></div>
           <div class="lightning pair-lightning" data-role="pair-bolt-b" aria-hidden="true"></div>
@@ -272,87 +238,131 @@
 
     <template id="entanglementGateTemplate">
       <section class="ent-gate-sim" aria-label="Entanglement two-qubit gate">
+        <div class="top-controls" data-role="ent-top-controls">
+          <button data-role="ent-reset" class="reset-btn" type="button">Reset</button>
+        </div>
+
         <div class="ent-gate-shell" data-role="ent-shell">
           <div class="ent-pre-gates" aria-hidden="true">
-            <div class="ent-pre-gate ent-pre-gate-top">
-              <div class="ent-pre-funnel"></div>
-              <div class="ent-pre-pipe">
-                <div class="ent-pre-window"></div>
+            <div class="window-wrap single-qubit-gate ent-pre-gate ent-pre-gate-top">
+              <div class="tube-funnel ent-pre-funnel" data-role="ent-pre-funnel-top"></div>
+              <div class="window tube-body ent-pre-pipe" data-role="ent-pre-pipe-top">
+                <div class="ticks ent-pre-ticks" data-role="ent-pre-ticks-top" aria-label="Top one-qubit gate selector ticks"></div>
+                <svg class="arrow-layer ent-pre-arrow-layer" viewBox="0 0 320 320" role="img" aria-label="Top one-qubit directional selector">
+                  <g class="arrow-group" data-role="ent-pre-arrow-top" tabindex="0" aria-label="Move top gate arrow to a tick mark">
+                    <line x1="160" y1="160" x2="160" y2="62" />
+                    <polygon points="160,35 132,71 188,71" />
+                    <circle cx="160" cy="160" r="11" />
+                  </g>
+                </svg>
               </div>
-              <div class="ent-pre-flange"></div>
+              <div class="tube-platform-bay ent-pre-flange" data-role="ent-pre-flange-top">
+                <div class="tube-platform ent-pre-spring" data-role="ent-pre-spring-top"></div>
+              </div>
             </div>
-            <div class="ent-pre-gate ent-pre-gate-bottom">
-              <div class="ent-pre-funnel"></div>
-              <div class="ent-pre-pipe">
-                <div class="ent-pre-window"></div>
+            <div class="window-wrap single-qubit-gate ent-pre-gate ent-pre-gate-bottom">
+              <div class="tube-funnel ent-pre-funnel" data-role="ent-pre-funnel-bottom"></div>
+              <div class="window tube-body ent-pre-pipe" data-role="ent-pre-pipe-bottom">
+                <div
+                  class="ticks ent-pre-ticks"
+                  data-role="ent-pre-ticks-bottom"
+                  aria-label="Bottom one-qubit gate selector ticks"
+                ></div>
+                <svg
+                  class="arrow-layer ent-pre-arrow-layer"
+                  viewBox="0 0 320 320"
+                  role="img"
+                  aria-label="Bottom one-qubit directional selector"
+                >
+                  <g class="arrow-group" data-role="ent-pre-arrow-bottom" tabindex="0" aria-label="Move bottom gate arrow to a tick mark">
+                    <line x1="160" y1="160" x2="160" y2="62" />
+                    <polygon points="160,35 132,71 188,71" />
+                    <circle cx="160" cy="160" r="11" />
+                  </g>
+                </svg>
               </div>
-              <div class="ent-pre-flange"></div>
+              <div class="tube-platform-bay ent-pre-flange" data-role="ent-pre-flange-bottom">
+                <div class="tube-platform ent-pre-spring" data-role="ent-pre-spring-bottom"></div>
+              </div>
             </div>
           </div>
 
-          <div class="ent-double-gate" data-role="ent-gate">
-            <div class="ent-input-funnel ent-input-funnel-top" data-role="ent-funnel-top" aria-hidden="true"></div>
-            <div class="ent-input-funnel ent-input-funnel-bottom" data-role="ent-funnel-bottom" aria-hidden="true"></div>
-
-            <div class="ent-pipe" data-role="ent-pipe">
-              <div class="ent-window ent-window-top" data-role="ent-window-top"></div>
-              <div class="ent-window ent-window-bottom" data-role="ent-window-bottom"></div>
-            </div>
-
-            <div class="ent-output-flange ent-output-flange-top" data-role="ent-flange-top" aria-hidden="true">
-              <div class="ent-output-spring" data-role="ent-spring-top"></div>
-            </div>
-            <div class="ent-output-flange ent-output-flange-bottom" data-role="ent-flange-bottom" aria-hidden="true">
-              <div class="ent-output-spring" data-role="ent-spring-bottom"></div>
-            </div>
+          <div class="ent-double-gate pair-magnifier" data-role="ent-pipe">
+            <div class="pair-measurement-funnel ent-cnot-funnel" aria-hidden="true"></div>
+            <div class="ent-cnot-funnel-zone ent-cnot-funnel-top" data-role="ent-funnel-top" aria-hidden="true"></div>
+            <div
+              class="ent-cnot-funnel-zone ent-cnot-funnel-bottom"
+              data-role="ent-funnel-bottom"
+              aria-hidden="true"
+            ></div>
+            <div class="pair-slot pair-slot-left" data-role="ent-window-top"></div>
+            <div class="pair-slot pair-slot-right" data-role="ent-window-bottom"></div>
+            <div class="pair-measurement-platform ent-cnot-platform" data-role="ent-platform" aria-hidden="true"></div>
           </div>
 
-          <section class="ent-measurement-block" aria-label="Entanglement measurement">
-            <div class="ent-message-box">The testtubes can each hold 5 qubit pairs.</div>
-
-            <div class="pair-tube-rack ent-tube-rack">
-              <div class="pair-tube-column" data-key="bb">
-                <div class="pair-tube-label"><span>Blue</span><span>Blue</span></div>
-                <div class="tube-count">0</div>
-                <div class="tube pair-tube">
-                  <div class="tube-liquid tube-liquid-blue"></div>
-                </div>
-              </div>
-              <div class="pair-tube-column" data-key="rb">
-                <div class="pair-tube-label"><span>Red</span><span>Blue</span></div>
-                <div class="tube-count">0</div>
-                <div class="tube pair-tube">
-                  <div class="tube-liquid pair-liquid-rb"></div>
-                </div>
-              </div>
-              <div class="pair-tube-column" data-key="br">
-                <div class="pair-tube-label"><span>Blue</span><span>Red</span></div>
-                <div class="tube-count">0</div>
-                <div class="tube pair-tube">
-                  <div class="tube-liquid pair-liquid-br"></div>
-                </div>
-              </div>
-              <div class="pair-tube-column" data-key="rr">
-                <div class="pair-tube-label"><span>Red</span><span>Red</span></div>
-                <div class="tube-count">0</div>
-                <div class="tube pair-tube">
-                  <div class="tube-liquid tube-liquid-red"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="pair-magnifier ent-measurement-tool" aria-hidden="true">
-              <div class="pair-measurement-funnel" aria-hidden="true"></div>
-              <div class="pair-slot pair-slot-left"></div>
-              <div class="pair-slot pair-slot-right"></div>
-              <div class="pair-measurement-platform" aria-hidden="true"></div>
-            </div>
-          </section>
+          <section
+            class="ent-measurement-block"
+            data-role="ent-measurement-host"
+            aria-label="Entanglement measurement"
+          ></section>
 
           <button class="qubit ent-qubit ent-qubit-top" data-role="ent-qubit-top" type="button" aria-label="Top entanglement qubit"></button>
           <button class="qubit ent-qubit ent-qubit-bottom" data-role="ent-qubit-bottom" type="button" aria-label="Bottom entanglement qubit"></button>
         </div>
       </section>
+    </template>
+
+    <template id="pairMeasurementToolTemplate">
+      <div class="pair-capacity" data-role="pair-capacity"></div>
+      <div class="pair-tube-rack">
+        <div class="pair-tube-column" data-key="bb">
+          <div class="pair-tube-label"><span>Blue</span><span>Blue</span></div>
+          <div class="tube-count" data-role="pair-count-bb">0</div>
+          <div class="tube pair-tube" data-role="pair-tube-bb">
+            <div class="tube-liquid tube-liquid-blue" data-role="pair-liquid-bb"></div>
+          </div>
+        </div>
+        <div class="pair-tube-column" data-key="rb">
+          <div class="pair-tube-label"><span>Red</span><span>Blue</span></div>
+          <div class="tube-count" data-role="pair-count-rb">0</div>
+          <div class="tube pair-tube" data-role="pair-tube-rb">
+            <div class="tube-liquid pair-liquid-rb" data-role="pair-liquid-rb"></div>
+          </div>
+        </div>
+        <div class="pair-tube-column" data-key="br">
+          <div class="pair-tube-label"><span>Blue</span><span>Red</span></div>
+          <div class="tube-count" data-role="pair-count-br">0</div>
+          <div class="tube pair-tube" data-role="pair-tube-br">
+            <div class="tube-liquid pair-liquid-br" data-role="pair-liquid-br"></div>
+          </div>
+        </div>
+        <div class="pair-tube-column" data-key="rr">
+          <div class="pair-tube-label"><span>Red</span><span>Red</span></div>
+          <div class="tube-count" data-role="pair-count-rr">0</div>
+          <div class="tube pair-tube" data-role="pair-tube-rr">
+            <div class="tube-liquid tube-liquid-red" data-role="pair-liquid-rr"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair-magnifier" data-role="pair-lens">
+        <div class="pair-measurement-funnel" data-role="pair-measurement-funnel" aria-hidden="true"></div>
+        <div class="pair-slot pair-slot-left" data-role="pair-slot-left"></div>
+        <div class="pair-slot pair-slot-right" data-role="pair-slot-right"></div>
+        <div class="pair-measurement-platform" aria-hidden="true"></div>
+      </div>
+      <select
+        data-role="pair-measurement-count"
+        class="measurement-count pair-measurement-count"
+        aria-label="Number of pair measurements"
+      >
+        <option value="1" selected>1</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="100">100</option>
+        <option value="1000">1000</option>
+        <option value="10000">10000</option>
+      </select>
     </template>
 
     <script src="app.js"></script>

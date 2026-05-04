@@ -52,6 +52,83 @@ body {
   align-items: center;
   gap: 0.45rem;
   margin: 0 0 0.45rem;
+  flex-wrap: wrap;
+}
+
+.layout-edit-btn {
+  appearance: none;
+  border: 1px solid #5a7589;
+  border-radius: 0.55rem;
+  min-width: 142px;
+  height: 2.1rem;
+  padding: 0 0.8rem;
+  font: 600 0.78rem "Aldrich", sans-serif;
+  letter-spacing: 0.02em;
+  color: #10334a;
+  background: linear-gradient(165deg, #eef8ff, #cde0ee);
+  box-shadow: 0 2px 4px rgba(16, 41, 63, 0.18);
+  cursor: pointer;
+}
+
+.layout-edit-btn:hover {
+  background: linear-gradient(165deg, #f8fcff, #d7e8f3);
+}
+
+.layout-edit-btn.active {
+  border-color: #206c9b;
+  color: #062033;
+  background: linear-gradient(165deg, #ffedca, #ffcf86);
+  box-shadow:
+    0 0 0 2px rgba(255, 188, 93, 0.34),
+    0 2px 4px rgba(16, 41, 63, 0.2);
+}
+
+.layout-edit-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(58, 109, 147, 0.22),
+    0 2px 4px rgba(16, 41, 63, 0.2);
+}
+
+.layout-edit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.layout-edit-active [data-layout-edit-target="true"] {
+  outline: 2px dashed rgba(237, 170, 59, 0.9);
+  outline-offset: 2px;
+  cursor: grab;
+}
+
+body.layout-edit-active [data-layout-edit-target="true"].layout-edit-dragging {
+  cursor: grabbing;
+}
+
+.layout-resize-handle {
+  display: none;
+}
+
+body.layout-edit-active [data-layout-edit-target="true"][data-layout-resizable="true"] .layout-resize-handle {
+  display: block;
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(5, 35, 55, 0.95);
+  background: radial-gradient(circle at 35% 35%, #ffffff, #ffbe4f 60%, #d37d1a 100%);
+  box-shadow: 0 1px 2px rgba(9, 23, 38, 0.45);
+  cursor: nwse-resize;
+  z-index: 30;
+}
+
+body.layout-edit-active *,
+body.layout-edit-active *::before,
+body.layout-edit-active *::after {
+  animation: none !important;
+  transition: none !important;
 }
 
 .tab-btn {
@@ -146,6 +223,7 @@ body {
     inset 0 3px 5px rgba(255, 255, 255, 0.6),
     inset 0 -4px 7px rgba(15, 43, 66, 0.16);
   padding: 0.66rem 0.66rem 0.7rem;
+  transform: translateY(100px);
   gap: 0.95rem;
 }
 
@@ -181,8 +259,20 @@ body {
 }
 
 .entanglement-panel {
-  width: min(100%, 1420px);
+  width: 100%;
+  max-width: none;
   padding: 1.1rem 1.15rem 1.2rem;
+}
+
+#panel-entanglement {
+  width: calc(100vw - 1rem);
+  max-width: calc(100vw - 1rem);
+}
+
+#panel-entanglement .gate-panel {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
 }
 
 .entanglement-versions {
@@ -209,7 +299,9 @@ body {
 }
 
 .entanglement-host {
-  min-height: 410px;
+  width: 100%;
+  max-width: none;
+  min-height: 620px;
   border-radius: 0.62rem;
   border: 1px solid #8ea4b6;
   background: rgba(245, 251, 255, 0.88);
@@ -220,14 +312,15 @@ body {
 }
 
 .ent-gate-sim {
-  width: 1360px;
+  width: 1560px;
   max-width: none;
+  padding-top: 200px;
 }
 
 .ent-gate-shell {
   position: relative;
-  width: 1360px;
-  min-height: 362px;
+  width: 1560px;
+  min-height: 560px;
   user-select: none;
 }
 
@@ -235,7 +328,7 @@ body {
   position: absolute;
   left: 110px;
   top: 50%;
-  width: 250px;
+  width: 300px;
   transform: translateY(-50%);
   display: grid;
   gap: 1.05rem;
@@ -243,19 +336,22 @@ body {
 
 .ent-pre-gate {
   position: relative;
-  width: 250px;
-  height: 112px;
+  width: 300px;
+  height: 170px;
+  display: grid;
+  grid-template-columns: 64px minmax(220px, 1fr);
+  align-items: center;
+  gap: 0;
 }
 
 .ent-pre-funnel {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 56px;
-  height: 96px;
-  transform: translateY(-50%);
-  clip-path: polygon(0 8%, 0 92%, 100% 50%);
-  border-radius: 0.42rem 0 0 0.42rem;
+  position: relative;
+  width: 60px;
+  height: 102px;
+  justify-self: end;
+  margin-right: -6px;
+  clip-path: polygon(0 7%, 0 93%, 100% 50%);
+  border-radius: 0.45rem 0 0 0.45rem;
   border: 2px solid #687888;
   background:
     linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
@@ -273,10 +369,10 @@ body {
 .ent-pre-funnel::after {
   content: "";
   position: absolute;
-  right: -8px;
+  right: -9px;
   top: 50%;
-  width: 12px;
-  height: 66px;
+  width: 14px;
+  height: 74px;
   transform: translateY(-50%);
   border-radius: 999px;
   border: 1px solid rgba(96, 112, 126, 0.9);
@@ -293,12 +389,10 @@ body {
 }
 
 .ent-pre-pipe {
-  position: absolute;
-  left: 50px;
-  right: 16px;
-  top: 50%;
-  height: 90px;
-  transform: translateY(-50%);
+  position: relative;
+  grid-column: 2;
+  width: 100%;
+  height: 102px;
   border-radius: 999px;
   border: 3px solid #5f6f7f;
   background:
@@ -342,12 +436,47 @@ body {
   transform: translate(-50%, -50%);
 }
 
+.ent-pre-controls {
+  display: none;
+}
+
+.ent-pre-ticks {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+  z-index: 3;
+}
+
+.ent-pre-ticks .tick {
+  width: 6px;
+  height: 12px;
+}
+
+.ent-pre-arrow-layer {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.ent-pre-arrow-layer .arrow-group {
+  pointer-events: auto;
+}
+
 .ent-pre-flange {
   position: absolute;
-  right: 10px;
+  right: 14px;
   top: 50%;
-  width: 14px;
-  height: 68px;
+  width: 16px;
+  height: 78px;
   transform: translateY(-50%);
   border-radius: 999px;
   border: 1px solid rgba(84, 99, 113, 0.92);
@@ -361,48 +490,84 @@ body {
   box-shadow:
     inset 0 2px 3px rgba(255, 255, 255, 0.45),
     inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
 }
 
-.ent-double-gate {
+.ent-pre-spring {
+  --spring-height: 38px;
+  --spring-length: 132px;
   position: absolute;
-  left: 430px;
+  left: -2px;
   top: 50%;
-  width: 398px;
-  height: 236px;
+  width: var(--spring-length);
+  height: var(--spring-height);
+  transform-origin: left center;
+  border: 0;
+  border-radius: calc(var(--spring-height) / 2);
+  background:
+    radial-gradient(
+      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+      transparent 56%,
+      rgba(154, 170, 186, 0.95) 60%,
+      rgba(52, 67, 83, 0.98) 69%,
+      transparent 75%
+    );
+  background-size: 16px 100%;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.04);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 1000ms;
+  pointer-events: none;
+}
+
+.ent-pre-flange.extended .ent-pre-spring {
+  opacity: 1;
+  transform: translateY(-50%) scaleX(1);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 0ms;
+}
+
+.ent-double-gate.pair-magnifier {
+  position: absolute;
+  left: 560px;
+  top: 50%;
+  width: 314px;
+  max-width: 314px;
+  height: 188px;
   transform: translateY(-50%);
 }
 
-.ent-pipe {
+.ent-cnot-funnel-zone {
   position: absolute;
-  left: 42px;
-  right: 26px;
-  top: 0;
-  bottom: 0;
-  border-radius: 999px;
-  border: 3px solid #5f6f7f;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(239, 245, 251, 0.95) 0%,
-      rgba(186, 199, 212, 0.92) 38%,
-      rgba(122, 137, 151, 0.96) 50%,
-      rgba(171, 185, 198, 0.94) 66%,
-      rgba(212, 222, 232, 0.95) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.14) 0 2px,
-      rgba(255, 255, 255, 0) 2px 8px
-    );
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.54),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 3px 7px rgba(16, 35, 52, 0.28);
+  left: -66px;
+  width: 74px;
+  height: 78px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ent-cnot-funnel-top {
+  top: calc(50% - 41px);
+}
+
+.ent-cnot-funnel-bottom {
+  top: calc(50% + 41px);
+}
+
+.ent-pipe {
+  /* CNOT in entanglement mode reuses pair-magnifier styling directly. */
 }
 
 .ent-input-funnel {
   position: absolute;
-  left: -18px;
+  left: -17px;
   width: 60px;
   height: 102px;
   transform: translateY(-50%);
@@ -454,7 +619,7 @@ body {
 
 .ent-window {
   position: absolute;
-  left: 56%;
+  left: 50%;
   width: 68px;
   height: 68px;
   border-radius: 50%;
@@ -473,16 +638,16 @@ body {
 }
 
 .ent-window-top {
-  top: calc(50% - 42px);
+  top: 28%;
 }
 
 .ent-window-bottom {
-  top: calc(50% + 42px);
+  top: 72%;
 }
 
 .ent-output-flange {
   position: absolute;
-  right: -8px;
+  right: 10px;
   width: 16px;
   height: 78px;
   transform: translateY(-50%);
@@ -548,38 +713,12 @@ body {
 
 .ent-measurement-block {
   position: absolute;
-  left: 860px;
-  top: 50%;
+  left: 1210px;
+  top: 0;
   width: 314px;
-  transform: translateY(-50%);
+  transform: none;
   display: grid;
   row-gap: 0.62rem;
-}
-
-.ent-message-box {
-  width: 100%;
-  min-height: 32px;
-  border-radius: 0.45rem;
-  border: 1px solid #869bae;
-  background: #f6fbff;
-  box-shadow: inset 0 1px 2px rgba(24, 56, 84, 0.14);
-  display: grid;
-  place-items: center;
-  color: #1b3953;
-  font: 600 14pt/1 "Chakra Petch", sans-serif;
-  letter-spacing: 0.01em;
-  text-align: center;
-  padding: 0.2rem 0.45rem;
-  white-space: nowrap;
-}
-
-.ent-tube-rack {
-  width: 100%;
-}
-
-.ent-measurement-tool {
-  width: 100%;
-  max-width: 314px;
 }
 
 .ent-qubit {
@@ -636,193 +775,26 @@ body {
     inset 0 3px 5px rgba(255, 255, 255, 0.6),
     inset 0 -4px 7px rgba(15, 43, 66, 0.16);
   margin-top: 0.75rem;
-  padding: 0.7rem 0.7rem 0.9rem;
+  padding: 0.7rem 0.7rem 3.2rem;
 }
 
 .pair-gate-stack {
   flex: 0 0 auto;
-  width: 348px;
-  min-width: 348px;
-  margin-left: 121px;
-  margin-right: 350px;
+  width: 520px;
+  min-width: 520px;
+  margin-left: 0;
+  margin-right: 220px;
   display: grid;
-  gap: 2.1rem;
+  gap: 0.7rem;
 }
 
 .pair-gate-stage {
   position: relative;
-  width: 348px;
-  aspect-ratio: 1 / 1;
+  width: 520px;
+  height: 212px;
   user-select: none;
 }
 
-.pair-window-wrap {
-  left: calc(56% + 66px);
-  width: min(66%, 232px);
-}
-
-.pair-window-wrap::before {
-  content: none;
-}
-
-.pair-window-wrap .pair-tube-funnel {
-  position: absolute;
-  left: -38px;
-  top: 50%;
-  width: 48px;
-  height: 86px;
-  transform: translateY(-50%);
-  clip-path: polygon(0 8%, 0 92%, 100% 50%);
-  border-radius: 0.42rem 0 0 0.42rem;
-  border: 2px solid #687888;
-  background:
-    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
-    repeating-linear-gradient(
-      -8deg,
-      rgba(255, 255, 255, 0.34) 0 4px,
-      rgba(255, 255, 255, 0) 4px 11px
-    );
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.5),
-    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
-    0 2px 5px rgba(22, 40, 57, 0.28);
-  pointer-events: none;
-}
-
-.pair-window-wrap .window {
-  position: absolute;
-  inset: auto;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 84%;
-  height: 88px;
-  border-radius: 999px;
-  border: 3px solid #5f6f7f;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(239, 245, 251, 0.95) 0%,
-      rgba(186, 199, 212, 0.92) 38%,
-      rgba(122, 137, 151, 0.96) 50%,
-      rgba(171, 185, 198, 0.94) 66%,
-      rgba(212, 222, 232, 0.95) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.14) 0 2px,
-      rgba(255, 255, 255, 0) 2px 8px
-    );
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.5),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 3px 7px rgba(16, 35, 52, 0.25);
-  overflow: visible;
-}
-
-.pair-window-wrap .landing-pad {
-  display: none;
-}
-
-.pair-window-wrap .window::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  width: 14px;
-  height: 64px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid rgba(84, 99, 113, 0.92);
-  background:
-    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.2) 0 3px,
-      rgba(255, 255, 255, 0) 3px 8px
-    );
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.45),
-    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
-}
-
-.pair-window-wrap .window::before {
-  content: none;
-}
-
-.pair-window-wrap .pair-tube-platform-bay {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  width: 18px;
-  height: 34px;
-  transform: translateY(-50%);
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-  pointer-events: none;
-  z-index: 3;
-}
-
-.pair-window-wrap .pair-tube-platform {
-  --spring-height: 30px;
-  --spring-length: 108px;
-  position: absolute;
-  left: -2px;
-  top: 50%;
-  width: var(--spring-length);
-  height: var(--spring-height);
-  transform-origin: left center;
-  border: 0;
-  border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
-  background-size: 16px 100%;
-  background-repeat: repeat-x;
-  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
-  opacity: 0;
-  transform: translateY(-50%) scaleX(0.04);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 1000ms;
-}
-
-.pair-window-wrap.platform-extended .pair-tube-platform {
-  opacity: 1;
-  transform: translateY(-50%) scaleX(1);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 0ms;
-}
-
-.pair-window-wrap .pair-gate-radio-row {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.34rem;
-  padding: 0.16rem 0.24rem;
-  border-radius: 999px;
-  background: transparent;
-  box-shadow: none;
-  z-index: 2;
-}
-
-/* Two-qubit mode: hide directional arrows and tick marks on gate faces. */
-.pair-window-wrap .ticks,
-.pair-window-wrap .arrow-layer {
-  display: none;
-}
 
 .pair-qubit {
   width: 64px;
@@ -869,6 +841,13 @@ body {
   justify-content: space-between;
   align-items: end;
   gap: 0.56rem;
+}
+
+.pair-sim .pair-tube-rack {
+  width: max-content;
+  justify-self: center;
+  justify-content: center;
+  gap: 0.34rem;
 }
 
 .pair-tube-column {
@@ -1054,6 +1033,49 @@ body {
     opacity 0ms linear 0ms;
 }
 
+.pair-sim .pair-magnifier {
+  max-width: none;
+  height: 214px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.pair-sim .pair-magnifier::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("Wide magnifying glass transparent.png") center / 100% 100% no-repeat;
+  clip-path: inset(0 4px 0 4px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pair-sim .pair-measurement-funnel,
+.pair-sim .pair-magnifier::after {
+  display: none;
+}
+
+.pair-sim .pair-slot {
+  width: 66px;
+  height: 66px;
+  opacity: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pair-sim .pair-slot-left {
+  left: calc(66% - 50px);
+  top: calc(50% - 50px);
+}
+
+.pair-sim .pair-slot-right {
+  left: 34%;
+  top: 50%;
+}
+
 .pair-lightning {
   z-index: 3;
 }
@@ -1105,6 +1127,70 @@ body {
   box-shadow:
     0 0 0 3px rgba(58, 109, 147, 0.22),
     0 2px 4px rgba(17, 42, 64, 0.18);
+}
+
+.qubit-inspector {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(420px, calc(100vw - 2rem));
+  border-radius: 0.6rem;
+  border: 1px solid #6f8799;
+  background: linear-gradient(165deg, #fdfefe, #dce9f3);
+  box-shadow: 0 8px 20px rgba(11, 31, 49, 0.25);
+  z-index: 2500;
+  overflow: hidden;
+}
+
+.qubit-inspector.hidden {
+  display: none;
+}
+
+.qubit-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #9cb2c3;
+  color: #16354e;
+  font: 600 0.86rem "Chakra Petch", sans-serif;
+}
+
+.qubit-inspector-close {
+  appearance: none;
+  border: 1px solid #6f8799;
+  border-radius: 0.38rem;
+  min-width: 62px;
+  height: 1.8rem;
+  padding: 0 0.5rem;
+  background: linear-gradient(165deg, #fdfefe, #dce9f3);
+  color: #17334d;
+  font: 600 0.76rem "Chakra Petch", sans-serif;
+  cursor: pointer;
+}
+
+.qubit-inspector-body {
+  padding: 0.65rem 0.72rem 0.72rem;
+}
+
+.qubit-inspector-vector {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #112b40;
+  font: 600 0.76rem/1.32 "Aldrich", sans-serif;
+}
+
+.qubit-selection-marquee {
+  position: fixed;
+  border: 2px dashed rgba(16, 58, 89, 0.95);
+  background: rgba(113, 181, 226, 0.16);
+  pointer-events: none;
+  z-index: 2490;
+}
+
+.qubit-selection-marquee.hidden {
+  display: none;
 }
 
 .message-wrap {
@@ -1189,9 +1275,10 @@ body {
   transform: translate(-50%, -50%);
 }
 
-#panel-one-qubit .window-wrap {
+#panel-one-qubit .single-qubit-gate,
+#panel-two-qubits .single-qubit-gate {
   left: calc(52% + 58px);
-  top: calc(50% + var(--one-qubit-lower-offset));
+  top: 50%;
   width: min(86%, 418px);
   height: 170px;
   aspect-ratio: auto;
@@ -1201,7 +1288,12 @@ body {
   gap: 0;
 }
 
-#panel-one-qubit .tube-funnel {
+#panel-one-qubit .single-qubit-gate {
+  top: calc(50% + var(--one-qubit-lower-offset));
+}
+
+#panel-one-qubit .single-qubit-gate .tube-funnel,
+#panel-two-qubits .single-qubit-gate .tube-funnel {
   position: relative;
   width: 60px;
   height: 102px;
@@ -1223,7 +1315,8 @@ body {
     0 2px 5px rgba(22, 40, 57, 0.3);
 }
 
-#panel-one-qubit .tube-funnel::after {
+#panel-one-qubit .single-qubit-gate .tube-funnel::after,
+#panel-two-qubits .single-qubit-gate .tube-funnel::after {
   content: "";
   position: absolute;
   right: -9px;
@@ -1245,7 +1338,8 @@ body {
     inset 0 -3px 4px rgba(46, 66, 84, 0.26);
 }
 
-#panel-one-qubit .window {
+#panel-one-qubit .single-qubit-gate .window,
+#panel-two-qubits .single-qubit-gate .window {
   position: relative;
   inset: auto;
   width: 100%;
@@ -1273,11 +1367,13 @@ body {
   overflow: visible;
 }
 
-#panel-one-qubit .tube-core {
+#panel-one-qubit .single-qubit-gate .tube-core,
+#panel-two-qubits .single-qubit-gate .tube-core {
   display: none;
 }
 
-#panel-one-qubit .window::after {
+#panel-one-qubit .single-qubit-gate .window::after,
+#panel-two-qubits .single-qubit-gate .window::after {
   content: "";
   position: absolute;
   right: -6px;
@@ -1297,6 +1393,41 @@ body {
   box-shadow:
     inset 0 2px 3px rgba(255, 255, 255, 0.45),
     inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+}
+
+#panel-one-qubit .single-qubit-gate .window .ticks,
+#panel-two-qubits .single-qubit-gate .window .ticks {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+  z-index: 3;
+}
+
+#panel-one-qubit .single-qubit-gate .window .tick,
+#panel-two-qubits .single-qubit-gate .window .tick {
+  width: 6px;
+  height: 12px;
+}
+
+#panel-one-qubit .single-qubit-gate .window .arrow-layer,
+#panel-two-qubits .single-qubit-gate .window .arrow-layer {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+}
+
+#panel-one-qubit .single-qubit-gate .window .arrow-group,
+#panel-two-qubits .single-qubit-gate .window .arrow-group {
+  pointer-events: auto;
 }
 
 #panel-one-qubit .gate-radio-row {
@@ -1352,7 +1483,8 @@ body {
     0 0 0 4px rgba(47, 117, 171, 0.42);
 }
 
-#panel-one-qubit .tube-platform-bay {
+#panel-one-qubit .single-qubit-gate .tube-platform-bay,
+#panel-two-qubits .single-qubit-gate .tube-platform-bay {
   position: absolute;
   right: 14px;
   top: 50%;
@@ -1366,11 +1498,13 @@ body {
   pointer-events: none;
 }
 
-#panel-one-qubit .tube-platform-bay::before {
+#panel-one-qubit .single-qubit-gate .tube-platform-bay::before,
+#panel-two-qubits .single-qubit-gate .tube-platform-bay::before {
   content: none;
 }
 
-#panel-one-qubit .tube-platform {
+#panel-one-qubit .single-qubit-gate .tube-platform,
+#panel-two-qubits .single-qubit-gate .tube-platform {
   --spring-height: 38px;
   --spring-length: 132px;
   position: absolute;
@@ -1399,11 +1533,13 @@ body {
     opacity 0ms linear 1000ms;
 }
 
-#panel-one-qubit .tube-platform::after {
+#panel-one-qubit .single-qubit-gate .tube-platform::after,
+#panel-two-qubits .single-qubit-gate .tube-platform::after {
   content: none;
 }
 
-#panel-one-qubit .window-wrap.platform-extended .tube-platform {
+#panel-one-qubit .single-qubit-gate.platform-extended .tube-platform,
+#panel-two-qubits .single-qubit-gate.platform-extended .tube-platform {
   opacity: 1;
   transform: translateY(-50%) scaleX(1);
   transition:
@@ -1421,7 +1557,8 @@ body {
   pointer-events: none;
 }
 
-#panel-one-qubit .window-wrap.gate-busy .window {
+#panel-one-qubit .single-qubit-gate.gate-busy .window,
+#panel-two-qubits .single-qubit-gate.gate-busy .window {
   box-shadow:
     inset 0 8px 10px rgba(255, 255, 255, 0.52),
     inset 0 -10px 12px rgba(38, 58, 76, 0.28),
@@ -1448,6 +1585,26 @@ body {
   touch-action: none;
 }
 
+.qubit[data-phase-sign]::after {
+  content: attr(data-phase-sign);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font: 700 2rem/1 "Aldrich", sans-serif;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
+  pointer-events: none;
+}
+
+.qubit.qubit-selected {
+  border-width: 5px;
+  border-color: #0f2b40;
+  box-shadow:
+    0 0 0 2px rgba(234, 245, 255, 0.9),
+    0 6px 14px rgba(16, 40, 62, 0.4);
+}
+
 .qubit.collapse-animating {
   transition: box-shadow 120ms ease, transform 120ms ease, background-color 1000ms linear;
 }
@@ -1461,6 +1618,20 @@ body {
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.45),
     0 2px 4px rgba(18, 40, 62, 0.3);
+}
+
+.measurement-square-pellet {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border-width: 1px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.38),
+    0 1px 2px rgba(14, 24, 35, 0.35);
+}
+
+.measurement-square-pellet::after {
+  display: none;
 }
 
 .qubit.dragging {
@@ -1591,128 +1762,55 @@ body {
 }
 
 .magnifier {
+  --lens-offset-x: 31px;
+  --lens-offset-y: -29px;
+  --tool-shift-x: -50px;
+  --tool-shift-y: 50px;
   position: relative;
-  width: 314px;
-  height: 94px;
-  border-radius: 999px;
-  border: 3px solid #5f6f7f;
+  width: 182px;
+  height: 180px;
+  border-radius: 0;
+  border: 0;
   display: grid;
   place-items: center;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(239, 245, 251, 0.95) 0%,
-      rgba(186, 199, 212, 0.92) 38%,
-      rgba(122, 137, 151, 0.96) 50%,
-      rgba(171, 185, 198, 0.94) 66%,
-      rgba(212, 222, 232, 0.95) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.14) 0 2px,
-      rgba(255, 255, 255, 0) 2px 8px
-    );
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.5),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 3px 7px rgba(16, 35, 52, 0.25);
-}
-
-.magnifier::before {
-  content: "";
-  position: absolute;
-  left: -38px;
-  top: 50%;
-  width: 48px;
-  height: 86px;
-  transform: translateY(-50%);
-  clip-path: polygon(0 8%, 0 92%, 100% 50%);
-  border-radius: 0.42rem 0 0 0.42rem;
-  border: 2px solid #687888;
-  background:
-    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
-    repeating-linear-gradient(
-      -8deg,
-      rgba(255, 255, 255, 0.34) 0 4px,
-      rgba(255, 255, 255, 0) 4px 11px
-    );
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.5),
-    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
-    0 2px 5px rgba(22, 40, 57, 0.28);
-}
-
-.magnifier::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  width: 14px;
-  height: 64px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid rgba(84, 99, 113, 0.92);
-  background:
-    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.2) 0 3px,
-      rgba(255, 255, 255, 0) 3px 8px
-    );
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.45),
-    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
-}
-
-.magnifier-lens {
-  width: 62px;
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  border: 3px solid rgba(53, 80, 102, 0.72);
-  background:
-    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.78), rgba(206, 228, 247, 0.44) 56%, rgba(169, 198, 220, 0.5));
-  box-shadow:
-    inset 0 8px 16px rgba(255, 255, 255, 0.45),
-    inset 0 -10px 16px rgba(53, 80, 102, 0.24);
+  transform: translate(var(--tool-shift-x), var(--tool-shift-y));
+  background: url("Magnifying%20glass%20transparent.png") center / contain no-repeat;
+  box-shadow: none;
   z-index: 1;
 }
 
-.measurement-platform {
-  --spring-height: 30px;
-  --spring-length: 108px;
+.magnifier::before {
+  display: none;
+}
+
+.magnifier::after {
+  display: none;
+}
+
+.magnifier-lens {
   position: absolute;
-  left: calc(100% - 4px);
+  left: 50%;
   top: 50%;
-  width: var(--spring-length);
-  height: var(--spring-height);
-  transform-origin: left center;
+  width: 74px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  transform: translate(
+    calc(-50% + var(--lens-offset-x)),
+    calc(-50% + var(--lens-offset-y))
+  );
   border: 0;
-  border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
-  background-size: 16px 100%;
-  background-repeat: repeat-x;
-  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  background: transparent;
+  box-shadow: none;
   opacity: 0;
-  transform: translateY(-50%) scaleX(0.04);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 1000ms;
   pointer-events: none;
 }
 
+.measurement-platform {
+  display: none;
+}
+
 .magnifier.platform-extended .measurement-platform {
-  opacity: 1;
-  transform: translateY(-50%) scaleX(1);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 0ms;
+  display: none;
 }
 
 .measurement-count {
@@ -1728,6 +1826,8 @@ body {
   text-align-last: center;
   cursor: pointer;
   box-shadow: inset 0 1px 2px rgba(20, 48, 73, 0.17);
+  position: relative;
+  z-index: 5;
 }
 
 .measurement-count:focus {
@@ -1785,19 +1885,19 @@ body {
   border: 0;
   padding: 0;
   position: absolute;
-  width: 4px;
+  width: 8px;
   height: 24px;
   border-radius: 999px;
-  background: linear-gradient(#ffd69e, var(--tick));
+  background: linear-gradient(#fffba8, #ffea00);
   transform: translate(-50%, -50%) rotate(var(--rotation));
   box-shadow: 0 2px 4px rgba(16, 28, 45, 0.32);
   cursor: pointer;
 }
 
 .tick.active {
-  background: linear-gradient(#fff2c9, #ff9542);
+  background: linear-gradient(#fffde3, #fff100);
   box-shadow:
-    0 0 10px rgba(255, 150, 61, 0.9),
+    0 0 10px rgba(255, 242, 74, 0.92),
     0 2px 4px rgba(16, 28, 45, 0.35);
 }
 
@@ -1820,7 +1920,7 @@ body {
 
 .arrow-group line {
   stroke: var(--arrow);
-  stroke-width: 9;
+  stroke-width: 18;
   stroke-linecap: round;
 }
 
@@ -1869,17 +1969,17 @@ body {
   }
 
   .entanglement-host {
-    min-height: 360px;
+    min-height: 560px;
     padding: 0.45rem;
   }
 
   .ent-gate-sim {
-    width: 1080px;
+    width: 1360px;
   }
 
   .ent-gate-shell {
-    width: 1080px;
-    min-height: 332px;
+    width: 1360px;
+    min-height: 520px;
   }
 
   .ent-pre-gates {
@@ -1915,20 +2015,55 @@ body {
     height: 48px;
   }
 
+  .ent-pre-controls {
+    gap: 0.22rem;
+    padding: 0.12rem 0.16rem;
+  }
+
+  .ent-pre-ticks,
+  .ent-pre-arrow-layer {
+    width: 56px;
+    height: 56px;
+  }
+
+  .ent-pre-ticks .tick {
+    height: 9px;
+  }
+
   .ent-pre-flange {
     right: 8px;
     width: 12px;
     height: 54px;
   }
 
-  .ent-double-gate {
-    left: 334px;
-    width: 320px;
-    height: 196px;
+  .ent-pre-spring {
+    --spring-height: 20px;
+    --spring-length: 64px;
+  }
+
+  .ent-double-gate.pair-magnifier {
+    left: 470px;
+    width: 280px;
+    max-width: 280px;
+    height: 168px;
+  }
+
+  .ent-cnot-funnel-zone {
+    left: -56px;
+    width: 62px;
+    height: 64px;
+  }
+
+  .ent-cnot-funnel-top {
+    top: calc(50% - 33px);
+  }
+
+  .ent-cnot-funnel-bottom {
+    top: calc(50% + 33px);
   }
 
   .ent-input-funnel {
-    left: -13px;
+    left: -2px;
     width: 44px;
     height: 80px;
   }
@@ -1945,15 +2080,15 @@ body {
   }
 
   .ent-window-top {
-    top: calc(50% - 34px);
+    top: 28%;
   }
 
   .ent-window-bottom {
-    top: calc(50% + 34px);
+    top: 72%;
   }
 
   .ent-output-flange {
-    right: -6px;
+    right: 12px;
     width: 14px;
     height: 62px;
   }
@@ -1964,13 +2099,8 @@ body {
   }
 
   .ent-measurement-block {
-    left: 670px;
-    width: 280px;
-  }
-
-  .ent-message-box {
-    min-height: 28px;
-    font-size: 12pt;
+    left: 960px;
+    width: 314px;
   }
 
   .ent-qubit {
@@ -2002,17 +2132,18 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 0.55rem;
-    padding: 0.45rem 0.45rem 0.62rem;
+    padding: 0.45rem 0.45rem 2.4rem;
   }
 
   .pair-gate-stack {
     margin-left: 0;
     margin-right: 0;
-    gap: 0.6rem;
+    gap: 0.4rem;
   }
 
   .pair-gate-stage {
-    width: min(100%, 314px);
+    width: min(100%, 360px);
+    height: 184px;
   }
 
   .pair-measurement {
@@ -2028,61 +2159,16 @@ body {
     font-size: 14pt;
   }
 
-  .pair-window-wrap {
-    left: calc(56% + 58px);
-    width: min(66%, 208px);
-  }
-
-  .pair-window-wrap::before {
-    content: none;
-  }
-
-  .pair-window-wrap .pair-tube-funnel {
-    left: -30px;
-    width: 38px;
-    height: 70px;
-  }
-
-  .pair-window-wrap .window {
-    width: 84%;
-    height: 72px;
-  }
-
-  .pair-window-wrap .window::after {
-    height: 52px;
-    width: 12px;
-  }
-
-  .pair-window-wrap .window::before {
-    right: 7px;
-    width: 28px;
-    height: 11px;
-  }
-
-  .pair-window-wrap .pair-tube-platform-bay {
-    right: 8px;
-    width: 14px;
-    height: 24px;
-  }
-
-  .pair-window-wrap .pair-tube-platform {
-    --spring-height: 22px;
-    --spring-length: 92px;
-    left: -1px;
-  }
-
-  .pair-window-wrap .pair-gate-radio-row {
-    top: 50%;
-    gap: 0.24rem;
-    padding: 0.12rem 0.18rem;
-  }
-
   .pair-qubit {
     width: 58px;
   }
 
   .pair-tube-rack {
     gap: 0.3rem;
+  }
+
+  .pair-sim .pair-tube-rack {
+    gap: 0.2rem;
   }
 
   .pair-tube-label {
@@ -2103,6 +2189,11 @@ body {
     width: 100%;
     max-width: 252px;
     height: 132px;
+  }
+
+  .pair-sim .pair-magnifier {
+    max-width: none;
+    height: 170px;
   }
 
   .pair-measurement-funnel {
@@ -2128,6 +2219,11 @@ body {
 
   .pair-slot-right {
     top: calc(50% + 33px);
+  }
+
+  .pair-sim .pair-slot {
+    width: 52px;
+    height: 52px;
   }
 
   .pair-measurement-platform {
@@ -2168,7 +2264,8 @@ body {
     left: calc(56% + 40px);
   }
 
-  #panel-one-qubit .window-wrap {
+  #panel-one-qubit .single-qubit-gate,
+  #panel-two-qubits .single-qubit-gate {
     left: calc(52% + 44px);
     width: min(90%, 322px);
     height: 146px;
@@ -2176,14 +2273,29 @@ body {
     gap: 0;
   }
 
-  #panel-one-qubit .tube-funnel {
+  #panel-one-qubit .single-qubit-gate .tube-funnel,
+  #panel-two-qubits .single-qubit-gate .tube-funnel {
     width: 44px;
     height: 80px;
     margin-right: -5px;
   }
 
-  #panel-one-qubit .window {
+  #panel-one-qubit .single-qubit-gate .window,
+  #panel-two-qubits .single-qubit-gate .window {
     height: 84px;
+  }
+
+  #panel-one-qubit .single-qubit-gate .window .ticks,
+  #panel-one-qubit .single-qubit-gate .window .arrow-layer,
+  #panel-two-qubits .single-qubit-gate .window .ticks,
+  #panel-two-qubits .single-qubit-gate .window .arrow-layer {
+    width: 82px;
+    height: 82px;
+  }
+
+  #panel-one-qubit .single-qubit-gate .window .tick,
+  #panel-two-qubits .single-qubit-gate .window .tick {
+    height: 10px;
   }
 
   #panel-one-qubit .gate-radio-row {
@@ -2202,19 +2314,22 @@ body {
     height: 12px;
   }
 
-  #panel-one-qubit .tube-platform-bay {
+  #panel-one-qubit .single-qubit-gate .tube-platform-bay,
+  #panel-two-qubits .single-qubit-gate .tube-platform-bay {
     right: 9px;
     width: 18px;
     height: 30px;
   }
 
-  #panel-one-qubit .tube-platform {
+  #panel-one-qubit .single-qubit-gate .tube-platform,
+  #panel-two-qubits .single-qubit-gate .tube-platform {
     --spring-height: 26px;
     --spring-length: 116px;
     left: -2px;
   }
 
-  #panel-one-qubit .tube-platform::after {
+  #panel-one-qubit .single-qubit-gate .tube-platform::after,
+  #panel-two-qubits .single-qubit-gate .tube-platform::after {
     content: none;
   }
 
@@ -2255,13 +2370,14 @@ body {
   }
 
   .magnifier {
-    width: 220px;
-    height: 74px;
+    width: 150px;
+    height: 148px;
+    --lens-offset-x: 26px;
+    --lens-offset-y: -26px;
   }
 
   .magnifier-lens {
-    width: 44px;
-    border-width: 2px;
+    width: 56px;
   }
 
   .measurement-count {
