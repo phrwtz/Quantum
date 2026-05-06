@@ -1479,6 +1479,26 @@ function oneQubitGateWeightsForTick(tickIndex) {
   return probabilitiesFromVector2(normalizeVector2(transformed));
 }
 
+function phaseSignForRealAmplitudeVector(vector) {
+  const normalized = normalizeVector2(vector);
+  const [blueWeight, redWeight] = probabilitiesFromVector2(normalized);
+  const basisTolerance = 1e-9;
+  const isBlueBasis = Math.abs(blueWeight - 1) <= basisTolerance && redWeight <= basisTolerance;
+  const isRedBasis = Math.abs(redWeight - 1) <= basisTolerance && blueWeight <= basisTolerance;
+  if (isBlueBasis || isRedBasis) {
+    return null;
+  }
+
+  const [, canonicalB] = canonicalizeRealAmplitudeVector(normalized);
+  if (canonicalB < -basisTolerance) {
+    return "−";
+  }
+  if (canonicalB > basisTolerance) {
+    return "+";
+  }
+  return null;
+}
+
 function gcd(a, b) {
   let x = a;
   let y = b;
@@ -2009,24 +2029,12 @@ function setupSimulator(root) {
   }));
 
   function applySingleGateSignFromVector() {
-    const basisTolerance = 1e-9;
-    const isBlueBasis = Math.abs(qubitBlueWeight - 1) <= basisTolerance && qubitRedWeight <= basisTolerance;
-    const isRedBasis = Math.abs(qubitRedWeight - 1) <= basisTolerance && qubitBlueWeight <= basisTolerance;
-    if (isBlueBasis || isRedBasis) {
+    const phaseSign = phaseSignForRealAmplitudeVector(qubitVector);
+    if (!phaseSign) {
       delete qubit.dataset.phaseSign;
       return;
     }
-
-    const [, canonicalB] = canonicalizeRealAmplitudeVector(qubitVector);
-    if (canonicalB < -basisTolerance) {
-      qubit.dataset.phaseSign = "−";
-      return;
-    }
-    if (canonicalB > basisTolerance) {
-      qubit.dataset.phaseSign = "+";
-      return;
-    }
-    delete qubit.dataset.phaseSign;
+    qubit.dataset.phaseSign = phaseSign;
   }
 
   function updateStateText(blueWeight, redWeight) {
@@ -3373,6 +3381,13 @@ function setupTwoQubitPair(root) {
     qubit.blue = blueWeight;
     qubit.red = redWeight;
     qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
+    const transformed = vectorTimesMatrix2([1, 0], gateMatrixForTick(selectionIndex));
+    const phaseSign = phaseSignForRealAmplitudeVector(transformed);
+    if (phaseSign) {
+      qubit.element.dataset.phaseSign = phaseSign;
+    } else {
+      delete qubit.element.dataset.phaseSign;
+    }
   }
 
   function circleIntersectionArea(r1, r2, distance) {
@@ -3649,11 +3664,13 @@ function setupTwoQubitPair(root) {
       qubit.blue = 1;
       qubit.red = 0;
       qubit.element.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
+      delete qubit.element.dataset.phaseSign;
       return "b";
     }
     qubit.blue = 0;
     qubit.red = 1;
     qubit.element.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
+    delete qubit.element.dataset.phaseSign;
     return "r";
   }
 
@@ -3718,6 +3735,7 @@ function setupTwoQubitPair(root) {
     qubit.blue = 1;
     qubit.red = 0;
     qubit.element.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
+    delete qubit.element.dataset.phaseSign;
   }
 
   function moveQubitToPoint(qubit, x, y, duration = AUTO_TRAVEL_MS) {
@@ -4112,10 +4130,7 @@ function setupTwoQubitPair(root) {
 
         const processOne = () => {
           qubits.forEach((qubit, idx) => {
-            const [blueWeight, redWeight] = gateWeightsForSelection(gates[idx].activeTick);
-            qubit.blue = blueWeight;
-            qubit.red = redWeight;
-            qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
+            applyGateStateToQubit(qubit, gates[idx].activeTick);
           });
           const outcomeKey = pairTubeOutcomeKey(collapseQubitState(qubits[0]), collapseQubitState(qubits[1]));
           tubeCountState[outcomeKey] += 2;
