@@ -4,9 +4,19 @@ const simulatorTemplate = document.getElementById("simulatorTemplate");
 const twoQubitPairTemplate = document.getElementById("twoQubitPairTemplate");
 const entanglementGateTemplate = document.getElementById("entanglementGateTemplate");
 const pairMeasurementToolTemplate = document.getElementById("pairMeasurementToolTemplate");
+const cnotGateTemplate = document.getElementById("cnotGateTemplate");
 const oneQubitHost = document.getElementById("oneQubitHost");
 const twoQubitsHost = document.getElementById("twoQubitsHost");
 const entanglementHost = document.getElementById("entanglementHost");
+const playgroundCanvas = document.getElementById("playgroundCanvas");
+const playgroundComponentSelect = document.getElementById("playgroundComponentSelect");
+const playgroundSnapToggle = document.getElementById("playgroundSnapToggle");
+const playgroundDuplicateButton = document.getElementById("playgroundDuplicateButton");
+const playgroundDeleteButton = document.getElementById("playgroundDeleteButton");
+const playgroundSaveButton = document.getElementById("playgroundSaveButton");
+const playgroundLoadButton = document.getElementById("playgroundLoadButton");
+const playgroundClearButton = document.getElementById("playgroundClearButton");
+const playgroundStatus = document.getElementById("playgroundStatus");
 const layoutEditToggle = document.getElementById("layoutEditToggle");
 const layoutSaveButton = document.getElementById("layoutSaveButton");
 const layoutResetButton = document.getElementById("layoutResetButton");
@@ -49,11 +59,25 @@ const DEFAULT_SINGLE_GATE_TICK_INDEX = 3;
 const ENT_TOP_DEFAULT_GATE_TICK_INDEX = 6;
 const ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX = 0;
 const LAYOUT_STORAGE_KEY = "quantum_layout_editor_v1";
+const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
+const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY = "quantum_playground_component_defaults_v1";
+const PLAYGROUND_GRID_SIZE = 26;
+const PLAYGROUND_COMPONENT_LIBRARY = {
+  qubit: { label: "Qubit", width: 160, height: 160 },
+  "single-gate": { label: "Single Qubit Gate", width: 500, height: 240 },
+  "cnot-gate": { label: "C-NOT Gate", width: 420, height: 260 },
+  "single-measurement": { label: "Single-Qubit Magnifier + Tubes", width: 420, height: 500 },
+  "double-measurement": { label: "Double-Qubit Magnifier + Tubes", width: 500, height: 500 },
+};
+let playgroundComponentDefaultsCache = null;
 
 const LAYOUT_EDIT_TARGET_SPECS = [
   { selector: ".qubit", resizable: true, uniform: true, minWidth: 28, minHeight: 28 },
   { selector: ".window-wrap.single-qubit-gate", resizable: true, minWidth: 180, minHeight: 80 },
-  { selector: ".ent-double-gate", resizable: true, minWidth: 180, minHeight: 120 },
+  { selector: ".cnot-gate, .ent-double-gate", resizable: true, minWidth: 180, minHeight: 120 },
+  { selector: ".cnot-input-funnel, .ent-input-funnel", resizable: true, minWidth: 24, minHeight: 40 },
+  { selector: ".cnot-porthole, .ent-window", resizable: true, uniform: true, minWidth: 30, minHeight: 30 },
+  { selector: ".cnot-output-flange, .ent-output-flange", resizable: true, minWidth: 10, minHeight: 28 },
   { selector: ".magnifier", resizable: true, minWidth: 120, minHeight: 90 },
   { selector: ".pair-magnifier", resizable: true, minWidth: 180, minHeight: 90 },
   { selector: ".tube, .pair-tube", resizable: true, minWidth: 16, minHeight: 50 },
@@ -67,6 +91,7 @@ const layoutEditorState = {
   activeGesture: null,
   registeredTargets: new WeakSet(),
 };
+let selectedLayoutTarget = null;
 
 function mountOneQubitSimulator() {
   if (!simulatorTemplate || !oneQubitHost) {
@@ -110,6 +135,914 @@ function mountPairMeasurementTool(host) {
   const fragment = pairMeasurementToolTemplate.content.cloneNode(true);
   host.appendChild(fragment);
   return host;
+}
+
+function createCnotGateElement({ withEntanglementRoles = false } = {}) {
+  if (!cnotGateTemplate) {
+    return null;
+  }
+  const fragment = cnotGateTemplate.content.cloneNode(true);
+  const root = fragment.firstElementChild;
+  if (!(root instanceof HTMLElement)) {
+    return null;
+  }
+  if (withEntanglementRoles) {
+    root.dataset.role = "ent-gate";
+    const body = root.querySelector('[data-part="body"]');
+    const funnelTop = root.querySelector('[data-part="funnel-top"]');
+    const funnelBottom = root.querySelector('[data-part="funnel-bottom"]');
+    const windowTop = root.querySelector('[data-part="window-top"]');
+    const windowBottom = root.querySelector('[data-part="window-bottom"]');
+    const platform = root.querySelector('[data-part="platform"]');
+
+    if (body instanceof HTMLElement) {
+      body.dataset.role = "ent-pipe";
+    }
+    if (funnelTop instanceof HTMLElement) {
+      funnelTop.dataset.role = "ent-funnel-top";
+    }
+    if (funnelBottom instanceof HTMLElement) {
+      funnelBottom.dataset.role = "ent-funnel-bottom";
+    }
+    if (windowTop instanceof HTMLElement) {
+      windowTop.dataset.role = "ent-window-top";
+    }
+    if (windowBottom instanceof HTMLElement) {
+      windowBottom.dataset.role = "ent-window-bottom";
+    }
+    if (platform instanceof HTMLElement) {
+      platform.dataset.role = "ent-platform";
+    }
+  }
+  return root;
+}
+
+function readPlaygroundComponentDefaultsPayload() {
+  try {
+    const serialized = window.localStorage.getItem(PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY);
+    if (!serialized) {
+      return {};
+    }
+    const parsed = JSON.parse(serialized);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function writePlaygroundComponentDefaultsPayload(payload) {
+  try {
+    window.localStorage.setItem(
+      PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY,
+      JSON.stringify(payload || {})
+    );
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function resolveCnotPartElements(root) {
+  if (!(root instanceof HTMLElement)) {
+    return {};
+  }
+  return {
+    gate: root,
+    body: root.querySelector(".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']"),
+    funnelTop: root.querySelector("[data-part='funnel-top'], .cnot-input-funnel-top, [data-role='ent-funnel-top']"),
+    funnelBottom: root.querySelector("[data-part='funnel-bottom'], .cnot-input-funnel-bottom, [data-role='ent-funnel-bottom']"),
+    windowTop: root.querySelector("[data-part='window-top'], .cnot-porthole-top, [data-role='ent-window-top']"),
+    windowBottom: root.querySelector("[data-part='window-bottom'], .cnot-porthole-bottom, [data-role='ent-window-bottom']"),
+    flangeTop: root.querySelector(".cnot-output-flange-top"),
+    flangeBottom: root.querySelector(".cnot-output-flange-bottom"),
+  };
+}
+
+function snapshotLayoutEditableElement(element) {
+  if (!(element instanceof HTMLElement)) {
+    return null;
+  }
+  return {
+    tx: parseLayoutNumeric(element.dataset.layoutTx, 0),
+    ty: parseLayoutNumeric(element.dataset.layoutTy, 0),
+    width: element.style.width || "",
+    height: element.style.height || "",
+    deleted: isLayoutTargetDeleted(element),
+  };
+}
+
+function applyLayoutSnapshotToElement(element, snapshot) {
+  if (!(element instanceof HTMLElement) || !snapshot || typeof snapshot !== "object") {
+    return;
+  }
+  const tx = parseLayoutNumeric(snapshot.tx, 0);
+  const ty = parseLayoutNumeric(snapshot.ty, 0);
+  setLayoutTargetTranslate(element, tx, ty);
+  element.style.width = typeof snapshot.width === "string" ? snapshot.width : "";
+  element.style.height = typeof snapshot.height === "string" ? snapshot.height : "";
+  setLayoutTargetDeleted(element, Boolean(snapshot.deleted));
+  setLayoutManualEdited(element, hasMeaningfulLayoutDelta(tx, ty, element.style.width, element.style.height));
+}
+
+function captureCnotComponentDefaultsFromElement(root) {
+  const parts = resolveCnotPartElements(root);
+  const snapshot = {};
+  Object.entries(parts).forEach(([key, element]) => {
+    const state = snapshotLayoutEditableElement(element);
+    if (state) {
+      snapshot[key] = state;
+    }
+  });
+  return Object.keys(snapshot).length > 0 ? snapshot : null;
+}
+
+function applyCnotComponentDefaultsToElement(root, options = {}) {
+  const snapshot = playgroundComponentDefaultsCache?.["cnot-gate"];
+  if (!snapshot || typeof snapshot !== "object") {
+    return;
+  }
+  const includeGateGeometry = options.includeGateGeometry !== false;
+  const parts = resolveCnotPartElements(root);
+  Object.entries(parts).forEach(([key, element]) => {
+    if (!includeGateGeometry && key === "gate") {
+      return;
+    }
+    applyLayoutSnapshotToElement(element, snapshot[key]);
+  });
+}
+
+function findPlaygroundCnotPrototypeSource() {
+  if (!playgroundCanvas) {
+    return null;
+  }
+  const cnotNodes = Array.from(
+    playgroundCanvas.querySelectorAll(".playground-node[data-component='cnot-gate']")
+  );
+  if (cnotNodes.length === 0) {
+    return null;
+  }
+  const editedNode = cnotNodes.find(
+    (node) =>
+      node.dataset.layoutManual === "true" ||
+      node.querySelector("[data-layout-manual='true']")
+  );
+  return editedNode || cnotNodes[cnotNodes.length - 1];
+}
+
+function persistPlaygroundCnotDefaultsFromDom() {
+  const source = findPlaygroundCnotPrototypeSource();
+  if (!(source instanceof HTMLElement)) {
+    return false;
+  }
+  const snapshot = captureCnotComponentDefaultsFromElement(source);
+  if (!snapshot) {
+    return false;
+  }
+  const payload = readPlaygroundComponentDefaultsPayload();
+  payload["cnot-gate"] = snapshot;
+  const saved = writePlaygroundComponentDefaultsPayload(payload);
+  if (saved) {
+    playgroundComponentDefaultsCache = payload;
+  }
+  return saved;
+}
+
+function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) {
+  if (!(root instanceof HTMLElement)) {
+    return root;
+  }
+
+  root.classList.add("cnot-gate", "ent-double-gate");
+
+  const resolveBody = () =>
+    root.querySelector(".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']");
+  const resolveFunnels = () =>
+    root.querySelectorAll(".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']");
+  const resolvePortholes = () =>
+    root.querySelectorAll(".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']");
+  const resolveFlanges = () =>
+    root.querySelectorAll(".cnot-output-flange, .ent-output-flange");
+
+  const needsRebuild = !resolveBody() || resolveFunnels().length < 2 || resolvePortholes().length < 2 || resolveFlanges().length < 2;
+  if (needsRebuild) {
+    const fresh = createCnotGateElement({ withEntanglementRoles: false });
+    if (fresh instanceof HTMLElement) {
+      root.replaceChildren(...Array.from(fresh.childNodes));
+    }
+  }
+
+  const body = root.querySelector(".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']");
+  if (body instanceof HTMLElement) {
+    body.classList.add("cnot-body", "ent-pipe");
+    body.dataset.part = "body";
+    if (withEntanglementRoles) {
+      body.dataset.role = "ent-pipe";
+    }
+  }
+
+  const funnels = Array.from(root.querySelectorAll(".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']")).slice(0, 2);
+  funnels.forEach((funnel, index) => {
+    if (!(funnel instanceof HTMLElement)) {
+      return;
+    }
+    funnel.classList.add("cnot-input-funnel");
+    funnel.dataset.part = index === 0 ? "funnel-top" : "funnel-bottom";
+    funnel.classList.toggle("cnot-input-funnel-top", index === 0);
+    funnel.classList.toggle("cnot-input-funnel-bottom", index === 1);
+    if (withEntanglementRoles) {
+      funnel.dataset.role = index === 0 ? "ent-funnel-top" : "ent-funnel-bottom";
+    }
+  });
+
+  const portholes = Array.from(root.querySelectorAll(".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']")).slice(0, 2);
+  portholes.forEach((porthole, index) => {
+    if (!(porthole instanceof HTMLElement)) {
+      return;
+    }
+    porthole.classList.add("cnot-porthole");
+    porthole.dataset.part = index === 0 ? "window-top" : "window-bottom";
+    porthole.classList.toggle("cnot-porthole-top", index === 0);
+    porthole.classList.toggle("cnot-porthole-bottom", index === 1);
+    if (withEntanglementRoles) {
+      porthole.dataset.role = index === 0 ? "ent-window-top" : "ent-window-bottom";
+    }
+  });
+
+  const flanges = Array.from(root.querySelectorAll(".cnot-output-flange, .ent-output-flange")).slice(0, 2);
+  flanges.forEach((flange, index) => {
+    if (!(flange instanceof HTMLElement)) {
+      return;
+    }
+    flange.classList.add("cnot-output-flange");
+    flange.classList.toggle("cnot-output-flange-top", index === 0);
+    flange.classList.toggle("cnot-output-flange-bottom", index === 1);
+    const spring = flange.querySelector(".cnot-spring");
+    if (spring instanceof HTMLElement) {
+      spring.classList.add("cnot-spring");
+      spring.classList.toggle("cnot-spring-top", index === 0);
+      spring.classList.toggle("cnot-spring-bottom", index === 1);
+      if (withEntanglementRoles && index === 0) {
+        spring.dataset.role = "ent-platform";
+      }
+    }
+  });
+
+  if (withEntanglementRoles) {
+    root.dataset.role = "ent-gate";
+  }
+  return root;
+}
+
+function mountEntanglementCnotGate(root) {
+  const host = root.querySelector('[data-role="ent-cnot-host"]');
+  if (!(host instanceof HTMLElement)) {
+    return null;
+  }
+  if (!host.querySelector('[data-role="ent-pipe"]')) {
+    const cnotGate = createCnotGateElement({ withEntanglementRoles: true });
+    if (cnotGate) {
+      host.replaceChildren(cnotGate);
+    }
+  }
+  const cnot = host.querySelector(".cnot-gate, .ent-double-gate");
+  return normalizeCnotGateElement(cnot, { withEntanglementRoles: true });
+}
+
+function clonePlaygroundSourceElement(element) {
+  if (!(element instanceof Element)) {
+    return null;
+  }
+  const cloned = element.cloneNode(true);
+  if (!(cloned instanceof HTMLElement)) {
+    return null;
+  }
+  return cloned;
+}
+
+function sanitizePlaygroundComponentNode(root, options = {}) {
+  if (!(root instanceof HTMLElement)) {
+    return root;
+  }
+  const preserveInlineStyles = options.preserveInlineStyles === true;
+  const stateClasses = [
+    "dragging",
+    "migrating",
+    "melting",
+    "gate-busy",
+    "platform-extended",
+    "extended",
+    "active",
+    "ent-hidden",
+    "ent-appearing",
+    "collapse-animating",
+    "measurement-pellet",
+    "qubit-selected",
+  ];
+  const all = [root, ...root.querySelectorAll("*")];
+  all.forEach((node) => {
+    if (!(node instanceof HTMLElement)) {
+      return;
+    }
+    if (!preserveInlineStyles) {
+      node.removeAttribute("style");
+    }
+    stateClasses.forEach((className) => node.classList.remove(className));
+    Object.keys(node.dataset)
+      .filter((key) => key.startsWith("layout"))
+      .forEach((key) => {
+        delete node.dataset[key];
+      });
+  });
+
+  root.querySelectorAll(".tube-liquid").forEach((liquid) => {
+    if (liquid instanceof HTMLElement) {
+      liquid.style.height = "0%";
+    }
+  });
+  root.querySelectorAll(".tube-count").forEach((count) => {
+    count.textContent = "0";
+  });
+  root.querySelectorAll(".measurement-count").forEach((count) => {
+    if (count instanceof HTMLSelectElement) {
+      count.value = "1";
+    }
+  });
+
+  return root;
+}
+
+function createPlaygroundFallback(label) {
+  const box = document.createElement("div");
+  box.className = "playground-fallback";
+  box.textContent = `${label} unavailable`;
+  return box;
+}
+
+function createPlaygroundComponentNode(type, sourceRoots) {
+  const { oneQubitRoot, twoQubitPairRoot } = sourceRoots;
+
+  let node = null;
+  if (type === "qubit") {
+    node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".qubit"));
+  } else if (type === "single-gate") {
+    node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".window-wrap.single-qubit-gate"));
+  } else if (type === "cnot-gate") {
+    node = createCnotGateElement();
+  } else if (type === "single-measurement") {
+    node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".measurement-stage"));
+  } else if (type === "double-measurement") {
+    node = clonePlaygroundSourceElement(twoQubitPairRoot?.querySelector(".pair-measurement"));
+  }
+
+  if (!node) {
+    return createPlaygroundFallback(PLAYGROUND_COMPONENT_LIBRARY[type]?.label || "Component");
+  }
+
+  sanitizePlaygroundComponentNode(node, { preserveInlineStyles: type === "single-gate" });
+  if (type === "cnot-gate") {
+    normalizeCnotGateElement(node);
+  }
+  if (type === "qubit") {
+    node.removeAttribute("data-phase-sign");
+  } else if (type === "single-measurement") {
+    const capacity = node.querySelector(".tube-capacity");
+    if (capacity) {
+      capacity.textContent = "The testtubes can each hold 5 qubits.";
+    }
+  } else if (type === "double-measurement") {
+    const capacity = node.querySelector(".pair-capacity");
+    if (capacity) {
+      capacity.textContent = "The testtubes can each hold 5 qubit pairs.";
+    }
+  }
+  return node;
+}
+
+function setupPlagroundComposer(sourceRoots) {
+  if (!playgroundCanvas || !playgroundComponentSelect) {
+    return null;
+  }
+  // Default to a null selection so canvas clicks do nothing until the user picks a component.
+  playgroundComponentSelect.value = "";
+
+  let zCounter = 5;
+  let dragState = null;
+  let resizeState = null;
+  let selectedItem = null;
+  let statusTimer = null;
+
+  const isSnapEnabled = () => !playgroundSnapToggle || playgroundSnapToggle.checked;
+
+  const isPlagroundTabActive = () => {
+    const panel = document.getElementById("panel-plaground");
+    return panel instanceof HTMLElement && !panel.hidden;
+  };
+
+  const snapValue = (value) => {
+    if (!isSnapEnabled()) {
+      return value;
+    }
+    return Math.round(value / PLAYGROUND_GRID_SIZE) * PLAYGROUND_GRID_SIZE;
+  };
+
+  const setStatus = (text) => {
+    if (!playgroundStatus) {
+      return;
+    }
+    playgroundStatus.textContent = text;
+    if (statusTimer !== null) {
+      window.clearTimeout(statusTimer);
+    }
+    if (!text) {
+      statusTimer = null;
+      return;
+    }
+    statusTimer = window.setTimeout(() => {
+      if (playgroundStatus.textContent === text) {
+        playgroundStatus.textContent = "";
+      }
+      statusTimer = null;
+    }, 1800);
+  };
+
+  const bringToFront = (item) => {
+    zCounter += 1;
+    item.style.zIndex = String(zCounter);
+  };
+
+  const updateActionButtons = () => {
+    const hasSelection = selectedItem instanceof HTMLElement && selectedItem.isConnected;
+    if (playgroundDuplicateButton) {
+      playgroundDuplicateButton.disabled = !hasSelection;
+    }
+    if (playgroundDeleteButton) {
+      playgroundDeleteButton.disabled = !hasSelection;
+    }
+  };
+
+  const setSelectedItem = (item) => {
+    if (selectedItem && selectedItem !== item) {
+      selectedItem.classList.remove("selected");
+    }
+    if (!(item instanceof HTMLElement) || !item.isConnected) {
+      selectedItem = null;
+      updateActionButtons();
+      return;
+    }
+    selectedItem = item;
+    if (layoutEditorState.enabled) {
+      selectedItem.classList.add("selected");
+    } else {
+      selectedItem.classList.remove("selected");
+    }
+    bringToFront(selectedItem);
+    updateActionButtons();
+  };
+
+  const syncSelectionUiState = () => {
+    const items = playgroundCanvas.querySelectorAll(".playground-node.selected");
+    items.forEach((item) => item.classList.remove("selected"));
+    if (layoutEditorState.enabled && selectedItem instanceof HTMLElement && selectedItem.isConnected) {
+      selectedItem.classList.add("selected");
+    }
+  };
+
+  const clampItemPosition = (item, left, top) => {
+    const maxLeft = Math.max(0, playgroundCanvas.clientWidth - item.offsetWidth);
+    const maxTop = Math.max(0, playgroundCanvas.clientHeight - item.offsetHeight);
+    const snappedLeft = snapValue(left);
+    const snappedTop = snapValue(top);
+    return {
+      left: clamp(snappedLeft, 0, maxLeft),
+      top: clamp(snappedTop, 0, maxTop),
+    };
+  };
+
+  const clampItemSize = (item, width, height) => {
+    const left = parseLayoutNumeric(item.style.left, 0);
+    const top = parseLayoutNumeric(item.style.top, 0);
+    const minWidth = 120;
+    const minHeight = 100;
+    const maxWidth = Math.max(minWidth, playgroundCanvas.clientWidth - left);
+    const maxHeight = Math.max(minHeight, playgroundCanvas.clientHeight - top);
+    return {
+      width: clamp(snapValue(width), minWidth, maxWidth),
+      height: clamp(snapValue(height), minHeight, maxHeight),
+      minWidth,
+      minHeight,
+      maxWidth,
+      maxHeight,
+    };
+  };
+
+  const positionItemFromClientPoint = (item, clientX, clientY) => {
+    const canvasRect = playgroundCanvas.getBoundingClientRect();
+    const pointerX = clientX - canvasRect.left + playgroundCanvas.scrollLeft;
+    const pointerY = clientY - canvasRect.top + playgroundCanvas.scrollTop;
+    const unclampedLeft = pointerX - item.offsetWidth / 2;
+    const unclampedTop = pointerY - 18;
+    const clamped = clampItemPosition(item, unclampedLeft, unclampedTop);
+    item.style.left = `${Math.round(clamped.left)}px`;
+    item.style.top = `${Math.round(clamped.top)}px`;
+  };
+
+  const pointerIsOnResizeCorner = (item, point) => {
+    if (!point) {
+      return false;
+    }
+    const rect = item.getBoundingClientRect();
+    const cornerInset = 18;
+    return point.clientX >= rect.right - cornerInset && point.clientY >= rect.bottom - cornerInset;
+  };
+
+  const beginItemDrag = (item, event) => {
+    if (!layoutEditorState.enabled) {
+      return;
+    }
+    if (!isPrimaryMouseButton(event)) {
+      return;
+    }
+    const point = getPointer(event);
+    if (!point) {
+      return;
+    }
+    if (pointerIsOnResizeCorner(item, point)) {
+      const startWidth = item.offsetWidth;
+      const startHeight = item.offsetHeight;
+      resizeState = {
+        item,
+        startX: point.clientX,
+        startY: point.clientY,
+        startWidth,
+        startHeight,
+        aspectRatio: startHeight > 0 ? startWidth / startHeight : 1,
+      };
+      dragState = null;
+      item.classList.add("resizing");
+      bringToFront(item);
+      setSelectedItem(item);
+      event.preventDefault();
+      return;
+    }
+    bringToFront(item);
+    setSelectedItem(item);
+    const itemRect = item.getBoundingClientRect();
+    dragState = {
+      item,
+      pointerOffsetX: point.clientX - itemRect.left,
+      pointerOffsetY: point.clientY - itemRect.top,
+    };
+    item.classList.add("dragging");
+    event.preventDefault();
+  };
+
+  const continueItemDrag = (event) => {
+    if (resizeState) {
+      if (event.touches) {
+        event.preventDefault();
+      }
+      const point = getPointer(event);
+      if (!point) {
+        return;
+      }
+      const deltaX = point.clientX - resizeState.startX;
+      const deltaY = point.clientY - resizeState.startY;
+      let width = resizeState.startWidth + deltaX;
+      let height = resizeState.startHeight + deltaY;
+      if (event.shiftKey) {
+        const ratio = resizeState.aspectRatio > 0 ? resizeState.aspectRatio : 1;
+        const widthDriven = resizeState.startWidth + deltaX;
+        const heightDriven = (resizeState.startHeight + deltaY) * ratio;
+        const preferredWidth =
+          Math.abs(deltaX) >= Math.abs(deltaY) ? widthDriven : heightDriven;
+        const limits = clampItemSize(resizeState.item, preferredWidth, resizeState.startHeight);
+        const minWidthForRatio = Math.max(limits.minWidth, limits.minHeight * ratio);
+        const maxWidthForRatio = Math.min(limits.maxWidth, limits.maxHeight * ratio);
+        const safeMinWidth = Math.min(minWidthForRatio, maxWidthForRatio);
+        width = clamp(snapValue(preferredWidth), safeMinWidth, maxWidthForRatio);
+        height = width / ratio;
+        resizeState.item.style.width = `${Math.round(width)}px`;
+        resizeState.item.style.height = `${Math.round(height)}px`;
+        setLayoutManualEdited(resizeState.item, true);
+        setLayoutSaveButtonSavedState(false);
+        return;
+      }
+      const clampedSize = clampItemSize(resizeState.item, width, height);
+      resizeState.item.style.width = `${Math.round(clampedSize.width)}px`;
+      resizeState.item.style.height = `${Math.round(clampedSize.height)}px`;
+      setLayoutManualEdited(resizeState.item, true);
+      setLayoutSaveButtonSavedState(false);
+      return;
+    }
+    if (!dragState) {
+      return;
+    }
+    if (event.touches) {
+      event.preventDefault();
+    }
+    const point = getPointer(event);
+    if (!point) {
+      return;
+    }
+    const canvasRect = playgroundCanvas.getBoundingClientRect();
+    const left =
+      point.clientX - canvasRect.left + playgroundCanvas.scrollLeft - dragState.pointerOffsetX;
+    const top =
+      point.clientY - canvasRect.top + playgroundCanvas.scrollTop - dragState.pointerOffsetY;
+    const clamped = clampItemPosition(dragState.item, left, top);
+    dragState.item.style.left = `${Math.round(clamped.left)}px`;
+    dragState.item.style.top = `${Math.round(clamped.top)}px`;
+    setLayoutManualEdited(dragState.item, true);
+    setLayoutSaveButtonSavedState(false);
+  };
+
+  const endItemDrag = () => {
+    if (resizeState) {
+      resizeState.item.classList.remove("resizing");
+      resizeState = null;
+    }
+    if (!dragState) {
+      return;
+    }
+    dragState.item.classList.remove("dragging");
+    const left = parseLayoutNumeric(dragState.item.style.left, 0);
+    const top = parseLayoutNumeric(dragState.item.style.top, 0);
+    const clamped = clampItemPosition(dragState.item, left, top);
+    dragState.item.style.left = `${Math.round(clamped.left)}px`;
+    dragState.item.style.top = `${Math.round(clamped.top)}px`;
+    dragState = null;
+  };
+
+  const createItem = (type, geometry = null) => {
+    const config = PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
+    const componentNode = createPlaygroundComponentNode(type, sourceRoots);
+    const item = componentNode instanceof HTMLElement ? componentNode : document.createElement("div");
+    item.classList.add("playground-node");
+    item.dataset.component = type;
+    const width = Number.isFinite(geometry?.width) ? geometry.width : config.width;
+    const height = Number.isFinite(geometry?.height) ? geometry.height : config.height;
+    item.style.width = `${Math.max(120, Math.round(width))}px`;
+    item.style.height = `${Math.max(100, Math.round(height))}px`;
+    if (type === "cnot-gate") {
+      // Apply saved C-NOT defaults after size initialization so default gate
+      // geometry is not overwritten by the generic component library size.
+      applyCnotComponentDefaultsToElement(item, {
+        includeGateGeometry: !geometry,
+      });
+    }
+    item.setAttribute("aria-label", config.label);
+
+    item.addEventListener("mousedown", () => {
+      bringToFront(item);
+      setSelectedItem(item);
+    });
+    item.addEventListener(
+      "touchstart",
+      () => {
+        bringToFront(item);
+        setSelectedItem(item);
+      },
+      { passive: true }
+    );
+    item.addEventListener("mousedown", (event) => beginItemDrag(item, event));
+    item.addEventListener(
+      "touchstart",
+      (event) => beginItemDrag(item, event),
+      { passive: false }
+    );
+
+    if (geometry && Number.isFinite(geometry.left) && Number.isFinite(geometry.top)) {
+      const clamped = clampItemPosition(item, geometry.left, geometry.top);
+      item.style.left = `${Math.round(clamped.left)}px`;
+      item.style.top = `${Math.round(clamped.top)}px`;
+    }
+    if (geometry && Number.isFinite(geometry.z)) {
+      item.style.zIndex = `${Math.round(geometry.z)}`;
+      zCounter = Math.max(zCounter, Math.round(geometry.z));
+    }
+    return item;
+  };
+
+  const appendItemToCanvas = (item) => {
+    playgroundCanvas.appendChild(item);
+    refreshLayoutEditTargets();
+  };
+
+  const serializeItems = () =>
+    Array.from(playgroundCanvas.querySelectorAll(".playground-node")).map((item) => ({
+      type: item.dataset.component || "qubit",
+      left: parseLayoutNumeric(item.style.left, 0),
+      top: parseLayoutNumeric(item.style.top, 0),
+      width: item.offsetWidth,
+      height: item.offsetHeight,
+      z: parseLayoutNumeric(item.style.zIndex, 1),
+    }));
+
+  const saveLayout = () => {
+    persistPlaygroundCnotDefaultsFromDom();
+    const payload = {
+      items: serializeItems(),
+      gridSnap: isSnapEnabled(),
+      savedAt: Date.now(),
+    };
+    try {
+      window.localStorage.setItem(PLAYGROUND_LAYOUT_STORAGE_KEY, JSON.stringify(payload));
+      setStatus("Layout saved");
+      return true;
+    } catch (_error) {
+      setStatus("Save failed");
+      return false;
+    }
+  };
+
+  const clearLayout = ({ clearStorage = false } = {}) => {
+    playgroundCanvas.querySelectorAll(".playground-node").forEach((item) => item.remove());
+    setSelectedItem(null);
+    if (clearStorage) {
+      try {
+        window.localStorage.removeItem(PLAYGROUND_LAYOUT_STORAGE_KEY);
+      } catch (_error) {
+        // Ignore storage failures.
+      }
+    }
+  };
+
+  const loadLayout = () => {
+    let payload = null;
+    try {
+      const serialized = window.localStorage.getItem(PLAYGROUND_LAYOUT_STORAGE_KEY);
+      if (!serialized) {
+        setStatus("No saved layout");
+        return false;
+      }
+      payload = JSON.parse(serialized);
+    } catch (_error) {
+      setStatus("Load failed");
+      return false;
+    }
+    if (!payload || !Array.isArray(payload.items)) {
+      setStatus("Saved layout invalid");
+      return false;
+    }
+
+    if (playgroundSnapToggle && typeof payload.gridSnap === "boolean") {
+      playgroundSnapToggle.checked = payload.gridSnap;
+    }
+    clearLayout();
+    payload.items.forEach((geometry) => {
+      const type = typeof geometry.type === "string" ? geometry.type : "qubit";
+      const item = createItem(type, geometry);
+      appendItemToCanvas(item);
+    });
+    setStatus("Layout loaded");
+    return true;
+  };
+
+  const duplicateSelected = () => {
+    if (!(selectedItem instanceof HTMLElement)) {
+      return false;
+    }
+    const type = selectedItem.dataset.component || "qubit";
+    const geometry = {
+      left: parseLayoutNumeric(selectedItem.style.left, 0) + PLAYGROUND_GRID_SIZE,
+      top: parseLayoutNumeric(selectedItem.style.top, 0) + PLAYGROUND_GRID_SIZE,
+      width: selectedItem.offsetWidth,
+      height: selectedItem.offsetHeight,
+    };
+    const item = createItem(type, geometry);
+    appendItemToCanvas(item);
+    setSelectedItem(item);
+    setStatus("Duplicated");
+    return true;
+  };
+
+  const deleteSelected = () => {
+    if (!(selectedItem instanceof HTMLElement)) {
+      return false;
+    }
+    const doomed = selectedItem;
+    setSelectedItem(null);
+    doomed.remove();
+    setStatus("Deleted");
+    return true;
+  };
+
+  playgroundCanvas.addEventListener("click", (event) => {
+    if (event.target !== playgroundCanvas) {
+      return;
+    }
+    const selectedType = playgroundComponentSelect.value;
+    if (!selectedType) {
+      return;
+    }
+    const item = createItem(selectedType);
+    appendItemToCanvas(item);
+    bringToFront(item);
+    positionItemFromClientPoint(item, event.clientX, event.clientY);
+    setSelectedItem(item);
+    playgroundComponentSelect.value = "";
+  });
+
+  playgroundCanvas.addEventListener("mousedown", (event) => {
+    if (event.target === playgroundCanvas) {
+      setSelectedItem(null);
+    }
+  });
+
+  if (playgroundDuplicateButton) {
+    playgroundDuplicateButton.addEventListener("click", () => {
+      duplicateSelected();
+    });
+  }
+  if (playgroundDeleteButton) {
+    playgroundDeleteButton.addEventListener("click", () => {
+      deleteSelected();
+    });
+  }
+  if (playgroundSaveButton) {
+    playgroundSaveButton.addEventListener("click", () => {
+      saveLayout();
+    });
+  }
+  if (playgroundLoadButton) {
+    playgroundLoadButton.addEventListener("click", () => {
+      loadLayout();
+    });
+  }
+  if (playgroundClearButton) {
+    playgroundClearButton.addEventListener("click", () => {
+      clearLayout({ clearStorage: true });
+      setStatus("Layout cleared");
+    });
+  }
+  if (playgroundSnapToggle) {
+    playgroundSnapToggle.addEventListener("change", () => {
+      if (selectedItem) {
+        const left = parseLayoutNumeric(selectedItem.style.left, 0);
+        const top = parseLayoutNumeric(selectedItem.style.top, 0);
+        const clamped = clampItemPosition(selectedItem, left, top);
+        selectedItem.style.left = `${Math.round(clamped.left)}px`;
+        selectedItem.style.top = `${Math.round(clamped.top)}px`;
+      }
+      setStatus(playgroundSnapToggle.checked ? "Snap on" : "Snap off");
+    });
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (!isPlagroundTabActive()) {
+      return;
+    }
+    if (keyboardEventIsTextEditing(event)) {
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+      if (duplicateSelected()) {
+        event.preventDefault();
+      }
+      return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      if (deleteSelected()) {
+        event.preventDefault();
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      setSelectedItem(null);
+    }
+  });
+
+  window.addEventListener("mousemove", continueItemDrag);
+  window.addEventListener(
+    "touchmove",
+    (event) => continueItemDrag(event),
+    { passive: false }
+  );
+  const settleDraggedOrSelectedItem = () => {
+    endItemDrag();
+    if (!(selectedItem instanceof HTMLElement)) {
+      return;
+    }
+    const left = parseLayoutNumeric(selectedItem.style.left, 0);
+    const top = parseLayoutNumeric(selectedItem.style.top, 0);
+    const clamped = clampItemPosition(selectedItem, left, top);
+    selectedItem.style.left = `${Math.round(clamped.left)}px`;
+    selectedItem.style.top = `${Math.round(clamped.top)}px`;
+  };
+  window.addEventListener("mouseup", settleDraggedOrSelectedItem);
+  window.addEventListener("touchend", settleDraggedOrSelectedItem);
+  window.addEventListener("touchcancel", settleDraggedOrSelectedItem);
+
+  updateActionButtons();
+  loadLayout();
+
+  return {
+    handleResize: () => {},
+    handleLayoutEditChanged: () => {
+      syncSelectionUiState();
+      endItemDrag();
+    },
+  };
 }
 
 function getPointer(event) {
@@ -573,6 +1506,10 @@ function isPairMeasurementManualAlignment(shell) {
   return shell.dataset.layoutPairMeasurementManualAlign === "true";
 }
 
+function collectLayoutPairShells() {
+  return Array.from(document.querySelectorAll(".pair-shell"));
+}
+
 function computePairEjectionBasePoint(shell, slot, qubitElement) {
   const lens = shell.querySelector('[data-role="pair-lens"]');
   const slotElement = shell.querySelector(
@@ -609,7 +1546,7 @@ function computePairEjectionBasePoint(shell, slot, qubitElement) {
 
 function captureTwoQubitLensOffsetsFromDom() {
   const allOffsets = {};
-  const pairShells = Array.from(document.querySelectorAll('[data-role="pair-shell"]'));
+  const pairShells = collectLayoutPairShells();
   pairShells.forEach((shell) => {
     const shellRect = shell.getBoundingClientRect();
     if (!shellRect.width || !shellRect.height) {
@@ -659,7 +1596,7 @@ function captureTwoQubitLensOffsetsFromDom() {
 
 function captureTwoQubitEjectionOffsetsFromDom() {
   const allOffsets = {};
-  const pairShells = Array.from(document.querySelectorAll('[data-role="pair-shell"]'));
+  const pairShells = collectLayoutPairShells();
   pairShells.forEach((shell) => {
     const shellRect = shell.getBoundingClientRect();
     if (!shellRect.width || !shellRect.height) {
@@ -704,7 +1641,7 @@ function captureTwoQubitEjectionOffsetsFromDom() {
 
 function captureTwoQubitEjectionAbsoluteFromDom() {
   const allAbsolute = {};
-  const pairShells = Array.from(document.querySelectorAll('[data-role="pair-shell"]'));
+  const pairShells = collectLayoutPairShells();
   pairShells.forEach((shell) => {
     const shellRect = shell.getBoundingClientRect();
     if (!shellRect.width || !shellRect.height) {
@@ -744,7 +1681,7 @@ function applyTwoQubitLensOffsetsFromSavedPayload(offsetPayload) {
     return;
   }
 
-  const pairShells = Array.from(document.querySelectorAll('[data-role="pair-shell"]'));
+  const pairShells = collectLayoutPairShells();
   pairShells.forEach((shell) => {
     const shellKey = deriveLayoutKey(shell);
     const shellOffsets = offsetPayload[shellKey];
@@ -768,7 +1705,7 @@ function applyTwoQubitEjectionOffsetsFromSavedPayload(offsetPayload) {
     return;
   }
 
-  const pairShells = Array.from(document.querySelectorAll('[data-role="pair-shell"]'));
+  const pairShells = collectLayoutPairShells();
   pairShells.forEach((shell) => {
     const shellKey = deriveLayoutKey(shell);
     const shellOffsets = offsetPayload[shellKey];
@@ -792,7 +1729,7 @@ function applyTwoQubitEjectionAbsoluteFromSavedPayload(absolutePayload) {
     return;
   }
 
-  const pairShells = Array.from(document.querySelectorAll('[data-role="pair-shell"]'));
+  const pairShells = collectLayoutPairShells();
   pairShells.forEach((shell) => {
     const shellKey = deriveLayoutKey(shell);
     const shellAbsolute = absolutePayload[shellKey];
@@ -811,7 +1748,7 @@ function applyTwoQubitEjectionAbsoluteFromSavedPayload(absolutePayload) {
 }
 
 function getPrimaryTwoQubitMeasurementGroup() {
-  const pairShell = document.querySelector('[data-role="pair-shell"]');
+  const pairShell = collectLayoutPairShells().find((shell) => shell.querySelector('[data-role="pair-qubit-a"]'));
   if (!(pairShell instanceof HTMLElement)) {
     return null;
   }
@@ -824,6 +1761,104 @@ function getPrimaryTwoQubitMeasurementGroup() {
 
 function collectLayoutTargets() {
   return Array.from(document.querySelectorAll('[data-layout-edit-target="true"]'));
+}
+
+function isLayoutTargetDeleted(element) {
+  return element?.dataset?.layoutDeleted === "true";
+}
+
+function isLayoutTargetProtectedFromDeletion(element) {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+  // Core simulator controls should never be removable from saved layout state.
+  return element.matches('[data-role="ent-pipe"], [data-role="ent-gate"], [data-role="ent-measurement-host"]');
+}
+
+function isLayoutTargetPinnedToDefaultGeometry(element) {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+  // Keep the entanglement C-NOT body and its measurement group in canonical positions.
+  return element.matches('[data-role="ent-gate"], [data-role="ent-measurement-host"]');
+}
+
+function setLayoutTargetDeleted(element, deleted) {
+  if (!(element instanceof HTMLElement)) {
+    return;
+  }
+  if (deleted && isLayoutTargetProtectedFromDeletion(element)) {
+    delete element.dataset.layoutDeleted;
+    element.style.display = "";
+    return;
+  }
+  if (deleted) {
+    element.dataset.layoutDeleted = "true";
+    element.style.display = "none";
+    if (selectedLayoutTarget === element) {
+      selectedLayoutTarget.classList.remove("layout-edit-selected");
+      selectedLayoutTarget = null;
+    }
+    return;
+  }
+  delete element.dataset.layoutDeleted;
+  element.style.display = "";
+}
+
+function clearSelectedLayoutTarget() {
+  if (selectedLayoutTarget) {
+    selectedLayoutTarget.classList.remove("layout-edit-selected");
+  }
+  selectedLayoutTarget = null;
+}
+
+function setSelectedLayoutTarget(element) {
+  if (!(element instanceof HTMLElement) || isLayoutTargetDeleted(element)) {
+    clearSelectedLayoutTarget();
+    return;
+  }
+  if (selectedLayoutTarget === element) {
+    return;
+  }
+  if (selectedLayoutTarget) {
+    selectedLayoutTarget.classList.remove("layout-edit-selected");
+  }
+  selectedLayoutTarget = element;
+  selectedLayoutTarget.classList.add("layout-edit-selected");
+}
+
+function selectedLayoutTargetKeySet() {
+  const deleted = new Set();
+  collectLayoutTargets().forEach((element) => {
+    if (isLayoutTargetDeleted(element) && !isLayoutTargetProtectedFromDeletion(element)) {
+      deleted.add(deriveLayoutKey(element));
+    }
+  });
+  return deleted;
+}
+
+function removeSelectedLayoutTargetFromLayout() {
+  if (!layoutEditorState.enabled || !selectedLayoutTarget) {
+    return false;
+  }
+  if (isLayoutTargetProtectedFromDeletion(selectedLayoutTarget)) {
+    return false;
+  }
+  setLayoutTargetDeleted(selectedLayoutTarget, true);
+  setLayoutSaveButtonSavedState(false);
+  return true;
+}
+
+function keyboardEventIsTextEditing(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  if (target.isContentEditable) {
+    return true;
+  }
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
 function readSavedLayoutPayload() {
@@ -843,6 +1878,9 @@ function shouldPersistGenericLayoutTarget(element) {
   if (!(element instanceof HTMLElement)) {
     return false;
   }
+  if (isLayoutTargetPinnedToDefaultGeometry(element)) {
+    return false;
+  }
   // Pair qubits are used for lens/ejection hotspot calibration. Their generic
   // element position must not be persisted, otherwise startup placement drifts.
   if (element.matches('[data-role="pair-qubit-a"], [data-role="pair-qubit-b"]')) {
@@ -852,9 +1890,13 @@ function shouldPersistGenericLayoutTarget(element) {
 }
 
 function saveLayoutEdits() {
+  persistPlaygroundCnotDefaultsFromDom();
   const existingPayload = readSavedLayoutPayload();
   const payload = {};
   collectLayoutTargets().forEach((element) => {
+    if (isLayoutTargetDeleted(element)) {
+      return;
+    }
     if (!shouldPersistGenericLayoutTarget(element)) {
       return;
     }
@@ -885,7 +1927,7 @@ function saveLayoutEdits() {
     payload.__pairEjectionAbsolute = existingPayload.__pairEjectionAbsolute;
   }
   const pairManualAlignment = {};
-  Array.from(document.querySelectorAll('[data-role="pair-shell"]')).forEach((shell) => {
+  collectLayoutPairShells().forEach((shell) => {
     if (!isPairMeasurementManualAlignment(shell)) {
       return;
     }
@@ -902,6 +1944,10 @@ function saveLayoutEdits() {
       tx: parseLayoutNumeric(primaryPairMeasurement.measurementGroup.dataset.layoutTx, 0),
       ty: parseLayoutNumeric(primaryPairMeasurement.measurementGroup.dataset.layoutTy, 0),
     };
+  }
+  const deletedTargetKeys = [...selectedLayoutTargetKeySet()];
+  if (deletedTargetKeys.length > 0) {
+    payload.__deletedLayoutTargets = deletedTargetKeys;
   }
   try {
     window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload));
@@ -932,20 +1978,27 @@ function applySavedLayoutEdits() {
   if (!payload || typeof payload !== "object") {
     return;
   }
+  const deletedKeys = new Set(Array.isArray(payload.__deletedLayoutTargets) ? payload.__deletedLayoutTargets : []);
 
   applyTwoQubitLensOffsetsFromSavedPayload(payload.__pairLensOffsets);
   applyTwoQubitEjectionOffsetsFromSavedPayload(payload.__pairEjectionOffsets);
   applyTwoQubitEjectionAbsoluteFromSavedPayload(payload.__pairEjectionAbsolute);
   if (payload.__pairManualAlignment && typeof payload.__pairManualAlignment === "object") {
-    Array.from(document.querySelectorAll('[data-role="pair-shell"]')).forEach((shell) => {
+    collectLayoutPairShells().forEach((shell) => {
       const shellKey = deriveLayoutKey(shell);
       setPairMeasurementManualAlignment(shell, Boolean(payload.__pairManualAlignment[shellKey]));
     });
   }
   collectLayoutTargets().forEach((element) => {
+    setLayoutTargetDeleted(element, false);
     const key = deriveLayoutKey(element);
     const saved = payload[key];
-    if (!saved) {
+    if (!saved || isLayoutTargetPinnedToDefaultGeometry(element)) {
+      setLayoutTargetTranslate(element, 0, 0);
+      if (element.dataset.layoutResizable === "true") {
+        element.style.width = "";
+        element.style.height = "";
+      }
       setLayoutManualEdited(element, false);
       return;
     }
@@ -966,6 +2019,11 @@ function applySavedLayoutEdits() {
     }
     setLayoutManualEdited(element, hasMeaningfulLayoutDelta(tx, ty, savedWidth, savedHeight));
   });
+  collectLayoutTargets().forEach((element) => {
+    const key = deriveLayoutKey(element);
+    setLayoutTargetDeleted(element, deletedKeys.has(key));
+  });
+  clearSelectedLayoutTarget();
 
   const primaryPairMeasurement = getPrimaryTwoQubitMeasurementGroup();
   const savedGroupOffset = payload.__twoQubitMeasurementGroupOffset;
@@ -989,13 +2047,14 @@ function applySavedLayoutEdits() {
 function resetLayoutEditsToDefault() {
   collectLayoutTargets().forEach((element) => {
     setLayoutTargetTranslate(element, 0, 0);
+    setLayoutTargetDeleted(element, false);
     if (element.dataset.layoutResizable === "true") {
       element.style.width = "";
       element.style.height = "";
     }
     setLayoutManualEdited(element, false);
   });
-  Array.from(document.querySelectorAll('[data-role="pair-shell"]')).forEach((shell) => {
+  collectLayoutPairShells().forEach((shell) => {
     clearPairLensSlotOffsetsOnShell(shell);
     clearPairEjectionOffsetsOnShell(shell);
     clearPairEjectionAbsoluteOnShell(shell);
@@ -1006,6 +2065,7 @@ function resetLayoutEditsToDefault() {
   } catch (_error) {
     // Ignore storage failures.
   }
+  clearSelectedLayoutTarget();
 }
 
 function setLayoutSaveButtonSavedState(saved) {
@@ -1042,6 +2102,7 @@ function beginLayoutGesture(element, event) {
 
   const initialTranslate = layoutTargetTranslate(element);
   const rect = element.getBoundingClientRect();
+  setSelectedLayoutTarget(element);
   layoutEditorState.activeGesture = {
     element,
     mode: isResizeHandle && canResize ? "resize" : "move",
@@ -1089,7 +2150,7 @@ function continueLayoutGesture(event) {
     setLayoutTargetTranslate(gesture.element, gesture.startTx + dx, gesture.startTy + dy);
     setLayoutManualEdited(gesture.element, true);
     if (gesture.element.classList.contains("pair-measurement")) {
-      const pairShell = gesture.element.closest('[data-role="pair-shell"]');
+      const pairShell = gesture.element.closest(".pair-shell");
       if (pairShell instanceof HTMLElement) {
         setPairMeasurementManualAlignment(pairShell, true);
       }
@@ -1159,6 +2220,7 @@ function setLayoutEditEnabled(enabled) {
   }
   if (!layoutEditorState.enabled) {
     endLayoutGesture();
+    clearSelectedLayoutTarget();
     if (wasEnabled) {
       collectLayoutTargets().forEach((element) => {
         bakeLayoutTranslateIntoBasePosition(element);
@@ -1175,6 +2237,11 @@ function setLayoutEditEnabled(enabled) {
     layoutResetButton.disabled = !layoutEditorState.enabled;
   }
   setLayoutSaveButtonSavedState(false);
+  simulators.forEach((simulator) => {
+    if (typeof simulator.handleLayoutEditChanged === "function") {
+      simulator.handleLayoutEditChanged(layoutEditorState.enabled);
+    }
+  });
 }
 
 function findLayoutEditTargetFromEvent(event) {
@@ -1206,6 +2273,7 @@ function captureLayoutEditStart(event) {
   }
   const target = findLayoutEditTargetFromEvent(event);
   if (!target) {
+    clearSelectedLayoutTarget();
     return;
   }
   beginLayoutGesture(target, event);
@@ -1218,8 +2286,10 @@ function captureLayoutEditClick(event) {
   }
   const target = findLayoutEditTargetFromEvent(event);
   if (!target) {
+    clearSelectedLayoutTarget();
     return;
   }
+  setSelectedLayoutTarget(target);
   event.preventDefault();
   event.stopImmediatePropagation();
 }
@@ -1240,6 +2310,18 @@ window.addEventListener("mouseup", endLayoutGesture);
 window.addEventListener("touchend", endLayoutGesture);
 window.addEventListener("touchcancel", endLayoutGesture);
 window.addEventListener("click", captureLayoutEditClick, true);
+window.addEventListener("keydown", (event) => {
+  if (!layoutEditorState.enabled || keyboardEventIsTextEditing(event)) {
+    return;
+  }
+  if (event.key !== "Delete" && event.key !== "Backspace") {
+    return;
+  }
+  if (removeSelectedLayoutTargetFromLayout()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+});
 
 function resolveCircleRectOverlap(centerX, centerY, radius, rect, gap = 1) {
   const overlaps =
@@ -4466,10 +5548,13 @@ function setupTwoQubitPair(root) {
 }
 
 function setupEntanglementGate(root) {
+  mountEntanglementCnotGate(root);
   const entResetButton = root.querySelector('[data-role="ent-reset"]');
   const measurementHost = root.querySelector('[data-role="ent-measurement-host"]');
   mountPairMeasurementTool(measurementHost);
   const shell = root.querySelector('[data-role="ent-shell"]');
+  const entGate = root.querySelector('[data-role="ent-gate"]');
+  const preGateStack = root.querySelector(".ent-pre-gates");
   const pipe = root.querySelector('[data-role="ent-pipe"]');
   const qubitTop = root.querySelector('[data-role="ent-qubit-top"]');
   const qubitBottom = root.querySelector('[data-role="ent-qubit-bottom"]');
@@ -4490,7 +5575,6 @@ function setupEntanglementGate(root) {
   const windowTop = root.querySelector('[data-role="ent-window-top"]');
   const windowBottom = root.querySelector('[data-role="ent-window-bottom"]');
   const cnotPlatform = root.querySelector('[data-role="ent-platform"]');
-  const cnotVisualFunnel = root.querySelector(".ent-cnot-funnel");
   const measurementBlock = measurementHost;
   const measurementTool = measurementBlock ? measurementBlock.querySelector('[data-role="pair-lens"]') : null;
   const measurementFunnel = measurementBlock
@@ -4529,6 +5613,7 @@ function setupEntanglementGate(root) {
     !measurementHost ||
     !shell ||
     !pipe ||
+    !preGateStack ||
     !qubitTop ||
     !qubitBottom ||
     !preFunnelTop ||
@@ -4548,7 +5633,6 @@ function setupEntanglementGate(root) {
     !windowTop ||
     !windowBottom ||
     !cnotPlatform ||
-    !cnotVisualFunnel ||
     !measurementBlock ||
     !measurementTool ||
     !measurementFunnel ||
@@ -4561,6 +5645,17 @@ function setupEntanglementGate(root) {
   ) {
     return null;
   }
+
+  // Entanglement layout should stay canonical: measurement lens under tubes and C-NOT body centered.
+  [entGate, measurementHost].forEach((element) => {
+    if (!(element instanceof HTMLElement)) {
+      return;
+    }
+    setLayoutTargetTranslate(element, 0, 0);
+    element.style.width = "";
+    element.style.height = "";
+    element.style.display = "";
+  });
 
   registerSelectionContainer(shell);
 
@@ -4933,9 +6028,17 @@ function setupEntanglementGate(root) {
   }
 
   function alignMeasurementToolCenterWithCnot() {
+    measurementBlock.style.top = "";
+    const flexDirection = window.getComputedStyle(shell).flexDirection;
+    if (flexDirection === "column") {
+      measurementBlock.style.transform = "";
+      return;
+    }
     const cnotCenterY = stagePointForElementCenter(pipe).y;
-    const toolCenterOffset = measurementTool.offsetTop + measurementTool.offsetHeight / 2;
-    measurementBlock.style.top = `${cnotCenterY - toolCenterOffset}px`;
+    const measurementCenterY =
+      stagePointForElementCenter(measurementTool).y + TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
+    const deltaY = cnotCenterY - measurementCenterY;
+    measurementBlock.style.transform = `translateY(${deltaY}px)`;
   }
 
   function alignCnotCenterBetweenPreGates() {
@@ -4945,39 +6048,32 @@ function setupEntanglementGate(root) {
   }
 
   function alignHorizontalFlow() {
-    const CNOT_FUNNEL_SHIFT_PX = -10;
-    const CNOT_GATE_SHIFT_PX = 100;
-    const MEASUREMENT_TOOL_SHIFT_PX = 40;
-    const qubitRect = qubits[0].element.getBoundingClientRect();
-    const qubitRadius = qubitRect.width / 2;
-    const preEjectMaxX = Math.max(
-      ...qubits.map((qubit) => springTipX(qubit.preGate.spring, qubit.preGate.flange) + 6 + qubitRadius)
-    );
-
-    const shellRect = shell.getBoundingClientRect();
-    const pipeRect = pipe.getBoundingClientRect();
-    const cnotFunnelRect = cnotVisualFunnel.getBoundingClientRect();
-    const cnotFunnelOffset = cnotFunnelRect.left - pipeRect.left;
-    const desiredCnotFunnelLeft = preEjectMaxX + 26 + CNOT_FUNNEL_SHIFT_PX + CNOT_GATE_SHIFT_PX;
-    const desiredPipeLeft = desiredCnotFunnelLeft - cnotFunnelOffset;
-    pipe.style.left = `${Math.round(desiredPipeLeft)}px`;
-
-    const cnotEjectX = cnotSpringTipX() + 6 + qubitRadius;
-    const blockRect = measurementBlock.getBoundingClientRect();
-    const toolRect = measurementTool.getBoundingClientRect();
-    const measurementFunnelRect = measurementFunnel.getBoundingClientRect();
-    const toolOffset = toolRect.left - blockRect.left;
-    const funnelOffset = measurementFunnelRect.left - toolRect.left;
-    const desiredMeasurementFunnelLeft = cnotEjectX + 42 + MEASUREMENT_TOOL_SHIFT_PX;
-    const desiredMeasurementBlockLeft = desiredMeasurementFunnelLeft - (toolOffset + funnelOffset);
-    measurementBlock.style.left = `${Math.round(desiredMeasurementBlockLeft)}px`;
-
-    // Ensure the measurement block stays inside the shell on very narrow render widths.
-    const minLeft = shellRect.width * 0.45;
-    const numericLeft = Number.parseFloat(measurementBlock.style.left) || desiredMeasurementBlockLeft;
-    if (numericLeft < minLeft) {
-      measurementBlock.style.left = `${Math.round(minLeft)}px`;
+    measurementBlock.style.left = "";
+    const flexDirection = window.getComputedStyle(shell).flexDirection;
+    if (flexDirection === "column") {
+      pipe.style.left = "";
+      return;
     }
+    const shellRect = shell.getBoundingClientRect();
+    const stackRect = preGateStack.getBoundingClientRect();
+    const measurementRect = measurementBlock.getBoundingClientRect();
+    const pipeRect = pipe.getBoundingClientRect();
+    const pipeWidth = pipeRect.width || pipe.offsetWidth || 0;
+    if (!pipeWidth || !shellRect.width) {
+      return;
+    }
+
+    const leftBoundary = stackRect.right - shellRect.left;
+    const rightBoundary = measurementRect.left - shellRect.left;
+    if (rightBoundary <= leftBoundary + 40) {
+      return;
+    }
+
+    const midpoint = (leftBoundary + rightBoundary) / 2;
+    const minPipeLeft = leftBoundary + 14;
+    const maxPipeLeft = rightBoundary - pipeWidth - 14;
+    const desiredPipeLeft = clamp(midpoint - pipeWidth / 2, minPipeLeft, maxPipeLeft);
+    pipe.style.left = `${Math.round(desiredPipeLeft)}px`;
   }
 
   function createMeasurementPayload(color, startPoint) {
@@ -5951,16 +7047,24 @@ function setupEntanglementGate(root) {
   };
 }
 
+playgroundComponentDefaultsCache = readPlaygroundComponentDefaultsPayload();
+
 const oneQubitRoot = mountOneQubitSimulator();
 const oneQubitSimulator = oneQubitRoot ? setupSimulator(oneQubitRoot) : null;
 const pairRoot = mountTwoQubitPair();
 const twoQubitPairSimulator = pairRoot ? setupTwoQubitPair(pairRoot) : null;
 const entanglementRoot = mountEntanglementGate(entanglementHost);
 const entanglementSimulator = entanglementRoot ? setupEntanglementGate(entanglementRoot) : null;
+const plagroundComposer = setupPlagroundComposer({
+  oneQubitRoot,
+  twoQubitPairRoot: pairRoot,
+  entanglementRoot,
+});
 const simulators = [
   oneQubitSimulator,
   twoQubitPairSimulator,
   entanglementSimulator,
+  plagroundComposer,
 ].filter(Boolean);
 
 refreshLayoutEditTargets();
@@ -5991,12 +7095,35 @@ function refreshVisibleSimulators() {
   });
 }
 
+function refreshVisibleSimulatorsAfterTabSwitch() {
+  window.requestAnimationFrame(() => {
+    refreshVisibleSimulators();
+    window.requestAnimationFrame(() => {
+      refreshVisibleSimulators();
+    });
+  });
+}
+
 function setActiveTab(tabTarget) {
   if (!tabButtons.length || !tabPanels.length) {
     return;
   }
 
   clearQubitSelection();
+
+  if (tabTarget === "entanglement") {
+    const entGate = document.querySelector('#panel-entanglement [data-role="ent-gate"]');
+    const entMeasurementHost = document.querySelector('#panel-entanglement [data-role="ent-measurement-host"]');
+    [entGate, entMeasurementHost].forEach((element) => {
+      if (!(element instanceof HTMLElement)) {
+        return;
+      }
+      setLayoutTargetTranslate(element, 0, 0);
+      element.style.width = "";
+      element.style.height = "";
+      element.style.display = "";
+    });
+  }
 
   tabButtons.forEach((button) => {
     const isActive = button.dataset.tabTarget === tabTarget;
@@ -6011,9 +7138,7 @@ function setActiveTab(tabTarget) {
     panel.classList.toggle("active", isActive);
   });
 
-  window.requestAnimationFrame(() => {
-    refreshVisibleSimulators();
-  });
+  refreshVisibleSimulatorsAfterTabSwitch();
 }
 
 tabButtons.forEach((button) => {
