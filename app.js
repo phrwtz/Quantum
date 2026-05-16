@@ -2,20 +2,34 @@ const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
 const simulatorTemplate = document.getElementById("simulatorTemplate");
 const twoQubitPairTemplate = document.getElementById("twoQubitPairTemplate");
-const entanglementGateTemplate = document.getElementById("entanglementGateTemplate");
-const pairMeasurementToolTemplate = document.getElementById("pairMeasurementToolTemplate");
+const entanglementGateTemplate = document.getElementById(
+  "entanglementGateTemplate",
+);
+const pairMeasurementToolTemplate = document.getElementById(
+  "pairMeasurementToolTemplate",
+);
 const cnotGateTemplate = document.getElementById("cnotGateTemplate");
 const oneQubitHost = document.getElementById("oneQubitHost");
 const twoQubitsHost = document.getElementById("twoQubitsHost");
 const entanglementHost = document.getElementById("entanglementHost");
 const playgroundCanvas = document.getElementById("playgroundCanvas");
-const playgroundComponentSelect = document.getElementById("playgroundComponentSelect");
+const playgroundComponentSelect = document.getElementById(
+  "playgroundComponentSelect",
+);
 const playgroundSnapToggle = document.getElementById("playgroundSnapToggle");
-const playgroundDuplicateButton = document.getElementById("playgroundDuplicateButton");
-const playgroundDeleteButton = document.getElementById("playgroundDeleteButton");
-const playgroundSaveComponentButton = document.getElementById("playgroundSaveComponentButton");
+const playgroundDuplicateButton = document.getElementById(
+  "playgroundDuplicateButton",
+);
+const playgroundDeleteButton = document.getElementById(
+  "playgroundDeleteButton",
+);
+const playgroundSaveComponentButton = document.getElementById(
+  "playgroundSaveComponentButton",
+);
 const playgroundSaveButton = document.getElementById("playgroundSaveButton");
-const playgroundSaveAsButton = document.getElementById("playgroundSaveAsButton");
+const playgroundSaveAsButton = document.getElementById(
+  "playgroundSaveAsButton",
+);
 const playgroundLoadButton = document.getElementById("playgroundLoadButton");
 const playgroundStatus = document.getElementById("playgroundStatus");
 const editorTargetTabSelect = document.getElementById("editorTargetTabSelect");
@@ -57,34 +71,54 @@ const CNOT_FUNNEL_OVERLAP_THRESHOLD = 0.5;
 const TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X = -89;
 const TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y = -42;
 const QUBIT_PLACEMENTS_TAB_LABEL = "qubit placements";
-const ENTANGLEMENT_RETURN_TARGETS_STORAGE_KEY = "quantum_entanglement_return_targets_v1";
+const ENTANGLEMENT_RETURN_TARGETS_STORAGE_KEY =
+  "quantum_entanglement_return_targets_v1";
 
 const ONE_QUBIT_GATE_OPTIONS = [
   { label: "Blue", buttonIndex: 0, hsv: { h: 219.0, s: 84.6, v: 96.9 } },
-  { label: "Bluish Purple", buttonIndex: 1, hsv: { h: 279.4, s: 100.0, v: 99.6 } },
+  {
+    label: "Bluish Purple",
+    buttonIndex: 1,
+    hsv: { h: 279.4, s: 100.0, v: 99.6 },
+  },
   { label: "Purple", buttonIndex: 2, hsv: { h: 289.2, s: 100.0, v: 98.0 } },
-  { label: "Reddish Purple", buttonIndex: 3, hsv: { h: 312.3, s: 98.8, v: 96.5 } },
+  {
+    label: "Reddish Purple",
+    buttonIndex: 3,
+    hsv: { h: 312.3, s: 98.8, v: 96.5 },
+  },
   { label: "Red", buttonIndex: 4, hsv: { h: 359.3, s: 76.0, v: 88.2 } },
 ];
 
 // One-qubit gate model by button position.
 // Button 0: P(0)=1, button 1: P(0)=3/4, button 2: P(0)=1/2, button 3: P(0)=1/4, button 4: P(0)=0
 const ONE_QUBIT_BUTTON_BLUE_PROBABILITIES = [1, 3 / 4, 1 / 2, 1 / 4, 0];
-const DEFAULT_GATE_BUTTON_INDEX = Math.floor(ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length / 2);
+const DEFAULT_GATE_BUTTON_INDEX = Math.floor(
+  ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length / 2,
+);
 const DEFAULT_SINGLE_GATE_TICK_INDEX = 3;
 const ENT_TOP_DEFAULT_GATE_TICK_INDEX = 6;
 const ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX = 0;
 const LAYOUT_STORAGE_KEY = "quantum_layout_editor_v1";
 const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
-const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY = "quantum_playground_component_defaults_v1";
+const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
+  "quantum_playground_component_defaults_v1";
 const GENERATED_TABS_STORAGE_KEY = "quantum_generated_tabs_v1";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
   qubit: { label: "Qubit", width: 72, height: 72 },
   "single-gate": { label: "Single Qubit Gate", width: 500, height: 240 },
   "cnot-gate": { label: "C-NOT Gate", width: 420, height: 260 },
-  "single-measurement": { label: "Single-Qubit Magnifier + Tubes", width: 420, height: 500 },
-  "double-measurement": { label: "Double-Qubit Magnifier + Tubes", width: 500, height: 500 },
+  "single-measurement": {
+    label: "Single-Qubit Magnifier + Tubes",
+    width: 420,
+    height: 500,
+  },
+  "double-measurement": {
+    label: "Double-Qubit Magnifier + Tubes",
+    width: 500,
+    height: 500,
+  },
 };
 const PLAYGROUND_SINGLE_MEASUREMENT_PART_SPECS = [
   {
@@ -274,18 +308,74 @@ let generatedLayoutGesture = null;
 let generatedRuntimeDrag = null;
 
 const LAYOUT_EDIT_TARGET_SPECS = [
-  { selector: ".qubit", resizable: true, uniform: true, minWidth: 28, minHeight: 28 },
-  { selector: ".window-wrap.single-qubit-gate", resizable: true, minWidth: 180, minHeight: 80 },
-  { selector: ".cnot-gate, .ent-double-gate", resizable: true, minWidth: 180, minHeight: 120 },
-  { selector: ".cnot-input-funnel, .ent-input-funnel", resizable: true, minWidth: 24, minHeight: 40 },
-  { selector: ".cnot-porthole, .ent-window", resizable: true, uniform: true, minWidth: 30, minHeight: 30 },
-  { selector: ".cnot-output-flange, .ent-output-flange", resizable: true, minWidth: 10, minHeight: 28 },
+  {
+    selector: ".qubit",
+    resizable: true,
+    uniform: true,
+    minWidth: 28,
+    minHeight: 28,
+  },
+  {
+    selector: ".window-wrap.single-qubit-gate",
+    resizable: true,
+    minWidth: 180,
+    minHeight: 80,
+  },
+  {
+    selector: ".cnot-gate, .ent-double-gate",
+    resizable: true,
+    minWidth: 180,
+    minHeight: 120,
+  },
+  {
+    selector: ".cnot-input-funnel, .ent-input-funnel",
+    resizable: true,
+    minWidth: 24,
+    minHeight: 40,
+  },
+  {
+    selector: ".cnot-porthole, .ent-window",
+    resizable: true,
+    uniform: true,
+    minWidth: 30,
+    minHeight: 30,
+  },
+  {
+    selector: ".cnot-output-flange, .ent-output-flange",
+    resizable: true,
+    minWidth: 10,
+    minHeight: 28,
+  },
   { selector: ".magnifier", resizable: true, minWidth: 120, minHeight: 90 },
-  { selector: ".pair-magnifier", resizable: true, minWidth: 180, minHeight: 90 },
-  { selector: ".tube, .pair-tube", resizable: true, minWidth: 16, minHeight: 50 },
-  { selector: ".tube-rack, .pair-tube-rack", resizable: true, minWidth: 140, minHeight: 80 },
-  { selector: ".measurement-stage, .pair-measurement, .ent-measurement-block", resizable: true, minWidth: 220, minHeight: 120 },
-  { selector: ".tube-capacity, .pair-capacity, .tube-count, .pair-tube-label, .measurement-count", resizable: false },
+  {
+    selector: ".pair-magnifier",
+    resizable: true,
+    minWidth: 180,
+    minHeight: 90,
+  },
+  {
+    selector: ".tube, .pair-tube",
+    resizable: true,
+    minWidth: 16,
+    minHeight: 50,
+  },
+  {
+    selector: ".tube-rack, .pair-tube-rack",
+    resizable: true,
+    minWidth: 140,
+    minHeight: 80,
+  },
+  {
+    selector: ".measurement-stage, .pair-measurement, .ent-measurement-block",
+    resizable: true,
+    minWidth: 220,
+    minHeight: 120,
+  },
+  {
+    selector:
+      ".tube-capacity, .pair-capacity, .tube-count, .pair-tube-label, .measurement-count",
+    resizable: false,
+  },
 ];
 
 const layoutEditorState = {
@@ -335,7 +425,7 @@ function mountPairMeasurementTool(host) {
     applyDoubleMeasurementLayoutSnapshot(
       host,
       playgroundComponentDefaultsCache?.["double-measurement"],
-      { includeGroupGeometry: false }
+      { includeGroupGeometry: false },
     );
     return host;
   }
@@ -345,7 +435,7 @@ function mountPairMeasurementTool(host) {
   applyDoubleMeasurementLayoutSnapshot(
     host,
     playgroundComponentDefaultsCache?.["double-measurement"],
-    { includeGroupGeometry: false }
+    { includeGroupGeometry: false },
   );
   return host;
 }
@@ -392,7 +482,9 @@ function createCnotGateElement({ withEntanglementRoles = false } = {}) {
 
 function readPlaygroundComponentDefaultsPayload() {
   try {
-    const serialized = window.localStorage.getItem(PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY);
+    const serialized = window.localStorage.getItem(
+      PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY,
+    );
     if (!serialized) {
       return {};
     }
@@ -407,7 +499,7 @@ function writePlaygroundComponentDefaultsPayload(payload) {
   try {
     window.localStorage.setItem(
       PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY,
-      JSON.stringify(payload || {})
+      JSON.stringify(payload || {}),
     );
     return true;
   } catch (_error) {
@@ -429,13 +521,22 @@ function defaultsGeometryForComponentType(type) {
   return geometry && typeof geometry === "object" ? geometry : null;
 }
 
-function persistPlaygroundComponentGeometryDefaultsFromElement(type, element, extras = null) {
+function persistPlaygroundComponentGeometryDefaultsFromElement(
+  type,
+  element,
+  extras = null,
+) {
   if (!type || !(element instanceof HTMLElement)) {
     return false;
   }
   const width = Math.round(element.offsetWidth);
   const height = Math.round(element.offsetHeight);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
     return false;
   }
   const payload = readPlaygroundComponentDefaultsPayload();
@@ -465,11 +566,21 @@ function resolveCnotPartElements(root) {
   }
   return {
     gate: root,
-    body: root.querySelector(".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']"),
-    funnelTop: root.querySelector("[data-part='funnel-top'], .cnot-input-funnel-top, [data-role='ent-funnel-top']"),
-    funnelBottom: root.querySelector("[data-part='funnel-bottom'], .cnot-input-funnel-bottom, [data-role='ent-funnel-bottom']"),
-    windowTop: root.querySelector("[data-part='window-top'], .cnot-porthole-top, [data-role='ent-window-top']"),
-    windowBottom: root.querySelector("[data-part='window-bottom'], .cnot-porthole-bottom, [data-role='ent-window-bottom']"),
+    body: root.querySelector(
+      ".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']",
+    ),
+    funnelTop: root.querySelector(
+      "[data-part='funnel-top'], .cnot-input-funnel-top, [data-role='ent-funnel-top']",
+    ),
+    funnelBottom: root.querySelector(
+      "[data-part='funnel-bottom'], .cnot-input-funnel-bottom, [data-role='ent-funnel-bottom']",
+    ),
+    windowTop: root.querySelector(
+      "[data-part='window-top'], .cnot-porthole-top, [data-role='ent-window-top']",
+    ),
+    windowBottom: root.querySelector(
+      "[data-part='window-bottom'], .cnot-porthole-bottom, [data-role='ent-window-bottom']",
+    ),
     flangeTop: root.querySelector(".cnot-output-flange-top"),
     flangeBottom: root.querySelector(".cnot-output-flange-bottom"),
   };
@@ -503,16 +614,25 @@ function snapshotInlineStyleSubset(element, properties) {
 }
 
 function applyLayoutSnapshotToElement(element, snapshot) {
-  if (!(element instanceof HTMLElement) || !snapshot || typeof snapshot !== "object") {
+  if (
+    !(element instanceof HTMLElement) ||
+    !snapshot ||
+    typeof snapshot !== "object"
+  ) {
     return;
   }
   const tx = parseLayoutNumeric(snapshot.tx, 0);
   const ty = parseLayoutNumeric(snapshot.ty, 0);
   setLayoutTargetTranslate(element, tx, ty);
-  element.style.width = typeof snapshot.width === "string" ? snapshot.width : "";
-  element.style.height = typeof snapshot.height === "string" ? snapshot.height : "";
+  element.style.width =
+    typeof snapshot.width === "string" ? snapshot.width : "";
+  element.style.height =
+    typeof snapshot.height === "string" ? snapshot.height : "";
   setLayoutTargetDeleted(element, Boolean(snapshot.deleted));
-  setLayoutManualEdited(element, hasMeaningfulLayoutDelta(tx, ty, element.style.width, element.style.height));
+  setLayoutManualEdited(
+    element,
+    hasMeaningfulLayoutDelta(tx, ty, element.style.width, element.style.height),
+  );
 }
 
 function captureCnotComponentDefaultsFromElement(root) {
@@ -579,7 +699,7 @@ function applyCnotComponentDefaultsToElement(root, options = {}) {
   applyCnotSnapshotToElement(
     root,
     playgroundComponentDefaultsCache?.["cnot-gate"],
-    options
+    options,
   );
 }
 
@@ -592,7 +712,10 @@ function cloneJson(value) {
 }
 
 function normalizeTabLabel(label) {
-  return String(label || "").trim().replace(/\s+/g, " ").toLowerCase();
+  return String(label || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 function generatedTabSlug(label) {
@@ -610,7 +733,8 @@ function readGeneratedTabsState() {
     }
     const parsed = JSON.parse(serialized);
     return {
-      overrides: parsed && typeof parsed.overrides === "object" ? parsed.overrides : {},
+      overrides:
+        parsed && typeof parsed.overrides === "object" ? parsed.overrides : {},
       customTabs: Array.isArray(parsed?.customTabs) ? parsed.customTabs : [],
     };
   } catch (_error) {
@@ -661,7 +785,9 @@ function extractQubitPlacementTargets(items, canvasWidth, canvasHeight) {
   };
 }
 
-function readQubitPlacementTargetsFromGeneratedTab(label = QUBIT_PLACEMENTS_TAB_LABEL) {
+function readQubitPlacementTargetsFromGeneratedTab(
+  label = QUBIT_PLACEMENTS_TAB_LABEL,
+) {
   const normalizedLabel = normalizeTabLabel(label);
   if (!normalizedLabel) {
     return null;
@@ -670,9 +796,11 @@ function readQubitPlacementTargetsFromGeneratedTab(label = QUBIT_PLACEMENTS_TAB_
     generatedTabsState && typeof generatedTabsState === "object"
       ? generatedTabsState
       : readGeneratedTabsState();
-  const customTabs = Array.isArray(sourceState?.customTabs) ? sourceState.customTabs : [];
+  const customTabs = Array.isArray(sourceState?.customTabs)
+    ? sourceState.customTabs
+    : [];
   const entry = customTabs.find(
-    (candidate) => normalizeTabLabel(candidate?.label) === normalizedLabel
+    (candidate) => normalizeTabLabel(candidate?.label) === normalizedLabel,
   );
   const layout = entry?.layout;
   if (!layout || !Array.isArray(layout.items)) {
@@ -686,16 +814,23 @@ function readQubitPlacementTargetsFromGeneratedTab(label = QUBIT_PLACEMENTS_TAB_
       width: item.width,
       height: item.height,
     }));
-  return extractQubitPlacementTargets(items, layout.canvasWidth, layout.canvasHeight);
+  return extractQubitPlacementTargets(
+    items,
+    layout.canvasWidth,
+    layout.canvasHeight,
+  );
 }
 
-function readQubitPlacementTargetsFromRenderedTab(label = QUBIT_PLACEMENTS_TAB_LABEL) {
+function readQubitPlacementTargetsFromRenderedTab(
+  label = QUBIT_PLACEMENTS_TAB_LABEL,
+) {
   const normalizedLabel = normalizeTabLabel(label);
   if (!normalizedLabel) {
     return null;
   }
   const button = tabButtons.find(
-    (candidate) => normalizeTabLabel(tabLabelForButton(candidate)) === normalizedLabel
+    (candidate) =>
+      normalizeTabLabel(tabLabelForButton(candidate)) === normalizedLabel,
   );
   const targetId = button?.dataset?.tabTarget;
   if (!targetId) {
@@ -709,16 +844,23 @@ function readQubitPlacementTargetsFromRenderedTab(label = QUBIT_PLACEMENTS_TAB_L
   if (!(canvas instanceof HTMLElement)) {
     return null;
   }
-  const nodes = Array.from(canvas.querySelectorAll('.playground-node[data-component="qubit"]'));
-  const items = nodes
-    .map((node) => ({
-      left: node.style.left,
-      top: node.style.top,
-      width: node.style.width,
-      height: node.style.height,
-    }));
-  const width = parseLayoutNumeric(canvas.style.width, canvas.clientWidth || 520);
-  const height = parseLayoutNumeric(canvas.style.height, canvas.clientHeight || 480);
+  const nodes = Array.from(
+    canvas.querySelectorAll('.playground-node[data-component="qubit"]'),
+  );
+  const items = nodes.map((node) => ({
+    left: node.style.left,
+    top: node.style.top,
+    width: node.style.width,
+    height: node.style.height,
+  }));
+  const width = parseLayoutNumeric(
+    canvas.style.width,
+    canvas.clientWidth || 520,
+  );
+  const height = parseLayoutNumeric(
+    canvas.style.height,
+    canvas.clientHeight || 480,
+  );
   return extractQubitPlacementTargets(items, width, height);
 }
 
@@ -728,7 +870,12 @@ function normalizeEntanglementReturnTargets(targets) {
   }
   const left = targets.left;
   const right = targets.right;
-  if (!left || !right || typeof left !== "object" || typeof right !== "object") {
+  if (
+    !left ||
+    !right ||
+    typeof left !== "object" ||
+    typeof right !== "object"
+  ) {
     return null;
   }
   const sourceWidth = Number.parseFloat(targets.sourceWidth);
@@ -737,7 +884,11 @@ function normalizeEntanglementReturnTargets(targets) {
   const leftY = Number.parseFloat(left.y);
   const rightX = Number.parseFloat(right.x);
   const rightY = Number.parseFloat(right.y);
-  if (![sourceWidth, sourceHeight, leftX, leftY, rightX, rightY].every(Number.isFinite)) {
+  if (
+    ![sourceWidth, sourceHeight, leftX, leftY, rightX, rightY].every(
+      Number.isFinite,
+    )
+  ) {
     return null;
   }
   const safeSourceWidth = Math.max(1, sourceWidth);
@@ -758,7 +909,9 @@ function normalizeEntanglementReturnTargets(targets) {
 
 function readPersistedEntanglementReturnTargets() {
   try {
-    const serialized = window.localStorage.getItem(ENTANGLEMENT_RETURN_TARGETS_STORAGE_KEY);
+    const serialized = window.localStorage.getItem(
+      ENTANGLEMENT_RETURN_TARGETS_STORAGE_KEY,
+    );
     if (!serialized) {
       return null;
     }
@@ -776,7 +929,7 @@ function writePersistedEntanglementReturnTargets(targets) {
   try {
     window.localStorage.setItem(
       ENTANGLEMENT_RETURN_TARGETS_STORAGE_KEY,
-      JSON.stringify(normalized)
+      JSON.stringify(normalized),
     );
     return true;
   } catch (_error) {
@@ -793,12 +946,16 @@ function clearPersistedEntanglementReturnTargets() {
 }
 
 function seedEntanglementReturnTargetsFromPlacementsTab() {
-  const rendered = readQubitPlacementTargetsFromRenderedTab(QUBIT_PLACEMENTS_TAB_LABEL);
+  const rendered = readQubitPlacementTargetsFromRenderedTab(
+    QUBIT_PLACEMENTS_TAB_LABEL,
+  );
   if (rendered) {
     writePersistedEntanglementReturnTargets(rendered);
     return rendered;
   }
-  const seeded = readQubitPlacementTargetsFromGeneratedTab(QUBIT_PLACEMENTS_TAB_LABEL);
+  const seeded = readQubitPlacementTargetsFromGeneratedTab(
+    QUBIT_PLACEMENTS_TAB_LABEL,
+  );
   if (seeded) {
     writePersistedEntanglementReturnTargets(seeded);
     return seeded;
@@ -806,12 +963,17 @@ function seedEntanglementReturnTargetsFromPlacementsTab() {
   return readPersistedEntanglementReturnTargets();
 }
 
-function placementReturnCentersForCanvas(canvas, leftQubitItem, rightQubitItem) {
+function placementReturnCentersForCanvas(
+  canvas,
+  leftQubitItem,
+  rightQubitItem,
+) {
   if (!(canvas instanceof HTMLElement)) {
     return null;
   }
   const placements =
-    seedEntanglementReturnTargetsFromPlacementsTab() || readPersistedEntanglementReturnTargets();
+    seedEntanglementReturnTargetsFromPlacementsTab() ||
+    readPersistedEntanglementReturnTargets();
   if (!placements?.left || !placements?.right) {
     return null;
   }
@@ -841,14 +1003,21 @@ function placementReturnCentersForCanvas(canvas, leftQubitItem, rightQubitItem) 
     },
     right: {
       x: clamp(rightX, rightRadius, Math.max(rightRadius, width - rightRadius)),
-      y: clamp(rightY, rightRadius, Math.max(rightRadius, height - rightRadius)),
+      y: clamp(
+        rightY,
+        rightRadius,
+        Math.max(rightRadius, height - rightRadius),
+      ),
     },
   };
 }
 
 function writeGeneratedTabsState(state) {
   try {
-    window.localStorage.setItem(GENERATED_TABS_STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(
+      GENERATED_TABS_STORAGE_KEY,
+      JSON.stringify(state),
+    );
     return true;
   } catch (_error) {
     return false;
@@ -877,7 +1046,12 @@ function isMeasurementComponentType(type) {
   return type === "single-measurement" || type === "double-measurement";
 }
 
-function applyMeasurementLayoutSnapshot(item, measurementLayout, specs, options = {}) {
+function applyMeasurementLayoutSnapshot(
+  item,
+  measurementLayout,
+  specs,
+  options = {},
+) {
   const savedParts = savedPlaygroundMeasurementParts(measurementLayout);
   if (!(item instanceof HTMLElement) || !savedParts) {
     return;
@@ -889,18 +1063,27 @@ function applyMeasurementLayoutSnapshot(item, measurementLayout, specs, options 
     typeof measurementLayout.group === "object"
   ) {
     applyLayoutSnapshotToElement(item, measurementLayout.group);
-    if (measurementLayout.group.inlineStyle && typeof measurementLayout.group.inlineStyle === "object") {
-      Object.entries(measurementLayout.group.inlineStyle).forEach(([property, value]) => {
-        if (typeof value === "string") {
-          item.style[property] = value;
-        }
-      });
+    if (
+      measurementLayout.group.inlineStyle &&
+      typeof measurementLayout.group.inlineStyle === "object"
+    ) {
+      Object.entries(measurementLayout.group.inlineStyle).forEach(
+        ([property, value]) => {
+          if (typeof value === "string") {
+            item.style[property] = value;
+          }
+        },
+      );
     }
   }
   specs.forEach((spec) => {
     const element = item.querySelector(spec.selector);
     const snapshot = savedParts[spec.key];
-    if (!(element instanceof HTMLElement) || !snapshot || typeof snapshot !== "object") {
+    if (
+      !(element instanceof HTMLElement) ||
+      !snapshot ||
+      typeof snapshot !== "object"
+    ) {
       return;
     }
     applyLayoutSnapshotToElement(element, snapshot);
@@ -914,26 +1097,38 @@ function applyMeasurementLayoutSnapshot(item, measurementLayout, specs, options 
   });
 }
 
-function applySingleMeasurementLayoutSnapshot(item, measurementLayout, options = {}) {
+function applySingleMeasurementLayoutSnapshot(
+  item,
+  measurementLayout,
+  options = {},
+) {
   applyMeasurementLayoutSnapshot(
     item,
     measurementLayout,
     PLAYGROUND_SINGLE_MEASUREMENT_PART_SPECS,
-    options
+    options,
   );
 }
 
-function applyDoubleMeasurementLayoutSnapshot(item, measurementLayout, options = {}) {
+function applyDoubleMeasurementLayoutSnapshot(
+  item,
+  measurementLayout,
+  options = {},
+) {
   applyMeasurementLayoutSnapshot(
     item,
     measurementLayout,
     PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS,
-    options
+    options,
   );
 }
 
 function captureMeasurementLayoutSnapshot(item, specs, options = {}) {
-  if (!(item instanceof HTMLElement) || !Array.isArray(specs) || specs.length === 0) {
+  if (
+    !(item instanceof HTMLElement) ||
+    !Array.isArray(specs) ||
+    specs.length === 0
+  ) {
     return null;
   }
   const includeGroup = options.includeGroup === true;
@@ -942,11 +1137,21 @@ function captureMeasurementLayoutSnapshot(item, specs, options = {}) {
   const parts = {};
   if (includeGroup) {
     const groupState = snapshotLayoutEditableElement(item);
-    const groupInlineStyle = snapshotInlineStyleSubset(item, ["left", "top", "right", "bottom"]);
+    const groupInlineStyle = snapshotInlineStyleSubset(item, [
+      "left",
+      "top",
+      "right",
+      "bottom",
+    ]);
     if (
       groupState &&
       (captureAll ||
-        hasMeaningfulLayoutDelta(groupState.tx, groupState.ty, groupState.width, groupState.height) ||
+        hasMeaningfulLayoutDelta(
+          groupState.tx,
+          groupState.ty,
+          groupState.width,
+          groupState.height,
+        ) ||
         groupInlineStyle)
     ) {
       if (groupInlineStyle) {
@@ -961,11 +1166,21 @@ function captureMeasurementLayoutSnapshot(item, specs, options = {}) {
       return;
     }
     const state = snapshotLayoutEditableElement(element);
-    const inlineStyle = snapshotInlineStyleSubset(element, ["left", "top", "right", "bottom"]);
+    const inlineStyle = snapshotInlineStyleSubset(element, [
+      "left",
+      "top",
+      "right",
+      "bottom",
+    ]);
     if (
       state &&
       (captureAll ||
-        hasMeaningfulLayoutDelta(state.tx, state.ty, state.width, state.height) ||
+        hasMeaningfulLayoutDelta(
+          state.tx,
+          state.ty,
+          state.width,
+          state.height,
+        ) ||
         inlineStyle)
     ) {
       if (inlineStyle) {
@@ -985,7 +1200,9 @@ function findPlaygroundCnotPrototypeSource() {
     return null;
   }
   const cnotNodes = Array.from(
-    playgroundCanvas.querySelectorAll(".playground-node[data-component='cnot-gate']")
+    playgroundCanvas.querySelectorAll(
+      ".playground-node[data-component='cnot-gate']",
+    ),
   );
   if (cnotNodes.length === 0) {
     return null;
@@ -993,7 +1210,7 @@ function findPlaygroundCnotPrototypeSource() {
   const editedNode = cnotNodes.find(
     (node) =>
       node.dataset.layoutManual === "true" ||
-      node.querySelector("[data-layout-manual='true']")
+      node.querySelector("[data-layout-manual='true']"),
   );
   return editedNode || cnotNodes[cnotNodes.length - 1];
 }
@@ -1003,7 +1220,9 @@ function findPlaygroundComponentPrototypeSource(type) {
     return null;
   }
   const nodes = Array.from(
-    playgroundCanvas.querySelectorAll(`.playground-node[data-component='${type}']`)
+    playgroundCanvas.querySelectorAll(
+      `.playground-node[data-component='${type}']`,
+    ),
   );
   if (nodes.length === 0) {
     return null;
@@ -1011,15 +1230,16 @@ function findPlaygroundComponentPrototypeSource(type) {
   const editedNode = nodes.find(
     (node) =>
       node.dataset.layoutManual === "true" ||
-      node.querySelector("[data-layout-manual='true']")
+      node.querySelector("[data-layout-manual='true']"),
   );
   return editedNode || nodes[nodes.length - 1];
 }
 
 function persistPlaygroundCnotDefaultsFromDom(sourceOverride = null) {
-  const source = sourceOverride instanceof HTMLElement
-    ? sourceOverride
-    : findPlaygroundCnotPrototypeSource();
+  const source =
+    sourceOverride instanceof HTMLElement
+      ? sourceOverride
+      : findPlaygroundCnotPrototypeSource();
   if (!(source instanceof HTMLElement)) {
     return false;
   }
@@ -1043,20 +1263,24 @@ function persistPlaygroundCnotDefaultsFromDom(sourceOverride = null) {
   return saved;
 }
 
-function persistPlaygroundMeasurementDefaultsFromDom(type, sourceOverride = null) {
+function persistPlaygroundMeasurementDefaultsFromDom(
+  type,
+  sourceOverride = null,
+) {
   if (!isMeasurementComponentType(type)) {
     return false;
   }
-  const source = sourceOverride instanceof HTMLElement
-    ? sourceOverride
-    : findPlaygroundComponentPrototypeSource(type);
+  const source =
+    sourceOverride instanceof HTMLElement
+      ? sourceOverride
+      : findPlaygroundComponentPrototypeSource(type);
   if (!(source instanceof HTMLElement)) {
     return false;
   }
   const snapshot = captureMeasurementLayoutSnapshot(
     source,
     measurementPartSpecsForType(type),
-    { includeGroup: true, captureAll: true }
+    { includeGroup: true, captureAll: true },
   );
   if (!snapshot) {
     return false;
@@ -1085,7 +1309,7 @@ function persistPrimaryTwoQubitMeasurementDefaultsFromDom() {
   const snapshot = captureMeasurementLayoutSnapshot(
     primary.measurementGroup,
     PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS,
-    { includeGroup: true, captureAll: true }
+    { includeGroup: true, captureAll: true },
   );
   if (!snapshot) {
     return false;
@@ -1123,13 +1347,19 @@ function persistVisiblePlaygroundComponentDefaultsFromDom() {
       return;
     }
     prepareGeneratedMeasurementParts(source);
-    const measurementSaved = persistPlaygroundMeasurementDefaultsFromDom(type, source);
+    const measurementSaved = persistPlaygroundMeasurementDefaultsFromDom(
+      type,
+      source,
+    );
     savedAny = measurementSaved || savedAny;
   });
   return savedAny;
 }
 
-function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) {
+function normalizeCnotGateElement(
+  root,
+  { withEntanglementRoles = false } = {},
+) {
   if (!(root instanceof HTMLElement)) {
     return root;
   }
@@ -1137,15 +1367,25 @@ function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) 
   root.classList.add("cnot-gate", "ent-double-gate");
 
   const resolveBody = () =>
-    root.querySelector(".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']");
+    root.querySelector(
+      ".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']",
+    );
   const resolveFunnels = () =>
-    root.querySelectorAll(".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']");
+    root.querySelectorAll(
+      ".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']",
+    );
   const resolvePortholes = () =>
-    root.querySelectorAll(".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']");
+    root.querySelectorAll(
+      ".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']",
+    );
   const resolveFlanges = () =>
     root.querySelectorAll(".cnot-output-flange, .ent-output-flange");
 
-  const needsRebuild = !resolveBody() || resolveFunnels().length < 2 || resolvePortholes().length < 2 || resolveFlanges().length < 2;
+  const needsRebuild =
+    !resolveBody() ||
+    resolveFunnels().length < 2 ||
+    resolvePortholes().length < 2 ||
+    resolveFlanges().length < 2;
   if (needsRebuild) {
     const fresh = createCnotGateElement({ withEntanglementRoles: false });
     if (fresh instanceof HTMLElement) {
@@ -1153,7 +1393,9 @@ function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) 
     }
   }
 
-  const body = root.querySelector(".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']");
+  const body = root.querySelector(
+    ".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']",
+  );
   if (body instanceof HTMLElement) {
     body.classList.add("cnot-body", "ent-pipe");
     body.dataset.part = "body";
@@ -1162,7 +1404,11 @@ function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) 
     }
   }
 
-  const funnels = Array.from(root.querySelectorAll(".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']")).slice(0, 2);
+  const funnels = Array.from(
+    root.querySelectorAll(
+      ".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']",
+    ),
+  ).slice(0, 2);
   funnels.forEach((funnel, index) => {
     if (!(funnel instanceof HTMLElement)) {
       return;
@@ -1172,11 +1418,16 @@ function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) 
     funnel.classList.toggle("cnot-input-funnel-top", index === 0);
     funnel.classList.toggle("cnot-input-funnel-bottom", index === 1);
     if (withEntanglementRoles) {
-      funnel.dataset.role = index === 0 ? "ent-funnel-top" : "ent-funnel-bottom";
+      funnel.dataset.role =
+        index === 0 ? "ent-funnel-top" : "ent-funnel-bottom";
     }
   });
 
-  const portholes = Array.from(root.querySelectorAll(".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']")).slice(0, 2);
+  const portholes = Array.from(
+    root.querySelectorAll(
+      ".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']",
+    ),
+  ).slice(0, 2);
   portholes.forEach((porthole, index) => {
     if (!(porthole instanceof HTMLElement)) {
       return;
@@ -1186,11 +1437,14 @@ function normalizeCnotGateElement(root, { withEntanglementRoles = false } = {}) 
     porthole.classList.toggle("cnot-porthole-top", index === 0);
     porthole.classList.toggle("cnot-porthole-bottom", index === 1);
     if (withEntanglementRoles) {
-      porthole.dataset.role = index === 0 ? "ent-window-top" : "ent-window-bottom";
+      porthole.dataset.role =
+        index === 0 ? "ent-window-top" : "ent-window-bottom";
     }
   });
 
-  const flanges = Array.from(root.querySelectorAll(".cnot-output-flange, .ent-output-flange")).slice(0, 2);
+  const flanges = Array.from(
+    root.querySelectorAll(".cnot-output-flange, .ent-output-flange"),
+  ).slice(0, 2);
   flanges.forEach((flange, index) => {
     if (!(flange instanceof HTMLElement)) {
       return;
@@ -1255,7 +1509,14 @@ function captureCnotGeometryBaseline(root) {
     ".cnot-spring-top",
     ".cnot-spring-bottom",
   ];
-  const trackedProperties = ["left", "right", "top", "bottom", "width", "height"];
+  const trackedProperties = [
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "width",
+    "height",
+  ];
   const entries = [];
   const seenElements = new Set();
 
@@ -1294,7 +1555,12 @@ function applyCnotGeometryScale(root, baseline, nextWidth, nextHeight) {
   if (!isCnotGateRoot(root) || !baseline) {
     return;
   }
-  if (!Number.isFinite(nextWidth) || !Number.isFinite(nextHeight) || nextWidth <= 0 || nextHeight <= 0) {
+  if (
+    !Number.isFinite(nextWidth) ||
+    !Number.isFinite(nextHeight) ||
+    nextWidth <= 0 ||
+    nextHeight <= 0
+  ) {
     return;
   }
   const sx = nextWidth / baseline.width;
@@ -1308,7 +1574,8 @@ function applyCnotGeometryScale(root, baseline, nextWidth, nextHeight) {
       return;
     }
     if (
-      (element.classList.contains("cnot-body") || element.classList.contains("ent-pipe")) &&
+      (element.classList.contains("cnot-body") ||
+        element.classList.contains("ent-pipe")) &&
       !isCnotBodyManuallySized(element)
     ) {
       return;
@@ -1353,12 +1620,22 @@ function applyCnotGeometryScale(root, baseline, nextWidth, nextHeight) {
     const parts = resolveCnotPartElements(root);
     const rootRect = root.getBoundingClientRect();
     if (rootRect.width > 0) {
-      const trackedRects = [parts.funnelTop, parts.funnelBottom, parts.body, parts.flangeTop, parts.flangeBottom]
+      const trackedRects = [
+        parts.funnelTop,
+        parts.funnelBottom,
+        parts.body,
+        parts.flangeTop,
+        parts.flangeBottom,
+      ]
         .filter((element) => element instanceof HTMLElement)
         .map((element) => element.getBoundingClientRect());
       if (trackedRects.length > 0) {
-        const minX = Math.min(...trackedRects.map((rect) => rect.left - rootRect.left));
-        const maxX = Math.max(...trackedRects.map((rect) => rect.right - rootRect.left));
+        const minX = Math.min(
+          ...trackedRects.map((rect) => rect.left - rootRect.left),
+        );
+        const maxX = Math.max(
+          ...trackedRects.map((rect) => rect.right - rootRect.left),
+        );
         const desiredCenterX = rootRect.width / 2;
         const currentCenterX = (minX + maxX) / 2;
         const dx = desiredCenterX - currentCenterX;
@@ -1378,7 +1655,9 @@ function applyCnotGeometryScale(root, baseline, nextWidth, nextHeight) {
             if (!(funnel instanceof HTMLElement)) {
               return;
             }
-            const funnelLeft = parsePixelValue(window.getComputedStyle(funnel).left);
+            const funnelLeft = parsePixelValue(
+              window.getComputedStyle(funnel).left,
+            );
             if (Number.isFinite(funnelLeft)) {
               funnel.style.left = `${Number.parseFloat((funnelLeft + dx).toFixed(2))}px`;
             }
@@ -1393,7 +1672,8 @@ function applyCnotGeometryScale(root, baseline, nextWidth, nextHeight) {
 function isCnotBodyManuallySized(body) {
   return (
     body instanceof HTMLElement &&
-    (body.dataset.layoutManual === "true" || Boolean(body.style.width || body.style.height))
+    (body.dataset.layoutManual === "true" ||
+      Boolean(body.style.width || body.style.height))
   );
 }
 
@@ -1402,14 +1682,16 @@ function cnotBodySnapshotHasExplicitGeometry(state) {
     return false;
   }
   const inlineStyle =
-    state.inlineStyle && typeof state.inlineStyle === "object" ? state.inlineStyle : {};
+    state.inlineStyle && typeof state.inlineStyle === "object"
+      ? state.inlineStyle
+      : {};
   return Boolean(
     state.width ||
-      state.height ||
-      inlineStyle.width ||
-      inlineStyle.height ||
-      Math.abs(parseLayoutNumeric(state.tx, 0)) > 0.01 ||
-      Math.abs(parseLayoutNumeric(state.ty, 0)) > 0.01
+    state.height ||
+    inlineStyle.width ||
+    inlineStyle.height ||
+    Math.abs(parseLayoutNumeric(state.tx, 0)) > 0.01 ||
+    Math.abs(parseLayoutNumeric(state.ty, 0)) > 0.01,
   );
 }
 
@@ -1435,7 +1717,12 @@ function makeCnotBodyExplicitlySized(body) {
   }
   const rootRect = root.getBoundingClientRect();
   const bodyRect = body.getBoundingClientRect();
-  if (!rootRect.width || !rootRect.height || !bodyRect.width || !bodyRect.height) {
+  if (
+    !rootRect.width ||
+    !rootRect.height ||
+    !bodyRect.width ||
+    !bodyRect.height
+  ) {
     return;
   }
   const computed = window.getComputedStyle(body);
@@ -1577,11 +1864,15 @@ function createPlaygroundComponentNode(type, sourceRoots) {
   if (type === "qubit") {
     node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".qubit"));
   } else if (type === "single-gate") {
-    node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".window-wrap.single-qubit-gate"));
+    node = clonePlaygroundSourceElement(
+      oneQubitRoot?.querySelector(".window-wrap.single-qubit-gate"),
+    );
   } else if (type === "cnot-gate") {
     node = createCnotGateElement();
   } else if (type === "single-measurement") {
-    node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".measurement-stage"));
+    node = clonePlaygroundSourceElement(
+      oneQubitRoot?.querySelector(".measurement-stage"),
+    );
   } else if (type === "double-measurement") {
     node = document.createElement("section");
     node.className = "pair-measurement";
@@ -1589,15 +1880,21 @@ function createPlaygroundComponentNode(type, sourceRoots) {
     node.setAttribute("aria-label", "Two qubit measurement tool");
     mountPairMeasurementTool(node);
     if (!node.querySelector('[data-role="pair-lens"]')) {
-      node = clonePlaygroundSourceElement(twoQubitPairRoot?.querySelector(".pair-measurement"));
+      node = clonePlaygroundSourceElement(
+        twoQubitPairRoot?.querySelector(".pair-measurement"),
+      );
     }
   }
 
   if (!node) {
-    return createPlaygroundFallback(PLAYGROUND_COMPONENT_LIBRARY[type]?.label || "Component");
+    return createPlaygroundFallback(
+      PLAYGROUND_COMPONENT_LIBRARY[type]?.label || "Component",
+    );
   }
 
-  sanitizePlaygroundComponentNode(node, { preserveInlineStyles: type === "single-gate" });
+  sanitizePlaygroundComponentNode(node, {
+    preserveInlineStyles: type === "single-gate",
+  });
   if (type === "cnot-gate") {
     normalizeCnotGateElement(node);
   }
@@ -1625,7 +1922,10 @@ function minGeneratedLayoutSizeForType(type) {
 }
 
 function isGeneratedLayoutCanvas(element) {
-  return element instanceof HTMLElement && element.classList.contains("generated-layout-canvas");
+  return (
+    element instanceof HTMLElement &&
+    element.classList.contains("generated-layout-canvas")
+  );
 }
 
 function isGeneratedLayoutItem(element) {
@@ -1641,15 +1941,23 @@ function isGeneratedQubitItem(item) {
 }
 
 function isGeneratedSingleGateItem(item) {
-  return isGeneratedLayoutItem(item) && item.dataset.component === "single-gate";
+  return (
+    isGeneratedLayoutItem(item) && item.dataset.component === "single-gate"
+  );
 }
 
 function isGeneratedSingleMeasurementItem(item) {
-  return isGeneratedLayoutItem(item) && item.dataset.component === "single-measurement";
+  return (
+    isGeneratedLayoutItem(item) &&
+    item.dataset.component === "single-measurement"
+  );
 }
 
 function isGeneratedDoubleMeasurementItem(item) {
-  return isGeneratedLayoutItem(item) && item.dataset.component === "double-measurement";
+  return (
+    isGeneratedLayoutItem(item) &&
+    item.dataset.component === "double-measurement"
+  );
 }
 
 function isGeneratedCnotItem(item) {
@@ -1657,7 +1965,9 @@ function isGeneratedCnotItem(item) {
 }
 
 function activeGeneratedLayoutCanvas() {
-  const panel = document.querySelector('[data-generated-layout-panel="true"]:not([hidden])');
+  const panel = document.querySelector(
+    '[data-generated-layout-panel="true"]:not([hidden])',
+  );
   if (!(panel instanceof HTMLElement)) {
     return null;
   }
@@ -1694,8 +2004,12 @@ function updateGeneratedEditorButtons(canvas = activeGeneratedLayoutCanvas()) {
     selectedGeneratedLayoutItem instanceof HTMLElement &&
     selectedGeneratedLayoutItem.isConnected &&
     selectedGeneratedLayoutItem.parentElement === canvas;
-  const duplicateButton = toolbar.querySelector('[data-generated-editor-action="duplicate"]');
-  const deleteButton = toolbar.querySelector('[data-generated-editor-action="delete"]');
+  const duplicateButton = toolbar.querySelector(
+    '[data-generated-editor-action="duplicate"]',
+  );
+  const deleteButton = toolbar.querySelector(
+    '[data-generated-editor-action="delete"]',
+  );
   [duplicateButton, deleteButton].forEach((button) => {
     if (button instanceof HTMLButtonElement) {
       button.disabled = !selectedOnCanvas;
@@ -1712,7 +2026,11 @@ function clearSelectedGeneratedLayoutItem() {
 }
 
 function setSelectedGeneratedLayoutItem(item) {
-  if (!(item instanceof HTMLElement) || !isGeneratedLayoutItem(item) || !item.isConnected) {
+  if (
+    !(item instanceof HTMLElement) ||
+    !isGeneratedLayoutItem(item) ||
+    !item.isConnected
+  ) {
     clearSelectedGeneratedLayoutItem();
     return;
   }
@@ -1755,15 +2073,13 @@ function pruneGeneratedRuntimeState() {
     generatedSingleMeasurementRuntimes,
     generatedDoubleMeasurementRuntimes,
     generatedCnotRuntimes,
-  ].forEach(
-    (runtimeMap) => {
-      Array.from(runtimeMap.keys()).forEach((item) => {
-        if (!item.isConnected) {
-          runtimeMap.delete(item);
-        }
-      });
-    }
-  );
+  ].forEach((runtimeMap) => {
+    Array.from(runtimeMap.keys()).forEach((item) => {
+      if (!item.isConnected) {
+        runtimeMap.delete(item);
+      }
+    });
+  });
 }
 
 function applyGeneratedQubitVectorVisualState(item) {
@@ -1840,7 +2156,12 @@ function setGeneratedQubitCenter(canvas, qubitItem, x, y) {
   const safeY = Number.isFinite(y) ? y : canvas.clientHeight / 2;
   const nextLeft = safeX - qubitItem.offsetWidth / 2;
   const nextTop = safeY - qubitItem.offsetHeight / 2;
-  const clamped = generatedLayoutClampItemPosition(canvas, qubitItem, nextLeft, nextTop);
+  const clamped = generatedLayoutClampItemPosition(
+    canvas,
+    qubitItem,
+    nextLeft,
+    nextTop,
+  );
   qubitItem.style.left = `${Math.round(clamped.left)}px`;
   qubitItem.style.top = `${Math.round(clamped.top)}px`;
 }
@@ -1850,11 +2171,13 @@ function generatedQubitOverlapRatioWithRect(qubitItem, target) {
   const targetRect = target.getBoundingClientRect();
   const overlapWidth = Math.max(
     0,
-    Math.min(qubitRect.right, targetRect.right) - Math.max(qubitRect.left, targetRect.left)
+    Math.min(qubitRect.right, targetRect.right) -
+      Math.max(qubitRect.left, targetRect.left),
   );
   const overlapHeight = Math.max(
     0,
-    Math.min(qubitRect.bottom, targetRect.bottom) - Math.max(qubitRect.top, targetRect.top)
+    Math.min(qubitRect.bottom, targetRect.bottom) -
+      Math.max(qubitRect.top, targetRect.top),
   );
   const overlapArea = overlapWidth * overlapHeight;
   const qubitArea = qubitRect.width * qubitRect.height;
@@ -1874,7 +2197,9 @@ function generatedCircleIntersectionArea(r1, r2, distance) {
 
   const a1 = r1 * r1;
   const a2 = r2 * r2;
-  const alpha = Math.acos((distance * distance + a1 - a2) / (2 * distance * r1));
+  const alpha = Math.acos(
+    (distance * distance + a1 - a2) / (2 * distance * r1),
+  );
   const beta = Math.acos((distance * distance + a2 - a1) / (2 * distance * r2));
 
   return (
@@ -1885,13 +2210,16 @@ function generatedCircleIntersectionArea(r1, r2, distance) {
         (-distance + r1 + r2) *
           (distance + r1 - r2) *
           (distance - r1 + r2) *
-          (distance + r1 + r2)
+          (distance + r1 + r2),
       )
   );
 }
 
 function prepareGeneratedMeasurementParts(item) {
-  if (!(item instanceof HTMLElement) || !isMeasurementComponentType(item.dataset.component)) {
+  if (
+    !(item instanceof HTMLElement) ||
+    !isMeasurementComponentType(item.dataset.component)
+  ) {
     return;
   }
   measurementPartSpecsForType(item.dataset.component).forEach((spec) => {
@@ -1923,7 +2251,8 @@ function prepareGeneratedLayoutItem(item) {
   }
   item.dataset.layoutEditTarget = "true";
   item.dataset.layoutResizable = "true";
-  item.dataset.layoutUniformResize = item.dataset.component === "qubit" ? "true" : "false";
+  item.dataset.layoutUniformResize =
+    item.dataset.component === "qubit" ? "true" : "false";
   const minSize = minGeneratedLayoutSizeForType(item.dataset.component);
   item.dataset.layoutMinWidth = `${minSize.minWidth}`;
   item.dataset.layoutMinHeight = `${minSize.minHeight}`;
@@ -1958,7 +2287,10 @@ function alignGeneratedGateSpring(runtime) {
 }
 
 function initializeGeneratedSingleGateItem(item, geometry = {}) {
-  if (!(item instanceof HTMLElement) || item.dataset.component !== "single-gate") {
+  if (
+    !(item instanceof HTMLElement) ||
+    item.dataset.component !== "single-gate"
+  ) {
     return null;
   }
   const existing = generatedSingleGateRuntimes.get(item);
@@ -2012,13 +2344,17 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
   runtime.activeTick = runtime.dial?.getTick() ?? runtime.activeTick;
   runtime.dial?.layout();
   alignGeneratedGateSpring(runtime);
-  gateArrow.addEventListener("mousedown", (event) => runtime.dial?.beginDrag(event));
+  gateArrow.addEventListener("mousedown", (event) =>
+    runtime.dial?.beginDrag(event),
+  );
   gateArrow.addEventListener(
     "touchstart",
     (event) => runtime.dial?.beginDrag(event),
-    { passive: false }
+    { passive: false },
   );
-  gateArrow.addEventListener("keydown", (event) => runtime.dial?.handleKeydown(event));
+  gateArrow.addEventListener("keydown", (event) =>
+    runtime.dial?.handleKeydown(event),
+  );
   generatedSingleGateRuntimes.set(item, runtime);
   return runtime;
 }
@@ -2124,13 +2460,19 @@ function initializeGeneratedDoubleMeasurementItem(item) {
   }
 
   const measurementTool = item.querySelector('[data-role="pair-lens"]');
-  const measurementFunnel = item.querySelector('[data-role="pair-measurement-funnel"]');
+  const measurementFunnel = item.querySelector(
+    '[data-role="pair-measurement-funnel"]',
+  );
   const slotLeft = item.querySelector('[data-role="pair-slot-left"]');
   const slotRight = item.querySelector('[data-role="pair-slot-right"]');
   const platform = item.querySelector(".pair-measurement-platform");
   const capacity = item.querySelector('[data-role="pair-capacity"]');
-  const measurementCount = item.querySelector('[data-role="pair-measurement-count"]');
-  const columns = Array.from(item.querySelectorAll(".pair-tube-column[data-key]"));
+  const measurementCount = item.querySelector(
+    '[data-role="pair-measurement-count"]',
+  );
+  const columns = Array.from(
+    item.querySelectorAll(".pair-tube-column[data-key]"),
+  );
   if (
     !(measurementTool instanceof HTMLElement) ||
     !(measurementFunnel instanceof HTMLElement) ||
@@ -2152,14 +2494,22 @@ function initializeGeneratedDoubleMeasurementItem(item) {
     const tube = column.querySelector(".pair-tube");
     const liquid = column.querySelector(".tube-liquid");
     const count = column.querySelector(".tube-count");
-    if (tube instanceof HTMLElement && liquid instanceof HTMLElement && count instanceof HTMLElement) {
+    if (
+      tube instanceof HTMLElement &&
+      liquid instanceof HTMLElement &&
+      count instanceof HTMLElement
+    ) {
       tubeElements[key] = tube;
       liquidElements[key] = liquid;
       countElements[key] = count;
     }
   });
   const requiredKeys = ["bb", "br", "rb", "rr"];
-  if (!requiredKeys.every((key) => tubeElements[key] && liquidElements[key] && countElements[key])) {
+  if (
+    !requiredKeys.every(
+      (key) => tubeElements[key] && liquidElements[key] && countElements[key],
+    )
+  ) {
     return null;
   }
 
@@ -2170,7 +2520,8 @@ function initializeGeneratedDoubleMeasurementItem(item) {
     slotLeft,
     slotRight,
     platform,
-    measurementCount: measurementCount instanceof HTMLSelectElement ? measurementCount : null,
+    measurementCount:
+      measurementCount instanceof HTMLSelectElement ? measurementCount : null,
     capacityElement: capacity instanceof HTMLElement ? capacity : null,
     tubeElements,
     liquidElements,
@@ -2193,17 +2544,30 @@ function initializeGeneratedDoubleMeasurementItem(item) {
   };
   updateGeneratedDoubleMeasurementTubeFills(runtime);
   if (runtime.measurementCount) {
-    runtime.measurementCount.addEventListener("mousedown", (event) => event.stopPropagation());
-    runtime.measurementCount.addEventListener("touchstart", (event) => event.stopPropagation());
-    runtime.measurementCount.addEventListener("click", (event) => event.stopPropagation());
+    runtime.measurementCount.addEventListener("mousedown", (event) =>
+      event.stopPropagation(),
+    );
+    runtime.measurementCount.addEventListener("touchstart", (event) =>
+      event.stopPropagation(),
+    );
+    runtime.measurementCount.addEventListener("click", (event) =>
+      event.stopPropagation(),
+    );
     runtime.measurementCount.addEventListener("change", () => {
       const canvas = generatedCanvasForItem(item);
       if (!canvas) {
         return;
       }
       clearGeneratedDoubleMeasurementApparatus(runtime);
-      const iterations = Math.max(1, Number(runtime.measurementCount.value) || 1);
-      runAutomatedGeneratedDoubleMeasurements(canvas, runtime, iterations).catch(() => {});
+      const iterations = Math.max(
+        1,
+        Number(runtime.measurementCount.value) || 1,
+      );
+      runAutomatedGeneratedDoubleMeasurements(
+        canvas,
+        runtime,
+        iterations,
+      ).catch(() => {});
     });
   }
   measurementTool.addEventListener("click", (event) => {
@@ -2215,8 +2579,13 @@ function initializeGeneratedDoubleMeasurementItem(item) {
     if (!canvas) {
       return;
     }
-    const iterations = Math.max(1, Number(runtime.measurementCount?.value) || 1);
-    runAutomatedGeneratedDoubleMeasurements(canvas, runtime, iterations).catch(() => {});
+    const iterations = Math.max(
+      1,
+      Number(runtime.measurementCount?.value) || 1,
+    );
+    runAutomatedGeneratedDoubleMeasurements(canvas, runtime, iterations).catch(
+      () => {},
+    );
   });
   generatedDoubleMeasurementRuntimes.set(item, runtime);
   return runtime;
@@ -2232,10 +2601,18 @@ function initializeGeneratedCnotItem(item) {
   }
 
   const body = item.querySelector(".cnot-body, .ent-pipe, [data-part='body']");
-  const funnelTop = item.querySelector(".cnot-input-funnel-top, [data-part='funnel-top']");
-  const funnelBottom = item.querySelector(".cnot-input-funnel-bottom, [data-part='funnel-bottom']");
-  const windowTop = item.querySelector(".cnot-porthole-top, [data-part='window-top']");
-  const windowBottom = item.querySelector(".cnot-porthole-bottom, [data-part='window-bottom']");
+  const funnelTop = item.querySelector(
+    ".cnot-input-funnel-top, [data-part='funnel-top']",
+  );
+  const funnelBottom = item.querySelector(
+    ".cnot-input-funnel-bottom, [data-part='funnel-bottom']",
+  );
+  const windowTop = item.querySelector(
+    ".cnot-porthole-top, [data-part='window-top']",
+  );
+  const windowBottom = item.querySelector(
+    ".cnot-porthole-bottom, [data-part='window-bottom']",
+  );
   if (
     !(body instanceof HTMLElement) ||
     !(funnelTop instanceof HTMLElement) ||
@@ -2267,11 +2644,11 @@ function initializeGeneratedCnotItem(item) {
 function updateGeneratedMeasurementTubeFills(runtime) {
   const blueFillPercent = Math.min(
     (runtime.blueTubeCount / runtime.tubeQubitCapacity) * 100,
-    100
+    100,
   );
   const redFillPercent = Math.min(
     (runtime.redTubeCount / runtime.tubeQubitCapacity) * 100,
-    100
+    100,
   );
   runtime.tubeBlueCount.textContent = String(runtime.blueTubeCount);
   runtime.tubeRedCount.textContent = String(runtime.redTubeCount);
@@ -2283,7 +2660,10 @@ function updateGeneratedMeasurementTubeFills(runtime) {
 }
 
 function maybeExpandGeneratedMeasurementTubeCapacity(runtime) {
-  const largestTubeCount = Math.max(runtime.blueTubeCount, runtime.redTubeCount);
+  const largestTubeCount = Math.max(
+    runtime.blueTubeCount,
+    runtime.redTubeCount,
+  );
   while (largestTubeCount > runtime.tubeQubitCapacity) {
     runtime.tubeQubitCapacity *= 2;
   }
@@ -2297,11 +2677,13 @@ function initializeGeneratedLayoutItemRuntime(item) {
     ensureGeneratedQubitRuntimeState(item);
     if (item.dataset.generatedRuntimeDragRegistered !== "true") {
       item.dataset.generatedRuntimeDragRegistered = "true";
-      item.addEventListener("mousedown", (event) => beginGeneratedRuntimeQubitDrag(item, event));
+      item.addEventListener("mousedown", (event) =>
+        beginGeneratedRuntimeQubitDrag(item, event),
+      );
       item.addEventListener(
         "touchstart",
         (event) => beginGeneratedRuntimeQubitDrag(item, event),
-        { passive: false }
+        { passive: false },
       );
     }
   } else if (isGeneratedSingleGateItem(item)) {
@@ -2318,10 +2700,14 @@ function initializeGeneratedLayoutItemRuntime(item) {
 }
 
 function layoutGeneratedSingleGateDials(root = document) {
-  const scope = root instanceof Document ? root : root.ownerDocument || document;
-  const gates = root instanceof HTMLElement
-    ? root.querySelectorAll('.playground-node[data-component="single-gate"]')
-    : scope.querySelectorAll('.generated-layout-canvas .playground-node[data-component="single-gate"]');
+  const scope =
+    root instanceof Document ? root : root.ownerDocument || document;
+  const gates =
+    root instanceof HTMLElement
+      ? root.querySelectorAll('.playground-node[data-component="single-gate"]')
+      : scope.querySelectorAll(
+          '.generated-layout-canvas .playground-node[data-component="single-gate"]',
+        );
   gates.forEach((gate) => {
     const runtime = generatedSingleGateRuntimes.get(gate);
     runtime?.dial?.layout();
@@ -2329,11 +2715,17 @@ function layoutGeneratedSingleGateDials(root = document) {
 }
 
 function captureGeneratedMeasurementLayoutSnapshot(item) {
-  if (!(item instanceof HTMLElement) || !isMeasurementComponentType(item.dataset.component)) {
+  if (
+    !(item instanceof HTMLElement) ||
+    !isMeasurementComponentType(item.dataset.component)
+  ) {
     return null;
   }
   prepareGeneratedMeasurementParts(item);
-  return captureMeasurementLayoutSnapshot(item, measurementPartSpecsForType(item.dataset.component));
+  return captureMeasurementLayoutSnapshot(
+    item,
+    measurementPartSpecsForType(item.dataset.component),
+  );
 }
 
 function serializeGeneratedLayoutItem(item) {
@@ -2368,8 +2760,8 @@ function captureGeneratedLayoutFromCanvas(canvas) {
   }
   prepareGeneratedLayoutCanvas(canvas);
   return {
-    items: Array.from(canvas.querySelectorAll(":scope > .playground-node")).map((item) =>
-      serializeGeneratedLayoutItem(item)
+    items: Array.from(canvas.querySelectorAll(":scope > .playground-node")).map(
+      (item) => serializeGeneratedLayoutItem(item),
     ),
     canvasWidth: canvas.offsetWidth,
     canvasHeight: canvas.offsetHeight,
@@ -2378,38 +2770,49 @@ function captureGeneratedLayoutFromCanvas(canvas) {
 }
 
 function persistGeneratedLayoutEditsFromDom() {
-  const nextState = cloneJson(generatedTabsState) || { overrides: {}, customTabs: [] };
+  const nextState = cloneJson(generatedTabsState) || {
+    overrides: {},
+    customTabs: [],
+  };
   nextState.overrides = nextState.overrides || {};
-  nextState.customTabs = Array.isArray(nextState.customTabs) ? nextState.customTabs : [];
+  nextState.customTabs = Array.isArray(nextState.customTabs)
+    ? nextState.customTabs
+    : [];
   let changed = false;
-  document.querySelectorAll('[data-generated-layout-panel="true"]').forEach((panel) => {
-    if (!(panel instanceof HTMLElement)) {
-      return;
-    }
-    if (panel.hidden) {
-      return;
-    }
-    const canvas = panel.querySelector(".generated-layout-canvas");
-    const layout = captureGeneratedLayoutFromCanvas(canvas);
-    if (!layout) {
-      return;
-    }
-    const targetId = panel.id.replace(/^panel-/, "");
-    const customEntry = nextState.customTabs.find((entry) => entry.id === targetId);
-    if (customEntry) {
-      customEntry.layout = layout;
-      changed = true;
-      return;
-    }
-    const targetButton = tabButtons.find((button) => button.dataset.tabTarget === targetId);
-    if (targetButton) {
-      nextState.overrides[targetId] = {
-        label: tabLabelForButton(targetButton),
-        layout,
-      };
-      changed = true;
-    }
-  });
+  document
+    .querySelectorAll('[data-generated-layout-panel="true"]')
+    .forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) {
+        return;
+      }
+      if (panel.hidden) {
+        return;
+      }
+      const canvas = panel.querySelector(".generated-layout-canvas");
+      const layout = captureGeneratedLayoutFromCanvas(canvas);
+      if (!layout) {
+        return;
+      }
+      const targetId = panel.id.replace(/^panel-/, "");
+      const customEntry = nextState.customTabs.find(
+        (entry) => entry.id === targetId,
+      );
+      if (customEntry) {
+        customEntry.layout = layout;
+        changed = true;
+        return;
+      }
+      const targetButton = tabButtons.find(
+        (button) => button.dataset.tabTarget === targetId,
+      );
+      if (targetButton) {
+        nextState.overrides[targetId] = {
+          label: tabLabelForButton(targetButton),
+          layout,
+        };
+        changed = true;
+      }
+    });
   if (!changed) {
     return true;
   }
@@ -2422,12 +2825,18 @@ function persistGeneratedLayoutEditsFromDom() {
 
 function createGeneratedLayoutItemNode(type, geometry = {}, sourceRoots) {
   const hasSavedGeometry =
-    geometry && typeof geometry === "object" && Object.keys(geometry).length > 0;
+    geometry &&
+    typeof geometry === "object" &&
+    Object.keys(geometry).length > 0;
   geometry = geometry && typeof geometry === "object" ? geometry : {};
-  const config = PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
+  const config =
+    PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
   const defaultsGeometry = defaultsGeometryForComponentType(type);
   const componentNode = createPlaygroundComponentNode(type, sourceRoots);
-  let item = componentNode instanceof HTMLElement ? componentNode : document.createElement("div");
+  let item =
+    componentNode instanceof HTMLElement
+      ? componentNode
+      : document.createElement("div");
   if (type === "qubit") {
     const shell = document.createElement("div");
     shell.className = "playground-node playground-qubit-shell";
@@ -2446,14 +2855,20 @@ function createGeneratedLayoutItemNode(type, geometry = {}, sourceRoots) {
 
   item.dataset.component = type;
   item.setAttribute("aria-label", config.label);
-  item.querySelectorAll(".layout-resize-handle").forEach((handle) => handle.remove());
+  item
+    .querySelectorAll(".layout-resize-handle")
+    .forEach((handle) => handle.remove());
   const minSize = minGeneratedLayoutSizeForType(type);
   const width = Number.isFinite(geometry.width)
     ? geometry.width
-    : (Number.isFinite(defaultsGeometry?.width) ? defaultsGeometry.width : config.width);
+    : Number.isFinite(defaultsGeometry?.width)
+      ? defaultsGeometry.width
+      : config.width;
   const height = Number.isFinite(geometry.height)
     ? geometry.height
-    : (Number.isFinite(defaultsGeometry?.height) ? defaultsGeometry.height : config.height);
+    : Number.isFinite(defaultsGeometry?.height)
+      ? defaultsGeometry.height
+      : config.height;
   const left = Number.isFinite(geometry.left) ? geometry.left : 0;
   const top = Number.isFinite(geometry.top) ? geometry.top : 0;
   item.style.left = `${Math.round(left)}px`;
@@ -2478,14 +2893,14 @@ function createGeneratedLayoutItemNode(type, geometry = {}, sourceRoots) {
       item,
       playgroundComponentDefaultsCache?.[type],
       measurementPartSpecsForType(type),
-      { includeGroupGeometry: !hasSavedGeometry }
+      { includeGroupGeometry: !hasSavedGeometry },
     );
     if (geometry.measurementLayout) {
       applyMeasurementLayoutSnapshot(
         item,
         geometry.measurementLayout,
         measurementPartSpecsForType(type),
-        { includeGroupGeometry: false }
+        { includeGroupGeometry: false },
       );
     }
   }
@@ -2525,7 +2940,12 @@ function positionGeneratedItemFromClientPoint(canvas, item, clientX, clientY) {
   const pointerY = clientY - canvasRect.top + canvas.scrollTop;
   const unclampedLeft = pointerX - item.offsetWidth / 2;
   const unclampedTop = pointerY - 18;
-  const clamped = generatedLayoutClampItemPosition(canvas, item, unclampedLeft, unclampedTop);
+  const clamped = generatedLayoutClampItemPosition(
+    canvas,
+    item,
+    unclampedLeft,
+    unclampedTop,
+  );
   item.style.left = `${Math.round(clamped.left)}px`;
   item.style.top = `${Math.round(clamped.top)}px`;
 }
@@ -2553,11 +2973,19 @@ function selectedGeneratedComponentType(toolbar) {
   if (!(toolbar instanceof HTMLElement)) {
     return "";
   }
-  const select = toolbar.querySelector('[data-generated-editor-role="component-select"]');
+  const select = toolbar.querySelector(
+    '[data-generated-editor-role="component-select"]',
+  );
   return select instanceof HTMLSelectElement ? select.value : "";
 }
 
-function addGeneratedComponentAtPoint(canvas, type, clientX, clientY, sourceRoots) {
+function addGeneratedComponentAtPoint(
+  canvas,
+  type,
+  clientX,
+  clientY,
+  sourceRoots,
+) {
   if (!isGeneratedLayoutCanvas(canvas) || !PLAYGROUND_COMPONENT_LIBRARY[type]) {
     return null;
   }
@@ -2582,9 +3010,18 @@ function duplicateSelectedGeneratedLayoutItem(sourceRoots) {
   const geometry = serializeGeneratedLayoutItem(selectedGeneratedLayoutItem);
   geometry.left += PLAYGROUND_GRID_SIZE;
   geometry.top += PLAYGROUND_GRID_SIZE;
-  const item = createGeneratedLayoutItemNode(geometry.type, geometry, sourceRoots);
+  const item = createGeneratedLayoutItemNode(
+    geometry.type,
+    geometry,
+    sourceRoots,
+  );
   appendGeneratedLayoutItemToCanvas(canvas, item);
-  const clamped = generatedLayoutClampItemPosition(canvas, item, geometry.left, geometry.top);
+  const clamped = generatedLayoutClampItemPosition(
+    canvas,
+    item,
+    geometry.left,
+    geometry.top,
+  );
   item.style.left = `${Math.round(clamped.left)}px`;
   item.style.top = `${Math.round(clamped.top)}px`;
   return true;
@@ -2603,14 +3040,16 @@ function removeGeneratedLayoutItem(item) {
         runtime.slotOccupants.bottom = null;
       }
     });
-    Array.from(generatedDoubleMeasurementRuntimes.values()).forEach((runtime) => {
-      if (runtime.slotOccupants.left === item) {
-        runtime.slotOccupants.left = null;
-      }
-      if (runtime.slotOccupants.right === item) {
-        runtime.slotOccupants.right = null;
-      }
-    });
+    Array.from(generatedDoubleMeasurementRuntimes.values()).forEach(
+      (runtime) => {
+        if (runtime.slotOccupants.left === item) {
+          runtime.slotOccupants.left = null;
+        }
+        if (runtime.slotOccupants.right === item) {
+          runtime.slotOccupants.right = null;
+        }
+      },
+    );
   }
   generatedSingleGateRuntimes.delete(item);
   generatedQubitRuntimes.delete(item);
@@ -2627,7 +3066,10 @@ function removeGeneratedLayoutItem(item) {
 }
 
 function removeSelectedGeneratedLayoutItem() {
-  if (!layoutEditorState.enabled || !(selectedGeneratedLayoutItem instanceof HTMLElement)) {
+  if (
+    !layoutEditorState.enabled ||
+    !(selectedGeneratedLayoutItem instanceof HTMLElement)
+  ) {
     return false;
   }
   return removeGeneratedLayoutItem(selectedGeneratedLayoutItem);
@@ -2695,7 +3137,8 @@ function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
 
   const hint = document.createElement("span");
   hint.className = "playground-hint";
-  hint.textContent = "Click anywhere in the container to place the selected component.";
+  hint.textContent =
+    "Click anywhere in the container to place the selected component.";
   toolbar.appendChild(hint);
 
   canvas.addEventListener("click", (event) => {
@@ -2715,7 +3158,7 @@ function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
       selectedType,
       event.clientX,
       event.clientY,
-      sourceRoots
+      sourceRoots,
     );
     if (item) {
       select.value = "";
@@ -2739,11 +3182,17 @@ function playgroundLayoutCanvasDimensions(layout) {
         bottom: Math.max(acc.bottom, bottom),
       };
     },
-    { right: 520, bottom: 480 }
+    { right: 520, bottom: 480 },
   );
   return {
-    width: Math.max(520, Math.round(parseLayoutNumeric(layout?.canvasWidth, bounds.right + 80))),
-    height: Math.max(480, Math.round(parseLayoutNumeric(layout?.canvasHeight, bounds.bottom + 80))),
+    width: Math.max(
+      520,
+      Math.round(parseLayoutNumeric(layout?.canvasWidth, bounds.right + 80)),
+    ),
+    height: Math.max(
+      480,
+      Math.round(parseLayoutNumeric(layout?.canvasHeight, bounds.bottom + 80)),
+    ),
   };
 }
 
@@ -2764,12 +3213,18 @@ function renderGeneratedLayoutPanel(panel, entry, sourceRoots) {
   const items = Array.isArray(entry.layout?.items) ? entry.layout.items : [];
   items.forEach((geometry) => {
     const type = typeof geometry?.type === "string" ? geometry.type : "qubit";
-    canvas.appendChild(createGeneratedLayoutItemNode(type, geometry, sourceRoots));
+    canvas.appendChild(
+      createGeneratedLayoutItemNode(type, geometry, sourceRoots),
+    );
   });
   prepareGeneratedLayoutCanvas(canvas);
   canvas.addEventListener("mousedown", beginGeneratedLayoutEditGesture);
-  canvas.addEventListener("touchstart", beginGeneratedLayoutEditGesture, { passive: false });
-  gatePanel.appendChild(createGeneratedEditorToolbar(entry, canvas, sourceRoots));
+  canvas.addEventListener("touchstart", beginGeneratedLayoutEditGesture, {
+    passive: false,
+  });
+  gatePanel.appendChild(
+    createGeneratedEditorToolbar(entry, canvas, sourceRoots),
+  );
   gatePanel.appendChild(canvas);
   panel.appendChild(gatePanel);
   updateGeneratedEditorButtons(canvas);
@@ -2803,8 +3258,16 @@ function generatedLayoutClampItemSize(canvas, item, width, height) {
   const top = parseLayoutNumeric(item.style.top, 0);
   const minSize = minGeneratedLayoutSizeForType(item.dataset.component);
   return {
-    width: clamp(width, minSize.minWidth, Math.max(minSize.minWidth, canvas.clientWidth - left)),
-    height: clamp(height, minSize.minHeight, Math.max(minSize.minHeight, canvas.clientHeight - top)),
+    width: clamp(
+      width,
+      minSize.minWidth,
+      Math.max(minSize.minWidth, canvas.clientWidth - left),
+    ),
+    height: clamp(
+      height,
+      minSize.minHeight,
+      Math.max(minSize.minHeight, canvas.clientHeight - top),
+    ),
   };
 }
 
@@ -2813,10 +3276,12 @@ function bringGeneratedItemToFront(item) {
   if (!canvas) {
     return;
   }
-  const maxZ = Array.from(canvas.querySelectorAll(":scope > .playground-node")).reduce(
+  const maxZ = Array.from(
+    canvas.querySelectorAll(":scope > .playground-node"),
+  ).reduce(
     (highest, candidate) =>
       Math.max(highest, parseLayoutNumeric(candidate.style.zIndex, 1)),
-    1
+    1,
   );
   item.style.zIndex = `${Math.round(maxZ + 1)}`;
 }
@@ -2825,27 +3290,36 @@ function findBestGeneratedGateRuntimeForQubit(canvas, qubitItem) {
   pruneGeneratedRuntimeState();
   let bestRuntime = null;
   let bestOverlap = 0.45;
-  canvas.querySelectorAll('.playground-node[data-component="single-gate"]').forEach((gateItem) => {
-    if (!(gateItem instanceof HTMLElement)) {
-      return;
-    }
-    const runtime = initializeGeneratedSingleGateItem(gateItem, {
-      singleGateTick: generatedSingleGateRuntimes.get(gateItem)?.activeTick,
+  canvas
+    .querySelectorAll('.playground-node[data-component="single-gate"]')
+    .forEach((gateItem) => {
+      if (!(gateItem instanceof HTMLElement)) {
+        return;
+      }
+      const runtime = initializeGeneratedSingleGateItem(gateItem, {
+        singleGateTick: generatedSingleGateRuntimes.get(gateItem)?.activeTick,
+      });
+      if (!runtime || runtime.busy) {
+        return;
+      }
+      const overlap = generatedQubitOverlapRatioWithRect(
+        qubitItem,
+        runtime.gateFunnel,
+      );
+      if (overlap >= bestOverlap) {
+        bestOverlap = overlap;
+        bestRuntime = runtime;
+      }
     });
-    if (!runtime || runtime.busy) {
-      return;
-    }
-    const overlap = generatedQubitOverlapRatioWithRect(qubitItem, runtime.gateFunnel);
-    if (overlap >= bestOverlap) {
-      bestOverlap = overlap;
-      bestRuntime = runtime;
-    }
-  });
   return bestRuntime;
 }
 
 async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
-  if (!isGeneratedQubitItem(qubitItem) || !gateRuntime || layoutEditorState.enabled) {
+  if (
+    !isGeneratedQubitItem(qubitItem) ||
+    !gateRuntime ||
+    layoutEditorState.enabled
+  ) {
     return false;
   }
   const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
@@ -2869,8 +3343,17 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     }
 
     alignGeneratedGateSpring(gateRuntime);
-    const gateCenter = generatedCanvasPointForElementCenter(canvas, gateRuntime.ticksWrap);
-    await moveGeneratedQubitToPoint(canvas, qubitItem, gateCenter.x, gateCenter.y, AUTO_TRAVEL_MS);
+    const gateCenter = generatedCanvasPointForElementCenter(
+      canvas,
+      gateRuntime.ticksWrap,
+    );
+    await moveGeneratedQubitToPoint(
+      canvas,
+      qubitItem,
+      gateCenter.x,
+      gateCenter.y,
+      AUTO_TRAVEL_MS,
+    );
     if (layoutEditorState.enabled) {
       return false;
     }
@@ -2881,7 +3364,10 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     }
 
     qubitState.vector = normalizeVector2(
-      vectorTimesMatrix2(qubitState.vector, gateMatrixForTick(gateRuntime.activeTick))
+      vectorTimesMatrix2(
+        qubitState.vector,
+        gateMatrixForTick(gateRuntime.activeTick),
+      ),
     );
     qubitState.cnotSourceSlot = null;
     qubitState.cnotPairToken = null;
@@ -2890,12 +3376,20 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     applyGeneratedQubitVectorVisualState(qubitItem);
 
     settleGeneratedQubitVisualState(qubitItem);
-    const platformCenter = generatedCanvasPointForElementCenter(canvas, gateRuntime.gatePlatform);
+    const platformCenter = generatedCanvasPointForElementCenter(
+      canvas,
+      gateRuntime.gatePlatform,
+    );
     const retractedPlatformPoint = {
       x: platformCenter.x,
       y: gateCenter.y,
     };
-    setGeneratedQubitCenter(canvas, qubitItem, retractedPlatformPoint.x, retractedPlatformPoint.y);
+    setGeneratedQubitCenter(
+      canvas,
+      qubitItem,
+      retractedPlatformPoint.x,
+      retractedPlatformPoint.y,
+    );
     await nextAnimationFrame();
     if (layoutEditorState.enabled) {
       return false;
@@ -2906,7 +3400,12 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     const pipeRect = gateRuntime.gateWindow.getBoundingClientRect();
     const qubitRect = qubitItem.getBoundingClientRect();
     const ejectedCenter = {
-      x: pipeRect.right - canvasRect.left + canvas.scrollLeft + 100 + qubitRect.width / 2,
+      x:
+        pipeRect.right -
+        canvasRect.left +
+        canvas.scrollLeft +
+        100 +
+        qubitRect.width / 2,
       y: retractedPlatformPoint.y,
     };
     await moveGeneratedQubitToPoint(
@@ -2914,7 +3413,7 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
       qubitItem,
       ejectedCenter.x,
       ejectedCenter.y,
-      GATE_PLATFORM_EXTEND_MS
+      GATE_PLATFORM_EXTEND_MS,
     );
     settleGeneratedQubitVisualState(qubitItem);
     gateRuntime.item.classList.remove("platform-extended");
@@ -2965,28 +3464,38 @@ function findBestGeneratedCnotRuntimeForQubit(canvas, qubitItem) {
   pruneGeneratedRuntimeState();
   let best = null;
   let bestOverlap = CNOT_FUNNEL_OVERLAP_THRESHOLD;
-  canvas.querySelectorAll('.playground-node[data-component="cnot-gate"]').forEach((cnotItem) => {
-    if (!(cnotItem instanceof HTMLElement)) {
-      return;
-    }
-    const runtime = initializeGeneratedCnotItem(cnotItem);
-    if (!runtime || runtime.busy) {
-      return;
-    }
-    [
-      { slot: "top", funnel: runtime.funnelTop, occupant: runtime.slotOccupants.top },
-      { slot: "bottom", funnel: runtime.funnelBottom, occupant: runtime.slotOccupants.bottom },
-    ].forEach(({ slot, funnel, occupant }) => {
-      if (occupant && occupant !== qubitItem) {
+  canvas
+    .querySelectorAll('.playground-node[data-component="cnot-gate"]')
+    .forEach((cnotItem) => {
+      if (!(cnotItem instanceof HTMLElement)) {
         return;
       }
-      const overlap = generatedQubitOverlapRatioWithRect(qubitItem, funnel);
-      if (overlap > bestOverlap) {
-        bestOverlap = overlap;
-        best = { runtime, slot };
+      const runtime = initializeGeneratedCnotItem(cnotItem);
+      if (!runtime || runtime.busy) {
+        return;
       }
+      [
+        {
+          slot: "top",
+          funnel: runtime.funnelTop,
+          occupant: runtime.slotOccupants.top,
+        },
+        {
+          slot: "bottom",
+          funnel: runtime.funnelBottom,
+          occupant: runtime.slotOccupants.bottom,
+        },
+      ].forEach(({ slot, funnel, occupant }) => {
+        if (occupant && occupant !== qubitItem) {
+          return;
+        }
+        const overlap = generatedQubitOverlapRatioWithRect(qubitItem, funnel);
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap;
+          best = { runtime, slot };
+        }
+      });
     });
-  });
   return best;
 }
 
@@ -2999,7 +3508,10 @@ function applyGeneratedCnotToQubitStates(topQubitItem, bottomQubitItem) {
 
   const topSign = topState.vector[1] < 0 ? -1 : 1;
   const bottomSign = bottomState.vector[1] < 0 ? -1 : 1;
-  const marginals = cnotMarginalProbabilitiesFromQubitVectors(topState.vector, bottomState.vector);
+  const marginals = cnotMarginalProbabilitiesFromQubitVectors(
+    topState.vector,
+    bottomState.vector,
+  );
 
   topState.vector = canonicalizeRealAmplitudeVector([
     Math.sqrt(clamp(marginals.control[0], 0, 1)),
@@ -3054,7 +3566,7 @@ async function runGeneratedCnotCycle(canvas, runtime) {
 
       const cnotOutcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
         topState.vector,
-        bottomState.vector
+        bottomState.vector,
       );
       const pairToken = `${Date.now()}-${Math.random()}`;
       applyGeneratedCnotToQubitStates(topQubit, bottomQubit);
@@ -3065,10 +3577,26 @@ async function runGeneratedCnotCycle(canvas, runtime) {
       topState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
       bottomState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
 
-      const topWindowCenter = generatedCanvasPointForElementCenter(canvas, runtime.windowTop);
-      const bottomWindowCenter = generatedCanvasPointForElementCenter(canvas, runtime.windowBottom);
-      setGeneratedQubitCenter(canvas, topQubit, topWindowCenter.x, topWindowCenter.y);
-      setGeneratedQubitCenter(canvas, bottomQubit, bottomWindowCenter.x, bottomWindowCenter.y);
+      const topWindowCenter = generatedCanvasPointForElementCenter(
+        canvas,
+        runtime.windowTop,
+      );
+      const bottomWindowCenter = generatedCanvasPointForElementCenter(
+        canvas,
+        runtime.windowBottom,
+      );
+      setGeneratedQubitCenter(
+        canvas,
+        topQubit,
+        topWindowCenter.x,
+        topWindowCenter.y,
+      );
+      setGeneratedQubitCenter(
+        canvas,
+        bottomQubit,
+        bottomWindowCenter.x,
+        bottomWindowCenter.y,
+      );
       await nextAnimationFrame();
 
       runtime.body.classList.add("platform-extended");
@@ -3077,11 +3605,16 @@ async function runGeneratedCnotCycle(canvas, runtime) {
       const topQubitRect = topQubit.getBoundingClientRect();
       const bottomQubitRect = bottomQubit.getBoundingClientRect();
       const ejectedCenterX =
-        bodyRect.right - canvasRect.left + canvas.scrollLeft + 50 + topQubitRect.width / 2;
+        bodyRect.right -
+        canvasRect.left +
+        canvas.scrollLeft +
+        50 +
+        topQubitRect.width / 2;
       const topEjectedCenter = { x: ejectedCenterX, y: topWindowCenter.y };
       const bottomEjectedCenter = {
         x:
-          bodyRect.right - canvasRect.left +
+          bodyRect.right -
+          canvasRect.left +
           canvas.scrollLeft +
           50 +
           bottomQubitRect.width / 2,
@@ -3093,14 +3626,14 @@ async function runGeneratedCnotCycle(canvas, runtime) {
           topQubit,
           topEjectedCenter.x,
           topEjectedCenter.y,
-          GATE_PLATFORM_EXTEND_MS
+          GATE_PLATFORM_EXTEND_MS,
         ),
         moveGeneratedQubitToPoint(
           canvas,
           bottomQubit,
           bottomEjectedCenter.x,
           bottomEjectedCenter.y,
-          GATE_PLATFORM_EXTEND_MS
+          GATE_PLATFORM_EXTEND_MS,
         ),
       ]);
       settleGeneratedQubitVisualState(topQubit);
@@ -3153,14 +3686,15 @@ async function runGeneratedCnotIngress(canvas, qubitItem, runtime, slot) {
     generatedRuntimeDrag = null;
   }
   try {
-    const targetWindow = slotKey === "top" ? runtime.windowTop : runtime.windowBottom;
+    const targetWindow =
+      slotKey === "top" ? runtime.windowTop : runtime.windowBottom;
     const center = generatedCanvasPointForElementCenter(canvas, targetWindow);
     await moveGeneratedQubitToPoint(
       canvas,
       qubitItem,
       center.x,
       center.y,
-      AUTO_TRAVEL_MS
+      AUTO_TRAVEL_MS,
     );
     settleGeneratedQubitVisualState(qubitItem);
     setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
@@ -3190,7 +3724,9 @@ function maybeSnapGeneratedQubitToCnot(qubitItem) {
   if (!target) {
     return false;
   }
-  runGeneratedCnotIngress(canvas, qubitItem, target.runtime, target.slot).catch(() => {});
+  runGeneratedCnotIngress(canvas, qubitItem, target.runtime, target.slot).catch(
+    () => {},
+  );
   return true;
 }
 
@@ -3223,7 +3759,11 @@ function generatedQubitOverlapRatioWithLens(qubitItem, runtime) {
   const qCx = qubitRect.left + qRadius;
   const qCy = qubitRect.top + qRadius;
   const distance = Math.hypot(qCx - lensCircle.x, qCy - lensCircle.y);
-  const overlapArea = generatedCircleIntersectionArea(qRadius, lensCircle.radius, distance);
+  const overlapArea = generatedCircleIntersectionArea(
+    qRadius,
+    lensCircle.radius,
+    distance,
+  );
   const qubitArea = Math.PI * qRadius * qRadius;
   return qubitArea > 0 ? overlapArea / qubitArea : 0;
 }
@@ -3232,23 +3772,25 @@ function findBestGeneratedMeasurementRuntimeForQubit(canvas, qubitItem) {
   pruneGeneratedRuntimeState();
   let bestRuntime = null;
   let bestOverlap = MEASUREMENT_OVERLAP_THRESHOLD;
-  canvas.querySelectorAll('.playground-node[data-component="single-measurement"]').forEach((item) => {
-    if (!(item instanceof HTMLElement)) {
-      return;
-    }
-    const runtime = initializeGeneratedSingleMeasurementItem(item);
-    if (!runtime || runtime.busy) {
-      return;
-    }
-    const overlap = Math.max(
-      generatedQubitOverlapRatioWithLens(qubitItem, runtime),
-      generatedQubitOverlapRatioWithRect(qubitItem, runtime.measurementTool)
-    );
-    if (overlap >= bestOverlap) {
-      bestOverlap = overlap;
-      bestRuntime = runtime;
-    }
-  });
+  canvas
+    .querySelectorAll('.playground-node[data-component="single-measurement"]')
+    .forEach((item) => {
+      if (!(item instanceof HTMLElement)) {
+        return;
+      }
+      const runtime = initializeGeneratedSingleMeasurementItem(item);
+      if (!runtime || runtime.busy) {
+        return;
+      }
+      const overlap = Math.max(
+        generatedQubitOverlapRatioWithLens(qubitItem, runtime),
+        generatedQubitOverlapRatioWithRect(qubitItem, runtime.measurementTool),
+      );
+      if (overlap >= bestOverlap) {
+        bestOverlap = overlap;
+        bestRuntime = runtime;
+      }
+    });
   return bestRuntime;
 }
 
@@ -3259,7 +3801,8 @@ function collapseGeneratedQubitState(qubitItem) {
   }
   const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
   const collapseToBlue =
-    blueProbability >= 1 || (blueProbability > 0 && Math.random() < blueProbability);
+    blueProbability >= 1 ||
+    (blueProbability > 0 && Math.random() < blueProbability);
   qubitState.vector = collapseToBlue ? [1, 0] : [0, 1];
   qubitState.cnotSourceSlot = null;
   qubitState.cnotPairToken = null;
@@ -3276,7 +3819,10 @@ function createGeneratedMeasurementPayload(canvas, color, startPoint) {
   payload.style.left = `${startPoint.x}px`;
   payload.style.top = `${startPoint.y}px`;
   payload.style.pointerEvents = "none";
-  payload.style.setProperty("--qubit-fill", color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+  payload.style.setProperty(
+    "--qubit-fill",
+    color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
+  );
   canvas.appendChild(payload);
   return payload;
 }
@@ -3297,23 +3843,28 @@ async function animateGeneratedMeasurementPayloadToTube(
   runtime,
   collapsedColor,
   startPoint,
-  { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+  { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
 ) {
-  const payload = createGeneratedMeasurementPayload(canvas, collapsedColor, startPoint);
+  const payload = createGeneratedMeasurementPayload(
+    canvas,
+    collapsedColor,
+    startPoint,
+  );
   try {
-    const targetTube = collapsedColor === "blue" ? runtime.tubeBlue : runtime.tubeRed;
+    const targetTube =
+      collapsedColor === "blue" ? runtime.tubeBlue : runtime.tubeRed;
     const targetRect = targetTube.getBoundingClientRect();
     const targetPoint = generatedViewportPointToCanvasPoint(
       canvas,
       targetRect.left + targetRect.width / 2,
-      targetRect.top + targetRect.height * 0.22
+      targetRect.top + targetRect.height * 0.22,
     );
 
     await moveGeneratedPayloadToPoint(
       payload,
       targetPoint.x,
       targetPoint.y,
-      migrationDuration
+      migrationDuration,
     );
 
     payload.style.setProperty("--melt-duration", `${meltDuration}ms`);
@@ -3334,8 +3885,16 @@ async function animateGeneratedMeasurementPayloadToTube(
   }
 }
 
-async function runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime) {
-  if (!isGeneratedQubitItem(qubitItem) || !runtime || layoutEditorState.enabled) {
+async function runGeneratedSingleMeasurementTransit(
+  canvas,
+  qubitItem,
+  runtime,
+) {
+  if (
+    !isGeneratedQubitItem(qubitItem) ||
+    !runtime ||
+    layoutEditorState.enabled
+  ) {
     return false;
   }
   const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
@@ -3355,7 +3914,11 @@ async function runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime) 
     if (!lensCircle) {
       return false;
     }
-    const lensCenter = generatedViewportPointToCanvasPoint(canvas, lensCircle.x, lensCircle.y);
+    const lensCenter = generatedViewportPointToCanvasPoint(
+      canvas,
+      lensCircle.x,
+      lensCircle.y,
+    );
     setGeneratedQubitCenter(canvas, qubitItem, lensCenter.x, lensCenter.y);
     settleGeneratedQubitVisualState(qubitItem);
 
@@ -3372,10 +3935,15 @@ async function runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime) 
       canvas,
       runtime,
       collapsedColor,
-      lensCenter
+      lensCenter,
     );
 
-    setGeneratedQubitCenter(canvas, qubitItem, lensCenter.x + 100, lensCenter.y);
+    setGeneratedQubitCenter(
+      canvas,
+      qubitItem,
+      lensCenter.x + 100,
+      lensCenter.y,
+    );
     return true;
   } finally {
     const core = getGeneratedQubitCore(qubitItem);
@@ -3396,11 +3964,16 @@ function maybeSnapGeneratedQubitToSingleMeasurement(qubitItem) {
   if (!canvas || !qubitState || qubitState.transiting) {
     return false;
   }
-  const runtime = findBestGeneratedMeasurementRuntimeForQubit(canvas, qubitItem);
+  const runtime = findBestGeneratedMeasurementRuntimeForQubit(
+    canvas,
+    qubitItem,
+  );
   if (!runtime) {
     return false;
   }
-  runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime).catch(() => {});
+  runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime).catch(
+    () => {},
+  );
   return true;
 }
 
@@ -3435,7 +4008,10 @@ function generatedDoubleMeasurementLensCircle(runtime) {
   };
 }
 
-function generatedQubitOverlapRatioWithDoubleMeasurementLens(qubitItem, runtime) {
+function generatedQubitOverlapRatioWithDoubleMeasurementLens(
+  qubitItem,
+  runtime,
+) {
   const lensCircle = generatedDoubleMeasurementLensCircle(runtime);
   if (!lensCircle) {
     return 0;
@@ -3448,7 +4024,11 @@ function generatedQubitOverlapRatioWithDoubleMeasurementLens(qubitItem, runtime)
   const qCx = qubitRect.left + qRadius;
   const qCy = qubitRect.top + qRadius;
   const distance = Math.hypot(qCx - lensCircle.x, qCy - lensCircle.y);
-  const overlapArea = generatedCircleIntersectionArea(qRadius, lensCircle.radius, distance);
+  const overlapArea = generatedCircleIntersectionArea(
+    qRadius,
+    lensCircle.radius,
+    distance,
+  );
   const qubitArea = Math.PI * qRadius * qRadius;
   return qubitArea > 0 ? overlapArea / qubitArea : 0;
 }
@@ -3457,23 +4037,25 @@ function findBestGeneratedDoubleMeasurementRuntimeForQubit(canvas, qubitItem) {
   pruneGeneratedRuntimeState();
   let bestRuntime = null;
   let bestOverlap = MEASUREMENT_OVERLAP_THRESHOLD;
-  canvas.querySelectorAll('.playground-node[data-component="double-measurement"]').forEach((item) => {
-    if (!(item instanceof HTMLElement)) {
-      return;
-    }
-    const runtime = initializeGeneratedDoubleMeasurementItem(item);
-    if (!runtime || runtime.busy) {
-      return;
-    }
-    const overlap = Math.max(
-      generatedQubitOverlapRatioWithDoubleMeasurementLens(qubitItem, runtime),
-      generatedQubitOverlapRatioWithRect(qubitItem, runtime.measurementTool)
-    );
-    if (overlap >= bestOverlap) {
-      bestOverlap = overlap;
-      bestRuntime = runtime;
-    }
-  });
+  canvas
+    .querySelectorAll('.playground-node[data-component="double-measurement"]')
+    .forEach((item) => {
+      if (!(item instanceof HTMLElement)) {
+        return;
+      }
+      const runtime = initializeGeneratedDoubleMeasurementItem(item);
+      if (!runtime || runtime.busy) {
+        return;
+      }
+      const overlap = Math.max(
+        generatedQubitOverlapRatioWithDoubleMeasurementLens(qubitItem, runtime),
+        generatedQubitOverlapRatioWithRect(qubitItem, runtime.measurementTool),
+      );
+      if (overlap >= bestOverlap) {
+        bestOverlap = overlap;
+        bestRuntime = runtime;
+      }
+    });
   return bestRuntime;
 }
 
@@ -3511,11 +4093,14 @@ function generatedDoubleMeasurementSlotCenter(canvas, runtime, slot) {
   const lensCenter = generatedViewportPointToCanvasPoint(
     canvas,
     lensRect.left + lensRect.width / 2,
-    lensRect.top + lensRect.height / 2
+    lensRect.top + lensRect.height / 2,
   );
   const laneOffset = Math.max(20, lensRect.width * 0.12);
   return {
-    x: lensCenter.x + (slot === "right" ? laneOffset : -laneOffset) + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
+    x:
+      lensCenter.x +
+      (slot === "right" ? laneOffset : -laneOffset) +
+      TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
     y: lensCenter.y + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
   };
 }
@@ -3536,7 +4121,10 @@ function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
   ) {
     probabilities = topState.cnotOutcomeProbabilities;
   } else {
-    probabilities = cnotOutcomeProbabilitiesFromQubitVectors(topState.vector, bottomState.vector);
+    probabilities = cnotOutcomeProbabilitiesFromQubitVectors(
+      topState.vector,
+      bottomState.vector,
+    );
   }
   const outcomeKey = samplePairOutcomeFromProbabilities(probabilities);
   const topBlue = outcomeKey[0] === "b";
@@ -3597,7 +4185,10 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
 
       leftQubit.classList.add("collapse-animating");
       rightQubit.classList.add("collapse-animating");
-      const collapseResult = collapseGeneratedQubitPairFromCnot(rightQubit, leftQubit);
+      const collapseResult = collapseGeneratedQubitPairFromCnot(
+        rightQubit,
+        leftQubit,
+      );
       leftQubit.classList.remove("collapse-animating");
       rightQubit.classList.remove("collapse-animating");
       if (!collapseResult) {
@@ -3617,28 +4208,32 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
       runtime.tubeCounts[collapseResult.outcomeKey] += 1;
       maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
       updateGeneratedDoubleMeasurementTubeFills(runtime);
-      const placementTargets = placementReturnCentersForCanvas(canvas, leftQubit, rightQubit);
+      const placementTargets = placementReturnCentersForCanvas(
+        canvas,
+        leftQubit,
+        rightQubit,
+      );
 
       const leftReturn =
-        (placementTargets?.left &&
-          Number.isFinite(placementTargets.left.x) &&
-          Number.isFinite(placementTargets.left.y))
+        placementTargets?.left &&
+        Number.isFinite(placementTargets.left.x) &&
+        Number.isFinite(placementTargets.left.y)
           ? placementTargets.left
-          : (leftState.doubleMeasurementReturnPoint &&
-          Number.isFinite(leftState.doubleMeasurementReturnPoint.x) &&
-          Number.isFinite(leftState.doubleMeasurementReturnPoint.y))
-          ? leftState.doubleMeasurementReturnPoint
-          : generatedDoubleMeasurementSlotCenter(canvas, runtime, "left");
+          : leftState.doubleMeasurementReturnPoint &&
+              Number.isFinite(leftState.doubleMeasurementReturnPoint.x) &&
+              Number.isFinite(leftState.doubleMeasurementReturnPoint.y)
+            ? leftState.doubleMeasurementReturnPoint
+            : generatedDoubleMeasurementSlotCenter(canvas, runtime, "left");
       const rightReturn =
-        (placementTargets?.right &&
-          Number.isFinite(placementTargets.right.x) &&
-          Number.isFinite(placementTargets.right.y))
+        placementTargets?.right &&
+        Number.isFinite(placementTargets.right.x) &&
+        Number.isFinite(placementTargets.right.y)
           ? placementTargets.right
-          : (rightState.doubleMeasurementReturnPoint &&
-          Number.isFinite(rightState.doubleMeasurementReturnPoint.x) &&
-          Number.isFinite(rightState.doubleMeasurementReturnPoint.y))
-          ? rightState.doubleMeasurementReturnPoint
-          : generatedDoubleMeasurementSlotCenter(canvas, runtime, "right");
+          : rightState.doubleMeasurementReturnPoint &&
+              Number.isFinite(rightState.doubleMeasurementReturnPoint.x) &&
+              Number.isFinite(rightState.doubleMeasurementReturnPoint.y)
+            ? rightState.doubleMeasurementReturnPoint
+            : generatedDoubleMeasurementSlotCenter(canvas, runtime, "right");
 
       leftState.vector = [1, 0];
       rightState.vector = [1, 0];
@@ -3646,8 +4241,20 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
       applyGeneratedQubitVectorVisualState(rightQubit);
 
       await Promise.all([
-        moveGeneratedQubitToPoint(canvas, leftQubit, leftReturn.x, leftReturn.y, AUTO_TRAVEL_MS),
-        moveGeneratedQubitToPoint(canvas, rightQubit, rightReturn.x, rightReturn.y, AUTO_TRAVEL_MS),
+        moveGeneratedQubitToPoint(
+          canvas,
+          leftQubit,
+          leftReturn.x,
+          leftReturn.y,
+          AUTO_TRAVEL_MS,
+        ),
+        moveGeneratedQubitToPoint(
+          canvas,
+          rightQubit,
+          rightReturn.x,
+          rightReturn.y,
+          AUTO_TRAVEL_MS,
+        ),
       ]);
       settleGeneratedQubitVisualState(leftQubit);
       settleGeneratedQubitVisualState(rightQubit);
@@ -3668,8 +4275,17 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
   return runtime.cyclePromise;
 }
 
-async function runGeneratedDoubleMeasurementIngress(canvas, qubitItem, runtime) {
-  if (!isGeneratedQubitItem(qubitItem) || !runtime || runtime.busy || layoutEditorState.enabled) {
+async function runGeneratedDoubleMeasurementIngress(
+  canvas,
+  qubitItem,
+  runtime,
+) {
+  if (
+    !isGeneratedQubitItem(qubitItem) ||
+    !runtime ||
+    runtime.busy ||
+    layoutEditorState.enabled
+  ) {
     return false;
   }
   const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
@@ -3690,7 +4306,8 @@ async function runGeneratedDoubleMeasurementIngress(canvas, qubitItem, runtime) 
     runtime.slotOccupants[otherSlot] = null;
   }
 
-  qubitState.doubleMeasurementReturnPoint = generatedCanvasPointForElementCenter(canvas, qubitItem);
+  qubitState.doubleMeasurementReturnPoint =
+    generatedCanvasPointForElementCenter(canvas, qubitItem);
   qubitState.transiting = true;
   runtime.slotOccupants[slot] = qubitItem;
   if (generatedRuntimeDrag?.item === qubitItem) {
@@ -3700,7 +4317,13 @@ async function runGeneratedDoubleMeasurementIngress(canvas, qubitItem, runtime) 
 
   try {
     const center = generatedDoubleMeasurementSlotCenter(canvas, runtime, slot);
-    await moveGeneratedQubitToPoint(canvas, qubitItem, center.x, center.y, AUTO_TRAVEL_MS);
+    await moveGeneratedQubitToPoint(
+      canvas,
+      qubitItem,
+      center.x,
+      center.y,
+      AUTO_TRAVEL_MS,
+    );
     settleGeneratedQubitVisualState(qubitItem);
     setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
   } finally {
@@ -3725,11 +4348,16 @@ function maybeSnapGeneratedQubitToDoubleMeasurement(qubitItem) {
   if (!canvas || !qubitState || qubitState.transiting) {
     return false;
   }
-  const runtime = findBestGeneratedDoubleMeasurementRuntimeForQubit(canvas, qubitItem);
+  const runtime = findBestGeneratedDoubleMeasurementRuntimeForQubit(
+    canvas,
+    qubitItem,
+  );
   if (!runtime) {
     return false;
   }
-  runGeneratedDoubleMeasurementIngress(canvas, qubitItem, runtime).catch(() => {});
+  runGeneratedDoubleMeasurementIngress(canvas, qubitItem, runtime).catch(
+    () => {},
+  );
   return true;
 }
 
@@ -3737,9 +4365,9 @@ function generatedItemsOfType(canvas, type) {
   if (!isGeneratedLayoutCanvas(canvas)) {
     return [];
   }
-  return Array.from(canvas.querySelectorAll(`.playground-node[data-component="${type}"]`)).filter(
-    (item) => item instanceof HTMLElement
-  );
+  return Array.from(
+    canvas.querySelectorAll(`.playground-node[data-component="${type}"]`),
+  ).filter((item) => item instanceof HTMLElement);
 }
 
 function generatedItemCenterPoint(canvas, item) {
@@ -3760,7 +4388,10 @@ function nearestGeneratedItemByCenter(canvas, sourceElement, items) {
   let bestDistance = Infinity;
   items.forEach((item) => {
     const center = generatedItemCenterPoint(canvas, item);
-    const distance = Math.hypot(center.x - sourceCenter.x, center.y - sourceCenter.y);
+    const distance = Math.hypot(
+      center.x - sourceCenter.x,
+      center.y - sourceCenter.y,
+    );
     if (distance < bestDistance) {
       bestDistance = distance;
       bestItem = item;
@@ -3787,24 +4418,37 @@ function generatedPointInsideElement(canvas, point, element) {
   const bounds = generatedCanvasBoundsForElement(canvas, element);
   return Boolean(
     bounds &&
-      point &&
-      point.x >= bounds.left &&
-      point.x <= bounds.right &&
-      point.y >= bounds.top &&
-      point.y <= bounds.bottom
+    point &&
+    point.x >= bounds.left &&
+    point.x <= bounds.right &&
+    point.y >= bounds.top &&
+    point.y <= bounds.bottom,
   );
 }
 
-function resolveGeneratedDoubleMeasurementAutomationPath(canvas, measurementRuntime) {
+function resolveGeneratedDoubleMeasurementAutomationPath(
+  canvas,
+  measurementRuntime,
+) {
   pruneGeneratedRuntimeState();
-  const qubits = sortGeneratedItemsTopToBottom(canvas, generatedItemsOfType(canvas, "qubit")).slice(0, 2);
-  const gateItems = sortGeneratedItemsTopToBottom(canvas, generatedItemsOfType(canvas, "single-gate")).slice(0, 2);
+  const qubits = sortGeneratedItemsTopToBottom(
+    canvas,
+    generatedItemsOfType(canvas, "qubit"),
+  ).slice(0, 2);
+  const gateItems = sortGeneratedItemsTopToBottom(
+    canvas,
+    generatedItemsOfType(canvas, "single-gate"),
+  ).slice(0, 2);
   const cnotItem = nearestGeneratedItemByCenter(
     canvas,
     measurementRuntime.item,
-    generatedItemsOfType(canvas, "cnot-gate")
+    generatedItemsOfType(canvas, "cnot-gate"),
   );
-  if (qubits.length < 2 || gateItems.length < 2 || !(cnotItem instanceof HTMLElement)) {
+  if (
+    qubits.length < 2 ||
+    gateItems.length < 2 ||
+    !(cnotItem instanceof HTMLElement)
+  ) {
     return null;
   }
 
@@ -3831,7 +4475,10 @@ function resolveGeneratedDoubleMeasurementAutomationPath(canvas, measurementRunt
 }
 
 function generatedGateLaneStartPoint(canvas, qubitItem, gateRuntime) {
-  const gateCenter = generatedCanvasPointForElementCenter(canvas, gateRuntime.gateWindow);
+  const gateCenter = generatedCanvasPointForElementCenter(
+    canvas,
+    gateRuntime.gateWindow,
+  );
   const radius = Math.max(1, qubitItem.offsetWidth / 2);
   return {
     x: Math.max(radius + QUBIT_START_EDGE_GAP, gateCenter.x - 100),
@@ -3843,17 +4490,16 @@ function generatedPointIsBeforeGate(canvas, qubitItem, gateRuntime, point) {
   if (!point || !gateRuntime?.gateWindow) {
     return false;
   }
-  const gateCenter = generatedCanvasPointForElementCenter(canvas, gateRuntime.gateWindow);
+  const gateCenter = generatedCanvasPointForElementCenter(
+    canvas,
+    gateRuntime.gateWindow,
+  );
   const buffer = Math.max(12, qubitItem.offsetWidth * 0.35);
   return point.x <= gateCenter.x - buffer;
 }
 
 function isGeneratedCanvasPoint(point) {
-  return Boolean(
-    point &&
-      Number.isFinite(point.x) &&
-      Number.isFinite(point.y)
-  );
+  return Boolean(point && Number.isFinite(point.x) && Number.isFinite(point.y));
 }
 
 function generatedAutomationStartPoint(
@@ -3861,12 +4507,16 @@ function generatedAutomationStartPoint(
   qubitItem,
   gateRuntime,
   measurementRuntime,
-  cachedPoint = null
+  cachedPoint = null,
 ) {
   const current = generatedItemCenterPoint(canvas, qubitItem);
   if (
     generatedPointInsideElement(canvas, current, measurementRuntime.item) ||
-    generatedPointInsideElement(canvas, current, measurementRuntime.measurementTool) ||
+    generatedPointInsideElement(
+      canvas,
+      current,
+      measurementRuntime.measurementTool,
+    ) ||
     !generatedPointIsBeforeGate(canvas, qubitItem, gateRuntime, current)
   ) {
     return isGeneratedCanvasPoint(cachedPoint)
@@ -3900,7 +4550,9 @@ function applyGeneratedSingleGateStateWithoutAnimation(qubitItem, gateRuntime) {
   if (!state || !gateRuntime) {
     return;
   }
-  state.vector = normalizeVector2(vectorTimesMatrix2(state.vector, gateMatrixForTick(gateRuntime.activeTick)));
+  state.vector = normalizeVector2(
+    vectorTimesMatrix2(state.vector, gateMatrixForTick(gateRuntime.activeTick)),
+  );
   state.cnotSourceSlot = null;
   state.cnotPairToken = null;
   state.cnotOutcomeProbabilities = null;
@@ -3908,13 +4560,19 @@ function applyGeneratedSingleGateStateWithoutAnimation(qubitItem, gateRuntime) {
   applyGeneratedQubitVectorVisualState(qubitItem);
 }
 
-function annotateGeneratedCnotOutcomeProbabilities(topQubitItem, bottomQubitItem) {
+function annotateGeneratedCnotOutcomeProbabilities(
+  topQubitItem,
+  bottomQubitItem,
+) {
   const topState = ensureGeneratedQubitRuntimeState(topQubitItem);
   const bottomState = ensureGeneratedQubitRuntimeState(bottomQubitItem);
   if (!topState || !bottomState) {
     return;
   }
-  const probabilities = cnotOutcomeProbabilitiesFromQubitVectors(topState.vector, bottomState.vector);
+  const probabilities = cnotOutcomeProbabilitiesFromQubitVectors(
+    topState.vector,
+    bottomState.vector,
+  );
   const pairToken = `${Date.now()}-${Math.random()}`;
   topState.cnotPairToken = pairToken;
   bottomState.cnotPairToken = pairToken;
@@ -3922,14 +4580,23 @@ function annotateGeneratedCnotOutcomeProbabilities(topQubitItem, bottomQubitItem
   bottomState.cnotOutcomeProbabilities = probabilities;
 }
 
-function runGeneratedDoubleMeasurementMachineIteration(path, measurementRuntime) {
+function runGeneratedDoubleMeasurementMachineIteration(
+  path,
+  measurementRuntime,
+) {
   resetGeneratedQubitForAutomatedRun(null, path.topQubit, null);
   resetGeneratedQubitForAutomatedRun(null, path.bottomQubit, null);
   applyGeneratedSingleGateStateWithoutAnimation(path.topQubit, path.topGate);
-  applyGeneratedSingleGateStateWithoutAnimation(path.bottomQubit, path.bottomGate);
+  applyGeneratedSingleGateStateWithoutAnimation(
+    path.bottomQubit,
+    path.bottomGate,
+  );
   annotateGeneratedCnotOutcomeProbabilities(path.topQubit, path.bottomQubit);
   applyGeneratedCnotToQubitStates(path.topQubit, path.bottomQubit);
-  const collapseResult = collapseGeneratedQubitPairFromCnot(path.topQubit, path.bottomQubit);
+  const collapseResult = collapseGeneratedQubitPairFromCnot(
+    path.topQubit,
+    path.bottomQubit,
+  );
   if (!collapseResult) {
     return false;
   }
@@ -3942,10 +4609,14 @@ async function runGeneratedDoubleMeasurementAnimatedIteration(
   canvas,
   path,
   measurementRuntime,
-  startPoints
+  startPoints,
 ) {
   resetGeneratedQubitForAutomatedRun(canvas, path.topQubit, startPoints.top);
-  resetGeneratedQubitForAutomatedRun(canvas, path.bottomQubit, startPoints.bottom);
+  resetGeneratedQubitForAutomatedRun(
+    canvas,
+    path.bottomQubit,
+    startPoints.bottom,
+  );
   await nextAnimationFrame();
   if (layoutEditorState.enabled) {
     return false;
@@ -3961,7 +4632,12 @@ async function runGeneratedDoubleMeasurementAnimatedIteration(
 
   const cnotIngressCompleted = await Promise.all([
     runGeneratedCnotIngress(canvas, path.topQubit, path.cnotRuntime, "top"),
-    runGeneratedCnotIngress(canvas, path.bottomQubit, path.cnotRuntime, "bottom"),
+    runGeneratedCnotIngress(
+      canvas,
+      path.bottomQubit,
+      path.cnotRuntime,
+      "bottom",
+    ),
   ]);
   if (!cnotIngressCompleted.every(Boolean) || layoutEditorState.enabled) {
     return false;
@@ -3974,10 +4650,21 @@ async function runGeneratedDoubleMeasurementAnimatedIteration(
   }
 
   const measurementIngressCompleted = await Promise.all([
-    runGeneratedDoubleMeasurementIngress(canvas, path.topQubit, measurementRuntime),
-    runGeneratedDoubleMeasurementIngress(canvas, path.bottomQubit, measurementRuntime),
+    runGeneratedDoubleMeasurementIngress(
+      canvas,
+      path.topQubit,
+      measurementRuntime,
+    ),
+    runGeneratedDoubleMeasurementIngress(
+      canvas,
+      path.bottomQubit,
+      measurementRuntime,
+    ),
   ]);
-  if (!measurementIngressCompleted.every(Boolean) || layoutEditorState.enabled) {
+  if (
+    !measurementIngressCompleted.every(Boolean) ||
+    layoutEditorState.enabled
+  ) {
     return false;
   }
   if (measurementRuntime.cyclePromise) {
@@ -3987,7 +4674,11 @@ async function runGeneratedDoubleMeasurementAnimatedIteration(
   return false;
 }
 
-async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntime, iterations) {
+async function runAutomatedGeneratedDoubleMeasurements(
+  canvas,
+  measurementRuntime,
+  iterations,
+) {
   if (
     layoutEditorState.enabled ||
     !isGeneratedLayoutCanvas(canvas) ||
@@ -3998,7 +4689,10 @@ async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntim
     return;
   }
 
-  const path = resolveGeneratedDoubleMeasurementAutomationPath(canvas, measurementRuntime);
+  const path = resolveGeneratedDoubleMeasurementAutomationPath(
+    canvas,
+    measurementRuntime,
+  );
   if (!path) {
     return;
   }
@@ -4018,14 +4712,14 @@ async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntim
       path.topQubit,
       path.topGate,
       measurementRuntime,
-      cachedStartPoints.top
+      cachedStartPoints.top,
     ),
     bottom: generatedAutomationStartPoint(
       canvas,
       path.bottomQubit,
       path.bottomGate,
       measurementRuntime,
-      cachedStartPoints.bottom
+      cachedStartPoints.bottom,
     ),
   };
   measurementRuntime.automationStartPoints = {
@@ -4054,7 +4748,10 @@ async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntim
             continue;
           }
           while (processed < shouldBeProcessed && processed < count) {
-            runGeneratedDoubleMeasurementMachineIteration(path, measurementRuntime);
+            runGeneratedDoubleMeasurementMachineIteration(
+              path,
+              measurementRuntime,
+            );
             processed += 1;
           }
           updateGeneratedDoubleMeasurementTubeFills(measurementRuntime);
@@ -4063,13 +4760,24 @@ async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntim
       } else {
         await nextAnimationFrame();
         while (processed < count && !layoutEditorState.enabled) {
-          runGeneratedDoubleMeasurementMachineIteration(path, measurementRuntime);
+          runGeneratedDoubleMeasurementMachineIteration(
+            path,
+            measurementRuntime,
+          );
           processed += 1;
         }
       }
       updateGeneratedDoubleMeasurementTubeFills(measurementRuntime);
-      resetGeneratedQubitForAutomatedRun(canvas, path.topQubit, startPoints.top);
-      resetGeneratedQubitForAutomatedRun(canvas, path.bottomQubit, startPoints.bottom);
+      resetGeneratedQubitForAutomatedRun(
+        canvas,
+        path.topQubit,
+        startPoints.top,
+      );
+      resetGeneratedQubitForAutomatedRun(
+        canvas,
+        path.bottomQubit,
+        startPoints.bottom,
+      );
       return;
     }
 
@@ -4078,7 +4786,7 @@ async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntim
         canvas,
         path,
         measurementRuntime,
-        startPoints
+        startPoints,
       );
       if (!completed || layoutEditorState.enabled) {
         break;
@@ -4095,7 +4803,13 @@ async function runAutomatedGeneratedDoubleMeasurements(canvas, measurementRuntim
   }
 }
 
-function moveGeneratedQubitToPoint(canvas, qubitItem, x, y, duration = AUTO_TRAVEL_MS) {
+function moveGeneratedQubitToPoint(
+  canvas,
+  qubitItem,
+  x,
+  y,
+  duration = AUTO_TRAVEL_MS,
+) {
   return new Promise((resolve) => {
     const core = getGeneratedQubitCore(qubitItem);
     qubitItem.style.setProperty("--move-duration", `${duration}ms`);
@@ -4152,10 +4866,21 @@ function continueGeneratedRuntimeGesture(event) {
   }
   const canvasRect = gesture.canvas.getBoundingClientRect();
   const left =
-    point.clientX - canvasRect.left + gesture.canvas.scrollLeft - gesture.pointerOffsetX;
+    point.clientX -
+    canvasRect.left +
+    gesture.canvas.scrollLeft -
+    gesture.pointerOffsetX;
   const top =
-    point.clientY - canvasRect.top + gesture.canvas.scrollTop - gesture.pointerOffsetY;
-  const clamped = generatedLayoutClampItemPosition(gesture.canvas, gesture.item, left, top);
+    point.clientY -
+    canvasRect.top +
+    gesture.canvas.scrollTop -
+    gesture.pointerOffsetY;
+  const clamped = generatedLayoutClampItemPosition(
+    gesture.canvas,
+    gesture.item,
+    left,
+    top,
+  );
   gesture.item.style.left = `${Math.round(clamped.left)}px`;
   gesture.item.style.top = `${Math.round(clamped.top)}px`;
   if (maybeSnapGeneratedQubitToSingleGate(gesture.item)) {
@@ -4172,7 +4897,12 @@ function endGeneratedRuntimeGesture() {
   gesture.item.classList.remove("dragging");
   const left = parseLayoutNumeric(gesture.item.style.left, 0);
   const top = parseLayoutNumeric(gesture.item.style.top, 0);
-  const clamped = generatedLayoutClampItemPosition(gesture.canvas, gesture.item, left, top);
+  const clamped = generatedLayoutClampItemPosition(
+    gesture.canvas,
+    gesture.item,
+    left,
+    top,
+  );
   gesture.item.style.left = `${Math.round(clamped.left)}px`;
   gesture.item.style.top = `${Math.round(clamped.top)}px`;
   if (!layoutEditorState.enabled) {
@@ -4247,7 +4977,10 @@ function beginGeneratedLayoutEditGesture(event) {
       startHeight: rect.height,
       uniformResize: measurementPart.dataset.layoutUniformResize === "true",
       minWidth: parseLayoutNumeric(measurementPart.dataset.layoutMinWidth, 24),
-      minHeight: parseLayoutNumeric(measurementPart.dataset.layoutMinHeight, 24),
+      minHeight: parseLayoutNumeric(
+        measurementPart.dataset.layoutMinHeight,
+        24,
+      ),
     };
     measurementPart.classList.add("layout-edit-dragging");
     event.preventDefault();
@@ -4262,7 +4995,8 @@ function beginGeneratedLayoutEditGesture(event) {
   setSelectedGeneratedLayoutItem(item);
   const itemRect = item.getBoundingClientRect();
   const isResizeHandle =
-    origin.closest(".layout-resize-handle") || pointerNearResizeCorner(item, point, 22);
+    origin.closest(".layout-resize-handle") ||
+    pointerNearResizeCorner(item, point, 22);
   const mode = isResizeHandle ? "item-resize" : "item-move";
   generatedLayoutGesture = {
     mode,
@@ -4277,7 +5011,8 @@ function beginGeneratedLayoutEditGesture(event) {
     startWidth: itemRect.width,
     startHeight: itemRect.height,
     aspectRatio: itemRect.height > 0 ? itemRect.width / itemRect.height : 1,
-    cnotBaseline: mode === "item-resize" ? captureCnotGeometryBaseline(item) : null,
+    cnotBaseline:
+      mode === "item-resize" ? captureCnotGeometryBaseline(item) : null,
   };
   item.classList.add(mode === "item-resize" ? "resizing" : "dragging");
   event.preventDefault();
@@ -4299,7 +5034,12 @@ function continueGeneratedLayoutEditGesture(event) {
     let nextWidth = Math.max(gesture.minWidth, gesture.startWidth + dx);
     let nextHeight = Math.max(gesture.minHeight, gesture.startHeight + dy);
     if (gesture.uniformResize) {
-      const uniformSize = Math.max(nextWidth, nextHeight, gesture.minWidth, gesture.minHeight);
+      const uniformSize = Math.max(
+        nextWidth,
+        nextHeight,
+        gesture.minWidth,
+        gesture.minHeight,
+      );
       nextWidth = uniformSize;
       nextHeight = uniformSize;
     }
@@ -4307,7 +5047,11 @@ function continueGeneratedLayoutEditGesture(event) {
     gesture.part.style.height = `${Math.round(nextHeight)}px`;
     setLayoutManualEdited(gesture.part, true);
   } else if (gesture.mode === "part-move") {
-    setLayoutTargetTranslate(gesture.part, gesture.startTx + dx, gesture.startTy + dy);
+    setLayoutTargetTranslate(
+      gesture.part,
+      gesture.startTx + dx,
+      gesture.startTy + dy,
+    );
     setLayoutManualEdited(gesture.part, true);
   } else if (gesture.mode === "item-resize") {
     let nextWidth = gesture.startWidth + dx;
@@ -4317,28 +5061,39 @@ function continueGeneratedLayoutEditGesture(event) {
       nextWidth = uniform;
       nextHeight = uniform;
     }
-    const clamped = generatedLayoutClampItemSize(gesture.canvas, gesture.item, nextWidth, nextHeight);
+    const clamped = generatedLayoutClampItemSize(
+      gesture.canvas,
+      gesture.item,
+      nextWidth,
+      nextHeight,
+    );
     gesture.item.style.width = `${Math.round(clamped.width)}px`;
     gesture.item.style.height = `${Math.round(clamped.height)}px`;
     applyCnotGeometryScale(
       gesture.item,
       gesture.cnotBaseline,
       clamped.width,
-      clamped.height
+      clamped.height,
     );
     layoutGeneratedSingleGateDials(gesture.canvas);
     setLayoutManualEdited(gesture.item, true);
   } else {
     const canvasRect = gesture.canvas.getBoundingClientRect();
     const nextLeft =
-      point.clientX - canvasRect.left + gesture.canvas.scrollLeft - gesture.pointerOffsetX;
+      point.clientX -
+      canvasRect.left +
+      gesture.canvas.scrollLeft -
+      gesture.pointerOffsetX;
     const nextTop =
-      point.clientY - canvasRect.top + gesture.canvas.scrollTop - gesture.pointerOffsetY;
+      point.clientY -
+      canvasRect.top +
+      gesture.canvas.scrollTop -
+      gesture.pointerOffsetY;
     const clamped = generatedLayoutClampItemPosition(
       gesture.canvas,
       gesture.item,
       nextLeft,
-      nextTop
+      nextTop,
     );
     gesture.item.style.left = `${Math.round(clamped.left)}px`;
     gesture.item.style.top = `${Math.round(clamped.top)}px`;
@@ -4365,7 +5120,10 @@ function endGeneratedLayoutEditGesture() {
 }
 
 function registerTabButton(button) {
-  if (!(button instanceof HTMLButtonElement) || button.dataset.tabRegistered === "true") {
+  if (
+    !(button instanceof HTMLButtonElement) ||
+    button.dataset.tabRegistered === "true"
+  ) {
     return;
   }
   button.dataset.tabRegistered = "true";
@@ -4379,16 +5137,23 @@ function registerTabButton(button) {
 }
 
 function tabLabelForButton(button) {
-  return String(button?.textContent || "").trim().replace(/\s+/g, " ");
+  return String(button?.textContent || "")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function existingTabLabelSet() {
-  return new Set(tabButtons.map((button) => normalizeTabLabel(tabLabelForButton(button))));
+  return new Set(
+    tabButtons.map((button) => normalizeTabLabel(tabLabelForButton(button))),
+  );
 }
 
 function collectPlaygroundSaveTargets() {
   return tabButtons
-    .filter((button) => button.dataset.tabTarget && button.dataset.tabTarget !== "plaground")
+    .filter(
+      (button) =>
+        button.dataset.tabTarget && button.dataset.tabTarget !== "plaground",
+    )
     .map((button) => ({
       id: button.dataset.tabTarget,
       label: tabLabelForButton(button),
@@ -4397,7 +5162,9 @@ function collectPlaygroundSaveTargets() {
 }
 
 function uniqueGeneratedTabTarget(label) {
-  const used = new Set(tabButtons.map((button) => button.dataset.tabTarget).filter(Boolean));
+  const used = new Set(
+    tabButtons.map((button) => button.dataset.tabTarget).filter(Boolean),
+  );
   let base = `custom-${generatedTabSlug(label)}`;
   let candidate = base;
   let index = 2;
@@ -4420,7 +5187,8 @@ function ensureGeneratedTabButton(entry) {
     button.tabIndex = -1;
     button.dataset.generatedTab = "true";
     button.dataset.tabTarget = entry.id;
-    const insertionPoint = layoutEditToggle instanceof HTMLElement ? layoutEditToggle : null;
+    const insertionPoint =
+      layoutEditToggle instanceof HTMLElement ? layoutEditToggle : null;
     tabStrip?.insertBefore(button, insertionPoint);
     tabButtons.push(button);
   }
@@ -4451,14 +5219,14 @@ function applyGeneratedTabsState(state, sourceRoots) {
   const customIds = new Set(
     (generatedTabsState.customTabs || [])
       .filter((entry) => entry && typeof entry.id === "string")
-      .map((entry) => entry.id)
+      .map((entry) => entry.id),
   );
   tabButtons
     .filter(
       (button) =>
         button instanceof HTMLButtonElement &&
         button.dataset.generatedTab === "true" &&
-        !customIds.has(button.dataset.tabTarget || "")
+        !customIds.has(button.dataset.tabTarget || ""),
     )
     .forEach((button) => {
       const targetId = button.dataset.tabTarget || "";
@@ -4477,22 +5245,41 @@ function applyGeneratedTabsState(state, sourceRoots) {
       }
     });
 
-  Object.entries(generatedTabsState.overrides || {}).forEach(([target, entry]) => {
-    const button = tabButtons.find((candidate) => candidate.dataset.tabTarget === target);
-    const panel = document.getElementById(`panel-${target}`);
-    if (!(button instanceof HTMLButtonElement) || !(panel instanceof HTMLElement)) {
-      return;
-    }
-    const label = entry?.label || tabLabelForButton(button);
-    renderGeneratedLayoutPanel(panel, { label, layout: entry?.layout }, sourceRoots);
-  });
+  Object.entries(generatedTabsState.overrides || {}).forEach(
+    ([target, entry]) => {
+      const button = tabButtons.find(
+        (candidate) => candidate.dataset.tabTarget === target,
+      );
+      const panel = document.getElementById(`panel-${target}`);
+      if (
+        !(button instanceof HTMLButtonElement) ||
+        !(panel instanceof HTMLElement)
+      ) {
+        return;
+      }
+      const label = entry?.label || tabLabelForButton(button);
+      renderGeneratedLayoutPanel(
+        panel,
+        { label, layout: entry?.layout },
+        sourceRoots,
+      );
+    },
+  );
 
   (generatedTabsState.customTabs || []).forEach((entry) => {
-    if (!entry || typeof entry.id !== "string" || typeof entry.label !== "string") {
+    if (
+      !entry ||
+      typeof entry.id !== "string" ||
+      typeof entry.label !== "string"
+    ) {
       return;
     }
     ensureGeneratedTabButton(entry);
-    renderGeneratedLayoutPanel(ensureGeneratedTabPanel(entry), entry, sourceRoots);
+    renderGeneratedLayoutPanel(
+      ensureGeneratedTabPanel(entry),
+      entry,
+      sourceRoots,
+    );
   });
 }
 
@@ -4568,7 +5355,15 @@ function openPlaygroundSaveTargetDialog() {
     submitButton.textContent = "Save";
     actions.append(cancelButton, submitButton);
 
-    panel.append(title, targetLabel, select, newTabWrap, warning, error, actions);
+    panel.append(
+      title,
+      targetLabel,
+      select,
+      newTabWrap,
+      warning,
+      error,
+      actions,
+    );
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
@@ -4577,7 +5372,8 @@ function openPlaygroundSaveTargetDialog() {
       resolve(value);
     };
 
-    const selectedTarget = () => targets.find((target) => target.id === select.value) || null;
+    const selectedTarget = () =>
+      targets.find((target) => target.id === select.value) || null;
     const updateMode = () => {
       const target = selectedTarget();
       const isNew = select.value === "__new__";
@@ -4635,9 +5431,14 @@ async function savePlaygroundLayoutToGeneratedTab(layoutPayload, sourceRoots) {
   if (!selection) {
     return false;
   }
-  const nextState = cloneJson(generatedTabsState) || { overrides: {}, customTabs: [] };
+  const nextState = cloneJson(generatedTabsState) || {
+    overrides: {},
+    customTabs: [],
+  };
   nextState.overrides = nextState.overrides || {};
-  nextState.customTabs = Array.isArray(nextState.customTabs) ? nextState.customTabs : [];
+  nextState.customTabs = Array.isArray(nextState.customTabs)
+    ? nextState.customTabs
+    : [];
   const layout = cloneJson(layoutPayload);
   if (!layout) {
     throw new Error("Unable to save layout");
@@ -4654,7 +5455,9 @@ async function savePlaygroundLayoutToGeneratedTab(layoutPayload, sourceRoots) {
   } else {
     targetId = selection.target.id;
     if (selection.target.generated) {
-      const customEntry = nextState.customTabs.find((entry) => entry.id === targetId);
+      const customEntry = nextState.customTabs.find(
+        (entry) => entry.id === targetId,
+      );
       if (customEntry) {
         customEntry.layout = layout;
       }
@@ -4705,7 +5508,9 @@ function ensurePlaygroundQubitLayoutRegistration(element) {
     delete core.dataset.layoutTx;
     delete core.dataset.layoutTy;
     delete core.dataset.layoutManual;
-    core.querySelectorAll(":scope > .layout-resize-handle").forEach((handle) => handle.remove());
+    core
+      .querySelectorAll(":scope > .layout-resize-handle")
+      .forEach((handle) => handle.remove());
     core.style.translate = "";
     core.style.left = "";
     core.style.top = "";
@@ -4729,17 +5534,21 @@ function setupPlagroundComposer(sourceRoots) {
   let selectedItem = null;
   let statusTimer = null;
 
-  const isSnapEnabled = () => !playgroundSnapToggle || playgroundSnapToggle.checked;
+  const isSnapEnabled = () =>
+    !playgroundSnapToggle || playgroundSnapToggle.checked;
   const isPlaygroundQubitItem = (item) =>
     item instanceof HTMLElement && item.dataset.component === "qubit";
   const isPlaygroundSingleGateItem = (item) =>
     item instanceof HTMLElement && item.dataset.component === "single-gate";
   const isPlaygroundSingleMeasurementItem = (item) =>
-    item instanceof HTMLElement && item.dataset.component === "single-measurement";
+    item instanceof HTMLElement &&
+    item.dataset.component === "single-measurement";
   const isPlaygroundDoubleMeasurementItem = (item) =>
-    item instanceof HTMLElement && item.dataset.component === "double-measurement";
+    item instanceof HTMLElement &&
+    item.dataset.component === "double-measurement";
   const isPlaygroundMeasurementItem = (item) =>
-    isPlaygroundSingleMeasurementItem(item) || isPlaygroundDoubleMeasurementItem(item);
+    isPlaygroundSingleMeasurementItem(item) ||
+    isPlaygroundDoubleMeasurementItem(item);
   const minSizeForItem = (item) => {
     if (isPlaygroundQubitItem(item)) {
       return { minWidth: 12, minHeight: 12 };
@@ -4753,7 +5562,8 @@ function setupPlagroundComposer(sourceRoots) {
     return snapValue(value);
   };
   const PLAYGROUND_GATE_FUNNEL_OVERLAP_THRESHOLD = 0.45;
-  const PLAYGROUND_MEASUREMENT_OVERLAP_THRESHOLD = MEASUREMENT_OVERLAP_THRESHOLD;
+  const PLAYGROUND_MEASUREMENT_OVERLAP_THRESHOLD =
+    MEASUREMENT_OVERLAP_THRESHOLD;
   const playgroundSingleGateRuntime = new Map();
   const playgroundSingleMeasurementRuntime = new Map();
   const playgroundDoubleMeasurementRuntime = new Map();
@@ -4761,12 +5571,44 @@ function setupPlagroundComposer(sourceRoots) {
   const playgroundQubitRuntime = new Map();
   const playgroundCnotPartSpecs = [
     { key: "body", selector: ".cnot-body", minWidth: 120, minHeight: 90 },
-    { key: "funnelTop", selector: ".cnot-input-funnel-top", minWidth: 24, minHeight: 40 },
-    { key: "funnelBottom", selector: ".cnot-input-funnel-bottom", minWidth: 24, minHeight: 40 },
-    { key: "windowTop", selector: ".cnot-porthole-top", minWidth: 30, minHeight: 30, uniform: true },
-    { key: "windowBottom", selector: ".cnot-porthole-bottom", minWidth: 30, minHeight: 30, uniform: true },
-    { key: "flangeTop", selector: ".cnot-output-flange-top", minWidth: 10, minHeight: 28 },
-    { key: "flangeBottom", selector: ".cnot-output-flange-bottom", minWidth: 10, minHeight: 28 },
+    {
+      key: "funnelTop",
+      selector: ".cnot-input-funnel-top",
+      minWidth: 24,
+      minHeight: 40,
+    },
+    {
+      key: "funnelBottom",
+      selector: ".cnot-input-funnel-bottom",
+      minWidth: 24,
+      minHeight: 40,
+    },
+    {
+      key: "windowTop",
+      selector: ".cnot-porthole-top",
+      minWidth: 30,
+      minHeight: 30,
+      uniform: true,
+    },
+    {
+      key: "windowBottom",
+      selector: ".cnot-porthole-bottom",
+      minWidth: 30,
+      minHeight: 30,
+      uniform: true,
+    },
+    {
+      key: "flangeTop",
+      selector: ".cnot-output-flange-top",
+      minWidth: 10,
+      minHeight: 28,
+    },
+    {
+      key: "flangeBottom",
+      selector: ".cnot-output-flange-bottom",
+      minWidth: 10,
+      minHeight: 28,
+    },
   ];
 
   const getPlaygroundQubitCore = (item) => {
@@ -4908,48 +5750,58 @@ function setupPlagroundComposer(sourceRoots) {
           beginPlaygroundCnotPartGesture(item, element, event);
         };
         element.addEventListener("mousedown", startPartGesture);
-        element.addEventListener("touchstart", startPartGesture, { passive: false });
+        element.addEventListener("touchstart", startPartGesture, {
+          passive: false,
+        });
       }
     });
   };
 
   const preparePlaygroundMeasurementParts = (item) => {
-    resolvePlaygroundMeasurementPartEntries(item).forEach(({ spec, element }) => {
-      element.dataset.playgroundMeasurementPart = spec.key;
-      element.dataset.layoutEditTarget = "true";
-      element.dataset.layoutResizable = spec.resizable ? "true" : "false";
-      element.dataset.layoutUniformResize = spec.uniform ? "true" : "false";
-      element.dataset.layoutMinWidth = `${spec.minWidth || 24}`;
-      element.dataset.layoutMinHeight = `${spec.minHeight || 24}`;
-      if (!element.style.translate) {
-        setLayoutTargetTranslate(element, 0, 0);
-      }
-      if (window.getComputedStyle(element).position === "static") {
-        element.style.position = "relative";
-      }
-      if (spec.resizable) {
-        ensureLayoutResizeHandle(element);
-      }
-      if (element.dataset.playgroundMeasurementPartListener !== "true") {
-        element.dataset.playgroundMeasurementPartListener = "true";
-        const startPartGesture = (event) => {
-          if (!layoutEditorState.enabled || !isPrimaryMouseButton(event)) {
-            return;
-          }
-          beginPlaygroundMeasurementPartGesture(item, element, event);
-        };
-        element.addEventListener("mousedown", startPartGesture);
-        element.addEventListener("touchstart", startPartGesture, { passive: false });
-      }
-    });
+    resolvePlaygroundMeasurementPartEntries(item).forEach(
+      ({ spec, element }) => {
+        element.dataset.playgroundMeasurementPart = spec.key;
+        element.dataset.layoutEditTarget = "true";
+        element.dataset.layoutResizable = spec.resizable ? "true" : "false";
+        element.dataset.layoutUniformResize = spec.uniform ? "true" : "false";
+        element.dataset.layoutMinWidth = `${spec.minWidth || 24}`;
+        element.dataset.layoutMinHeight = `${spec.minHeight || 24}`;
+        if (!element.style.translate) {
+          setLayoutTargetTranslate(element, 0, 0);
+        }
+        if (window.getComputedStyle(element).position === "static") {
+          element.style.position = "relative";
+        }
+        if (spec.resizable) {
+          ensureLayoutResizeHandle(element);
+        }
+        if (element.dataset.playgroundMeasurementPartListener !== "true") {
+          element.dataset.playgroundMeasurementPartListener = "true";
+          const startPartGesture = (event) => {
+            if (!layoutEditorState.enabled || !isPrimaryMouseButton(event)) {
+              return;
+            }
+            beginPlaygroundMeasurementPartGesture(item, element, event);
+          };
+          element.addEventListener("mousedown", startPartGesture);
+          element.addEventListener("touchstart", startPartGesture, {
+            passive: false,
+          });
+        }
+      },
+    );
   };
 
-  const applyPlaygroundMeasurementLayoutSnapshot = (item, measurementLayout, options = {}) => {
+  const applyPlaygroundMeasurementLayoutSnapshot = (
+    item,
+    measurementLayout,
+    options = {},
+  ) => {
     applyMeasurementLayoutSnapshot(
       item,
       measurementLayout,
       measurementPartSpecsForType(item.dataset.component),
-      options
+      options,
     );
   };
 
@@ -4958,7 +5810,10 @@ function setupPlagroundComposer(sourceRoots) {
       return null;
     }
     preparePlaygroundMeasurementParts(item);
-    return captureMeasurementLayoutSnapshot(item, measurementPartSpecsForType(item.dataset.component));
+    return captureMeasurementLayoutSnapshot(
+      item,
+      measurementPartSpecsForType(item.dataset.component),
+    );
   };
 
   const isPlagroundTabActive = () => {
@@ -4999,7 +5854,8 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const updateActionButtons = () => {
-    const hasSelection = selectedItem instanceof HTMLElement && selectedItem.isConnected;
+    const hasSelection =
+      selectedItem instanceof HTMLElement && selectedItem.isConnected;
     if (playgroundDuplicateButton) {
       playgroundDuplicateButton.disabled = !hasSelection;
     }
@@ -5032,16 +5888,28 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const syncSelectionUiState = () => {
-    const items = playgroundCanvas.querySelectorAll(".playground-node.selected");
+    const items = playgroundCanvas.querySelectorAll(
+      ".playground-node.selected",
+    );
     items.forEach((item) => item.classList.remove("selected"));
-    if (layoutEditorState.enabled && selectedItem instanceof HTMLElement && selectedItem.isConnected) {
+    if (
+      layoutEditorState.enabled &&
+      selectedItem instanceof HTMLElement &&
+      selectedItem.isConnected
+    ) {
       selectedItem.classList.add("selected");
     }
   };
 
   const clampItemPosition = (item, left, top, { snap = true } = {}) => {
-    const maxLeft = Math.max(0, playgroundCanvas.clientWidth - item.offsetWidth);
-    const maxTop = Math.max(0, playgroundCanvas.clientHeight - item.offsetHeight);
+    const maxLeft = Math.max(
+      0,
+      playgroundCanvas.clientWidth - item.offsetWidth,
+    );
+    const maxTop = Math.max(
+      0,
+      playgroundCanvas.clientHeight - item.offsetHeight,
+    );
     const snappedLeft = snap ? snapValue(left) : left;
     const snappedTop = snap ? snapValue(top) : top;
     return {
@@ -5070,8 +5938,16 @@ function setupPlagroundComposer(sourceRoots) {
     const canvasRect = playgroundCanvas.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
     return {
-      x: rect.left - canvasRect.left + playgroundCanvas.scrollLeft + rect.width / 2,
-      y: rect.top - canvasRect.top + playgroundCanvas.scrollTop + rect.height / 2,
+      x:
+        rect.left -
+        canvasRect.left +
+        playgroundCanvas.scrollLeft +
+        rect.width / 2,
+      y:
+        rect.top -
+        canvasRect.top +
+        playgroundCanvas.scrollTop +
+        rect.height / 2,
     };
   };
 
@@ -5080,7 +5956,9 @@ function setupPlagroundComposer(sourceRoots) {
     const safeY = Number.isFinite(y) ? y : playgroundCanvas.clientHeight / 2;
     const nextLeft = safeX - qubitItem.offsetWidth / 2;
     const nextTop = safeY - qubitItem.offsetHeight / 2;
-    const clamped = clampItemPosition(qubitItem, nextLeft, nextTop, { snap: false });
+    const clamped = clampItemPosition(qubitItem, nextLeft, nextTop, {
+      snap: false,
+    });
     qubitItem.style.left = `${Math.round(clamped.left)}px`;
     qubitItem.style.top = `${Math.round(clamped.top)}px`;
   };
@@ -5090,11 +5968,13 @@ function setupPlagroundComposer(sourceRoots) {
     const targetRect = target.getBoundingClientRect();
     const overlapWidth = Math.max(
       0,
-      Math.min(qubitRect.right, targetRect.right) - Math.max(qubitRect.left, targetRect.left)
+      Math.min(qubitRect.right, targetRect.right) -
+        Math.max(qubitRect.left, targetRect.left),
     );
     const overlapHeight = Math.max(
       0,
-      Math.min(qubitRect.bottom, targetRect.bottom) - Math.max(qubitRect.top, targetRect.top)
+      Math.min(qubitRect.bottom, targetRect.bottom) -
+        Math.max(qubitRect.top, targetRect.top),
     );
     const overlapArea = overlapWidth * overlapHeight;
     const qubitArea = qubitRect.width * qubitRect.height;
@@ -5114,8 +5994,12 @@ function setupPlagroundComposer(sourceRoots) {
 
     const a1 = r1 * r1;
     const a2 = r2 * r2;
-    const alpha = Math.acos((distance * distance + a1 - a2) / (2 * distance * r1));
-    const beta = Math.acos((distance * distance + a2 - a1) / (2 * distance * r2));
+    const alpha = Math.acos(
+      (distance * distance + a1 - a2) / (2 * distance * r1),
+    );
+    const beta = Math.acos(
+      (distance * distance + a2 - a1) / (2 * distance * r2),
+    );
 
     return (
       a1 * alpha +
@@ -5125,7 +6009,7 @@ function setupPlagroundComposer(sourceRoots) {
           (-distance + r1 + r2) *
             (distance + r1 - r2) *
             (distance - r1 + r2) *
-            (distance + r1 + r2)
+            (distance + r1 + r2),
         )
     );
   };
@@ -5167,7 +6051,11 @@ function setupPlagroundComposer(sourceRoots) {
     const qCx = qubitRect.left + qRadius;
     const qCy = qubitRect.top + qRadius;
     const distance = Math.hypot(qCx - lensCircle.x, qCy - lensCircle.y);
-    const overlapArea = circleIntersectionArea(qRadius, lensCircle.radius, distance);
+    const overlapArea = circleIntersectionArea(
+      qRadius,
+      lensCircle.radius,
+      distance,
+    );
     const qubitArea = Math.PI * qRadius * qRadius;
     return qubitArea > 0 ? overlapArea / qubitArea : 0;
   };
@@ -5182,7 +6070,12 @@ function setupPlagroundComposer(sourceRoots) {
       window.requestAnimationFrame(() => resolve());
     });
 
-  const movePlaygroundQubitToPoint = (qubitItem, x, y, duration = AUTO_TRAVEL_MS) =>
+  const movePlaygroundQubitToPoint = (
+    qubitItem,
+    x,
+    y,
+    duration = AUTO_TRAVEL_MS,
+  ) =>
     new Promise((resolve) => {
       const core = getPlaygroundQubitCore(qubitItem);
       qubitItem.style.setProperty("--move-duration", `${duration}ms`);
@@ -5253,7 +6146,9 @@ function setupPlagroundComposer(sourceRoots) {
     runtime.dial = createSingleQubitGateDial({
       ticksWrap,
       arrow: gateArrow,
-      initialTick: Number.isFinite(Number.parseInt(item.dataset.playgroundSingleGateTick, 10))
+      initialTick: Number.isFinite(
+        Number.parseInt(item.dataset.playgroundSingleGateTick, 10),
+      )
         ? Number.parseInt(item.dataset.playgroundSingleGateTick, 10)
         : runtime.activeTick,
       tickAriaLabelPrefix: "Tick",
@@ -5268,13 +6163,17 @@ function setupPlagroundComposer(sourceRoots) {
     runtime.dial?.layout();
     alignPlaygroundGateSpring(runtime);
 
-    gateArrow.addEventListener("mousedown", (event) => runtime.dial?.beginDrag(event));
+    gateArrow.addEventListener("mousedown", (event) =>
+      runtime.dial?.beginDrag(event),
+    );
     gateArrow.addEventListener(
       "touchstart",
       (event) => runtime.dial?.beginDrag(event),
-      { passive: false }
+      { passive: false },
     );
-    gateArrow.addEventListener("keydown", (event) => runtime.dial?.handleKeydown(event));
+    gateArrow.addEventListener("keydown", (event) =>
+      runtime.dial?.handleKeydown(event),
+    );
 
     playgroundSingleGateRuntime.set(item, runtime);
     return runtime;
@@ -5284,7 +6183,9 @@ function setupPlagroundComposer(sourceRoots) {
     prunePlaygroundRuntimeState();
     let bestRuntime = null;
     let bestOverlap = PLAYGROUND_GATE_FUNNEL_OVERLAP_THRESHOLD;
-    const gateItems = playgroundCanvas.querySelectorAll('.playground-node[data-component="single-gate"]');
+    const gateItems = playgroundCanvas.querySelectorAll(
+      '.playground-node[data-component="single-gate"]',
+    );
     gateItems.forEach((gateItem) => {
       const runtime = ensurePlaygroundSingleGateRuntime(gateItem);
       if (!runtime || runtime.busy) {
@@ -5300,7 +6201,11 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const runPlaygroundSingleGateTransit = async (qubitItem, gateRuntime) => {
-    if (!isPlaygroundQubitItem(qubitItem) || !gateRuntime || layoutEditorState.enabled) {
+    if (
+      !isPlaygroundQubitItem(qubitItem) ||
+      !gateRuntime ||
+      layoutEditorState.enabled
+    ) {
       return false;
     }
     const qubitState = ensurePlaygroundQubitRuntimeState(qubitItem);
@@ -5325,7 +6230,12 @@ function setupPlagroundComposer(sourceRoots) {
 
       alignPlaygroundGateSpring(gateRuntime);
       const gateCenter = canvasPointForElementCenter(gateRuntime.ticksWrap);
-      await movePlaygroundQubitToPoint(qubitItem, gateCenter.x, gateCenter.y, AUTO_TRAVEL_MS);
+      await movePlaygroundQubitToPoint(
+        qubitItem,
+        gateCenter.x,
+        gateCenter.y,
+        AUTO_TRAVEL_MS,
+      );
       if (layoutEditorState.enabled) {
         return false;
       }
@@ -5336,7 +6246,10 @@ function setupPlagroundComposer(sourceRoots) {
       }
 
       qubitState.vector = normalizeVector2(
-        vectorTimesMatrix2(qubitState.vector, gateMatrixForTick(gateRuntime.activeTick))
+        vectorTimesMatrix2(
+          qubitState.vector,
+          gateMatrixForTick(gateRuntime.activeTick),
+        ),
       );
       qubitState.cnotSourceSlot = null;
       qubitState.cnotPairToken = null;
@@ -5345,12 +6258,18 @@ function setupPlagroundComposer(sourceRoots) {
       applyPlaygroundQubitVectorVisualState(qubitItem);
 
       settlePlaygroundQubitVisualState(qubitItem);
-      const platformCenter = canvasPointForElementCenter(gateRuntime.gatePlatform);
+      const platformCenter = canvasPointForElementCenter(
+        gateRuntime.gatePlatform,
+      );
       const retractedPlatformPoint = {
         x: platformCenter.x,
         y: gateCenter.y,
       };
-      setPlaygroundQubitCenter(qubitItem, retractedPlatformPoint.x, retractedPlatformPoint.y);
+      setPlaygroundQubitCenter(
+        qubitItem,
+        retractedPlatformPoint.x,
+        retractedPlatformPoint.y,
+      );
       await nextFrame();
       if (layoutEditorState.enabled) {
         return false;
@@ -5361,14 +6280,19 @@ function setupPlagroundComposer(sourceRoots) {
       const pipeRect = gateRuntime.gateWindow.getBoundingClientRect();
       const qubitRect = qubitItem.getBoundingClientRect();
       const ejectedCenter = {
-        x: pipeRect.right - canvasRect.left + playgroundCanvas.scrollLeft + 100 + qubitRect.width / 2,
+        x:
+          pipeRect.right -
+          canvasRect.left +
+          playgroundCanvas.scrollLeft +
+          100 +
+          qubitRect.width / 2,
         y: retractedPlatformPoint.y,
       };
       await movePlaygroundQubitToPoint(
         qubitItem,
         ejectedCenter.x,
         ejectedCenter.y,
-        GATE_PLATFORM_EXTEND_MS
+        GATE_PLATFORM_EXTEND_MS,
       );
       settlePlaygroundQubitVisualState(qubitItem);
       gateRuntime.item.classList.remove("platform-extended");
@@ -5407,11 +6331,21 @@ function setupPlagroundComposer(sourceRoots) {
     if (existing) {
       return existing;
     }
-    const body = item.querySelector(".cnot-body, .ent-pipe, [data-part='body']");
-    const funnelTop = item.querySelector(".cnot-input-funnel-top, [data-part='funnel-top']");
-    const funnelBottom = item.querySelector(".cnot-input-funnel-bottom, [data-part='funnel-bottom']");
-    const windowTop = item.querySelector(".cnot-porthole-top, [data-part='window-top']");
-    const windowBottom = item.querySelector(".cnot-porthole-bottom, [data-part='window-bottom']");
+    const body = item.querySelector(
+      ".cnot-body, .ent-pipe, [data-part='body']",
+    );
+    const funnelTop = item.querySelector(
+      ".cnot-input-funnel-top, [data-part='funnel-top']",
+    );
+    const funnelBottom = item.querySelector(
+      ".cnot-input-funnel-bottom, [data-part='funnel-bottom']",
+    );
+    const windowTop = item.querySelector(
+      ".cnot-porthole-top, [data-part='window-top']",
+    );
+    const windowBottom = item.querySelector(
+      ".cnot-porthole-bottom, [data-part='window-bottom']",
+    );
     if (
       !(body instanceof HTMLElement) ||
       !(funnelTop instanceof HTMLElement) ||
@@ -5458,15 +6392,25 @@ function setupPlagroundComposer(sourceRoots) {
     prunePlaygroundRuntimeState();
     let best = null;
     let bestOverlap = CNOT_FUNNEL_OVERLAP_THRESHOLD;
-    const cnotItems = playgroundCanvas.querySelectorAll('.playground-node[data-component="cnot-gate"]');
+    const cnotItems = playgroundCanvas.querySelectorAll(
+      '.playground-node[data-component="cnot-gate"]',
+    );
     cnotItems.forEach((cnotItem) => {
       const runtime = ensurePlaygroundCnotRuntime(cnotItem);
       if (!runtime || runtime.busy) {
         return;
       }
       [
-        { slot: "top", funnel: runtime.funnelTop, occupant: runtime.slotOccupants.top },
-        { slot: "bottom", funnel: runtime.funnelBottom, occupant: runtime.slotOccupants.bottom },
+        {
+          slot: "top",
+          funnel: runtime.funnelTop,
+          occupant: runtime.slotOccupants.top,
+        },
+        {
+          slot: "bottom",
+          funnel: runtime.funnelBottom,
+          occupant: runtime.slotOccupants.bottom,
+        },
       ].forEach(({ slot, funnel, occupant }) => {
         if (occupant && occupant !== qubitItem) {
           return;
@@ -5489,7 +6433,10 @@ function setupPlagroundComposer(sourceRoots) {
     }
     const topSign = topState.vector[1] < 0 ? -1 : 1;
     const bottomSign = bottomState.vector[1] < 0 ? -1 : 1;
-    const marginals = cnotMarginalProbabilitiesFromQubitVectors(topState.vector, bottomState.vector);
+    const marginals = cnotMarginalProbabilitiesFromQubitVectors(
+      topState.vector,
+      bottomState.vector,
+    );
 
     topState.vector = canonicalizeRealAmplitudeVector([
       Math.sqrt(clamp(marginals.control[0], 0, 1)),
@@ -5542,10 +6489,11 @@ function setupPlagroundComposer(sourceRoots) {
           return false;
         }
 
-        const cnotOutcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
-          topState.vector,
-          bottomState.vector
-        );
+        const cnotOutcomeProbabilities =
+          cnotOutcomeProbabilitiesFromQubitVectors(
+            topState.vector,
+            bottomState.vector,
+          );
         const pairToken = `${Date.now()}-${Math.random()}`;
         applyPlaygroundCnotToQubitStates(topQubit, bottomQubit);
         topState.cnotSourceSlot = "top";
@@ -5556,9 +6504,19 @@ function setupPlagroundComposer(sourceRoots) {
         bottomState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
 
         const topWindowCenter = canvasPointForElementCenter(runtime.windowTop);
-        const bottomWindowCenter = canvasPointForElementCenter(runtime.windowBottom);
-        setPlaygroundQubitCenter(topQubit, topWindowCenter.x, topWindowCenter.y);
-        setPlaygroundQubitCenter(bottomQubit, bottomWindowCenter.x, bottomWindowCenter.y);
+        const bottomWindowCenter = canvasPointForElementCenter(
+          runtime.windowBottom,
+        );
+        setPlaygroundQubitCenter(
+          topQubit,
+          topWindowCenter.x,
+          topWindowCenter.y,
+        );
+        setPlaygroundQubitCenter(
+          bottomQubit,
+          bottomWindowCenter.x,
+          bottomWindowCenter.y,
+        );
         await nextFrame();
 
         runtime.body.classList.add("platform-extended");
@@ -5589,13 +6547,13 @@ function setupPlagroundComposer(sourceRoots) {
             topQubit,
             topEjectedCenter.x,
             topEjectedCenter.y,
-            GATE_PLATFORM_EXTEND_MS
+            GATE_PLATFORM_EXTEND_MS,
           ),
           movePlaygroundQubitToPoint(
             bottomQubit,
             bottomEjectedCenter.x,
             bottomEjectedCenter.y,
-            GATE_PLATFORM_EXTEND_MS
+            GATE_PLATFORM_EXTEND_MS,
           ),
         ]);
         settlePlaygroundQubitVisualState(topQubit);
@@ -5648,13 +6606,14 @@ function setupPlagroundComposer(sourceRoots) {
       dragState = null;
     }
     try {
-      const targetWindow = slotKey === "top" ? runtime.windowTop : runtime.windowBottom;
+      const targetWindow =
+        slotKey === "top" ? runtime.windowTop : runtime.windowBottom;
       const center = canvasPointForElementCenter(targetWindow);
       await movePlaygroundQubitToPoint(
         qubitItem,
         center.x,
         center.y,
-        AUTO_TRAVEL_MS
+        AUTO_TRAVEL_MS,
       );
       settlePlaygroundQubitVisualState(qubitItem);
       setPlaygroundQubitCenter(qubitItem, center.x, center.y);
@@ -5683,7 +6642,9 @@ function setupPlagroundComposer(sourceRoots) {
     if (!target) {
       return false;
     }
-    runPlaygroundCnotIngress(qubitItem, target.runtime, target.slot).catch(() => {});
+    runPlaygroundCnotIngress(qubitItem, target.runtime, target.slot).catch(
+      () => {},
+    );
     return true;
   };
 
@@ -5696,7 +6657,9 @@ function setupPlagroundComposer(sourceRoots) {
       return existing;
     }
 
-    const measurementTool = item.querySelector('[data-role="measurement-tool"]');
+    const measurementTool = item.querySelector(
+      '[data-role="measurement-tool"]',
+    );
     const measureLens = item.querySelector('[data-role="measure-lens"]');
     const tubeBlue = item.querySelector('[data-role="tube-blue"]');
     const tubeRed = item.querySelector('[data-role="tube-red"]');
@@ -5743,11 +6706,11 @@ function setupPlagroundComposer(sourceRoots) {
   function updatePlaygroundMeasurementTubeFills(runtime) {
     const blueFillPercent = Math.min(
       (runtime.blueTubeCount / runtime.tubeQubitCapacity) * 100,
-      100
+      100,
     );
     const redFillPercent = Math.min(
       (runtime.redTubeCount / runtime.tubeQubitCapacity) * 100,
-      100
+      100,
     );
     runtime.tubeBlueCount.textContent = String(runtime.blueTubeCount);
     runtime.tubeRedCount.textContent = String(runtime.redTubeCount);
@@ -5759,7 +6722,10 @@ function setupPlagroundComposer(sourceRoots) {
   }
 
   const maybeExpandPlaygroundMeasurementTubeCapacity = (runtime) => {
-    const largestTubeCount = Math.max(runtime.blueTubeCount, runtime.redTubeCount);
+    const largestTubeCount = Math.max(
+      runtime.blueTubeCount,
+      runtime.redTubeCount,
+    );
     while (largestTubeCount > runtime.tubeQubitCapacity) {
       runtime.tubeQubitCapacity *= 2;
     }
@@ -5772,7 +6738,8 @@ function setupPlagroundComposer(sourceRoots) {
     }
     const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
     const collapseToBlue =
-      blueProbability >= 1 || (blueProbability > 0 && Math.random() < blueProbability);
+      blueProbability >= 1 ||
+      (blueProbability > 0 && Math.random() < blueProbability);
     qubitState.vector = collapseToBlue ? [1, 0] : [0, 1];
     qubitState.cnotSourceSlot = null;
     qubitState.cnotPairToken = null;
@@ -5789,12 +6756,20 @@ function setupPlagroundComposer(sourceRoots) {
     payload.style.left = `${startPoint.x}px`;
     payload.style.top = `${startPoint.y}px`;
     payload.style.pointerEvents = "none";
-    payload.style.setProperty("--qubit-fill", color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+    payload.style.setProperty(
+      "--qubit-fill",
+      color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
+    );
     playgroundCanvas.appendChild(payload);
     return payload;
   };
 
-  const movePlaygroundPayloadToPoint = (payload, x, y, duration = AUTO_TRAVEL_MS) =>
+  const movePlaygroundPayloadToPoint = (
+    payload,
+    x,
+    y,
+    duration = AUTO_TRAVEL_MS,
+  ) =>
     new Promise((resolve) => {
       payload.style.setProperty("--move-duration", `${duration}ms`);
       payload.classList.add("migrating");
@@ -5808,22 +6783,26 @@ function setupPlagroundComposer(sourceRoots) {
     runtime,
     collapsedColor,
     startPoint,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
   ) => {
-    const payload = createPlaygroundMeasurementPayload(collapsedColor, startPoint);
+    const payload = createPlaygroundMeasurementPayload(
+      collapsedColor,
+      startPoint,
+    );
     try {
-      const targetTube = collapsedColor === "blue" ? runtime.tubeBlue : runtime.tubeRed;
+      const targetTube =
+        collapsedColor === "blue" ? runtime.tubeBlue : runtime.tubeRed;
       const targetRect = targetTube.getBoundingClientRect();
       const targetPoint = viewportPointToCanvasPoint(
         targetRect.left + targetRect.width / 2,
-        targetRect.top + targetRect.height * 0.22
+        targetRect.top + targetRect.height * 0.22,
       );
 
       await movePlaygroundPayloadToPoint(
         payload,
         targetPoint.x,
         targetPoint.y,
-        migrationDuration
+        migrationDuration,
       );
 
       payload.style.setProperty("--melt-duration", `${meltDuration}ms`);
@@ -5844,7 +6823,10 @@ function setupPlagroundComposer(sourceRoots) {
     }
   };
 
-  const runPlaygroundSingleMeasurementTransit = async (qubitItem, measurementRuntime) => {
+  const runPlaygroundSingleMeasurementTransit = async (
+    qubitItem,
+    measurementRuntime,
+  ) => {
     if (
       !isPlaygroundQubitItem(qubitItem) ||
       !measurementRuntime ||
@@ -5885,7 +6867,7 @@ function setupPlagroundComposer(sourceRoots) {
       await animatePlaygroundMeasurementPayloadToTube(
         measurementRuntime,
         collapsedColor,
-        lensCenter
+        lensCenter,
       );
 
       setPlaygroundQubitCenter(qubitItem, lensCenter.x + 100, lensCenter.y);
@@ -5905,7 +6887,7 @@ function setupPlagroundComposer(sourceRoots) {
     let bestRuntime = null;
     let bestOverlap = PLAYGROUND_MEASUREMENT_OVERLAP_THRESHOLD;
     const measurementItems = playgroundCanvas.querySelectorAll(
-      '.playground-node[data-component="single-measurement"]'
+      '.playground-node[data-component="single-measurement"]',
     );
     measurementItems.forEach((measurementItem) => {
       const runtime = ensurePlaygroundSingleMeasurementRuntime(measurementItem);
@@ -5914,7 +6896,7 @@ function setupPlagroundComposer(sourceRoots) {
       }
       const overlap = Math.max(
         playgroundQubitOverlapRatioWithLens(qubitItem, runtime),
-        qubitOverlapRatioWithRect(qubitItem, runtime.measurementTool)
+        qubitOverlapRatioWithRect(qubitItem, runtime.measurementTool),
       );
       if (overlap >= bestOverlap) {
         bestOverlap = overlap;
@@ -5932,11 +6914,14 @@ function setupPlagroundComposer(sourceRoots) {
     if (!qubitState || qubitState.transiting) {
       return false;
     }
-    const measurementRuntime = findBestPlaygroundMeasurementRuntimeForQubit(qubitItem);
+    const measurementRuntime =
+      findBestPlaygroundMeasurementRuntimeForQubit(qubitItem);
     if (!measurementRuntime) {
       return false;
     }
-    runPlaygroundSingleMeasurementTransit(qubitItem, measurementRuntime).catch(() => {});
+    runPlaygroundSingleMeasurementTransit(qubitItem, measurementRuntime).catch(
+      () => {},
+    );
     return true;
   };
 
@@ -5978,12 +6963,16 @@ function setupPlagroundComposer(sourceRoots) {
     }
 
     const measurementTool = item.querySelector('[data-role="pair-lens"]');
-    const measurementFunnel = item.querySelector('[data-role="pair-measurement-funnel"]');
+    const measurementFunnel = item.querySelector(
+      '[data-role="pair-measurement-funnel"]',
+    );
     const slotLeft = item.querySelector('[data-role="pair-slot-left"]');
     const slotRight = item.querySelector('[data-role="pair-slot-right"]');
     const platform = item.querySelector(".pair-measurement-platform");
     const capacity = item.querySelector('[data-role="pair-capacity"]');
-    const columns = Array.from(item.querySelectorAll(".pair-tube-column[data-key]"));
+    const columns = Array.from(
+      item.querySelectorAll(".pair-tube-column[data-key]"),
+    );
     if (
       !(measurementTool instanceof HTMLElement) ||
       !(measurementFunnel instanceof HTMLElement) ||
@@ -6005,14 +6994,22 @@ function setupPlagroundComposer(sourceRoots) {
       const tube = column.querySelector(".pair-tube");
       const liquid = column.querySelector(".tube-liquid");
       const count = column.querySelector(".tube-count");
-      if (tube instanceof HTMLElement && liquid instanceof HTMLElement && count instanceof HTMLElement) {
+      if (
+        tube instanceof HTMLElement &&
+        liquid instanceof HTMLElement &&
+        count instanceof HTMLElement
+      ) {
         tubeElements[key] = tube;
         liquidElements[key] = liquid;
         countElements[key] = count;
       }
     });
     const requiredKeys = ["bb", "br", "rb", "rr"];
-    if (!requiredKeys.every((key) => tubeElements[key] && liquidElements[key] && countElements[key])) {
+    if (
+      !requiredKeys.every(
+        (key) => tubeElements[key] && liquidElements[key] && countElements[key],
+      )
+    ) {
       return null;
     }
 
@@ -6051,14 +7048,16 @@ function setupPlagroundComposer(sourceRoots) {
       return;
     }
     prunePlaygroundRuntimeState();
-    Array.from(playgroundDoubleMeasurementRuntime.values()).forEach((runtime) => {
-      if (runtime.slotOccupants.left === qubitItem) {
-        runtime.slotOccupants.left = null;
-      }
-      if (runtime.slotOccupants.right === qubitItem) {
-        runtime.slotOccupants.right = null;
-      }
-    });
+    Array.from(playgroundDoubleMeasurementRuntime.values()).forEach(
+      (runtime) => {
+        if (runtime.slotOccupants.left === qubitItem) {
+          runtime.slotOccupants.left = null;
+        }
+        if (runtime.slotOccupants.right === qubitItem) {
+          runtime.slotOccupants.right = null;
+        }
+      },
+    );
   };
 
   const playgroundDoubleMeasurementLensCircle = (runtime) => {
@@ -6077,7 +7076,10 @@ function setupPlagroundComposer(sourceRoots) {
     };
   };
 
-  const playgroundQubitOverlapRatioWithDoubleMeasurementLens = (qubitItem, runtime) => {
+  const playgroundQubitOverlapRatioWithDoubleMeasurementLens = (
+    qubitItem,
+    runtime,
+  ) => {
     const lensCircle = playgroundDoubleMeasurementLensCircle(runtime);
     if (!lensCircle) {
       return 0;
@@ -6090,7 +7092,11 @@ function setupPlagroundComposer(sourceRoots) {
     const qCx = qubitRect.left + qRadius;
     const qCy = qubitRect.top + qRadius;
     const distance = Math.hypot(qCx - lensCircle.x, qCy - lensCircle.y);
-    const overlapArea = circleIntersectionArea(qRadius, lensCircle.radius, distance);
+    const overlapArea = circleIntersectionArea(
+      qRadius,
+      lensCircle.radius,
+      distance,
+    );
     const qubitArea = Math.PI * qRadius * qRadius;
     return qubitArea > 0 ? overlapArea / qubitArea : 0;
   };
@@ -6100,7 +7106,7 @@ function setupPlagroundComposer(sourceRoots) {
     let bestRuntime = null;
     let bestOverlap = PLAYGROUND_MEASUREMENT_OVERLAP_THRESHOLD;
     const measurementItems = playgroundCanvas.querySelectorAll(
-      '.playground-node[data-component="double-measurement"]'
+      '.playground-node[data-component="double-measurement"]',
     );
     measurementItems.forEach((measurementItem) => {
       const runtime = ensurePlaygroundDoubleMeasurementRuntime(measurementItem);
@@ -6108,8 +7114,11 @@ function setupPlagroundComposer(sourceRoots) {
         return;
       }
       const overlap = Math.max(
-        playgroundQubitOverlapRatioWithDoubleMeasurementLens(qubitItem, runtime),
-        qubitOverlapRatioWithRect(qubitItem, runtime.measurementTool)
+        playgroundQubitOverlapRatioWithDoubleMeasurementLens(
+          qubitItem,
+          runtime,
+        ),
+        qubitOverlapRatioWithRect(qubitItem, runtime.measurementTool),
       );
       if (overlap >= bestOverlap) {
         bestOverlap = overlap;
@@ -6152,16 +7161,22 @@ function setupPlagroundComposer(sourceRoots) {
     const lensRect = runtime.measurementTool.getBoundingClientRect();
     const lensCenter = viewportPointToCanvasPoint(
       lensRect.left + lensRect.width / 2,
-      lensRect.top + lensRect.height / 2
+      lensRect.top + lensRect.height / 2,
     );
     const laneOffset = Math.max(20, lensRect.width * 0.12);
     return {
-      x: lensCenter.x + (slot === "right" ? laneOffset : -laneOffset) + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
+      x:
+        lensCenter.x +
+        (slot === "right" ? laneOffset : -laneOffset) +
+        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
       y: lensCenter.y + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
     };
   };
 
-  const collapsePlaygroundQubitPairFromCnot = (topQubitItem, bottomQubitItem) => {
+  const collapsePlaygroundQubitPairFromCnot = (
+    topQubitItem,
+    bottomQubitItem,
+  ) => {
     const topState = ensurePlaygroundQubitRuntimeState(topQubitItem);
     const bottomState = ensurePlaygroundQubitRuntimeState(bottomQubitItem);
     if (!topState || !bottomState) {
@@ -6177,7 +7192,10 @@ function setupPlagroundComposer(sourceRoots) {
     ) {
       probabilities = topState.cnotOutcomeProbabilities;
     } else {
-      probabilities = cnotOutcomeProbabilitiesFromQubitVectors(topState.vector, bottomState.vector);
+      probabilities = cnotOutcomeProbabilitiesFromQubitVectors(
+        topState.vector,
+        bottomState.vector,
+      );
     }
     const outcomeKey = samplePairOutcomeFromProbabilities(probabilities);
     const topBlue = outcomeKey[0] === "b";
@@ -6238,7 +7256,10 @@ function setupPlagroundComposer(sourceRoots) {
 
         leftQubit.classList.add("collapse-animating");
         rightQubit.classList.add("collapse-animating");
-        const collapseResult = collapsePlaygroundQubitPairFromCnot(rightQubit, leftQubit);
+        const collapseResult = collapsePlaygroundQubitPairFromCnot(
+          rightQubit,
+          leftQubit,
+        );
         leftQubit.classList.remove("collapse-animating");
         rightQubit.classList.remove("collapse-animating");
         if (!collapseResult) {
@@ -6260,15 +7281,15 @@ function setupPlagroundComposer(sourceRoots) {
         updatePlaygroundDoubleMeasurementTubeFills(runtime);
 
         const leftReturn =
-          (leftState.doubleMeasurementReturnPoint &&
-            Number.isFinite(leftState.doubleMeasurementReturnPoint.x) &&
-            Number.isFinite(leftState.doubleMeasurementReturnPoint.y))
+          leftState.doubleMeasurementReturnPoint &&
+          Number.isFinite(leftState.doubleMeasurementReturnPoint.x) &&
+          Number.isFinite(leftState.doubleMeasurementReturnPoint.y)
             ? leftState.doubleMeasurementReturnPoint
             : playgroundDoubleMeasurementSlotCenter(runtime, "left");
         const rightReturn =
-          (rightState.doubleMeasurementReturnPoint &&
-            Number.isFinite(rightState.doubleMeasurementReturnPoint.x) &&
-            Number.isFinite(rightState.doubleMeasurementReturnPoint.y))
+          rightState.doubleMeasurementReturnPoint &&
+          Number.isFinite(rightState.doubleMeasurementReturnPoint.x) &&
+          Number.isFinite(rightState.doubleMeasurementReturnPoint.y)
             ? rightState.doubleMeasurementReturnPoint
             : playgroundDoubleMeasurementSlotCenter(runtime, "right");
 
@@ -6278,8 +7299,18 @@ function setupPlagroundComposer(sourceRoots) {
         applyPlaygroundQubitVectorVisualState(rightQubit);
 
         await Promise.all([
-          movePlaygroundQubitToPoint(leftQubit, leftReturn.x, leftReturn.y, AUTO_TRAVEL_MS),
-          movePlaygroundQubitToPoint(rightQubit, rightReturn.x, rightReturn.y, AUTO_TRAVEL_MS),
+          movePlaygroundQubitToPoint(
+            leftQubit,
+            leftReturn.x,
+            leftReturn.y,
+            AUTO_TRAVEL_MS,
+          ),
+          movePlaygroundQubitToPoint(
+            rightQubit,
+            rightReturn.x,
+            rightReturn.y,
+            AUTO_TRAVEL_MS,
+          ),
         ]);
         settlePlaygroundQubitVisualState(leftQubit);
         settlePlaygroundQubitVisualState(rightQubit);
@@ -6301,7 +7332,12 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const runPlaygroundDoubleMeasurementIngress = async (qubitItem, runtime) => {
-    if (!isPlaygroundQubitItem(qubitItem) || !runtime || runtime.busy || layoutEditorState.enabled) {
+    if (
+      !isPlaygroundQubitItem(qubitItem) ||
+      !runtime ||
+      runtime.busy ||
+      layoutEditorState.enabled
+    ) {
       return false;
     }
     const qubitState = ensurePlaygroundQubitRuntimeState(qubitItem);
@@ -6322,7 +7358,8 @@ function setupPlagroundComposer(sourceRoots) {
       runtime.slotOccupants[otherSlot] = null;
     }
 
-    qubitState.doubleMeasurementReturnPoint = canvasPointForElementCenter(qubitItem);
+    qubitState.doubleMeasurementReturnPoint =
+      canvasPointForElementCenter(qubitItem);
     qubitState.transiting = true;
     runtime.slotOccupants[slot] = qubitItem;
     if (dragState && dragState.item === qubitItem) {
@@ -6332,7 +7369,12 @@ function setupPlagroundComposer(sourceRoots) {
 
     try {
       const center = playgroundDoubleMeasurementSlotCenter(runtime, slot);
-      await movePlaygroundQubitToPoint(qubitItem, center.x, center.y, AUTO_TRAVEL_MS);
+      await movePlaygroundQubitToPoint(
+        qubitItem,
+        center.x,
+        center.y,
+        AUTO_TRAVEL_MS,
+      );
       settlePlaygroundQubitVisualState(qubitItem);
       setPlaygroundQubitCenter(qubitItem, center.x, center.y);
     } finally {
@@ -6356,7 +7398,8 @@ function setupPlagroundComposer(sourceRoots) {
     if (!qubitState || qubitState.transiting) {
       return false;
     }
-    const runtime = findBestPlaygroundDoubleMeasurementRuntimeForQubit(qubitItem);
+    const runtime =
+      findBestPlaygroundDoubleMeasurementRuntimeForQubit(qubitItem);
     if (!runtime) {
       return false;
     }
@@ -6398,7 +7441,10 @@ function setupPlagroundComposer(sourceRoots) {
     }
     const rect = item.getBoundingClientRect();
     const cornerInset = 18;
-    return point.clientX >= rect.right - cornerInset && point.clientY >= rect.bottom - cornerInset;
+    return (
+      point.clientX >= rect.right - cornerInset &&
+      point.clientY >= rect.bottom - cornerInset
+    );
   };
 
   const findPlaygroundMeasurementPartFromEvent = (item, event) => {
@@ -6423,7 +7469,8 @@ function setupPlagroundComposer(sourceRoots) {
     }
     const canResize = part.dataset.layoutResizable === "true";
     const isResizeHandle =
-      event.target instanceof Element && Boolean(event.target.closest(".layout-resize-handle"));
+      event.target instanceof Element &&
+      Boolean(event.target.closest(".layout-resize-handle"));
     const mode =
       canResize && (isResizeHandle || pointerNearResizeCorner(part, point, 18))
         ? "resize"
@@ -6475,13 +7522,17 @@ function setupPlagroundComposer(sourceRoots) {
       return false;
     }
     const isResizeHandle =
-      event.target instanceof Element && Boolean(event.target.closest(".layout-resize-handle"));
+      event.target instanceof Element &&
+      Boolean(event.target.closest(".layout-resize-handle"));
     const mode =
       isResizeHandle || pointerNearResizeCorner(part, point, 18)
         ? "resize"
         : "move";
     const initialTranslate = layoutTargetTranslate(part);
-    if (part.classList.contains("cnot-body") || part.classList.contains("ent-pipe")) {
+    if (
+      part.classList.contains("cnot-body") ||
+      part.classList.contains("ent-pipe")
+    ) {
       makeCnotBodyExplicitlySized(part);
     }
     const rect = part.getBoundingClientRect();
@@ -6511,7 +7562,8 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const beginItemDrag = (item, event) => {
-    const runtimeQubitDrag = !layoutEditorState.enabled && isPlaygroundQubitItem(item);
+    const runtimeQubitDrag =
+      !layoutEditorState.enabled && isPlaygroundQubitItem(item);
     if (!layoutEditorState.enabled && !runtimeQubitDrag) {
       return;
     }
@@ -6531,7 +7583,10 @@ function setupPlagroundComposer(sourceRoots) {
     if (layoutEditorState.enabled) {
       preparePlaygroundMeasurementParts(item);
       preparePlaygroundCnotParts(item);
-      const measurementPart = findPlaygroundMeasurementPartFromEvent(item, event);
+      const measurementPart = findPlaygroundMeasurementPartFromEvent(
+        item,
+        event,
+      );
       if (
         measurementPart &&
         beginPlaygroundMeasurementPartGesture(item, measurementPart, event)
@@ -6592,18 +7647,18 @@ function setupPlagroundComposer(sourceRoots) {
       if (cnotPartGesture.mode === "resize") {
         let nextWidth = Math.max(
           cnotPartGesture.minWidth,
-          cnotPartGesture.startWidth + deltaX
+          cnotPartGesture.startWidth + deltaX,
         );
         let nextHeight = Math.max(
           cnotPartGesture.minHeight,
-          cnotPartGesture.startHeight + deltaY
+          cnotPartGesture.startHeight + deltaY,
         );
         if (cnotPartGesture.uniformResize) {
           const uniformSize = Math.max(
             nextWidth,
             nextHeight,
             cnotPartGesture.minWidth,
-            cnotPartGesture.minHeight
+            cnotPartGesture.minHeight,
           );
           nextWidth = uniformSize;
           nextHeight = uniformSize;
@@ -6614,7 +7669,7 @@ function setupPlagroundComposer(sourceRoots) {
         setLayoutTargetTranslate(
           cnotPartGesture.part,
           cnotPartGesture.startTx + deltaX,
-          cnotPartGesture.startTy + deltaY
+          cnotPartGesture.startTy + deltaY,
         );
       }
       setLayoutManualEdited(cnotPartGesture.part, true);
@@ -6636,18 +7691,18 @@ function setupPlagroundComposer(sourceRoots) {
       if (measurementPartGesture.mode === "resize") {
         let nextWidth = Math.max(
           measurementPartGesture.minWidth,
-          measurementPartGesture.startWidth + deltaX
+          measurementPartGesture.startWidth + deltaX,
         );
         let nextHeight = Math.max(
           measurementPartGesture.minHeight,
-          measurementPartGesture.startHeight + deltaY
+          measurementPartGesture.startHeight + deltaY,
         );
         if (measurementPartGesture.uniformResize) {
           const uniformSize = Math.max(
             nextWidth,
             nextHeight,
             measurementPartGesture.minWidth,
-            measurementPartGesture.minHeight
+            measurementPartGesture.minHeight,
           );
           nextWidth = uniformSize;
           nextHeight = uniformSize;
@@ -6658,7 +7713,7 @@ function setupPlagroundComposer(sourceRoots) {
         setLayoutTargetTranslate(
           measurementPartGesture.part,
           measurementPartGesture.startTx + deltaX,
-          measurementPartGesture.startTy + deltaY
+          measurementPartGesture.startTy + deltaY,
         );
       }
       setLayoutManualEdited(measurementPartGesture.part, true);
@@ -6683,20 +7738,41 @@ function setupPlagroundComposer(sourceRoots) {
       if (event.shiftKey || forceUniformResize) {
         const ratio = forceUniformResize
           ? 1
-          : (resizeState.aspectRatio > 0 ? resizeState.aspectRatio : 1);
+          : resizeState.aspectRatio > 0
+            ? resizeState.aspectRatio
+            : 1;
         const widthDriven = resizeState.startWidth + deltaX;
         const heightDriven = (resizeState.startHeight + deltaY) * ratio;
         const preferredWidth =
           Math.abs(deltaX) >= Math.abs(deltaY) ? widthDriven : heightDriven;
-        const limits = clampItemSize(resizeState.item, preferredWidth, resizeState.startHeight);
-        const minWidthForRatio = Math.max(limits.minWidth, limits.minHeight * ratio);
-        const maxWidthForRatio = Math.min(limits.maxWidth, limits.maxHeight * ratio);
+        const limits = clampItemSize(
+          resizeState.item,
+          preferredWidth,
+          resizeState.startHeight,
+        );
+        const minWidthForRatio = Math.max(
+          limits.minWidth,
+          limits.minHeight * ratio,
+        );
+        const maxWidthForRatio = Math.min(
+          limits.maxWidth,
+          limits.maxHeight * ratio,
+        );
         const safeMinWidth = Math.min(minWidthForRatio, maxWidthForRatio);
-        width = clamp(sizeSnapValue(resizeState.item, preferredWidth), safeMinWidth, maxWidthForRatio);
+        width = clamp(
+          sizeSnapValue(resizeState.item, preferredWidth),
+          safeMinWidth,
+          maxWidthForRatio,
+        );
         height = width / ratio;
         resizeState.item.style.width = `${Math.round(width)}px`;
         resizeState.item.style.height = `${Math.round(height)}px`;
-        applyCnotGeometryScale(resizeState.item, resizeState.cnotBaseline, width, height);
+        applyCnotGeometryScale(
+          resizeState.item,
+          resizeState.cnotBaseline,
+          width,
+          height,
+        );
         setLayoutManualEdited(resizeState.item, true);
         setLayoutSaveButtonSavedState(false);
         return;
@@ -6708,7 +7784,7 @@ function setupPlagroundComposer(sourceRoots) {
         resizeState.item,
         resizeState.cnotBaseline,
         clampedSize.width,
-        clampedSize.height
+        clampedSize.height,
       );
       setLayoutManualEdited(resizeState.item, true);
       setLayoutSaveButtonSavedState(false);
@@ -6726,9 +7802,15 @@ function setupPlagroundComposer(sourceRoots) {
     }
     const canvasRect = playgroundCanvas.getBoundingClientRect();
     const left =
-      point.clientX - canvasRect.left + playgroundCanvas.scrollLeft - dragState.pointerOffsetX;
+      point.clientX -
+      canvasRect.left +
+      playgroundCanvas.scrollLeft -
+      dragState.pointerOffsetX;
     const top =
-      point.clientY - canvasRect.top + playgroundCanvas.scrollTop - dragState.pointerOffsetY;
+      point.clientY -
+      canvasRect.top +
+      playgroundCanvas.scrollTop -
+      dragState.pointerOffsetY;
     const clamped = clampItemPosition(dragState.item, left, top);
     dragState.item.style.left = `${Math.round(clamped.left)}px`;
     dragState.item.style.top = `${Math.round(clamped.top)}px`;
@@ -6789,10 +7871,14 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const createItem = (type, geometry = null) => {
-    const config = PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
+    const config =
+      PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
     const defaultsGeometry = defaultsGeometryForComponentType(type);
     const componentNode = createPlaygroundComponentNode(type, sourceRoots);
-    let item = componentNode instanceof HTMLElement ? componentNode : document.createElement("div");
+    let item =
+      componentNode instanceof HTMLElement
+        ? componentNode
+        : document.createElement("div");
     if (type === "qubit") {
       const shell = document.createElement("div");
       shell.className = "playground-node playground-qubit-shell";
@@ -6812,10 +7898,14 @@ function setupPlagroundComposer(sourceRoots) {
     const minSize = minSizeForItem(item);
     const width = Number.isFinite(geometry?.width)
       ? geometry.width
-      : (Number.isFinite(defaultsGeometry?.width) ? defaultsGeometry.width : config.width);
+      : Number.isFinite(defaultsGeometry?.width)
+        ? defaultsGeometry.width
+        : config.width;
     const height = Number.isFinite(geometry?.height)
       ? geometry.height
-      : (Number.isFinite(defaultsGeometry?.height) ? defaultsGeometry.height : config.height);
+      : Number.isFinite(defaultsGeometry?.height)
+        ? defaultsGeometry.height
+        : config.height;
     item.style.width = `${Math.max(minSize.minWidth, Math.round(width))}px`;
     item.style.height = `${Math.max(minSize.minHeight, Math.round(height))}px`;
     if (type === "cnot-gate") {
@@ -6834,12 +7924,16 @@ function setupPlagroundComposer(sourceRoots) {
       applyPlaygroundMeasurementLayoutSnapshot(
         item,
         playgroundComponentDefaultsCache?.[type],
-        { includeGroupGeometry: !geometry }
+        { includeGroupGeometry: !geometry },
       );
       if (geometry?.measurementLayout) {
-        applyPlaygroundMeasurementLayoutSnapshot(item, geometry.measurementLayout, {
-          includeGroupGeometry: false,
-        });
+        applyPlaygroundMeasurementLayoutSnapshot(
+          item,
+          geometry.measurementLayout,
+          {
+            includeGroupGeometry: false,
+          },
+        );
       }
     }
     if (type === "single-gate" && Number.isFinite(geometry?.singleGateTick)) {
@@ -6862,16 +7956,18 @@ function setupPlagroundComposer(sourceRoots) {
         bringToFront(item);
         setSelectedItem(item);
       },
-      { passive: true }
+      { passive: true },
     );
     item.addEventListener("mousedown", (event) => beginItemDrag(item, event));
-    item.addEventListener(
-      "touchstart",
-      (event) => beginItemDrag(item, event),
-      { passive: false }
-    );
+    item.addEventListener("touchstart", (event) => beginItemDrag(item, event), {
+      passive: false,
+    });
 
-    if (geometry && Number.isFinite(geometry.left) && Number.isFinite(geometry.top)) {
+    if (
+      geometry &&
+      Number.isFinite(geometry.left) &&
+      Number.isFinite(geometry.top)
+    ) {
       const clamped = clampItemPosition(item, geometry.left, geometry.top);
       item.style.left = `${Math.round(clamped.left)}px`;
       item.style.top = `${Math.round(clamped.top)}px`;
@@ -6899,32 +7995,35 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const serializeItems = () =>
-    Array.from(playgroundCanvas.querySelectorAll(".playground-node")).map((item) => {
-      const serialized = {
-        type: item.dataset.component || "qubit",
-        left: parseLayoutNumeric(item.style.left, 0),
-        top: parseLayoutNumeric(item.style.top, 0),
-        width: item.offsetWidth,
-        height: item.offsetHeight,
-        z: parseLayoutNumeric(item.style.zIndex, 1),
-      };
-      const measurementLayout = capturePlaygroundMeasurementLayoutSnapshot(item);
-      if (measurementLayout) {
-        serialized.measurementLayout = measurementLayout;
-      }
-      if (isPlaygroundCnotItem(item)) {
-        preparePlaygroundCnotParts(item);
-        const cnotLayout = captureCnotComponentDefaultsFromElement(item);
-        if (cnotLayout) {
-          serialized.cnotLayout = cnotLayout;
+    Array.from(playgroundCanvas.querySelectorAll(".playground-node")).map(
+      (item) => {
+        const serialized = {
+          type: item.dataset.component || "qubit",
+          left: parseLayoutNumeric(item.style.left, 0),
+          top: parseLayoutNumeric(item.style.top, 0),
+          width: item.offsetWidth,
+          height: item.offsetHeight,
+          z: parseLayoutNumeric(item.style.zIndex, 1),
+        };
+        const measurementLayout =
+          capturePlaygroundMeasurementLayoutSnapshot(item);
+        if (measurementLayout) {
+          serialized.measurementLayout = measurementLayout;
         }
-      }
-      const singleGateRuntime = playgroundSingleGateRuntime.get(item);
-      if (singleGateRuntime?.dial) {
-        serialized.singleGateTick = singleGateRuntime.dial.getTick();
-      }
-      return serialized;
-    });
+        if (isPlaygroundCnotItem(item)) {
+          preparePlaygroundCnotParts(item);
+          const cnotLayout = captureCnotComponentDefaultsFromElement(item);
+          if (cnotLayout) {
+            serialized.cnotLayout = cnotLayout;
+          }
+        }
+        const singleGateRuntime = playgroundSingleGateRuntime.get(item);
+        if (singleGateRuntime?.dial) {
+          serialized.singleGateTick = singleGateRuntime.dial.getTick();
+        }
+        return serialized;
+      },
+    );
 
   const buildLayoutPayload = () => ({
     items: serializeItems(),
@@ -6934,15 +8033,20 @@ function setupPlagroundComposer(sourceRoots) {
     savedAt: Date.now(),
   });
 
-  const normalizeTabLabelInput = (value) => String(value || "").trim().replace(/\s+/g, " ");
+  const normalizeTabLabelInput = (value) =>
+    String(value || "")
+      .trim()
+      .replace(/\s+/g, " ");
 
   const selectedProductionTargetId = () =>
-    editorTargetTabSelect instanceof HTMLSelectElement && editorTargetTabSelect.value
+    editorTargetTabSelect instanceof HTMLSelectElement &&
+    editorTargetTabSelect.value
       ? editorTargetTabSelect.value
       : "__new__";
 
   const targetById = (targetId) =>
-    collectPlaygroundSaveTargets().find((target) => target.id === targetId) || null;
+    collectPlaygroundSaveTargets().find((target) => target.id === targetId) ||
+    null;
 
   const refreshEditorTabControls = (preferredTarget = null) => {
     if (!(editorTargetTabSelect instanceof HTMLSelectElement)) {
@@ -6961,7 +8065,10 @@ function setupPlagroundComposer(sourceRoots) {
       option.textContent = target.label;
       editorTargetTabSelect.appendChild(option);
     });
-    const validValues = new Set(["__new__", ...targets.map((target) => target.id)]);
+    const validValues = new Set([
+      "__new__",
+      ...targets.map((target) => target.id),
+    ]);
     const nextValue = validValues.has(prior) ? prior : "__new__";
     editorTargetTabSelect.value = nextValue;
     const isNew = nextValue === "__new__";
@@ -6974,10 +8081,12 @@ function setupPlagroundComposer(sourceRoots) {
       editorOpenTabButton.disabled = isNew;
     }
     if (editorRenameTabButton) {
-      editorRenameTabButton.disabled = !selectedTarget || !selectedTarget.generated;
+      editorRenameTabButton.disabled =
+        !selectedTarget || !selectedTarget.generated;
     }
     if (editorDeleteTabButton) {
-      editorDeleteTabButton.disabled = !selectedTarget || !selectedTarget.generated;
+      editorDeleteTabButton.disabled =
+        !selectedTarget || !selectedTarget.generated;
     }
   };
 
@@ -7012,9 +8121,14 @@ function setupPlagroundComposer(sourceRoots) {
     }
 
     const targetId = forceNew ? "__new__" : selectedProductionTargetId();
-    const nextState = cloneJson(generatedTabsState) || { overrides: {}, customTabs: [] };
+    const nextState = cloneJson(generatedTabsState) || {
+      overrides: {},
+      customTabs: [],
+    };
     nextState.overrides = nextState.overrides || {};
-    nextState.customTabs = Array.isArray(nextState.customTabs) ? nextState.customTabs : [];
+    nextState.customTabs = Array.isArray(nextState.customTabs)
+      ? nextState.customTabs
+      : [];
 
     let savedLabel = "";
     let savedTargetId = targetId;
@@ -7052,7 +8166,9 @@ function setupPlagroundComposer(sourceRoots) {
       }
       savedLabel = target.label;
       if (target.generated) {
-        const customEntry = nextState.customTabs.find((entry) => entry.id === targetId);
+        const customEntry = nextState.customTabs.find(
+          (entry) => entry.id === targetId,
+        );
         if (!customEntry) {
           setStatus("Save failed");
           return false;
@@ -7073,7 +8189,10 @@ function setupPlagroundComposer(sourceRoots) {
     applyGeneratedTabsState(nextState, sourceRoots);
     refreshEditorTabControls(savedTargetId);
     try {
-      window.localStorage.setItem(PLAYGROUND_LAYOUT_STORAGE_KEY, JSON.stringify(payload));
+      window.localStorage.setItem(
+        PLAYGROUND_LAYOUT_STORAGE_KEY,
+        JSON.stringify(payload),
+      );
     } catch (_error) {
       // Keep tab save successful even if local draft persistence fails.
     }
@@ -7082,7 +8201,9 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const clearLayout = ({ clearStorage = false } = {}) => {
-    playgroundCanvas.querySelectorAll(".playground-node").forEach((item) => item.remove());
+    playgroundCanvas
+      .querySelectorAll(".playground-node")
+      .forEach((item) => item.remove());
     playgroundSingleGateRuntime.clear();
     playgroundSingleMeasurementRuntime.clear();
     playgroundDoubleMeasurementRuntime.clear();
@@ -7112,7 +8233,9 @@ function setupPlagroundComposer(sourceRoots) {
     }
     let layout = null;
     if (target.generated) {
-      const customEntry = (generatedTabsState.customTabs || []).find((entry) => entry.id === targetId);
+      const customEntry = (generatedTabsState.customTabs || []).find(
+        (entry) => entry.id === targetId,
+      );
       layout = customEntry?.layout || null;
     } else {
       layout = generatedTabsState.overrides?.[targetId]?.layout || null;
@@ -7121,7 +8244,9 @@ function setupPlagroundComposer(sourceRoots) {
       setStatus("No saved editor layout for this tab yet");
       return false;
     }
-    return applyLayoutPayloadToEditor(layout, { statusText: `Opened ${target.label}` });
+    return applyLayoutPayloadToEditor(layout, {
+      statusText: `Opened ${target.label}`,
+    });
   };
 
   const startNewBlankTabDraft = () => {
@@ -7138,22 +8263,33 @@ function setupPlagroundComposer(sourceRoots) {
       setStatus("Only custom tabs can be renamed");
       return false;
     }
-    const nextLabel = normalizeTabLabelInput(window.prompt("Rename tab", target.label));
+    const nextLabel = normalizeTabLabelInput(
+      window.prompt("Rename tab", target.label),
+    );
     if (!nextLabel) {
       return false;
     }
     const normalizedNext = normalizeTabLabel(nextLabel);
     const duplicate = collectPlaygroundSaveTargets().some(
-      (entry) => entry.id !== targetId && normalizeTabLabel(entry.label) === normalizedNext
+      (entry) =>
+        entry.id !== targetId &&
+        normalizeTabLabel(entry.label) === normalizedNext,
     );
     if (duplicate) {
       setStatus("A tab with that name already exists");
       return false;
     }
-    const nextState = cloneJson(generatedTabsState) || { overrides: {}, customTabs: [] };
+    const nextState = cloneJson(generatedTabsState) || {
+      overrides: {},
+      customTabs: [],
+    };
     nextState.overrides = nextState.overrides || {};
-    nextState.customTabs = Array.isArray(nextState.customTabs) ? nextState.customTabs : [];
-    const entry = nextState.customTabs.find((candidate) => candidate.id === targetId);
+    nextState.customTabs = Array.isArray(nextState.customTabs)
+      ? nextState.customTabs
+      : [];
+    const entry = nextState.customTabs.find(
+      (candidate) => candidate.id === targetId,
+    );
     if (!entry) {
       setStatus("Rename failed");
       return false;
@@ -7176,19 +8312,32 @@ function setupPlagroundComposer(sourceRoots) {
       setStatus("Only custom tabs can be deleted");
       return false;
     }
-    const confirmed = window.confirm(`Delete "${target.label}"? This cannot be undone.`);
+    const confirmed = window.confirm(
+      `Delete "${target.label}"? This cannot be undone.`,
+    );
     if (!confirmed) {
       return false;
     }
-    const nextState = cloneJson(generatedTabsState) || { overrides: {}, customTabs: [] };
+    const nextState = cloneJson(generatedTabsState) || {
+      overrides: {},
+      customTabs: [],
+    };
     nextState.overrides = nextState.overrides || {};
-    nextState.customTabs = Array.isArray(nextState.customTabs) ? nextState.customTabs : [];
-    nextState.customTabs = nextState.customTabs.filter((entry) => entry.id !== targetId);
+    nextState.customTabs = Array.isArray(nextState.customTabs)
+      ? nextState.customTabs
+      : [];
+    nextState.customTabs = nextState.customTabs.filter(
+      (entry) => entry.id !== targetId,
+    );
     if (!writeGeneratedTabsState(nextState)) {
       setStatus("Delete failed");
       return false;
     }
-    if (document.querySelector(".tab-btn.active")?.getAttribute("data-tab-target") === targetId) {
+    if (
+      document
+        .querySelector(".tab-btn.active")
+        ?.getAttribute("data-tab-target") === targetId
+    ) {
       setActiveTab("plaground");
     }
     applyGeneratedTabsState(nextState, sourceRoots);
@@ -7203,12 +8352,14 @@ function setupPlagroundComposer(sourceRoots) {
     }
     const type = selectedItem.dataset.component || "qubit";
     const geometry = {
-      left: parseLayoutNumeric(selectedItem.style.left, 0) + PLAYGROUND_GRID_SIZE,
+      left:
+        parseLayoutNumeric(selectedItem.style.left, 0) + PLAYGROUND_GRID_SIZE,
       top: parseLayoutNumeric(selectedItem.style.top, 0) + PLAYGROUND_GRID_SIZE,
       width: selectedItem.offsetWidth,
       height: selectedItem.offsetHeight,
     };
-    const measurementLayout = capturePlaygroundMeasurementLayoutSnapshot(selectedItem);
+    const measurementLayout =
+      capturePlaygroundMeasurementLayoutSnapshot(selectedItem);
     if (measurementLayout) {
       geometry.measurementLayout = measurementLayout;
     }
@@ -7262,7 +8413,11 @@ function setupPlagroundComposer(sourceRoots) {
       }
     }
     if (
-      !persistPlaygroundComponentGeometryDefaultsFromElement(selectedType, selectedItem, geometryExtras)
+      !persistPlaygroundComponentGeometryDefaultsFromElement(
+        selectedType,
+        selectedItem,
+        geometryExtras,
+      )
     ) {
       setStatus("Component save failed");
       return false;
@@ -7276,9 +8431,14 @@ function setupPlagroundComposer(sourceRoots) {
       setStatus("C-NOT component saved");
       return true;
     }
-    if (selectedItem instanceof HTMLElement && isMeasurementComponentType(selectedType)) {
+    if (
+      selectedItem instanceof HTMLElement &&
+      isMeasurementComponentType(selectedType)
+    ) {
       preparePlaygroundMeasurementParts(selectedItem);
-      if (!persistPlaygroundMeasurementDefaultsFromDom(selectedType, selectedItem)) {
+      if (
+        !persistPlaygroundMeasurementDefaultsFromDom(selectedType, selectedItem)
+      ) {
         setStatus("Component save failed");
         return false;
       }
@@ -7432,10 +8592,12 @@ function setupPlagroundComposer(sourceRoots) {
       continueItemDrag(event);
       continuePlaygroundGateDialDrag(event);
     },
-    { passive: false }
+    { passive: false },
   );
   const settleDraggedOrSelectedItem = () => {
-    const hadActiveDrag = Boolean(dragState || resizeState || measurementPartGesture);
+    const hadActiveDrag = Boolean(
+      dragState || resizeState || measurementPartGesture,
+    );
     endItemDrag();
     endPlaygroundGateDialDrag();
     if (!hadActiveDrag || !(selectedItem instanceof HTMLElement)) {
@@ -7458,7 +8620,9 @@ function setupPlagroundComposer(sourceRoots) {
     handleResize: () => {
       prunePlaygroundRuntimeState();
       playgroundCanvas
-        .querySelectorAll('.playground-node[data-component="single-measurement"], .playground-node[data-component="double-measurement"]')
+        .querySelectorAll(
+          '.playground-node[data-component="single-measurement"], .playground-node[data-component="double-measurement"]',
+        )
         .forEach((item) => preparePlaygroundMeasurementParts(item));
       Array.from(playgroundSingleGateRuntime.values()).forEach((runtime) => {
         runtime.dial?.layout();
@@ -7471,7 +8635,9 @@ function setupPlagroundComposer(sourceRoots) {
       endPlaygroundGateDialDrag();
       prunePlaygroundRuntimeState();
       playgroundCanvas
-        .querySelectorAll('.playground-node[data-component="single-measurement"], .playground-node[data-component="double-measurement"]')
+        .querySelectorAll(
+          '.playground-node[data-component="single-measurement"], .playground-node[data-component="double-measurement"]',
+        )
         .forEach((item) => preparePlaygroundMeasurementParts(item));
       Array.from(playgroundSingleGateRuntime.values()).forEach((runtime) => {
         runtime.dial?.layout();
@@ -7502,7 +8668,11 @@ function isPrimaryMouseButton(event) {
 
 function pointerEventMatchesTickShape(event, tickElement) {
   const point = getPointer(event);
-  if (!point || !Number.isFinite(point.clientX) || !Number.isFinite(point.clientY)) {
+  if (
+    !point ||
+    !Number.isFinite(point.clientX) ||
+    !Number.isFinite(point.clientY)
+  ) {
     return true;
   }
   const ring = tickElement.parentElement;
@@ -7531,8 +8701,10 @@ function pointerEventMatchesTickShape(event, tickElement) {
 
   const pointerVectorX = point.clientX - ringCenterX;
   const pointerVectorY = point.clientY - ringCenterY;
-  const pointerRadial = pointerVectorX * radialUnitX + pointerVectorY * radialUnitY;
-  const pointerTangential = pointerVectorX * tangentUnitX + pointerVectorY * tangentUnitY;
+  const pointerRadial =
+    pointerVectorX * radialUnitX + pointerVectorY * radialUnitY;
+  const pointerTangential =
+    pointerVectorX * tangentUnitX + pointerVectorY * tangentUnitY;
 
   const radialTolerance = tickRect.height / 2 + 2;
   const tangentialTolerance = tickRect.width / 2 + 2;
@@ -7573,7 +8745,7 @@ function attachTickSelectionHandlers(tickElement, onSelect) {
       event.stopPropagation();
       maybeSelect(event);
     },
-    { passive: false }
+    { passive: false },
   );
 }
 
@@ -7632,10 +8804,7 @@ function createSingleQubitGateDial({
 
   function setTick(
     tickIndex,
-    {
-      deferMeasurementClear = false,
-      reason = "programmatic",
-    } = {}
+    { deferMeasurementClear = false, reason = "programmatic" } = {},
   ) {
     const normalizedTick = normalizeTickIndex(tickIndex, tickCount);
     const previousTick = activeTick;
@@ -7666,7 +8835,12 @@ function createSingleQubitGateDial({
     };
     arrow.classList.add("dragging");
     const point = getPointer(event);
-    dragAngle = normalizedAngleFromTopDegrees(point.clientX, point.clientY, dragCenter.x, dragCenter.y);
+    dragAngle = normalizedAngleFromTopDegrees(
+      point.clientX,
+      point.clientY,
+      dragCenter.x,
+      dragCenter.y,
+    );
     arrow.style.transform = `rotate(${dragAngle}deg) scale(${ARROW_SCALE})`;
   }
 
@@ -7678,7 +8852,12 @@ function createSingleQubitGateDial({
       event.preventDefault();
     }
     const point = getPointer(event);
-    dragAngle = normalizedAngleFromTopDegrees(point.clientX, point.clientY, dragCenter.x, dragCenter.y);
+    dragAngle = normalizedAngleFromTopDegrees(
+      point.clientX,
+      point.clientY,
+      dragCenter.x,
+      dragCenter.y,
+    );
     arrow.style.transform = `rotate(${dragAngle}deg) scale(${ARROW_SCALE})`;
   }
 
@@ -7686,7 +8865,10 @@ function createSingleQubitGateDial({
     if (!dragCenter) {
       return;
     }
-    const snappedTick = dragAngle === null ? activeTick : Math.round(dragAngle / STEP_DEG) % tickCount;
+    const snappedTick =
+      dragAngle === null
+        ? activeTick
+        : Math.round(dragAngle / STEP_DEG) % tickCount;
     setTick(snappedTick, { deferMeasurementClear: true, reason: "drag-end" });
     const changed = snappedTick !== dragStartTick;
     if (typeof onTickCommitted === "function") {
@@ -7776,7 +8958,12 @@ function setLayoutTargetTranslate(element, x, y) {
 }
 
 function hasMeaningfulLayoutDelta(tx, ty, width, height) {
-  return Math.abs(tx) > 0.01 || Math.abs(ty) > 0.01 || Boolean(width) || Boolean(height);
+  return (
+    Math.abs(tx) > 0.01 ||
+    Math.abs(ty) > 0.01 ||
+    Boolean(width) ||
+    Boolean(height)
+  );
 }
 
 function setLayoutManualEdited(element, edited) {
@@ -7798,7 +8985,9 @@ function bakeLayoutTranslateIntoBasePosition(element) {
   }
 
   const computed = window.getComputedStyle(element);
-  const positioned = ["absolute", "relative", "fixed", "sticky"].includes(computed.position);
+  const positioned = ["absolute", "relative", "fixed", "sticky"].includes(
+    computed.position,
+  );
   if (!positioned) {
     return;
   }
@@ -7827,7 +9016,7 @@ function layoutKeySegment(element) {
   let index = 0;
   if (element.parentElement) {
     const sameTagSiblings = Array.from(element.parentElement.children).filter(
-      (child) => child.tagName === element.tagName
+      (child) => child.tagName === element.tagName,
     );
     index = sameTagSiblings.indexOf(element);
   }
@@ -7882,8 +9071,14 @@ function clearPairLensSlotOffsetsOnShell(shell) {
 function getPairLensSlotOffsetFromShell(shell, slot) {
   const keys = slotOffsetDatasetKeys(slot);
   return {
-    x: parseLayoutNumeric(shell.dataset[keys.x], TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X),
-    y: parseLayoutNumeric(shell.dataset[keys.y], TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y),
+    x: parseLayoutNumeric(
+      shell.dataset[keys.x],
+      TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
+    ),
+    y: parseLayoutNumeric(
+      shell.dataset[keys.y],
+      TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
+    ),
   };
 }
 
@@ -7952,7 +9147,9 @@ function collectLayoutPairShells() {
 function computePairEjectionBasePoint(shell, slot, qubitElement) {
   const lens = shell.querySelector('[data-role="pair-lens"]');
   const slotElement = shell.querySelector(
-    slot === "left" ? '[data-role="pair-slot-left"]' : '[data-role="pair-slot-right"]'
+    slot === "left"
+      ? '[data-role="pair-slot-left"]'
+      : '[data-role="pair-slot-right"]',
   );
   const platform = shell.querySelector(".pair-measurement-platform");
   if (!lens || !slotElement || !platform || !qubitElement) {
@@ -7968,7 +9165,9 @@ function computePairEjectionBasePoint(shell, slot, qubitElement) {
   }
 
   const springStyles = window.getComputedStyle(platform);
-  const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+  const springLength = Number.parseFloat(
+    springStyles.getPropertyValue("--spring-length"),
+  );
   const usableSpringLength = Number.isFinite(springLength)
     ? springLength
     : platform.getBoundingClientRect().width;
@@ -7994,8 +9193,16 @@ function captureTwoQubitLensOffsetsFromDom() {
 
     const shellOffsets = {};
     const mappings = [
-      { slot: "left", qubitSelector: '[data-role="pair-qubit-a"]', slotSelector: '[data-role="pair-slot-left"]' },
-      { slot: "right", qubitSelector: '[data-role="pair-qubit-b"]', slotSelector: '[data-role="pair-slot-right"]' },
+      {
+        slot: "left",
+        qubitSelector: '[data-role="pair-qubit-a"]',
+        slotSelector: '[data-role="pair-slot-left"]',
+      },
+      {
+        slot: "right",
+        qubitSelector: '[data-role="pair-qubit-b"]',
+        slotSelector: '[data-role="pair-slot-right"]',
+      },
     ];
 
     mappings.forEach(({ slot, qubitSelector, slotSelector }) => {
@@ -8130,11 +9337,24 @@ function applyTwoQubitLensOffsetsFromSavedPayload(offsetPayload) {
 
     const leftOffset = shellOffsets.left;
     const rightOffset = shellOffsets.right;
-    if (leftOffset && Number.isFinite(leftOffset.x) && Number.isFinite(leftOffset.y)) {
+    if (
+      leftOffset &&
+      Number.isFinite(leftOffset.x) &&
+      Number.isFinite(leftOffset.y)
+    ) {
       setPairLensSlotOffsetOnShell(shell, "left", leftOffset.x, leftOffset.y);
     }
-    if (rightOffset && Number.isFinite(rightOffset.x) && Number.isFinite(rightOffset.y)) {
-      setPairLensSlotOffsetOnShell(shell, "right", rightOffset.x, rightOffset.y);
+    if (
+      rightOffset &&
+      Number.isFinite(rightOffset.x) &&
+      Number.isFinite(rightOffset.y)
+    ) {
+      setPairLensSlotOffsetOnShell(
+        shell,
+        "right",
+        rightOffset.x,
+        rightOffset.y,
+      );
     }
   });
 }
@@ -8154,11 +9374,24 @@ function applyTwoQubitEjectionOffsetsFromSavedPayload(offsetPayload) {
 
     const leftOffset = shellOffsets.left;
     const rightOffset = shellOffsets.right;
-    if (leftOffset && Number.isFinite(leftOffset.x) && Number.isFinite(leftOffset.y)) {
+    if (
+      leftOffset &&
+      Number.isFinite(leftOffset.x) &&
+      Number.isFinite(leftOffset.y)
+    ) {
       setPairEjectionOffsetOnShell(shell, "left", leftOffset.x, leftOffset.y);
     }
-    if (rightOffset && Number.isFinite(rightOffset.x) && Number.isFinite(rightOffset.y)) {
-      setPairEjectionOffsetOnShell(shell, "right", rightOffset.x, rightOffset.y);
+    if (
+      rightOffset &&
+      Number.isFinite(rightOffset.x) &&
+      Number.isFinite(rightOffset.y)
+    ) {
+      setPairEjectionOffsetOnShell(
+        shell,
+        "right",
+        rightOffset.x,
+        rightOffset.y,
+      );
     }
   });
 }
@@ -8180,14 +9413,20 @@ function applyTwoQubitEjectionAbsoluteFromSavedPayload(absolutePayload) {
     if (leftAbs && Number.isFinite(leftAbs.x) && Number.isFinite(leftAbs.y)) {
       setPairEjectionAbsoluteOnShell(shell, "left", leftAbs.x, leftAbs.y);
     }
-    if (rightAbs && Number.isFinite(rightAbs.x) && Number.isFinite(rightAbs.y)) {
+    if (
+      rightAbs &&
+      Number.isFinite(rightAbs.x) &&
+      Number.isFinite(rightAbs.y)
+    ) {
       setPairEjectionAbsoluteOnShell(shell, "right", rightAbs.x, rightAbs.y);
     }
   });
 }
 
 function getPrimaryTwoQubitMeasurementGroup() {
-  const pairShell = collectLayoutPairShells().find((shell) => shell.querySelector('[data-role="pair-qubit-a"]'));
+  const pairShell = collectLayoutPairShells().find((shell) =>
+    shell.querySelector('[data-role="pair-qubit-a"]'),
+  );
   if (!(pairShell instanceof HTMLElement)) {
     return null;
   }
@@ -8199,7 +9438,9 @@ function getPrimaryTwoQubitMeasurementGroup() {
 }
 
 function collectLayoutTargets() {
-  return Array.from(document.querySelectorAll('[data-layout-edit-target="true"]'));
+  return Array.from(
+    document.querySelectorAll('[data-layout-edit-target="true"]'),
+  );
 }
 
 function isLayoutTargetDeleted(element) {
@@ -8211,7 +9452,9 @@ function isLayoutTargetProtectedFromDeletion(element) {
     return false;
   }
   // Core simulator controls should never be removable from saved layout state.
-  return element.matches('[data-role="ent-pipe"], [data-role="ent-gate"], [data-role="ent-measurement-host"]');
+  return element.matches(
+    '[data-role="ent-pipe"], [data-role="ent-gate"], [data-role="ent-measurement-host"]',
+  );
 }
 
 function isLayoutTargetPinnedToDefaultGeometry(element) {
@@ -8219,7 +9462,9 @@ function isLayoutTargetPinnedToDefaultGeometry(element) {
     return false;
   }
   // Keep the entanglement C-NOT body and its measurement group in canonical positions.
-  return element.matches('[data-role="ent-gate"], [data-role="ent-measurement-host"]');
+  return element.matches(
+    '[data-role="ent-gate"], [data-role="ent-measurement-host"]',
+  );
 }
 
 function setLayoutTargetDeleted(element, deleted) {
@@ -8269,7 +9514,10 @@ function setSelectedLayoutTarget(element) {
 function selectedLayoutTargetKeySet() {
   const deleted = new Set();
   collectLayoutTargets().forEach((element) => {
-    if (isLayoutTargetDeleted(element) && !isLayoutTargetProtectedFromDeletion(element)) {
+    if (
+      isLayoutTargetDeleted(element) &&
+      !isLayoutTargetProtectedFromDeletion(element)
+    ) {
       deleted.add(deriveLayoutKey(element));
     }
   });
@@ -8314,7 +9562,10 @@ function pointerNearResizeCorner(element, pointer, inset = 20) {
     return false;
   }
   const rect = element.getBoundingClientRect();
-  return pointer.clientX >= rect.right - inset && pointer.clientY >= rect.bottom - inset;
+  return (
+    pointer.clientX >= rect.right - inset &&
+    pointer.clientY >= rect.bottom - inset
+  );
 }
 
 function readSavedLayoutPayload() {
@@ -8342,7 +9593,9 @@ function shouldPersistGenericLayoutTarget(element) {
   }
   // Pair qubits are used for lens/ejection hotspot calibration. Their generic
   // element position must not be persisted, otherwise startup placement drifts.
-  if (element.matches('[data-role="pair-qubit-a"], [data-role="pair-qubit-b"]')) {
+  if (
+    element.matches('[data-role="pair-qubit-a"], [data-role="pair-qubit-b"]')
+  ) {
     return false;
   }
   return true;
@@ -8402,8 +9655,14 @@ function saveLayoutEdits() {
   const primaryPairMeasurement = getPrimaryTwoQubitMeasurementGroup();
   if (primaryPairMeasurement) {
     payload.__twoQubitMeasurementGroupOffset = {
-      tx: parseLayoutNumeric(primaryPairMeasurement.measurementGroup.dataset.layoutTx, 0),
-      ty: parseLayoutNumeric(primaryPairMeasurement.measurementGroup.dataset.layoutTy, 0),
+      tx: parseLayoutNumeric(
+        primaryPairMeasurement.measurementGroup.dataset.layoutTx,
+        0,
+      ),
+      ty: parseLayoutNumeric(
+        primaryPairMeasurement.measurementGroup.dataset.layoutTy,
+        0,
+      ),
     };
   }
   const deletedTargetKeys = [...selectedLayoutTargetKeySet()];
@@ -8439,15 +9698,25 @@ function applySavedLayoutEdits() {
   if (!payload || typeof payload !== "object") {
     return;
   }
-  const deletedKeys = new Set(Array.isArray(payload.__deletedLayoutTargets) ? payload.__deletedLayoutTargets : []);
+  const deletedKeys = new Set(
+    Array.isArray(payload.__deletedLayoutTargets)
+      ? payload.__deletedLayoutTargets
+      : [],
+  );
 
   applyTwoQubitLensOffsetsFromSavedPayload(payload.__pairLensOffsets);
   applyTwoQubitEjectionOffsetsFromSavedPayload(payload.__pairEjectionOffsets);
   applyTwoQubitEjectionAbsoluteFromSavedPayload(payload.__pairEjectionAbsolute);
-  if (payload.__pairManualAlignment && typeof payload.__pairManualAlignment === "object") {
+  if (
+    payload.__pairManualAlignment &&
+    typeof payload.__pairManualAlignment === "object"
+  ) {
     collectLayoutPairShells().forEach((shell) => {
       const shellKey = deriveLayoutKey(shell);
-      setPairMeasurementManualAlignment(shell, Boolean(payload.__pairManualAlignment[shellKey]));
+      setPairMeasurementManualAlignment(
+        shell,
+        Boolean(payload.__pairManualAlignment[shellKey]),
+      );
     });
   }
   collectLayoutTargets().forEach((element) => {
@@ -8465,11 +9734,7 @@ function applySavedLayoutEdits() {
     }
     const tx = parseLayoutNumeric(saved.tx, 0);
     const ty = parseLayoutNumeric(saved.ty, 0);
-    setLayoutTargetTranslate(
-      element,
-      tx,
-      ty
-    );
+    setLayoutTargetTranslate(element, tx, ty);
     const savedWidth = typeof saved.width === "string" ? saved.width : "";
     const savedHeight = typeof saved.height === "string" ? saved.height : "";
     if (typeof saved.width === "string") {
@@ -8478,7 +9743,10 @@ function applySavedLayoutEdits() {
     if (typeof saved.height === "string") {
       element.style.height = saved.height;
     }
-    setLayoutManualEdited(element, hasMeaningfulLayoutDelta(tx, ty, savedWidth, savedHeight));
+    setLayoutManualEdited(
+      element,
+      hasMeaningfulLayoutDelta(tx, ty, savedWidth, savedHeight),
+    );
   });
   collectLayoutTargets().forEach((element) => {
     const key = deriveLayoutKey(element);
@@ -8497,9 +9765,12 @@ function applySavedLayoutEdits() {
     setLayoutTargetTranslate(
       primaryPairMeasurement.measurementGroup,
       savedGroupOffset.tx,
-      savedGroupOffset.ty
+      savedGroupOffset.ty,
     );
-    if (Math.abs(savedGroupOffset.tx) > 0.01 || Math.abs(savedGroupOffset.ty) > 0.01) {
+    if (
+      Math.abs(savedGroupOffset.tx) > 0.01 ||
+      Math.abs(savedGroupOffset.ty) > 0.01
+    ) {
       setPairMeasurementManualAlignment(primaryPairMeasurement.pairShell, true);
     }
   }
@@ -8554,7 +9825,9 @@ function beginLayoutGesture(element, event) {
     return;
   }
 
-  const isResizeHandle = event.target instanceof Element && event.target.closest(".layout-resize-handle");
+  const isResizeHandle =
+    event.target instanceof Element &&
+    event.target.closest(".layout-resize-handle");
   const canResize = element.dataset.layoutResizable === "true";
   const pointer = getPointer(event);
   if (!pointer) {
@@ -8571,7 +9844,8 @@ function beginLayoutGesture(element, event) {
   setSelectedLayoutTarget(element);
   layoutEditorState.activeGesture = {
     element,
-    mode: (isResizeHandle || cornerResizeQubit) && canResize ? "resize" : "move",
+    mode:
+      (isResizeHandle || cornerResizeQubit) && canResize ? "resize" : "move",
     startX: pointer.clientX,
     startY: pointer.clientY,
     startTx: initialTranslate.x,
@@ -8581,7 +9855,8 @@ function beginLayoutGesture(element, event) {
     uniformResize: element.dataset.layoutUniformResize === "true",
     minWidth: parseLayoutNumeric(element.dataset.layoutMinWidth, 24),
     minHeight: parseLayoutNumeric(element.dataset.layoutMinHeight, 24),
-    cnotBaseline: isResizeHandle && canResize ? captureCnotGeometryBaseline(element) : null,
+    cnotBaseline:
+      isResizeHandle && canResize ? captureCnotGeometryBaseline(element) : null,
   };
 
   element.classList.add("layout-edit-dragging");
@@ -8606,7 +9881,12 @@ function continueLayoutGesture(event) {
     let nextWidth = Math.max(gesture.minWidth, gesture.startWidth + dx);
     let nextHeight = Math.max(gesture.minHeight, gesture.startHeight + dy);
     if (gesture.uniformResize) {
-      const uniformSize = Math.max(nextWidth, nextHeight, gesture.minWidth, gesture.minHeight);
+      const uniformSize = Math.max(
+        nextWidth,
+        nextHeight,
+        gesture.minWidth,
+        gesture.minHeight,
+      );
       nextWidth = uniformSize;
       nextHeight = uniformSize;
     }
@@ -8616,11 +9896,15 @@ function continueLayoutGesture(event) {
       gesture.element,
       gesture.cnotBaseline,
       nextWidth,
-      nextHeight
+      nextHeight,
     );
     setLayoutManualEdited(gesture.element, true);
   } else {
-    setLayoutTargetTranslate(gesture.element, gesture.startTx + dx, gesture.startTy + dy);
+    setLayoutTargetTranslate(
+      gesture.element,
+      gesture.startTx + dx,
+      gesture.startTy + dy,
+    );
     setLayoutManualEdited(gesture.element, true);
     if (gesture.element.classList.contains("pair-measurement")) {
       const pairShell = gesture.element.closest(".pair-shell");
@@ -8673,7 +9957,6 @@ function registerLayoutEditTarget(element, spec) {
   if (spec.resizable) {
     ensureLayoutResizeHandle(element);
   }
-
 }
 
 function refreshLayoutEditTargets() {
@@ -8686,10 +9969,16 @@ function refreshLayoutEditTargets() {
 function setLayoutEditEnabled(enabled) {
   const wasEnabled = layoutEditorState.enabled;
   layoutEditorState.enabled = Boolean(enabled);
-  document.body.classList.toggle("layout-edit-active", layoutEditorState.enabled);
+  document.body.classList.toggle(
+    "layout-edit-active",
+    layoutEditorState.enabled,
+  );
   if (layoutEditToggle) {
     layoutEditToggle.classList.toggle("active", layoutEditorState.enabled);
-    layoutEditToggle.setAttribute("aria-pressed", layoutEditorState.enabled ? "true" : "false");
+    layoutEditToggle.setAttribute(
+      "aria-pressed",
+      layoutEditorState.enabled ? "true" : "false",
+    );
     layoutEditToggle.textContent = layoutEditorState.enabled
       ? "Layout Edit: On"
       : "Layout Edit: Off";
@@ -8701,7 +9990,10 @@ function setLayoutEditEnabled(enabled) {
     clearSelectedGeneratedLayoutItem();
     if (wasEnabled) {
       collectLayoutTargets().forEach((element) => {
-        if (element.closest("#panel-plaground") || element.closest(".generated-layout-canvas")) {
+        if (
+          element.closest("#panel-plaground") ||
+          element.closest(".generated-layout-canvas")
+        ) {
           return;
         }
         bakeLayoutTranslateIntoBasePosition(element);
@@ -8788,9 +10080,15 @@ function captureLayoutEditClick(event) {
 }
 
 window.addEventListener("mousemove", continueLayoutGesture, { passive: false });
-window.addEventListener("mousemove", continueGeneratedLayoutEditGesture, { passive: false });
-window.addEventListener("mousemove", continueGeneratedRuntimeGesture, { passive: false });
-window.addEventListener("mousemove", continueGeneratedGateDialDrag, { passive: false });
+window.addEventListener("mousemove", continueGeneratedLayoutEditGesture, {
+  passive: false,
+});
+window.addEventListener("mousemove", continueGeneratedRuntimeGesture, {
+  passive: false,
+});
+window.addEventListener("mousemove", continueGeneratedGateDialDrag, {
+  passive: false,
+});
 window.addEventListener("mousedown", captureLayoutEditStart, true);
 window.addEventListener(
   "touchmove",
@@ -8800,12 +10098,12 @@ window.addEventListener(
     continueGeneratedRuntimeGesture(event);
     continueGeneratedGateDialDrag(event);
   },
-  { passive: false }
+  { passive: false },
 );
 window.addEventListener(
   "touchstart",
   (event) => captureLayoutEditStart(event),
-  { capture: true, passive: false }
+  { capture: true, passive: false },
 );
 window.addEventListener("mouseup", () => {
   endLayoutGesture();
@@ -8904,7 +10202,7 @@ function rgbToHsv(rgb) {
 }
 
 function hsvToRgb(h, s, v) {
-  const normalizedHue = (h % 360 + 360) % 360;
+  const normalizedHue = ((h % 360) + 360) % 360;
   const c = v * s;
   const x = c * (1 - Math.abs(((normalizedHue / 60) % 2) - 1));
   const m = v - c;
@@ -8984,7 +10282,11 @@ function blendBlueRed(blueWeight, redWeight) {
     return `rgb(${RED_RGB[0]}, ${RED_RGB[1]}, ${RED_RGB[2]})`;
   }
 
-  const hue = interpolateHue(BLUE_HSV.h, RED_HSV.h, hueMixRatioForDisplay(redRatio));
+  const hue = interpolateHue(
+    BLUE_HSV.h,
+    RED_HSV.h,
+    hueMixRatioForDisplay(redRatio),
+  );
   const baseSaturation = BLUE_HSV.s * (1 - redRatio) + RED_HSV.s * redRatio;
   const baseValue = BLUE_HSV.v * (1 - redRatio) + RED_HSV.v * redRatio;
   const boostedSaturation = clamp(baseSaturation * 1.25, 0, 1);
@@ -9033,7 +10335,10 @@ function probabilitiesFromVector2(vector) {
   return [clamp(blue / total, 0, 1), clamp(red / total, 0, 1)];
 }
 
-function cnotMarginalProbabilitiesFromQubitVectors(controlVector, targetVector) {
+function cnotMarginalProbabilitiesFromQubitVectors(
+  controlVector,
+  targetVector,
+) {
   const control = normalizeVector2(controlVector);
   const target = normalizeVector2(targetVector);
 
@@ -9053,7 +10358,8 @@ function cnotMarginalProbabilitiesFromQubitVectors(controlVector, targetVector) 
   const controlTotal = controlBlueRaw + controlRedRaw;
   const targetTotal = targetBlueRaw + targetRedRaw;
 
-  const controlBlue = controlTotal > 1e-12 ? controlBlueRaw / controlTotal : 0.5;
+  const controlBlue =
+    controlTotal > 1e-12 ? controlBlueRaw / controlTotal : 0.5;
   const targetBlue = targetTotal > 1e-12 ? targetBlueRaw / targetTotal : 0.5;
 
   return {
@@ -9166,8 +10472,10 @@ function phaseSignForRealAmplitudeVector(vector) {
   const normalized = normalizeVector2(vector);
   const [blueWeight, redWeight] = probabilitiesFromVector2(normalized);
   const basisTolerance = 1e-9;
-  const isBlueBasis = Math.abs(blueWeight - 1) <= basisTolerance && redWeight <= basisTolerance;
-  const isRedBasis = Math.abs(redWeight - 1) <= basisTolerance && blueWeight <= basisTolerance;
+  const isBlueBasis =
+    Math.abs(blueWeight - 1) <= basisTolerance && redWeight <= basisTolerance;
+  const isRedBasis =
+    Math.abs(redWeight - 1) <= basisTolerance && blueWeight <= basisTolerance;
   if (isBlueBasis || isRedBasis) {
     return null;
   }
@@ -9287,7 +10595,12 @@ function formatComplexFromParts(realValue, imaginaryValue) {
 }
 
 function formatComplex(value) {
-  if (Array.isArray(value) && value.length >= 2 && Number.isFinite(value[0]) && Number.isFinite(value[1])) {
+  if (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    Number.isFinite(value[0]) &&
+    Number.isFinite(value[1])
+  ) {
     return formatComplexFromParts(value[0], value[1]);
   }
 
@@ -9332,7 +10645,10 @@ function getNormalizedQubitProbabilities({ blue, red }) {
 
 function cleanupSelectedQubits() {
   selectedQubitElements = selectedQubitElements.filter(
-    (element) => element.isConnected && qubitStateGetters.has(element) && isElementVisible(element)
+    (element) =>
+      element.isConnected &&
+      qubitStateGetters.has(element) &&
+      isElementVisible(element),
   );
 }
 
@@ -9395,7 +10711,9 @@ function viewportRectFromPoints(x1, y1, x2, y2) {
 }
 
 function rectsIntersect(a, b) {
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  return (
+    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+  );
 }
 
 function isElementVisible(element) {
@@ -9421,7 +10739,7 @@ function registerSelectionContainer(container) {
     }
     if (
       event.target.closest(
-        "button, input, select, label, textarea, .arrow-group, .tick, .gate-radio, .tab-btn, .qubit-inspector"
+        "button, input, select, label, textarea, .arrow-group, .tick, .gate-radio, .tab-btn, .qubit-inspector",
       )
     ) {
       return;
@@ -9432,14 +10750,19 @@ function registerSelectionContainer(container) {
     const additive = event.shiftKey;
     const baseSelection = additive ? getSelectedQubitElements() : [];
     const candidates = Array.from(qubitStateGetters.keys()).filter(
-      (element) => container.contains(element) && isElementVisible(element)
+      (element) => container.contains(element) && isElementVisible(element),
     );
     const startX = event.clientX;
     const startY = event.clientY;
     let moved = false;
 
     const updateSelection = (clientX, clientY) => {
-      const selectionRect = viewportRectFromPoints(startX, startY, clientX, clientY);
+      const selectionRect = viewportRectFromPoints(
+        startX,
+        startY,
+        clientX,
+        clientY,
+      );
       marquee.style.left = `${selectionRect.left}px`;
       marquee.style.top = `${selectionRect.top}px`;
       marquee.style.width = `${selectionRect.width}px`;
@@ -9447,7 +10770,7 @@ function registerSelectionContainer(container) {
       marquee.classList.remove("hidden");
 
       const hits = candidates.filter((element) =>
-        rectsIntersect(selectionRect, element.getBoundingClientRect())
+        rectsIntersect(selectionRect, element.getBoundingClientRect()),
       );
       const next = additive ? [...baseSelection, ...hits] : hits;
       replaceQubitSelection(next);
@@ -9473,7 +10796,11 @@ function registerSelectionContainer(container) {
 }
 
 function handleShiftQubitSelection(event, element) {
-  if (event.type === "mousedown" && event.shiftKey && isPrimaryMouseButton(event)) {
+  if (
+    event.type === "mousedown" &&
+    event.shiftKey &&
+    isPrimaryMouseButton(event)
+  ) {
     event.preventDefault();
     event.stopPropagation();
     toggleQubitSelection(element);
@@ -9554,16 +10881,15 @@ function openQubitPairInspector(firstState, secondState) {
 }
 
 function openGateInspector({ label, matrix, tickIndex = null }) {
-  const rows = Array.isArray(matrix) ? matrix.filter((row) => Array.isArray(row)) : [];
+  const rows = Array.isArray(matrix)
+    ? matrix.filter((row) => Array.isArray(row))
+    : [];
   if (!rows.length) {
     return;
   }
 
   const columns = rows.reduce((max, row) => Math.max(max, row.length), 0);
-  const lines = [
-    label,
-    "",
-  ];
+  const lines = [label, ""];
 
   if (Number.isFinite(tickIndex)) {
     const clockTick = clockTickNumberFromIndex(tickIndex);
@@ -9605,7 +10931,11 @@ function registerQubitInspector(element, getState) {
     event.stopPropagation();
 
     const selected = getSelectedQubitElements();
-    if (selected.length === 2 && selected.includes(element) && isQubitSelected(element)) {
+    if (
+      selected.length === 2 &&
+      selected.includes(element) &&
+      isQubitSelected(element)
+    ) {
       const firstState = qubitStateGetters.get(selected[0])?.();
       const secondState = qubitStateGetters.get(selected[1])?.();
       if (firstState && secondState) {
@@ -9642,7 +10972,9 @@ function setupSimulator(root) {
   const tubeBlueLiquid = root.querySelector('[data-role="tube-blue-liquid"]');
   const tubeRedLiquid = root.querySelector('[data-role="tube-red-liquid"]');
   const tubeCapacity = root.querySelector('[data-role="tube-capacity"]');
-  const measurementCount = root.querySelector('[data-role="measurement-count"]');
+  const measurementCount = root.querySelector(
+    '[data-role="measurement-count"]',
+  );
   const resetButton = root.querySelector('[data-role="reset"]');
   const messageBox = root.querySelector('[data-role="message-box"]');
   const messageWrap = root.querySelector(".message-wrap");
@@ -9739,12 +11071,17 @@ function setupSimulator(root) {
   }
 
   function gateOutputWeightsForCurrentTickFromBlueBasis() {
-    const transformed = vectorTimesMatrix2([1, 0], gateMatrixForTick(activeGateTick));
+    const transformed = vectorTimesMatrix2(
+      [1, 0],
+      gateMatrixForTick(activeGateTick),
+    );
     return probabilitiesFromVector2(normalizeVector2(transformed));
   }
 
   function applyActiveGateToQubitVector() {
-    setQubitVector(vectorTimesMatrix2(qubitVector, gateMatrixForTick(activeGateTick)));
+    setQubitVector(
+      vectorTimesMatrix2(qubitVector, gateMatrixForTick(activeGateTick)),
+    );
   }
 
   function applyQubitColorForTick() {
@@ -9755,7 +11092,10 @@ function setupSimulator(root) {
     syncWeightsFromVector();
     const blueWeight = qubitBlueWeight;
     const redWeight = qubitRedWeight;
-    qubit.style.setProperty("--qubit-fill", blendBlueRed(blueWeight, redWeight));
+    qubit.style.setProperty(
+      "--qubit-fill",
+      blendBlueRed(blueWeight, redWeight),
+    );
   }
 
   function stagePointForElementCenter(element) {
@@ -9794,7 +11134,10 @@ function setupSimulator(root) {
     updateTubeFills();
   }
 
-  function setGateTick(tickIndex, { deferMeasurementClear = false, fromDial = false } = {}) {
+  function setGateTick(
+    tickIndex,
+    { deferMeasurementClear = false, fromDial = false } = {},
+  ) {
     if (autoRunInProgress && !fromDial) {
       return;
     }
@@ -9815,7 +11158,8 @@ function setupSimulator(root) {
       clearMeasurementApparatus();
     }
 
-    const [blueWeight, redWeight] = gateOutputWeightsForCurrentTickFromBlueBasis();
+    const [blueWeight, redWeight] =
+      gateOutputWeightsForCurrentTickFromBlueBasis();
     updateStateText(blueWeight, redWeight);
     applyQubitColorForTick();
   }
@@ -9870,8 +11214,12 @@ function setupSimulator(root) {
     const a1 = r1 * r1;
     const a2 = r2 * r2;
 
-    const alpha = Math.acos((distance * distance + a1 - a2) / (2 * distance * r1));
-    const beta = Math.acos((distance * distance + a2 - a1) / (2 * distance * r2));
+    const alpha = Math.acos(
+      (distance * distance + a1 - a2) / (2 * distance * r1),
+    );
+    const beta = Math.acos(
+      (distance * distance + a2 - a1) / (2 * distance * r2),
+    );
 
     const overlap =
       a1 * alpha +
@@ -9881,7 +11229,7 @@ function setupSimulator(root) {
           (-distance + r1 + r2) *
             (distance + r1 - r2) *
             (distance - r1 + r2) *
-            (distance + r1 + r2)
+            (distance + r1 + r2),
         );
 
     return overlap;
@@ -9893,11 +11241,13 @@ function setupSimulator(root) {
 
     const overlapWidth = Math.max(
       0,
-      Math.min(qubitRect.right, targetRect.right) - Math.max(qubitRect.left, targetRect.left)
+      Math.min(qubitRect.right, targetRect.right) -
+        Math.max(qubitRect.left, targetRect.left),
     );
     const overlapHeight = Math.max(
       0,
-      Math.min(qubitRect.bottom, targetRect.bottom) - Math.max(qubitRect.top, targetRect.top)
+      Math.min(qubitRect.bottom, targetRect.bottom) -
+        Math.max(qubitRect.top, targetRect.top),
     );
 
     const overlapArea = overlapWidth * overlapHeight;
@@ -9988,9 +11338,13 @@ function setupSimulator(root) {
 
   async function runMeasurementIngressAndSequence(
     expectedRunToken = runToken,
-    { meltDuration = AUTO_MELT_MS } = {}
+    { meltDuration = AUTO_MELT_MS } = {},
   ) {
-    if (expectedRunToken !== runToken || gateTransitInProgress || measurementInProgress) {
+    if (
+      expectedRunToken !== runToken ||
+      gateTransitInProgress ||
+      measurementInProgress
+    ) {
       return false;
     }
 
@@ -10043,7 +11397,7 @@ function setupSimulator(root) {
         top: pipeRect.top - stageRect.top,
         bottom: pipeRect.bottom - stageRect.top,
       },
-      1
+      1,
     );
 
     if (!resolved.overlapped) {
@@ -10078,7 +11432,10 @@ function setupSimulator(root) {
     payload.style.left = `${startPoint.x}px`;
     payload.style.top = `${startPoint.y}px`;
     payload.style.pointerEvents = "none";
-    payload.style.setProperty("--qubit-fill", color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+    payload.style.setProperty(
+      "--qubit-fill",
+      color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
+    );
     gateStage.appendChild(payload);
     return payload;
   }
@@ -10111,7 +11468,7 @@ function setupSimulator(root) {
       travelDuration = AUTO_TRAVEL_MS,
       dwellDuration = GATE_TUBE_DWELL_MS,
       retractPauseDuration = GATE_PLATFORM_RETRACT_MS,
-    } = {}
+    } = {},
   ) {
     if (gateTransitInProgress || expectedRunToken !== runToken) {
       return false;
@@ -10156,7 +11513,11 @@ function setupSimulator(root) {
         x: pipeRect.right - stageRect.left + 100 + qubitRect.width / 2,
         y: retractedPlatformPoint.y,
       };
-      await moveQubitToStagePoint(ejectedCenter.x, ejectedCenter.y, GATE_PLATFORM_EXTEND_MS);
+      await moveQubitToStagePoint(
+        ejectedCenter.x,
+        ejectedCenter.y,
+        GATE_PLATFORM_EXTEND_MS,
+      );
       if (expectedRunToken !== runToken) {
         return false;
       }
@@ -10179,7 +11540,9 @@ function setupSimulator(root) {
   }
 
   function nextFrame() {
-    return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+    return new Promise((resolve) =>
+      window.requestAnimationFrame(() => resolve()),
+    );
   }
 
   function settleQubitVisualState() {
@@ -10193,8 +11556,14 @@ function setupSimulator(root) {
   }
 
   function updateTubeFills() {
-    const blueFillPercent = Math.min((blueTubeCount / tubeQubitCapacity) * 100, 100);
-    const redFillPercent = Math.min((redTubeCount / tubeQubitCapacity) * 100, 100);
+    const blueFillPercent = Math.min(
+      (blueTubeCount / tubeQubitCapacity) * 100,
+      100,
+    );
+    const redFillPercent = Math.min(
+      (redTubeCount / tubeQubitCapacity) * 100,
+      100,
+    );
 
     tubeBlueCount.textContent = String(blueTubeCount);
     tubeRedCount.textContent = String(redTubeCount);
@@ -10233,7 +11602,8 @@ function setupSimulator(root) {
   function alignMeasurementToolCenterWithGate() {
     const gateCenterY = stagePointForElementCenter(gateWindow).y;
     const measurementCenterY = stagePointForElementCenter(measurementTool).y;
-    const deltaY = gateCenterY + ONE_QUBIT_MEASUREMENT_TOOL_SHIFT_Y - measurementCenterY;
+    const deltaY =
+      gateCenterY + ONE_QUBIT_MEASUREMENT_TOOL_SHIFT_Y - measurementCenterY;
     measurementStageShiftY += deltaY;
     measurementStage.style.transform = `translateY(${measurementStageShiftY}px)`;
     if (messageWrap) {
@@ -10317,7 +11687,7 @@ function setupSimulator(root) {
     collapsedColor,
     startPoint,
     expectedRunToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
   ) {
     const payload = createMeasurementPayload(collapsedColor, startPoint);
     try {
@@ -10325,10 +11695,15 @@ function setupSimulator(root) {
       const targetRect = targetTube.getBoundingClientRect();
       const targetPoint = getStageCoordsFromViewportPoint(
         targetRect.left + targetRect.width / 2,
-        targetRect.top + targetRect.height * 0.22
+        targetRect.top + targetRect.height * 0.22,
       );
 
-      await movePayloadToStagePoint(payload, targetPoint.x, targetPoint.y, migrationDuration);
+      await movePayloadToStagePoint(
+        payload,
+        targetPoint.x,
+        targetPoint.y,
+        migrationDuration,
+      );
       if (expectedRunToken !== runToken) {
         return false;
       }
@@ -10363,7 +11738,7 @@ function setupSimulator(root) {
       collapsePauseMs = OBSERVABLE_COLLAPSE_PAUSE_MS,
       ejectAfterMeasurement = true,
       postMeasurementShiftX = 100,
-    } = {}
+    } = {},
   ) {
     if (measurementInProgress || gateTransitInProgress) {
       return;
@@ -10373,7 +11748,10 @@ function setupSimulator(root) {
       return;
     }
 
-    if (requireLensOverlap && qubitOverlapRatioWithLens() < MEASUREMENT_OVERLAP_THRESHOLD) {
+    if (
+      requireLensOverlap &&
+      qubitOverlapRatioWithLens() < MEASUREMENT_OVERLAP_THRESHOLD
+    ) {
       return;
     }
 
@@ -10405,7 +11783,11 @@ function setupSimulator(root) {
         };
 
         setMeasurementPlatformExtended(true);
-        await moveQubitToStagePoint(ejectedPoint.x, ejectedPoint.y, GATE_PLATFORM_EXTEND_MS);
+        await moveQubitToStagePoint(
+          ejectedPoint.x,
+          ejectedPoint.y,
+          GATE_PLATFORM_EXTEND_MS,
+        );
         setMeasurementPlatformExtended(false);
         if (expectedRunToken !== runToken) {
           return;
@@ -10420,13 +11802,25 @@ function setupSimulator(root) {
         payloadStartPoint = lensCenter;
       }
 
-      await animateMeasurementPayloadToTube(collapsedColor, payloadStartPoint, expectedRunToken, {
-        migrationDuration,
-        meltDuration,
-      });
+      await animateMeasurementPayloadToTube(
+        collapsedColor,
+        payloadStartPoint,
+        expectedRunToken,
+        {
+          migrationDuration,
+          meltDuration,
+        },
+      );
 
-      if (!ejectAfterMeasurement && postMeasurementShiftX !== 0 && expectedRunToken === runToken) {
-        setQubitCenter(payloadStartPoint.x + postMeasurementShiftX, payloadStartPoint.y);
+      if (
+        !ejectAfterMeasurement &&
+        postMeasurementShiftX !== 0 &&
+        expectedRunToken === runToken
+      ) {
+        setQubitCenter(
+          payloadStartPoint.x + postMeasurementShiftX,
+          payloadStartPoint.y,
+        );
       }
     } finally {
       setMeasurementPlatformExtended(false);
@@ -10467,7 +11861,10 @@ function setupSimulator(root) {
         const processOneMeasurement = () => {
           setQubitVector([1, 0]);
           applyActiveGateToQubitVector();
-          qubit.style.setProperty("--qubit-fill", blendBlueRed(qubitBlueWeight, qubitRedWeight));
+          qubit.style.setProperty(
+            "--qubit-fill",
+            blendBlueRed(qubitBlueWeight, qubitRedWeight),
+          );
           updateStateText(qubitBlueWeight, qubitRedWeight);
 
           const collapsedColor = collapseQubitState();
@@ -10581,7 +11978,12 @@ function setupSimulator(root) {
   }
 
   function continueQubitDrag(event) {
-    if (!qubitDragging || measurementInProgress || autoRunInProgress || gateTransitInProgress) {
+    if (
+      !qubitDragging ||
+      measurementInProgress ||
+      autoRunInProgress ||
+      gateTransitInProgress
+    ) {
       return;
     }
 
@@ -10606,7 +12008,12 @@ function setupSimulator(root) {
   }
 
   function endQubitDrag() {
-    if (!qubitDragging || measurementInProgress || autoRunInProgress || gateTransitInProgress) {
+    if (
+      !qubitDragging ||
+      measurementInProgress ||
+      autoRunInProgress ||
+      gateTransitInProgress
+    ) {
       return;
     }
 
@@ -10729,8 +12136,12 @@ function setupSimulator(root) {
   qubit.addEventListener("mousedown", beginQubitDrag);
   qubit.addEventListener("touchstart", beginQubitDrag, { passive: false });
   gateArrow.addEventListener("mousedown", beginGateArrowDrag);
-  gateArrow.addEventListener("touchstart", beginGateArrowDrag, { passive: false });
-  gateArrow.addEventListener("keydown", (event) => gateDial?.handleKeydown(event));
+  gateArrow.addEventListener("touchstart", beginGateArrowDrag, {
+    passive: false,
+  });
+  gateArrow.addEventListener("keydown", (event) =>
+    gateDial?.handleKeydown(event),
+  );
 
   window.addEventListener("mousemove", (event) => {
     continueGateArrowDrag(event);
@@ -10743,7 +12154,7 @@ function setupSimulator(root) {
       continueGateArrowDrag(event);
       continueQubitDrag(event);
     },
-    { passive: false }
+    { passive: false },
   );
 
   window.addEventListener("mouseup", () => {
@@ -10801,14 +12212,20 @@ function setupSimulator(root) {
 }
 
 function setupTwoQubitPair(root) {
-  const pairMeasurementHost = root.querySelector('[data-role="pair-measurement-host"]');
+  const pairMeasurementHost = root.querySelector(
+    '[data-role="pair-measurement-host"]',
+  );
   mountPairMeasurementTool(pairMeasurementHost);
   mountPairCnotGate(root);
   const pairShell = root.querySelector('[data-role="pair-shell"]');
   const pairStageA = root.querySelector('[data-role="pair-stage-a"]');
   const pairStageB = root.querySelector('[data-role="pair-stage-b"]');
-  const pairWindowWrapA = root.querySelector('[data-role="pair-window-wrap-a"]');
-  const pairWindowWrapB = root.querySelector('[data-role="pair-window-wrap-b"]');
+  const pairWindowWrapA = root.querySelector(
+    '[data-role="pair-window-wrap-a"]',
+  );
+  const pairWindowWrapB = root.querySelector(
+    '[data-role="pair-window-wrap-b"]',
+  );
   const pairFunnelA = root.querySelector('[data-role="pair-tube-funnel-a"]');
   const pairFunnelB = root.querySelector('[data-role="pair-tube-funnel-b"]');
   const pairWindowA = root.querySelector('[data-role="pair-window-a"]');
@@ -10818,21 +12235,41 @@ function setupTwoQubitPair(root) {
   const pairArrowA = root.querySelector('[data-role="pair-arrow-a"]');
   const pairArrowB = root.querySelector('[data-role="pair-arrow-b"]');
   const pairCnotHost = root.querySelector('[data-role="pair-cnot-host"]');
-  const pairCnotGate = pairCnotHost ? pairCnotHost.querySelector(".cnot-gate, .ent-double-gate") : null;
-  const pairCnotBody = pairCnotGate ? pairCnotGate.querySelector(".cnot-body, .ent-pipe") : null;
-  const pairCnotFunnelTop = pairCnotGate ? pairCnotGate.querySelector(".cnot-input-funnel-top") : null;
-  const pairCnotFunnelBottom = pairCnotGate ? pairCnotGate.querySelector(".cnot-input-funnel-bottom") : null;
-  const pairCnotWindowTop = pairCnotGate ? pairCnotGate.querySelector(".cnot-porthole-top") : null;
-  const pairCnotWindowBottom = pairCnotGate ? pairCnotGate.querySelector(".cnot-porthole-bottom") : null;
-  const pairCnotSpring = pairCnotGate ? pairCnotGate.querySelector(".cnot-spring") : null;
+  const pairCnotGate = pairCnotHost
+    ? pairCnotHost.querySelector(".cnot-gate, .ent-double-gate")
+    : null;
+  const pairCnotBody = pairCnotGate
+    ? pairCnotGate.querySelector(".cnot-body, .ent-pipe")
+    : null;
+  const pairCnotFunnelTop = pairCnotGate
+    ? pairCnotGate.querySelector(".cnot-input-funnel-top")
+    : null;
+  const pairCnotFunnelBottom = pairCnotGate
+    ? pairCnotGate.querySelector(".cnot-input-funnel-bottom")
+    : null;
+  const pairCnotWindowTop = pairCnotGate
+    ? pairCnotGate.querySelector(".cnot-porthole-top")
+    : null;
+  const pairCnotWindowBottom = pairCnotGate
+    ? pairCnotGate.querySelector(".cnot-porthole-bottom")
+    : null;
+  const pairCnotSpring = pairCnotGate
+    ? pairCnotGate.querySelector(".cnot-spring")
+    : null;
   const qubitA = root.querySelector('[data-role="pair-qubit-a"]');
   const qubitB = root.querySelector('[data-role="pair-qubit-b"]');
   const pairLens = root.querySelector('[data-role="pair-lens"]');
-  const pairMeasurementFunnel = root.querySelector('[data-role="pair-measurement-funnel"]');
+  const pairMeasurementFunnel = root.querySelector(
+    '[data-role="pair-measurement-funnel"]',
+  );
   const pairSlotLeft = root.querySelector('[data-role="pair-slot-left"]');
   const pairSlotRight = root.querySelector('[data-role="pair-slot-right"]');
-  const pairMeasurementPlatform = root.querySelector(".pair-measurement-platform");
-  const pairMeasurementCount = root.querySelector('[data-role="pair-measurement-count"]');
+  const pairMeasurementPlatform = root.querySelector(
+    ".pair-measurement-platform",
+  );
+  const pairMeasurementCount = root.querySelector(
+    '[data-role="pair-measurement-count"]',
+  );
   const pairMeasurementBlock = root.querySelector(".pair-measurement");
   const pairTubeRack = root.querySelector(".pair-tube-rack");
   const tubeBB = root.querySelector('[data-role="pair-tube-bb"]');
@@ -10926,7 +12363,10 @@ function setupTwoQubitPair(root) {
     },
   ];
   gates.forEach((gate, gateIndex) => {
-    const gateLabel = gateIndex === 0 ? "Two-Qubit Mode Gate (Top)" : "Two-Qubit Mode Gate (Bottom)";
+    const gateLabel =
+      gateIndex === 0
+        ? "Two-Qubit Mode Gate (Top)"
+        : "Two-Qubit Mode Gate (Bottom)";
     registerGateInspector(gate.wrap, () => ({
       label: gateLabel,
       matrix: gateMatrixForTick(gate.activeTick),
@@ -11031,7 +12471,8 @@ function setupTwoQubitPair(root) {
   let autoRunInProgress = false;
   let runToken = 0;
   let initialized = false;
-  const basePairShellPaddingBottom = Number.parseFloat(window.getComputedStyle(pairShell).paddingBottom) || 0;
+  const basePairShellPaddingBottom =
+    Number.parseFloat(window.getComputedStyle(pairShell).paddingBottom) || 0;
   const gateDials = [];
 
   function gateWeightsForSelection(selectionIndex) {
@@ -11069,8 +12510,14 @@ function setupTwoQubitPair(root) {
   function pairLensSlotOffset(slot) {
     const keys = slotOffsetDatasetKeys(slot);
     return {
-      x: parseLayoutNumeric(pairShell.dataset[keys.x], TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X),
-      y: parseLayoutNumeric(pairShell.dataset[keys.y], TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y),
+      x: parseLayoutNumeric(
+        pairShell.dataset[keys.x],
+        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
+      ),
+      y: parseLayoutNumeric(
+        pairShell.dataset[keys.y],
+        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
+      ),
     };
   }
 
@@ -11097,7 +12544,10 @@ function setupTwoQubitPair(root) {
   }
 
   function updateQubitColor(qubit) {
-    qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
+    qubit.element.style.setProperty(
+      "--qubit-fill",
+      blendBlueRed(qubit.blue, qubit.red),
+    );
   }
 
   function applyGateStateToQubit(qubit, selectionIndex) {
@@ -11105,7 +12555,10 @@ function setupTwoQubitPair(root) {
     qubit.blue = blueWeight;
     qubit.red = redWeight;
     updateQubitColor(qubit);
-    const transformed = vectorTimesMatrix2([1, 0], gateMatrixForTick(selectionIndex));
+    const transformed = vectorTimesMatrix2(
+      [1, 0],
+      gateMatrixForTick(selectionIndex),
+    );
     const phaseSign = phaseSignForRealAmplitudeVector(transformed);
     if (phaseSign) {
       qubit.element.dataset.phaseSign = phaseSign;
@@ -11126,8 +12579,12 @@ function setupTwoQubitPair(root) {
 
     const a1 = r1 * r1;
     const a2 = r2 * r2;
-    const alpha = Math.acos((distance * distance + a1 - a2) / (2 * distance * r1));
-    const beta = Math.acos((distance * distance + a2 - a1) / (2 * distance * r2));
+    const alpha = Math.acos(
+      (distance * distance + a1 - a2) / (2 * distance * r1),
+    );
+    const beta = Math.acos(
+      (distance * distance + a2 - a1) / (2 * distance * r2),
+    );
     return (
       a1 * alpha +
       a2 * beta -
@@ -11136,7 +12593,7 @@ function setupTwoQubitPair(root) {
           (-distance + r1 + r2) *
             (distance + r1 - r2) *
             (distance - r1 + r2) *
-            (distance + r1 + r2)
+            (distance + r1 + r2),
         )
     );
   }
@@ -11158,8 +12615,16 @@ function setupTwoQubitPair(root) {
 
   function overlapRatioWithRect(qubit, rect) {
     const qubitRect = qubit.element.getBoundingClientRect();
-    const overlapWidth = Math.max(0, Math.min(qubitRect.right, rect.right) - Math.max(qubitRect.left, rect.left));
-    const overlapHeight = Math.max(0, Math.min(qubitRect.bottom, rect.bottom) - Math.max(qubitRect.top, rect.top));
+    const overlapWidth = Math.max(
+      0,
+      Math.min(qubitRect.right, rect.right) -
+        Math.max(qubitRect.left, rect.left),
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(qubitRect.bottom, rect.bottom) -
+        Math.max(qubitRect.top, rect.top),
+    );
     const overlapArea = overlapWidth * overlapHeight;
     const qubitArea = qubitRect.width * qubitRect.height;
     return qubitArea > 0 ? overlapArea / qubitArea : 0;
@@ -11171,7 +12636,8 @@ function setupTwoQubitPair(root) {
     const funnelMidX = (funnelRect.left + funnelRect.right) / 2;
     const verticalOverlap = Math.max(
       0,
-      Math.min(qubitRect.bottom, funnelRect.bottom) - Math.max(qubitRect.top, funnelRect.top)
+      Math.min(qubitRect.bottom, funnelRect.bottom) -
+        Math.max(qubitRect.top, funnelRect.top),
     );
 
     return (
@@ -11209,7 +12675,7 @@ function setupTwoQubitPair(root) {
         top: pipeRect.top - shellRect.top,
         bottom: pipeRect.bottom - shellRect.top,
       },
-      1
+      1,
     );
 
     if (!resolved.overlapped) {
@@ -11224,7 +12690,7 @@ function setupTwoQubitPair(root) {
           top: cnotRect.top - shellRect.top,
           bottom: cnotRect.bottom - shellRect.top,
         },
-        1
+        1,
       );
       if (!cnotResolved.overlapped) {
         return false;
@@ -11238,7 +12704,11 @@ function setupTwoQubitPair(root) {
   }
 
   async function runPairGateTransit(qubit, expectedRunToken = runToken) {
-    if (qubit.gateTransitInProgress || measurementInProgress || autoRunInProgress) {
+    if (
+      qubit.gateTransitInProgress ||
+      measurementInProgress ||
+      autoRunInProgress
+    ) {
       return false;
     }
 
@@ -11250,7 +12720,12 @@ function setupTwoQubitPair(root) {
     try {
       const gate = gates[qubit.gateIndex];
       const gateCenter = stagePointForElementCenter(gate.window);
-      await moveQubitToPoint(qubit, gateCenter.x, gateCenter.y, Math.max(220, Math.round(AUTO_TRAVEL_MS * 0.45)));
+      await moveQubitToPoint(
+        qubit,
+        gateCenter.x,
+        gateCenter.y,
+        Math.max(220, Math.round(AUTO_TRAVEL_MS * 0.45)),
+      );
       if (expectedRunToken !== runToken) {
         return false;
       }
@@ -11276,7 +12751,12 @@ function setupTwoQubitPair(root) {
         y: gateCenter.y,
       };
 
-      await moveQubitToPoint(qubit, ejectedCenter.x, ejectedCenter.y, GATE_PLATFORM_EXTEND_MS);
+      await moveQubitToPoint(
+        qubit,
+        ejectedCenter.x,
+        ejectedCenter.y,
+        GATE_PLATFORM_EXTEND_MS,
+      );
       if (expectedRunToken !== runToken) {
         return false;
       }
@@ -11296,11 +12776,20 @@ function setupTwoQubitPair(root) {
     }
   }
 
-  function maybeSnapQubitToGate(qubit, { allowWindowOverlap = false, runTransit = true } = {}) {
+  function maybeSnapQubitToGate(
+    qubit,
+    { allowWindowOverlap = false, runTransit = true } = {},
+  ) {
     const gate = gates[qubit.gateIndex];
     const windowOverlap = overlapRatioWithGate(qubit, gate.window);
-    const funnelReachedMidpoint = qubitReachedFunnelMidpoint(qubit, gate.funnel);
-    if ((allowWindowOverlap && windowOverlap >= SNAP_OVERLAP_THRESHOLD) || funnelReachedMidpoint) {
+    const funnelReachedMidpoint = qubitReachedFunnelMidpoint(
+      qubit,
+      gate.funnel,
+    );
+    if (
+      (allowWindowOverlap && windowOverlap >= SNAP_OVERLAP_THRESHOLD) ||
+      funnelReachedMidpoint
+    ) {
       if (runTransit && !allowWindowOverlap) {
         runPairGateTransit(qubit, runToken).catch(() => {});
         return true;
@@ -11324,7 +12813,11 @@ function setupTwoQubitPair(root) {
   }
 
   async function runPairMeasurementIngress(qubit, expectedRunToken = runToken) {
-    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
+    if (
+      measurementInProgress ||
+      autoRunInProgress ||
+      qubit.gateTransitInProgress
+    ) {
       return false;
     }
 
@@ -11340,7 +12833,11 @@ function setupTwoQubitPair(root) {
     qubit.element.classList.remove("docked");
     delete qubit.element.dataset.pairEjected;
 
-    if (qubit.lensSlot && qubit.lensSlot !== chosenSlot && slotOccupants[qubit.lensSlot] === qubit) {
+    if (
+      qubit.lensSlot &&
+      qubit.lensSlot !== chosenSlot &&
+      slotOccupants[qubit.lensSlot] === qubit
+    ) {
       slotOccupants[qubit.lensSlot] = null;
     }
     slotOccupants[chosenSlot] = qubit;
@@ -11349,7 +12846,11 @@ function setupTwoQubitPair(root) {
 
     const slotCenter = getLensSlotCenter(chosenSlot);
     await moveQubitToPoint(qubit, slotCenter.x, slotCenter.y, 140);
-    if (expectedRunToken !== runToken || measurementInProgress || autoRunInProgress) {
+    if (
+      expectedRunToken !== runToken ||
+      measurementInProgress ||
+      autoRunInProgress
+    ) {
       return false;
     }
     settleQubitVisualState(qubit);
@@ -11376,7 +12877,11 @@ function setupTwoQubitPair(root) {
     if (!qubitCenterInsidePairLens(qubit)) {
       return false;
     }
-    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
+    if (
+      measurementInProgress ||
+      autoRunInProgress ||
+      qubit.gateTransitInProgress
+    ) {
       return false;
     }
 
@@ -11389,7 +12894,11 @@ function setupTwoQubitPair(root) {
       return false;
     }
 
-    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
+    if (
+      measurementInProgress ||
+      autoRunInProgress ||
+      qubit.gateTransitInProgress
+    ) {
       return false;
     }
 
@@ -11400,7 +12909,12 @@ function setupTwoQubitPair(root) {
   function collapseQubitState(qubit) {
     const totalWeight = qubit.blue + qubit.red;
     const blueProbability = totalWeight > 0 ? qubit.blue / totalWeight : 0.5;
-    const blueResult = blueProbability >= 1 ? true : blueProbability <= 0 ? false : Math.random() < blueProbability;
+    const blueResult =
+      blueProbability >= 1
+        ? true
+        : blueProbability <= 0
+          ? false
+          : Math.random() < blueProbability;
     if (blueResult) {
       qubit.blue = 1;
       qubit.red = 0;
@@ -11425,7 +12939,7 @@ function setupTwoQubitPair(root) {
   function annotateCnotOutcomeProbabilitiesForCurrentState() {
     const outcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
       normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1])
+      normalizedQubitVectorFromProbabilities(qubits[1]),
     );
     const pairToken = `${Date.now()}-${Math.random()}`;
     qubits[0].cnotPairToken = pairToken;
@@ -11437,7 +12951,7 @@ function setupTwoQubitPair(root) {
   function applyCnotGateToQubits() {
     const marginals = cnotMarginalProbabilitiesFromQubitVectors(
       normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1])
+      normalizedQubitVectorFromProbabilities(qubits[1]),
     );
     qubits[0].blue = marginals.control[0];
     qubits[0].red = marginals.control[1];
@@ -11460,13 +12974,13 @@ function setupTwoQubitPair(root) {
     }
     return cnotOutcomeProbabilitiesFromQubitVectors(
       normalizedQubitVectorFromProbabilities(topQubit),
-      normalizedQubitVectorFromProbabilities(bottomQubit)
+      normalizedQubitVectorFromProbabilities(bottomQubit),
     );
   }
 
   function collapseQubitPairFromCnot(topQubit, bottomQubit) {
     const outcomeKey = samplePairOutcomeFromProbabilities(
-      cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit)
+      cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit),
     );
     const topBlue = outcomeKey[0] === "b";
     const bottomBlue = outcomeKey[1] === "b";
@@ -11537,7 +13051,8 @@ function setupTwoQubitPair(root) {
     const gateWindow = gates[qubit.gateIndex].window;
     const center = stagePointForElementCenter(gateWindow);
     const rect = qubit.element.getBoundingClientRect();
-    const x = rect.width / 2 + QUBIT_START_EDGE_GAP + TWO_QUBIT_START_SHIFT_PX - 20;
+    const x =
+      rect.width / 2 + QUBIT_START_EDGE_GAP + TWO_QUBIT_START_SHIFT_PX - 20;
     setQubitCenter(qubit, x, center.y);
     qubit.docked = false;
     qubit.dragging = false;
@@ -11573,7 +13088,10 @@ function setupTwoQubitPair(root) {
     payload.style.left = `${startPoint.x}px`;
     payload.style.top = `${startPoint.y}px`;
     payload.style.pointerEvents = "none";
-    payload.style.setProperty("--qubit-fill", color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+    payload.style.setProperty(
+      "--qubit-fill",
+      color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
+    );
     pairShell.appendChild(payload);
     return payload;
   }
@@ -11595,10 +13113,13 @@ function setupTwoQubitPair(root) {
     topStartPoint,
     bottomStartPoint,
     expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
   ) {
     const topPayload = createPairMeasurementPayload(topColor, topStartPoint);
-    const bottomPayload = createPairMeasurementPayload(bottomColor, bottomStartPoint);
+    const bottomPayload = createPairMeasurementPayload(
+      bottomColor,
+      bottomStartPoint,
+    );
 
     try {
       const shellRect = pairShell.getBoundingClientRect();
@@ -11612,8 +13133,18 @@ function setupTwoQubitPair(root) {
       const targetOffset = payloadHeight * 0.8;
 
       await Promise.all([
-        movePairPayloadToPoint(topPayload, targetPoint.x, targetPoint.y - targetOffset, migrationDuration),
-        movePairPayloadToPoint(bottomPayload, targetPoint.x, targetPoint.y + targetOffset, migrationDuration),
+        movePairPayloadToPoint(
+          topPayload,
+          targetPoint.x,
+          targetPoint.y - targetOffset,
+          migrationDuration,
+        ),
+        movePairPayloadToPoint(
+          bottomPayload,
+          targetPoint.x,
+          targetPoint.y + targetOffset,
+          migrationDuration,
+        ),
       ]);
       if (expectedRunToken !== runToken) {
         return false;
@@ -11660,7 +13191,9 @@ function setupTwoQubitPair(root) {
     const lensRect = pairLens.getBoundingClientRect();
     const shellRect = pairShell.getBoundingClientRect();
     const springStyles = window.getComputedStyle(pairMeasurementPlatform);
-    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const springLength = Number.parseFloat(
+      springStyles.getPropertyValue("--spring-length"),
+    );
     const usableSpringLength = Number.isFinite(springLength)
       ? springLength
       : pairMeasurementPlatform.getBoundingClientRect().width;
@@ -11676,7 +13209,9 @@ function setupTwoQubitPair(root) {
     const bodyRect = pairCnotBody.getBoundingClientRect();
     const shellRect = pairShell.getBoundingClientRect();
     const springStyles = window.getComputedStyle(pairCnotSpring);
-    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const springLength = Number.parseFloat(
+      springStyles.getPropertyValue("--spring-length"),
+    );
     const usableSpringLength = Number.isFinite(springLength)
       ? springLength
       : pairCnotSpring.getBoundingClientRect().width;
@@ -11685,7 +13220,9 @@ function setupTwoQubitPair(root) {
   }
 
   function nextFrame() {
-    return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+    return new Promise((resolve) =>
+      window.requestAnimationFrame(() => resolve()),
+    );
   }
 
   function pairTubeOutcomeKey(leftResult, rightResult) {
@@ -11748,12 +13285,15 @@ function setupTwoQubitPair(root) {
     const bottomGateCenter = stagePointForElementCenter(gates[1].window);
     const targetY = (topGateCenter.y + bottomGateCenter.y) / 2;
     const measurementCenterY =
-      stagePointForElementCenter(pairLens).y + TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
+      stagePointForElementCenter(pairLens).y +
+      TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
     const deltaY = targetY - measurementCenterY;
     pairMeasurementBlock.style.transform = `translateY(${deltaY}px)`;
     const extraBottom = Math.max(0, deltaY);
     pairShell.style.paddingBottom = `${
-      basePairShellPaddingBottom + TWO_QUBIT_INNER_BOX_EXTRA_BOTTOM_PX + extraBottom
+      basePairShellPaddingBottom +
+      TWO_QUBIT_INNER_BOX_EXTRA_BOTTOM_PX +
+      extraBottom
     }px`;
   }
 
@@ -11772,7 +13312,10 @@ function setupTwoQubitPair(root) {
   }
 
   function syncPairLensWidthToTubeRack() {
-    if (pairLens.dataset.layoutManual === "true" || pairTubeRack.dataset.layoutManual === "true") {
+    if (
+      pairLens.dataset.layoutManual === "true" ||
+      pairTubeRack.dataset.layoutManual === "true"
+    ) {
       return;
     }
     pairTubeRack.style.width = "max-content";
@@ -11790,7 +13333,7 @@ function setupTwoQubitPair(root) {
   function setGateArrowAtTick(
     gateIndex,
     tickIndex,
-    { deferMeasurementClear = false, fromDial = false } = {}
+    { deferMeasurementClear = false, fromDial = false } = {},
   ) {
     if (autoRunInProgress && !fromDial) {
       return;
@@ -11844,7 +13387,7 @@ function setupTwoQubitPair(root) {
 
   async function startPairMeasurementSequence(
     expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
   ) {
     if (measurementInProgress) {
       return;
@@ -11885,7 +13428,10 @@ function setupTwoQubitPair(root) {
       const topSlotCenter = getLensSlotCenter("left");
       const bottomSlotCenter = getLensSlotCenter("right");
       const topBaseEjectedPoint = { x: ejectionCenterX, y: topSlotCenter.y };
-      const bottomBaseEjectedPoint = { x: ejectionCenterX, y: bottomSlotCenter.y };
+      const bottomBaseEjectedPoint = {
+        x: ejectionCenterX,
+        y: bottomSlotCenter.y,
+      };
       const topEjectionOffset = pairEjectionOffset("left");
       const bottomEjectionOffset = pairEjectionOffset("right");
       const topOffsetPoint = {
@@ -11897,12 +13443,23 @@ function setupTwoQubitPair(root) {
         y: bottomBaseEjectedPoint.y + bottomEjectionOffset.y,
       };
       const topEjectedPoint = pairEjectionAbsolute("left") || topOffsetPoint;
-      const bottomEjectedPoint = pairEjectionAbsolute("right") || bottomOffsetPoint;
+      const bottomEjectedPoint =
+        pairEjectionAbsolute("right") || bottomOffsetPoint;
 
       setPairMeasurementPlatformExtended(true);
       await Promise.all([
-        moveQubitToPoint(topQubit, topEjectedPoint.x, topEjectedPoint.y, GATE_PLATFORM_EXTEND_MS),
-        moveQubitToPoint(bottomQubit, bottomEjectedPoint.x, bottomEjectedPoint.y, GATE_PLATFORM_EXTEND_MS),
+        moveQubitToPoint(
+          topQubit,
+          topEjectedPoint.x,
+          topEjectedPoint.y,
+          GATE_PLATFORM_EXTEND_MS,
+        ),
+        moveQubitToPoint(
+          bottomQubit,
+          bottomEjectedPoint.x,
+          bottomEjectedPoint.y,
+          GATE_PLATFORM_EXTEND_MS,
+        ),
       ]);
       setPairMeasurementPlatformExtended(false);
       if (expectedRunToken !== runToken) {
@@ -11930,7 +13487,7 @@ function setupTwoQubitPair(root) {
         topEjectedPoint,
         bottomEjectedPoint,
         expectedRunToken,
-        { migrationDuration, meltDuration }
+        { migrationDuration, meltDuration },
       );
       if (!payloadsCompleted || expectedRunToken !== runToken) {
         return;
@@ -11945,12 +13502,27 @@ function setupTwoQubitPair(root) {
     }
   }
 
-  async function runAutomatedPairSingleGateStage(expectedRunToken, { travelDuration, dwellDuration }) {
+  async function runAutomatedPairSingleGateStage(
+    expectedRunToken,
+    { travelDuration, dwellDuration },
+  ) {
     try {
-      const gateCenters = gates.map((gate) => stagePointForElementCenter(gate.window));
+      const gateCenters = gates.map((gate) =>
+        stagePointForElementCenter(gate.window),
+      );
       await Promise.all([
-        moveQubitToPoint(qubits[0], gateCenters[0].x, gateCenters[0].y, travelDuration),
-        moveQubitToPoint(qubits[1], gateCenters[1].x, gateCenters[1].y, travelDuration),
+        moveQubitToPoint(
+          qubits[0],
+          gateCenters[0].x,
+          gateCenters[0].y,
+          travelDuration,
+        ),
+        moveQubitToPoint(
+          qubits[1],
+          gateCenters[1].x,
+          gateCenters[1].y,
+          travelDuration,
+        ),
       ]);
       if (expectedRunToken !== runToken) {
         return false;
@@ -11981,7 +13553,14 @@ function setupTwoQubitPair(root) {
       });
 
       await Promise.all(
-        targets.map((target) => moveQubitToPoint(target.qubit, target.x, target.y, GATE_PLATFORM_EXTEND_MS))
+        targets.map((target) =>
+          moveQubitToPoint(
+            target.qubit,
+            target.x,
+            target.y,
+            GATE_PLATFORM_EXTEND_MS,
+          ),
+        ),
       );
       if (expectedRunToken !== runToken) {
         return false;
@@ -12001,16 +13580,31 @@ function setupTwoQubitPair(root) {
     }
   }
 
-  async function runAutomatedPairCnotStage(expectedRunToken, { travelDuration, dwellDuration }) {
+  async function runAutomatedPairCnotStage(
+    expectedRunToken,
+    { travelDuration, dwellDuration },
+  ) {
     if (cnotBusy) {
       return false;
     }
     cnotBusy = true;
     try {
-      const cnotCenters = qubits.map((qubit) => stagePointForElementCenter(qubit.cnotWindow));
+      const cnotCenters = qubits.map((qubit) =>
+        stagePointForElementCenter(qubit.cnotWindow),
+      );
       await Promise.all([
-        moveQubitToPoint(qubits[0], cnotCenters[0].x, cnotCenters[0].y, travelDuration),
-        moveQubitToPoint(qubits[1], cnotCenters[1].x, cnotCenters[1].y, travelDuration),
+        moveQubitToPoint(
+          qubits[0],
+          cnotCenters[0].x,
+          cnotCenters[0].y,
+          travelDuration,
+        ),
+        moveQubitToPoint(
+          qubits[1],
+          cnotCenters[1].x,
+          cnotCenters[1].y,
+          travelDuration,
+        ),
       ]);
       if (expectedRunToken !== runToken) {
         return false;
@@ -12039,7 +13633,14 @@ function setupTwoQubitPair(root) {
       });
 
       await Promise.all(
-        targets.map((target) => moveQubitToPoint(target.qubit, target.x, target.y, GATE_PLATFORM_EXTEND_MS))
+        targets.map((target) =>
+          moveQubitToPoint(
+            target.qubit,
+            target.x,
+            target.y,
+            GATE_PLATFORM_EXTEND_MS,
+          ),
+        ),
       );
       if (expectedRunToken !== runToken) {
         return false;
@@ -12106,7 +13707,10 @@ function setupTwoQubitPair(root) {
           });
           annotateCnotOutcomeProbabilitiesForCurrentState();
           applyCnotGateToQubits();
-          const { outcomeKey } = collapseQubitPairFromCnot(qubits[0], qubits[1]);
+          const { outcomeKey } = collapseQubitPairFromCnot(
+            qubits[0],
+            qubits[1],
+          );
           tubeCountState[outcomeKey] += 1;
           maybeExpandTubeCapacity();
         };
@@ -12150,10 +13754,13 @@ function setupTwoQubitPair(root) {
         }
 
         qubits.forEach((qubit) => placeQubitAtStart(qubit));
-        const gatesCompleted = await runAutomatedPairSingleGateStage(thisRunToken, {
-          travelDuration,
-          dwellDuration: gatePauseDuration,
-        });
+        const gatesCompleted = await runAutomatedPairSingleGateStage(
+          thisRunToken,
+          {
+            travelDuration,
+            dwellDuration: gatePauseDuration,
+          },
+        );
         if (!gatesCompleted || thisRunToken !== runToken) {
           break;
         }
@@ -12200,7 +13807,12 @@ function setupTwoQubitPair(root) {
   }
 
   function maybeTriggerManualPairMeasurement() {
-    if (slotOccupants.left && slotOccupants.right && !measurementInProgress && !autoRunInProgress) {
+    if (
+      slotOccupants.left &&
+      slotOccupants.right &&
+      !measurementInProgress &&
+      !autoRunInProgress
+    ) {
       const token = runToken + 1;
       runToken = token;
       startPairMeasurementSequence(token);
@@ -12211,7 +13823,11 @@ function setupTwoQubitPair(root) {
     if (handleShiftQubitSelection(event, qubit.element)) {
       return;
     }
-    if (measurementInProgress || autoRunInProgress || qubit.gateTransitInProgress) {
+    if (
+      measurementInProgress ||
+      autoRunInProgress ||
+      qubit.gateTransitInProgress
+    ) {
       return;
     }
     if (!isPrimaryMouseButton(event)) {
@@ -12323,7 +13939,10 @@ function setupTwoQubitPair(root) {
 
     qubits.forEach((qubit) => {
       if (qubit.docked) {
-        maybeSnapQubitToGate(qubit, { allowWindowOverlap: true, runTransit: false });
+        maybeSnapQubitToGate(qubit, {
+          allowWindowOverlap: true,
+          runTransit: false,
+        });
         return;
       }
       if (qubit.inCnotWindow) {
@@ -12367,15 +13986,35 @@ function setupTwoQubitPair(root) {
     clearMeasurementApparatus();
   }
 
-  qubitA.addEventListener("mousedown", (event) => beginQubitDrag(qubits[0], event));
-  qubitA.addEventListener("touchstart", (event) => beginQubitDrag(qubits[0], event), { passive: false });
-  qubitB.addEventListener("mousedown", (event) => beginQubitDrag(qubits[1], event));
-  qubitB.addEventListener("touchstart", (event) => beginQubitDrag(qubits[1], event), { passive: false });
+  qubitA.addEventListener("mousedown", (event) =>
+    beginQubitDrag(qubits[0], event),
+  );
+  qubitA.addEventListener(
+    "touchstart",
+    (event) => beginQubitDrag(qubits[0], event),
+    { passive: false },
+  );
+  qubitB.addEventListener("mousedown", (event) =>
+    beginQubitDrag(qubits[1], event),
+  );
+  qubitB.addEventListener(
+    "touchstart",
+    (event) => beginQubitDrag(qubits[1], event),
+    { passive: false },
+  );
 
   pairArrowA.addEventListener("mousedown", (event) => beginArrowDrag(0, event));
-  pairArrowA.addEventListener("touchstart", (event) => beginArrowDrag(0, event), { passive: false });
+  pairArrowA.addEventListener(
+    "touchstart",
+    (event) => beginArrowDrag(0, event),
+    { passive: false },
+  );
   pairArrowB.addEventListener("mousedown", (event) => beginArrowDrag(1, event));
-  pairArrowB.addEventListener("touchstart", (event) => beginArrowDrag(1, event), { passive: false });
+  pairArrowB.addEventListener(
+    "touchstart",
+    (event) => beginArrowDrag(1, event),
+    { passive: false },
+  );
 
   window.addEventListener("mousemove", (event) => {
     continueArrowDrag(event);
@@ -12387,7 +14026,7 @@ function setupTwoQubitPair(root) {
       continueArrowDrag(event);
       continueQubitDrag(event);
     },
-    { passive: false }
+    { passive: false },
   );
   window.addEventListener("mouseup", () => {
     endArrowDrag();
@@ -12403,16 +14042,29 @@ function setupTwoQubitPair(root) {
   });
 
   [pairArrowA, pairArrowB].forEach((arrow, gateIndex) => {
-    arrow.addEventListener("keydown", (event) => gateDials[gateIndex]?.handleKeydown(event));
+    arrow.addEventListener("keydown", (event) =>
+      gateDials[gateIndex]?.handleKeydown(event),
+    );
   });
 
-  pairMeasurementCount.addEventListener("mousedown", (event) => event.stopPropagation());
-  pairMeasurementCount.addEventListener("touchstart", (event) => event.stopPropagation());
-  pairMeasurementCount.addEventListener("click", (event) => event.stopPropagation());
+  pairMeasurementCount.addEventListener("mousedown", (event) =>
+    event.stopPropagation(),
+  );
+  pairMeasurementCount.addEventListener("touchstart", (event) =>
+    event.stopPropagation(),
+  );
+  pairMeasurementCount.addEventListener("click", (event) =>
+    event.stopPropagation(),
+  );
   pairMeasurementCount.addEventListener("change", () => {
     clearMeasurementApparatus();
     const iterations = Number(pairMeasurementCount.value) || 1;
-    if (iterations === 1 && slotOccupants.left && slotOccupants.right && !measurementInProgress) {
+    if (
+      iterations === 1 &&
+      slotOccupants.left &&
+      slotOccupants.right &&
+      !measurementInProgress
+    ) {
       const token = runToken + 1;
       runToken = token;
       startPairMeasurementSequence(token);
@@ -12423,7 +14075,12 @@ function setupTwoQubitPair(root) {
 
   pairLens.addEventListener("click", () => {
     const iterations = Number(pairMeasurementCount.value) || 1;
-    if (iterations === 1 && slotOccupants.left && slotOccupants.right && !measurementInProgress) {
+    if (
+      iterations === 1 &&
+      slotOccupants.left &&
+      slotOccupants.right &&
+      !measurementInProgress
+    ) {
       const token = runToken + 1;
       runToken = token;
       startPairMeasurementSequence(token);
@@ -12450,7 +14107,9 @@ function setupTwoQubitPair(root) {
 function setupEntanglementGate(root) {
   mountEntanglementCnotGate(root);
   const entResetButton = root.querySelector('[data-role="ent-reset"]');
-  const measurementHost = root.querySelector('[data-role="ent-measurement-host"]');
+  const measurementHost = root.querySelector(
+    '[data-role="ent-measurement-host"]',
+  );
   mountPairMeasurementTool(measurementHost);
   const shell = root.querySelector('[data-role="ent-shell"]');
   const entGate = root.querySelector('[data-role="ent-gate"]');
@@ -12459,36 +14118,58 @@ function setupEntanglementGate(root) {
   const qubitTop = root.querySelector('[data-role="ent-qubit-top"]');
   const qubitBottom = root.querySelector('[data-role="ent-qubit-bottom"]');
   const preFunnelTop = root.querySelector('[data-role="ent-pre-funnel-top"]');
-  const preFunnelBottom = root.querySelector('[data-role="ent-pre-funnel-bottom"]');
+  const preFunnelBottom = root.querySelector(
+    '[data-role="ent-pre-funnel-bottom"]',
+  );
   const prePipeTop = root.querySelector('[data-role="ent-pre-pipe-top"]');
   const prePipeBottom = root.querySelector('[data-role="ent-pre-pipe-bottom"]');
   const preTicksTop = root.querySelector('[data-role="ent-pre-ticks-top"]');
-  const preTicksBottom = root.querySelector('[data-role="ent-pre-ticks-bottom"]');
+  const preTicksBottom = root.querySelector(
+    '[data-role="ent-pre-ticks-bottom"]',
+  );
   const preArrowTop = root.querySelector('[data-role="ent-pre-arrow-top"]');
-  const preArrowBottom = root.querySelector('[data-role="ent-pre-arrow-bottom"]');
+  const preArrowBottom = root.querySelector(
+    '[data-role="ent-pre-arrow-bottom"]',
+  );
   const preFlangeTop = root.querySelector('[data-role="ent-pre-flange-top"]');
-  const preFlangeBottom = root.querySelector('[data-role="ent-pre-flange-bottom"]');
+  const preFlangeBottom = root.querySelector(
+    '[data-role="ent-pre-flange-bottom"]',
+  );
   const preSpringTop = root.querySelector('[data-role="ent-pre-spring-top"]');
-  const preSpringBottom = root.querySelector('[data-role="ent-pre-spring-bottom"]');
+  const preSpringBottom = root.querySelector(
+    '[data-role="ent-pre-spring-bottom"]',
+  );
   const funnelTop = root.querySelector('[data-role="ent-funnel-top"]');
   const funnelBottom = root.querySelector('[data-role="ent-funnel-bottom"]');
   const windowTop = root.querySelector('[data-role="ent-window-top"]');
   const windowBottom = root.querySelector('[data-role="ent-window-bottom"]');
   const cnotPlatform = root.querySelector('[data-role="ent-platform"]');
   const measurementBlock = measurementHost;
-  const measurementTool = measurementBlock ? measurementBlock.querySelector('[data-role="pair-lens"]') : null;
+  const measurementTool = measurementBlock
+    ? measurementBlock.querySelector('[data-role="pair-lens"]')
+    : null;
   const measurementFunnel = measurementBlock
     ? measurementBlock.querySelector('[data-role="pair-measurement-funnel"]')
     : null;
-  const measurementSlotTop = measurementBlock ? measurementBlock.querySelector('[data-role="pair-slot-left"]') : null;
-  const measurementSlotBottom = measurementBlock ? measurementBlock.querySelector('[data-role="pair-slot-right"]') : null;
-  const measurementPlatform = measurementTool ? measurementTool.querySelector(".pair-measurement-platform") : null;
-  const measurementCapacity = measurementBlock ? measurementBlock.querySelector('[data-role="pair-capacity"]') : null;
+  const measurementSlotTop = measurementBlock
+    ? measurementBlock.querySelector('[data-role="pair-slot-left"]')
+    : null;
+  const measurementSlotBottom = measurementBlock
+    ? measurementBlock.querySelector('[data-role="pair-slot-right"]')
+    : null;
+  const measurementPlatform = measurementTool
+    ? measurementTool.querySelector(".pair-measurement-platform")
+    : null;
+  const measurementCapacity = measurementBlock
+    ? measurementBlock.querySelector('[data-role="pair-capacity"]')
+    : null;
   const measurementCount = measurementBlock
     ? measurementBlock.querySelector('[data-role="pair-measurement-count"]')
     : null;
   const measurementColumns = measurementBlock
-    ? Array.from(measurementBlock.querySelectorAll(".pair-tube-column[data-key]"))
+    ? Array.from(
+        measurementBlock.querySelectorAll(".pair-tube-column[data-key]"),
+      )
     : [];
 
   const measurementTubesByKey = {};
@@ -12505,7 +14186,10 @@ function setupEntanglementGate(root) {
   });
   const measurementKeys = ["bb", "br", "rb", "rr"];
   const hasAllMeasurementParts = measurementKeys.every(
-    (key) => measurementTubesByKey[key] && measurementLiquidsByKey[key] && measurementCountsByKey[key]
+    (key) =>
+      measurementTubesByKey[key] &&
+      measurementLiquidsByKey[key] &&
+      measurementCountsByKey[key],
   );
 
   if (
@@ -12683,14 +14367,23 @@ function setupEntanglementGate(root) {
     const radius = qubitRect.width / 2;
     const safeX = Number.isFinite(x) ? x : shellRect.width / 2;
     const safeY = Number.isFinite(y) ? y : shellRect.height / 2;
-    const clampedX = Math.min(Math.max(safeX, radius), shellRect.width - radius);
-    const clampedY = Math.min(Math.max(safeY, radius), shellRect.height - radius);
+    const clampedX = Math.min(
+      Math.max(safeX, radius),
+      shellRect.width - radius,
+    );
+    const clampedY = Math.min(
+      Math.max(safeY, radius),
+      shellRect.height - radius,
+    );
     qubit.element.style.left = `${clampedX}px`;
     qubit.element.style.top = `${clampedY}px`;
   }
 
   function updateQubitColor(qubit) {
-    qubit.element.style.setProperty("--qubit-fill", blendBlueRed(qubit.blue, qubit.red));
+    qubit.element.style.setProperty(
+      "--qubit-fill",
+      blendBlueRed(qubit.blue, qubit.red),
+    );
   }
 
   function wait(duration) {
@@ -12711,7 +14404,10 @@ function setupEntanglementGate(root) {
   }
 
   function clearMeasurementSlotForQubit(qubit) {
-    if (qubit.measurementSlot && measurementSlotOccupants[qubit.measurementSlot] === qubit) {
+    if (
+      qubit.measurementSlot &&
+      measurementSlotOccupants[qubit.measurementSlot] === qubit
+    ) {
       measurementSlotOccupants[qubit.measurementSlot] = null;
     }
     qubit.measurementSlot = null;
@@ -12722,7 +14418,8 @@ function setupEntanglementGate(root) {
   }
 
   function getMeasurementSlotCenter(slot) {
-    const slotElement = slot === "left" ? measurementSlotTop : measurementSlotBottom;
+    const slotElement =
+      slot === "left" ? measurementSlotTop : measurementSlotBottom;
     const slotRect = slotElement.getBoundingClientRect();
     const hasVisibleSlotGeometry =
       slotRect.width > 4 &&
@@ -12742,7 +14439,10 @@ function setupEntanglementGate(root) {
     const lensRect = measurementTool.getBoundingClientRect();
     const laneOffset = Math.max(20, lensRect.width * 0.12);
     return {
-      x: lensCenter.x + (slot === "right" ? laneOffset : -laneOffset) + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
+      x:
+        lensCenter.x +
+        (slot === "right" ? laneOffset : -laneOffset) +
+        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
       y: lensCenter.y + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
     };
   }
@@ -12783,7 +14483,8 @@ function setupEntanglementGate(root) {
 
   function qubitPostMeasurementReturnPoint(qubit) {
     const placements =
-      seedEntanglementReturnTargetsFromPlacementsTab() || readPersistedEntanglementReturnTargets();
+      seedEntanglementReturnTargetsFromPlacementsTab() ||
+      readPersistedEntanglementReturnTargets();
     if (!placements) {
       return qubitStartPoint(qubit);
     }
@@ -12821,7 +14522,8 @@ function setupEntanglementGate(root) {
     const funnelMidX = (funnelRect.left + funnelRect.right) / 2;
     const verticalOverlap = Math.max(
       0,
-      Math.min(qubitRect.bottom, funnelRect.bottom) - Math.max(qubitRect.top, funnelRect.top)
+      Math.min(qubitRect.bottom, funnelRect.bottom) -
+        Math.max(qubitRect.top, funnelRect.top),
     );
 
     return (
@@ -12846,7 +14548,7 @@ function setupEntanglementGate(root) {
         top: pipeRect.top - shellRect.top,
         bottom: pipeRect.bottom - shellRect.top,
       },
-      1
+      1,
     );
 
     if (!resolved.overlapped) {
@@ -12897,7 +14599,12 @@ function setupEntanglementGate(root) {
   function collapseQubitState(qubit) {
     const totalWeight = qubit.blue + qubit.red;
     const blueProbability = totalWeight > 0 ? qubit.blue / totalWeight : 0.5;
-    const blueResult = blueProbability >= 1 ? true : blueProbability <= 0 ? false : Math.random() < blueProbability;
+    const blueResult =
+      blueProbability >= 1
+        ? true
+        : blueProbability <= 0
+          ? false
+          : Math.random() < blueProbability;
     if (blueResult) {
       qubit.blue = 1;
       qubit.red = 0;
@@ -12928,13 +14635,13 @@ function setupEntanglementGate(root) {
     }
     return cnotOutcomeProbabilitiesFromQubitVectors(
       normalizedQubitVectorFromProbabilities(topQubit),
-      normalizedQubitVectorFromProbabilities(bottomQubit)
+      normalizedQubitVectorFromProbabilities(bottomQubit),
     );
   }
 
   function collapseQubitPairFromCnot(topQubit, bottomQubit) {
     const outcomeKey = samplePairOutcomeFromProbabilities(
-      cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit)
+      cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit),
     );
     const topBlue = outcomeKey[0] === "b";
     const bottomBlue = outcomeKey[1] === "b";
@@ -12996,7 +14703,9 @@ function setupEntanglementGate(root) {
     const shellRect = shell.getBoundingClientRect();
     const flangeRect = flangeElement.getBoundingClientRect();
     const springStyles = window.getComputedStyle(springElement);
-    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const springLength = Number.parseFloat(
+      springStyles.getPropertyValue("--spring-length"),
+    );
     const usableSpringLength = Number.isFinite(springLength)
       ? springLength
       : springElement.getBoundingClientRect().width;
@@ -13012,7 +14721,9 @@ function setupEntanglementGate(root) {
     const shellRect = shell.getBoundingClientRect();
     const pipeRect = pipe.getBoundingClientRect();
     const springStyles = window.getComputedStyle(cnotPlatform);
-    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const springLength = Number.parseFloat(
+      springStyles.getPropertyValue("--spring-length"),
+    );
     const usableSpringLength = Number.isFinite(springLength)
       ? springLength
       : cnotPlatform.getBoundingClientRect().width;
@@ -13028,7 +14739,9 @@ function setupEntanglementGate(root) {
     const lensRect = measurementTool.getBoundingClientRect();
     const shellRect = shell.getBoundingClientRect();
     const springStyles = window.getComputedStyle(measurementPlatform);
-    const springLength = Number.parseFloat(springStyles.getPropertyValue("--spring-length"));
+    const springLength = Number.parseFloat(
+      springStyles.getPropertyValue("--spring-length"),
+    );
     const usableSpringLength = Number.isFinite(springLength)
       ? springLength
       : measurementPlatform.getBoundingClientRect().width;
@@ -13040,7 +14753,8 @@ function setupEntanglementGate(root) {
     const shellRect = shell.getBoundingClientRect();
     const blockRect = measurementBlock.getBoundingClientRect();
     const lensRect = measurementTool.getBoundingClientRect();
-    const desiredCenterX = lensRect.right - shellRect.left + qubitWidth / 2 + 40;
+    const desiredCenterX =
+      lensRect.right - shellRect.left + qubitWidth / 2 + 40;
     const maxCenterX = blockRect.right - shellRect.left - qubitWidth / 2 - 12;
     return Math.min(desiredCenterX, maxCenterX);
   }
@@ -13054,7 +14768,8 @@ function setupEntanglementGate(root) {
     }
     const cnotCenterY = stagePointForElementCenter(pipe).y;
     const measurementCenterY =
-      stagePointForElementCenter(measurementTool).y + TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
+      stagePointForElementCenter(measurementTool).y +
+      TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
     const deltaY = cnotCenterY - measurementCenterY;
     measurementBlock.style.transform = `translateY(${deltaY}px)`;
   }
@@ -13090,7 +14805,11 @@ function setupEntanglementGate(root) {
     const midpoint = (leftBoundary + rightBoundary) / 2;
     const minPipeLeft = leftBoundary + 14;
     const maxPipeLeft = rightBoundary - pipeWidth - 14;
-    const desiredPipeLeft = clamp(midpoint - pipeWidth / 2, minPipeLeft, maxPipeLeft);
+    const desiredPipeLeft = clamp(
+      midpoint - pipeWidth / 2,
+      minPipeLeft,
+      maxPipeLeft,
+    );
     pipe.style.left = `${Math.round(desiredPipeLeft)}px`;
   }
 
@@ -13101,7 +14820,10 @@ function setupEntanglementGate(root) {
     payload.style.left = `${startPoint.x}px`;
     payload.style.top = `${startPoint.y}px`;
     payload.style.pointerEvents = "none";
-    payload.style.setProperty("--qubit-fill", color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1));
+    payload.style.setProperty(
+      "--qubit-fill",
+      color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
+    );
     shell.appendChild(payload);
     return payload;
   }
@@ -13123,10 +14845,13 @@ function setupEntanglementGate(root) {
     topStartPoint,
     bottomStartPoint,
     expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {}
+    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
   ) {
     const topPayload = createMeasurementPayload(topColor, topStartPoint);
-    const bottomPayload = createMeasurementPayload(bottomColor, bottomStartPoint);
+    const bottomPayload = createMeasurementPayload(
+      bottomColor,
+      bottomStartPoint,
+    );
 
     try {
       const shellRect = shell.getBoundingClientRect();
@@ -13140,8 +14865,18 @@ function setupEntanglementGate(root) {
       const targetOffset = payloadHeight * 0.8;
 
       await Promise.all([
-        movePayloadToPoint(topPayload, targetPoint.x, targetPoint.y - targetOffset, migrationDuration),
-        movePayloadToPoint(bottomPayload, targetPoint.x, targetPoint.y + targetOffset, migrationDuration),
+        movePayloadToPoint(
+          topPayload,
+          targetPoint.x,
+          targetPoint.y - targetOffset,
+          migrationDuration,
+        ),
+        movePayloadToPoint(
+          bottomPayload,
+          targetPoint.x,
+          targetPoint.y + targetOffset,
+          migrationDuration,
+        ),
       ]);
       if (expectedRunToken !== runToken) {
         return false;
@@ -13168,9 +14903,17 @@ function setupEntanglementGate(root) {
   }
 
   function applyPreGateToQubit(qubit) {
-    const inVector = [Math.sqrt(clamp(qubit.blue, 0, 1)), Math.sqrt(clamp(qubit.red, 0, 1))];
-    const outVector = vectorTimesMatrix2(inVector, gateMatrixForTick(qubit.preGate.tickIndex));
-    const [blueProbability, redProbability] = probabilitiesFromVector2(normalizeVector2(outVector));
+    const inVector = [
+      Math.sqrt(clamp(qubit.blue, 0, 1)),
+      Math.sqrt(clamp(qubit.red, 0, 1)),
+    ];
+    const outVector = vectorTimesMatrix2(
+      inVector,
+      gateMatrixForTick(qubit.preGate.tickIndex),
+    );
+    const [blueProbability, redProbability] = probabilitiesFromVector2(
+      normalizeVector2(outVector),
+    );
     qubit.blue = blueProbability;
     qubit.red = redProbability;
     updateQubitColor(qubit);
@@ -13223,7 +14966,7 @@ function setupEntanglementGate(root) {
   function annotateCnotOutcomeProbabilitiesForCurrentState() {
     const outcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
       normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1])
+      normalizedQubitVectorFromProbabilities(qubits[1]),
     );
     const pairToken = `${Date.now()}-${Math.random()}`;
     qubits[0].cnotPairToken = pairToken;
@@ -13249,7 +14992,7 @@ function setupEntanglementGate(root) {
   function setPreGateTickIndex(
     qubit,
     tickIndex,
-    { deferMeasurementClear = false, fromDial = false } = {}
+    { deferMeasurementClear = false, fromDial = false } = {},
   ) {
     const normalizedTick = normalizeTickIndex(tickIndex);
     const changed = normalizedTick !== qubit.preGate.tickIndex;
@@ -13308,7 +15051,12 @@ function setupEntanglementGate(root) {
     try {
       clearMeasurementSlotForQubit(qubit);
       const preWindowCenter = stagePointForElementCenter(qubit.preGate.pipe);
-      await moveQubitToPoint(qubit, preWindowCenter.x, preWindowCenter.y, AUTO_TRAVEL_MS);
+      await moveQubitToPoint(
+        qubit,
+        preWindowCenter.x,
+        preWindowCenter.y,
+        AUTO_TRAVEL_MS,
+      );
       if (expectedRunToken !== runToken) {
         return false;
       }
@@ -13322,7 +15070,10 @@ function setupEntanglementGate(root) {
       setSpringExtended(qubit.preGate.flange, true);
 
       const qubitRect = qubit.element.getBoundingClientRect();
-      const targetX = springTipX(qubit.preGate.spring, qubit.preGate.flange) + 6 + qubitRect.width / 2;
+      const targetX =
+        springTipX(qubit.preGate.spring, qubit.preGate.flange) +
+        6 +
+        qubitRect.width / 2;
       const targetY = preWindowCenter.y;
       await moveQubitToPoint(qubit, targetX, targetY, GATE_PLATFORM_EXTEND_MS);
       if (expectedRunToken !== runToken) {
@@ -13344,7 +15095,10 @@ function setupEntanglementGate(root) {
 
   async function runMeasurementSequence(
     expectedRunToken = runToken,
-    { migrationDuration = GATE_PLATFORM_EXTEND_MS, meltDuration = AUTO_MELT_MS } = {}
+    {
+      migrationDuration = GATE_PLATFORM_EXTEND_MS,
+      meltDuration = AUTO_MELT_MS,
+    } = {},
   ) {
     if (measurementInProgress || cnotBusy) {
       return;
@@ -13393,7 +15147,9 @@ function setupEntanglementGate(root) {
 
       const outcomeKey = pairTubeOutcomeKey(topResult, bottomResult);
       const topPayloadStart = stagePointForElementCenter(topQubit.element);
-      const bottomPayloadStart = stagePointForElementCenter(bottomQubit.element);
+      const bottomPayloadStart = stagePointForElementCenter(
+        bottomQubit.element,
+      );
       settleQubitVisualState(topQubit);
       settleQubitVisualState(bottomQubit);
       topQubit.element.classList.add("ent-hidden");
@@ -13427,7 +15183,7 @@ function setupEntanglementGate(root) {
         topPayloadStart,
         bottomPayloadStart,
         expectedRunToken,
-        { migrationDuration, meltDuration }
+        { migrationDuration, meltDuration },
       );
       if (!payloadsCompleted || expectedRunToken !== runToken) {
         return;
@@ -13453,7 +15209,9 @@ function setupEntanglementGate(root) {
   }
 
   function nextFrame() {
-    return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+    return new Promise((resolve) =>
+      window.requestAnimationFrame(() => resolve()),
+    );
   }
 
   async function runAutomatedEntanglementMeasurements(iterations) {
@@ -13497,7 +15255,10 @@ function setupEntanglementGate(root) {
           applyPreGateToQubit(qubits[1]);
           annotateCnotOutcomeProbabilitiesForCurrentState();
           applyCnotGateToQubits();
-          const { outcomeKey } = collapseQubitPairFromCnot(qubits[0], qubits[1]);
+          const { outcomeKey } = collapseQubitPairFromCnot(
+            qubits[0],
+            qubits[1],
+          );
           tubeCountState[outcomeKey] += 1;
           maybeExpandTubeCapacity();
         };
@@ -13543,10 +15304,22 @@ function setupEntanglementGate(root) {
         }
 
         qubits.forEach((qubit) => placeQubitAtStart(qubit));
-        const preGateCenters = qubits.map((qubit) => stagePointForElementCenter(qubit.preGate.pipe));
+        const preGateCenters = qubits.map((qubit) =>
+          stagePointForElementCenter(qubit.preGate.pipe),
+        );
         await Promise.all([
-          moveQubitToPoint(qubits[0], preGateCenters[0].x, preGateCenters[0].y, travelDuration),
-          moveQubitToPoint(qubits[1], preGateCenters[1].x, preGateCenters[1].y, travelDuration),
+          moveQubitToPoint(
+            qubits[0],
+            preGateCenters[0].x,
+            preGateCenters[0].y,
+            travelDuration,
+          ),
+          moveQubitToPoint(
+            qubits[1],
+            preGateCenters[1].x,
+            preGateCenters[1].y,
+            travelDuration,
+          ),
         ]);
         if (thisRunToken !== runToken) {
           break;
@@ -13559,10 +15332,22 @@ function setupEntanglementGate(root) {
           break;
         }
 
-        const cnotCenters = qubits.map((qubit) => stagePointForElementCenter(qubit.cnotWindow));
+        const cnotCenters = qubits.map((qubit) =>
+          stagePointForElementCenter(qubit.cnotWindow),
+        );
         await Promise.all([
-          moveQubitToPoint(qubits[0], cnotCenters[0].x, cnotCenters[0].y, travelDuration),
-          moveQubitToPoint(qubits[1], cnotCenters[1].x, cnotCenters[1].y, travelDuration),
+          moveQubitToPoint(
+            qubits[0],
+            cnotCenters[0].x,
+            cnotCenters[0].y,
+            travelDuration,
+          ),
+          moveQubitToPoint(
+            qubits[1],
+            cnotCenters[1].x,
+            cnotCenters[1].y,
+            travelDuration,
+          ),
         ]);
         if (thisRunToken !== runToken) {
           break;
@@ -13581,7 +15366,12 @@ function setupEntanglementGate(root) {
         const bottomSlot = getMeasurementSlotCenter(bottomSlotName);
         await Promise.all([
           moveQubitToPoint(qubits[0], topSlot.x, topSlot.y, travelDuration),
-          moveQubitToPoint(qubits[1], bottomSlot.x, bottomSlot.y, travelDuration),
+          moveQubitToPoint(
+            qubits[1],
+            bottomSlot.x,
+            bottomSlot.y,
+            travelDuration,
+          ),
         ]);
         if (thisRunToken !== runToken) {
           break;
@@ -13617,7 +15407,12 @@ function setupEntanglementGate(root) {
   }
 
   async function runCnotCycle(expectedRunToken = runToken) {
-    if (cnotBusy || measurementInProgress || autoRunInProgress || !allQubitsInCnotWindow()) {
+    if (
+      cnotBusy ||
+      measurementInProgress ||
+      autoRunInProgress ||
+      !allQubitsInCnotWindow()
+    ) {
       return;
     }
 
@@ -13647,7 +15442,14 @@ function setupEntanglementGate(root) {
       });
 
       await Promise.all(
-        targets.map((target) => moveQubitToPoint(target.qubit, target.x, target.y, GATE_PLATFORM_EXTEND_MS))
+        targets.map((target) =>
+          moveQubitToPoint(
+            target.qubit,
+            target.x,
+            target.y,
+            GATE_PLATFORM_EXTEND_MS,
+          ),
+        ),
       );
       if (expectedRunToken !== runToken) {
         return;
@@ -13740,7 +15542,10 @@ function setupEntanglementGate(root) {
     }
 
     const chosenSlot = getMeasurementSlotForQubit(qubit);
-    if (measurementSlotOccupants[chosenSlot] && measurementSlotOccupants[chosenSlot] !== qubit) {
+    if (
+      measurementSlotOccupants[chosenSlot] &&
+      measurementSlotOccupants[chosenSlot] !== qubit
+    ) {
       return false;
     }
 
@@ -13833,7 +15638,12 @@ function setupEntanglementGate(root) {
   }
 
   function maybeSnapQubitToMeasurementLens(qubit) {
-    if (measurementInProgress || cnotBusy || autoRunInProgress || qubit.measurementTransitInProgress) {
+    if (
+      measurementInProgress ||
+      cnotBusy ||
+      autoRunInProgress ||
+      qubit.measurementTransitInProgress
+    ) {
       return false;
     }
 
@@ -13851,7 +15661,10 @@ function setupEntanglementGate(root) {
     }
 
     const chosenSlot = getMeasurementSlotForQubit(qubit);
-    if (measurementSlotOccupants[chosenSlot] && measurementSlotOccupants[chosenSlot] !== qubit) {
+    if (
+      measurementSlotOccupants[chosenSlot] &&
+      measurementSlotOccupants[chosenSlot] !== qubit
+    ) {
       return false;
     }
 
@@ -13900,7 +15713,12 @@ function setupEntanglementGate(root) {
 
   function continueQubitDrag(event) {
     const draggingQubits = qubits.filter((qubit) => qubit.dragging);
-    if (!draggingQubits.length || cnotBusy || measurementInProgress || autoRunInProgress) {
+    if (
+      !draggingQubits.length ||
+      cnotBusy ||
+      measurementInProgress ||
+      autoRunInProgress
+    ) {
       return;
     }
     if (event.touches) {
@@ -14024,11 +15842,13 @@ function setupEntanglementGate(root) {
   }
 
   qubits.forEach((qubit) => {
-    qubit.element.addEventListener("mousedown", (event) => beginQubitDrag(qubit, event));
+    qubit.element.addEventListener("mousedown", (event) =>
+      beginQubitDrag(qubit, event),
+    );
     qubit.element.addEventListener(
       "touchstart",
       (event) => beginQubitDrag(qubit, event),
-      { passive: false }
+      { passive: false },
     );
   });
 
@@ -14039,7 +15859,8 @@ function setupEntanglementGate(root) {
       initialTick: qubit.preGate.tickIndex,
       tickAriaLabelPrefix: `${qubit.key} gate tick`,
       orbitInset: 10,
-      canInteract: () => !(autoRunInProgress || cnotBusy || measurementInProgress),
+      canInteract: () =>
+        !(autoRunInProgress || cnotBusy || measurementInProgress),
       onTickChange: (tick, meta) => {
         setPreGateTickIndex(qubit, tick, {
           deferMeasurementClear: meta.deferMeasurementClear,
@@ -14053,21 +15874,31 @@ function setupEntanglementGate(root) {
       },
     });
     preGateDials.set(qubit.key, dial);
-    qubit.preGate.arrow.addEventListener("mousedown", (event) => beginPreGateArrowDrag(qubit, event));
+    qubit.preGate.arrow.addEventListener("mousedown", (event) =>
+      beginPreGateArrowDrag(qubit, event),
+    );
     qubit.preGate.arrow.addEventListener(
       "touchstart",
       (event) => beginPreGateArrowDrag(qubit, event),
-      { passive: false }
+      { passive: false },
     );
-    qubit.preGate.arrow.addEventListener("keydown", (event) => preGateDials.get(qubit.key)?.handleKeydown(event));
+    qubit.preGate.arrow.addEventListener("keydown", (event) =>
+      preGateDials.get(qubit.key)?.handleKeydown(event),
+    );
   });
   setPreGateTickIndex(qubits[0], ENT_TOP_DEFAULT_GATE_TICK_INDEX);
   setPreGateTickIndex(qubits[1], ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX);
   clearMeasurementApparatus();
 
-  measurementCount.addEventListener("mousedown", (event) => event.stopPropagation());
-  measurementCount.addEventListener("touchstart", (event) => event.stopPropagation());
-  measurementCount.addEventListener("click", (event) => event.stopPropagation());
+  measurementCount.addEventListener("mousedown", (event) =>
+    event.stopPropagation(),
+  );
+  measurementCount.addEventListener("touchstart", (event) =>
+    event.stopPropagation(),
+  );
+  measurementCount.addEventListener("click", (event) =>
+    event.stopPropagation(),
+  );
   measurementCount.addEventListener("change", () => {
     clearMeasurementApparatus();
     const iterations = Number(measurementCount.value) || 1;
@@ -14092,7 +15923,7 @@ function setupEntanglementGate(root) {
       continuePreGateArrowDrag(event);
       continueQubitDrag(event);
     },
-    { passive: false }
+    { passive: false },
   );
   window.addEventListener("mouseup", () => {
     endPreGateArrowDrag();
@@ -14119,7 +15950,9 @@ const oneQubitSimulator = oneQubitRoot ? setupSimulator(oneQubitRoot) : null;
 const pairRoot = mountTwoQubitPair();
 const twoQubitPairSimulator = pairRoot ? setupTwoQubitPair(pairRoot) : null;
 const entanglementRoot = mountEntanglementGate(entanglementHost);
-const entanglementSimulator = entanglementRoot ? setupEntanglementGate(entanglementRoot) : null;
+const entanglementSimulator = entanglementRoot
+  ? setupEntanglementGate(entanglementRoot)
+  : null;
 const plagroundComposer = setupPlagroundComposer({
   oneQubitRoot,
   twoQubitPairRoot: pairRoot,
@@ -14179,8 +16012,12 @@ function setActiveTab(tabTarget) {
   clearSelectedGeneratedLayoutItem();
 
   if (tabTarget === "entanglement") {
-    const entGate = document.querySelector('#panel-entanglement [data-role="ent-gate"]');
-    const entMeasurementHost = document.querySelector('#panel-entanglement [data-role="ent-measurement-host"]');
+    const entGate = document.querySelector(
+      '#panel-entanglement [data-role="ent-gate"]',
+    );
+    const entMeasurementHost = document.querySelector(
+      '#panel-entanglement [data-role="ent-measurement-host"]',
+    );
     [entGate, entMeasurementHost].forEach((element) => {
       if (!(element instanceof HTMLElement)) {
         return;

@@ -13,7 +13,9 @@
   --tick: #f9b067;
   --arrow: #da3f1f;
   --text: #0d2538;
-  --two-mode-inner-width: calc(141px + 348px + 350px + 3.5rem + 314px + 20px + (0.7rem * 2) + 4px);
+  --two-mode-inner-width: calc(
+    141px + 348px + 350px + 3.5rem + 314px + 20px + (0.7rem * 2) + 4px
+  );
 }
 
 * {
@@ -26,8 +28,16 @@ body {
   font-family: "Chakra Petch", "Trebuchet MS", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.16), transparent 45%),
-    radial-gradient(circle at 85% 10%, rgba(255, 174, 72, 0.18), transparent 30%),
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(255, 255, 255, 0.16),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 85% 10%,
+      rgba(255, 174, 72, 0.18),
+      transparent 30%
+    ),
     linear-gradient(150deg, var(--bg-a), var(--bg-b));
   display: grid;
   place-items: center;
@@ -62,7 +72,9 @@ body {
   min-width: 142px;
   height: 2.1rem;
   padding: 0 0.8rem;
-  font: 600 0.78rem "Aldrich", sans-serif;
+  font:
+    600 0.78rem "Aldrich",
+    sans-serif;
   letter-spacing: 0.02em;
   color: #10334a;
   background: linear-gradient(165deg, #eef8ff, #cde0ee);
@@ -114,7 +126,9 @@ body.layout-edit-active [data-layout-edit-target="true"].layout-edit-selected {
   display: none;
 }
 
-body.layout-edit-active [data-layout-edit-target="true"][data-layout-resizable="true"] .layout-resize-handle {
+body.layout-edit-active
+  [data-layout-edit-target="true"][data-layout-resizable="true"]
+  .layout-resize-handle {
   display: block;
   position: absolute;
   right: -7px;
@@ -123,7 +137,12 @@ body.layout-edit-active [data-layout-edit-target="true"][data-layout-resizable="
   height: 14px;
   border-radius: 50%;
   border: 1px solid rgba(5, 35, 55, 0.95);
-  background: radial-gradient(circle at 35% 35%, #ffffff, #ffbe4f 60%, #d37d1a 100%);
+  background: radial-gradient(
+    circle at 35% 35%,
+    #ffffff,
+    #ffbe4f 60%,
+    #d37d1a 100%
+  );
   box-shadow: 0 1px 2px rgba(9, 23, 38, 0.45);
   cursor: nwse-resize;
   z-index: 30;
@@ -143,7 +162,9 @@ body.layout-edit-active *::after {
   min-width: 122px;
   height: 2.1rem;
   padding: 0 0.8rem;
-  font: 600 0.85rem "Aldrich", sans-serif;
+  font:
+    600 0.85rem "Aldrich",
+    sans-serif;
   letter-spacing: 0.02em;
   color: #18374f;
   background: linear-gradient(165deg, #f8fdff, #d9e8f2);
@@ -300,7 +321,9 @@ body.layout-edit-active *::after {
 
 .entanglement-version h2 {
   margin: 0 0 0.45rem;
-  font: 600 1rem/1 "Aldrich", sans-serif;
+  font:
+    600 1rem/1 "Aldrich",
+    sans-serif;
   letter-spacing: 0.02em;
   color: #15384f;
 }
@@ -362,7 +385,9 @@ body.layout-edit-active *::after {
   flex-wrap: wrap;
   margin-bottom: 0.7rem;
   color: #13334c;
-  font: 600 0.9rem/1 "Chakra Petch", sans-serif;
+  font:
+    600 0.9rem/1 "Chakra Petch",
+    sans-serif;
 }
 
 .playground-component-select {
@@ -372,7 +397,9 @@ body.layout-edit-active *::after {
   border: 1px solid #6e8799;
   background: #f6fbff;
   color: #17344f;
-  font: 600 0.85rem "Aldrich", sans-serif;
+  font:
+    600 0.85rem "Aldrich",
+    sans-serif;
   padding: 0 0.6rem;
   box-shadow: inset 0 1px 2px rgba(20, 48, 73, 0.16);
 }
@@ -387,7 +414,9 @@ body.layout-edit-active *::after {
   align-items: center;
   gap: 0.28rem;
   color: #0f3855;
-  font: 600 0.8rem/1 "Aldrich", sans-serif;
+  font:
+    600 0.8rem/1 "Aldrich",
+    sans-serif;
 }
 
 .playground-snap-label input {
@@ -404,7 +433,9 @@ body.layout-edit-active *::after {
   color: #17344f;
   background: linear-gradient(165deg, #f7fcff, #d7e7f2);
   box-shadow: 0 1px 2px rgba(16, 41, 63, 0.16);
-  font: 700 0.72rem/1 "Aldrich", sans-serif;
+  font:
+    700 0.72rem/1 "Aldrich",
+    sans-serif;
   cursor: pointer;
 }
 
@@ -425,7 +456,9 @@ body.layout-edit-active *::after {
 .playground-status {
   min-width: 90px;
   color: #1e4b6b;
-  font: 600 0.75rem/1 "Chakra Petch", sans-serif;
+  font:
+    600 0.75rem/1 "Chakra Petch",
+    sans-serif;
 }
 
 .playground-save-modal-backdrop {
@@ -455,7 +488,9 @@ body.layout-edit-active *::after {
 
 .playground-save-modal h2 {
   margin: 0;
-  font: 700 1rem "Aldrich", sans-serif;
+  font:
+    700 1rem "Aldrich",
+    sans-serif;
 }
 
 .playground-save-modal label {
@@ -475,7 +510,9 @@ body.layout-edit-active *::after {
   border: 1px solid #8ea6b8;
   background: #fafdff;
   color: #17344f;
-  font: 600 0.95rem "Chakra Petch", sans-serif;
+  font:
+    600 0.95rem "Chakra Petch",
+    sans-serif;
   padding: 0 0.65rem;
 }
 
@@ -483,7 +520,9 @@ body.layout-edit-active *::after {
 .playground-save-error {
   min-height: 1.2rem;
   margin: 0;
-  font: 700 0.82rem/1.35 "Chakra Petch", sans-serif;
+  font:
+    700 0.82rem/1.35 "Chakra Petch",
+    sans-serif;
 }
 
 .playground-save-warning {
@@ -505,7 +544,9 @@ body.layout-edit-active *::after {
   border-radius: 0.5rem;
   border: 1px solid #809bad;
   padding: 0 0.8rem;
-  font: 700 0.82rem "Aldrich", sans-serif;
+  font:
+    700 0.82rem "Aldrich",
+    sans-serif;
   cursor: pointer;
 }
 
@@ -530,10 +571,17 @@ body.layout-edit-active *::after {
   border-radius: 0.95rem;
   border: 2px solid #8ea3b5;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(228, 241, 251, 0.56)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.56),
+      rgba(228, 241, 251, 0.56)
+    ),
     linear-gradient(90deg, rgba(84, 120, 148, 0.14) 1px, transparent 1px),
     linear-gradient(0deg, rgba(84, 120, 148, 0.14) 1px, transparent 1px);
-  background-size: 100% 100%, 26px 26px, 26px 26px;
+  background-size:
+    100% 100%,
+    26px 26px,
+    26px 26px;
   box-shadow:
     inset 0 1px 2px rgba(20, 48, 73, 0.2),
     0 10px 24px rgba(9, 27, 42, 0.25);
@@ -587,7 +635,10 @@ body.layout-edit-active #panel-plaground .playground-node.qubit {
   cursor: nwse-resize;
 }
 
-body.layout-edit-active #panel-plaground .playground-node.qubit > .layout-resize-handle {
+body.layout-edit-active
+  #panel-plaground
+  .playground-node.qubit
+  > .layout-resize-handle {
   display: block;
   right: -2px;
   bottom: -2px;
@@ -605,7 +656,9 @@ body.layout-edit-active #panel-plaground .playground-node.qubit > .layout-resize
   place-items: center;
 }
 
-#panel-plaground .playground-node.playground-qubit-shell .playground-qubit-core {
+#panel-plaground
+  .playground-node.playground-qubit-shell
+  .playground-qubit-core {
   position: relative !important;
   left: auto !important;
   top: auto !important;
@@ -628,12 +681,17 @@ body.layout-edit-active #panel-plaground .playground-node.qubit > .layout-resize
   pointer-events: none;
 }
 
-body.layout-edit-active #panel-plaground .playground-node.playground-qubit-shell {
+body.layout-edit-active
+  #panel-plaground
+  .playground-node.playground-qubit-shell {
   outline: 2px dashed rgba(237, 170, 59, 0.9);
   outline-offset: 2px;
 }
 
-body.layout-edit-active #panel-plaground .playground-node.playground-qubit-shell > .layout-resize-handle {
+body.layout-edit-active
+  #panel-plaground
+  .playground-node.playground-qubit-shell
+  > .layout-resize-handle {
   display: block;
   right: -2px;
   bottom: -2px;
@@ -655,7 +713,9 @@ body.layout-edit-active #panel-plaground .playground-node.playground-qubit-shell
   border-radius: 0.5rem;
   background: rgba(246, 251, 255, 0.9);
   color: #17344f;
-  font: 600 0.92rem "Aldrich", sans-serif;
+  font:
+    600 0.92rem "Aldrich",
+    sans-serif;
   padding: 0.5rem;
   text-align: center;
 }
@@ -798,16 +858,25 @@ body.layout-edit-active .generated-editor-toolbar {
 
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .ticks,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .tick,
-.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .arrow-layer,
-.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .arrow-group,
-.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .arrow-group * {
+.generated-layout-canvas
+  .playground-node.window-wrap.single-qubit-gate
+  .arrow-layer,
+.generated-layout-canvas
+  .playground-node.window-wrap.single-qubit-gate
+  .arrow-group,
+.generated-layout-canvas
+  .playground-node.window-wrap.single-qubit-gate
+  .arrow-group
+  * {
   pointer-events: auto;
 }
 
 .generated-layout-canvas .playground-node.measurement-stage .magnifier,
 .generated-layout-canvas .playground-node.measurement-stage .measurement-count,
 .generated-layout-canvas .playground-node.pair-measurement .pair-magnifier,
-.generated-layout-canvas .playground-node.pair-measurement .pair-measurement-count {
+.generated-layout-canvas
+  .playground-node.pair-measurement
+  .pair-measurement-count {
   pointer-events: auto;
 }
 
@@ -828,7 +897,9 @@ body.layout-edit-active .generated-layout-canvas .playground-node.selected {
   outline-offset: 2px;
 }
 
-body.layout-edit-active .generated-layout-canvas .playground-node.playground-qubit-shell {
+body.layout-edit-active
+  .generated-layout-canvas
+  .playground-node.playground-qubit-shell {
   outline: 2px dashed rgba(237, 170, 59, 0.9);
   outline-offset: 2px;
 }
@@ -853,11 +924,14 @@ body.layout-edit-active .generated-layout-canvas .playground-node.playground-qub
   pointer-events: none;
 }
 
-.generated-layout-canvas .playground-node.playground-qubit-shell.generated-automation-active {
+.generated-layout-canvas
+  .playground-node.playground-qubit-shell.generated-automation-active {
   z-index: 10000 !important;
 }
 
-.generated-layout-canvas .playground-node.playground-qubit-shell .playground-qubit-core {
+.generated-layout-canvas
+  .playground-node.playground-qubit-shell
+  .playground-qubit-core {
   position: relative !important;
   left: auto !important;
   top: auto !important;
@@ -1055,13 +1129,12 @@ body.layout-edit-active .generated-layout-canvas .playground-node.playground-qub
   height: 58px;
   border-radius: 50%;
   border: 3px solid rgba(53, 80, 102, 0.72);
-  background:
-    radial-gradient(
-      circle at 34% 30%,
-      rgba(255, 255, 255, 0.78),
-      rgba(206, 228, 247, 0.44) 56%,
-      rgba(169, 198, 220, 0.5)
-    );
+  background: radial-gradient(
+    circle at 34% 30%,
+    rgba(255, 255, 255, 0.78),
+    rgba(206, 228, 247, 0.44) 56%,
+    rgba(169, 198, 220, 0.5)
+  );
   box-shadow:
     inset 0 8px 16px rgba(255, 255, 255, 0.45),
     inset 0 -10px 16px rgba(53, 80, 102, 0.24);
@@ -1138,14 +1211,13 @@ body.layout-edit-active .generated-layout-canvas .playground-node.playground-qub
   transform-origin: left center;
   border: 0;
   border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
+  background: radial-gradient(
+    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+    transparent 56%,
+    rgba(154, 170, 186, 0.95) 60%,
+    rgba(52, 67, 83, 0.98) 69%,
+    transparent 75%
+  );
   background-size: 16px 100%;
   background-repeat: repeat-x;
   filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
@@ -1270,13 +1342,12 @@ body.layout-edit-active .generated-layout-canvas .playground-node.playground-qub
   height: 68px;
   border-radius: 50%;
   border: 3px solid rgba(53, 80, 102, 0.72);
-  background:
-    radial-gradient(
-      circle at 34% 30%,
-      rgba(255, 255, 255, 0.78),
-      rgba(206, 228, 247, 0.44) 56%,
-      rgba(169, 198, 220, 0.5)
-    );
+  background: radial-gradient(
+    circle at 34% 30%,
+    rgba(255, 255, 255, 0.78),
+    rgba(206, 228, 247, 0.44) 56%,
+    rgba(169, 198, 220, 0.5)
+  );
   box-shadow:
     inset 0 8px 16px rgba(255, 255, 255, 0.45),
     inset 0 -10px 16px rgba(53, 80, 102, 0.24);
@@ -1331,14 +1402,13 @@ body.layout-edit-active .generated-layout-canvas .playground-node.playground-qub
   transform-origin: left center;
   border: 0;
   border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
+  background: radial-gradient(
+    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+    transparent 56%,
+    rgba(154, 170, 186, 0.95) 60%,
+    rgba(52, 67, 83, 0.98) 69%,
+    transparent 75%
+  );
   background-size: 16px 100%;
   background-repeat: repeat-x;
   filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
@@ -1370,36 +1440,67 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   outline-offset: 2px;
 }
 
-body.layout-edit-active #panel-plaground .cnot-gate [data-playground-cnot-part] {
+body.layout-edit-active
+  #panel-plaground
+  .cnot-gate
+  [data-playground-cnot-part] {
   pointer-events: auto;
 }
 
-body.layout-edit-active #panel-plaground .cnot-gate [data-playground-cnot-part] > .layout-resize-handle {
+body.layout-edit-active
+  #panel-plaground
+  .cnot-gate
+  [data-playground-cnot-part]
+  > .layout-resize-handle {
   width: 16px;
   height: 16px;
   z-index: 90;
 }
 
-body.layout-edit-active #panel-plaground .cnot-gate .cnot-input-funnel > .layout-resize-handle {
+body.layout-edit-active
+  #panel-plaground
+  .cnot-gate
+  .cnot-input-funnel
+  > .layout-resize-handle {
   right: 5px;
   top: calc(50% - 8px);
   bottom: auto;
 }
 
-body.layout-edit-active #panel-plaground .pair-measurement [data-playground-measurement-part],
-body.layout-edit-active .generated-layout-canvas .pair-measurement [data-playground-measurement-part] {
+body.layout-edit-active
+  #panel-plaground
+  .pair-measurement
+  [data-playground-measurement-part],
+body.layout-edit-active
+  .generated-layout-canvas
+  .pair-measurement
+  [data-playground-measurement-part] {
   pointer-events: auto;
 }
 
-body.layout-edit-active #panel-plaground .pair-measurement [data-playground-measurement-part] > .layout-resize-handle,
-body.layout-edit-active .generated-layout-canvas .pair-measurement [data-playground-measurement-part] > .layout-resize-handle {
+body.layout-edit-active
+  #panel-plaground
+  .pair-measurement
+  [data-playground-measurement-part]
+  > .layout-resize-handle,
+body.layout-edit-active
+  .generated-layout-canvas
+  .pair-measurement
+  [data-playground-measurement-part]
+  > .layout-resize-handle {
   width: 16px;
   height: 16px;
   z-index: 90;
 }
 
-body.layout-edit-active #panel-plaground .pair-measurement-funnel > .layout-resize-handle,
-body.layout-edit-active .generated-layout-canvas .pair-measurement-funnel > .layout-resize-handle {
+body.layout-edit-active
+  #panel-plaground
+  .pair-measurement-funnel
+  > .layout-resize-handle,
+body.layout-edit-active
+  .generated-layout-canvas
+  .pair-measurement-funnel
+  > .layout-resize-handle {
   right: 8px;
   top: calc(50% - 8px);
   bottom: auto;
@@ -1512,7 +1613,6 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   user-select: none;
 }
 
-
 .pair-qubit {
   width: 64px;
   left: -9999px;
@@ -1586,7 +1686,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   display: grid;
   place-items: center;
   color: #1b3953;
-  font: 600 14pt/1 "Chakra Petch", sans-serif;
+  font:
+    600 14pt/1 "Chakra Petch",
+    sans-serif;
   letter-spacing: 0.01em;
   text-align: center;
   padding: 0.2rem 0.45rem;
@@ -1622,7 +1724,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   place-items: center;
   text-align: center;
   color: #1f3e57;
-  font: 600 0.75rem/1.02 "Aldrich", sans-serif;
+  font:
+    600 0.75rem/1.02 "Aldrich",
+    sans-serif;
   letter-spacing: 0.01em;
   row-gap: 0.02rem;
 }
@@ -1728,8 +1832,12 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   height: 62px;
   border-radius: 50%;
   border: 3px solid rgba(53, 80, 102, 0.72);
-  background:
-    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.78), rgba(206, 228, 247, 0.44) 56%, rgba(169, 198, 220, 0.5));
+  background: radial-gradient(
+    circle at 34% 30%,
+    rgba(255, 255, 255, 0.78),
+    rgba(206, 228, 247, 0.44) 56%,
+    rgba(169, 198, 220, 0.5)
+  );
   box-shadow:
     inset 0 8px 16px rgba(255, 255, 255, 0.45),
     inset 0 -10px 16px rgba(53, 80, 102, 0.24);
@@ -1764,14 +1872,13 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   transform-origin: left center;
   border: 0;
   border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
+  background: radial-gradient(
+    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+    transparent 56%,
+    rgba(154, 170, 186, 0.95) 60%,
+    rgba(52, 67, 83, 0.98) 69%,
+    transparent 75%
+  );
   background-size: 16px 100%;
   background-repeat: repeat-x;
   filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
@@ -1807,7 +1914,8 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   content: "";
   position: absolute;
   inset: 0;
-  background: url("Wide magnifying glass transparent.png") center / 100% 100% no-repeat;
+  background: url("Wide magnifying glass transparent.png") center / 100% 100%
+    no-repeat;
   clip-path: inset(0 4px 0 4px);
   pointer-events: none;
   z-index: 0;
@@ -1866,7 +1974,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   display: grid;
   place-items: center;
   color: #1b3953;
-  font: 600 14pt/1 "Chakra Petch", sans-serif;
+  font:
+    600 14pt/1 "Chakra Petch",
+    sans-serif;
   letter-spacing: 0.01em;
   text-align: center;
   padding: 0.2rem 0.45rem;
@@ -1882,7 +1992,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   height: 2rem;
   background: linear-gradient(165deg, #fdfefe, #dce9f3);
   color: #17334d;
-  font: 600 0.85rem "Chakra Petch", sans-serif;
+  font:
+    600 0.85rem "Chakra Petch",
+    sans-serif;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(17, 42, 64, 0.18);
 }
@@ -1920,7 +2032,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   padding: 0.45rem 0.6rem;
   border-bottom: 1px solid #9cb2c3;
   color: #16354e;
-  font: 600 0.86rem "Chakra Petch", sans-serif;
+  font:
+    600 0.86rem "Chakra Petch",
+    sans-serif;
 }
 
 .qubit-inspector-close {
@@ -1932,7 +2046,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   padding: 0 0.5rem;
   background: linear-gradient(165deg, #fdfefe, #dce9f3);
   color: #17334d;
-  font: 600 0.76rem "Chakra Petch", sans-serif;
+  font:
+    600 0.76rem "Chakra Petch",
+    sans-serif;
   cursor: pointer;
 }
 
@@ -1944,7 +2060,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   margin: 0;
   white-space: pre-wrap;
   color: #112b40;
-  font: 600 0.76rem/1.32 "Aldrich", sans-serif;
+  font:
+    600 0.76rem/1.32 "Aldrich",
+    sans-serif;
 }
 
 .qubit-selection-marquee {
@@ -1987,7 +2105,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   background: #f8fbff;
   color: #102b42;
   text-align: center;
-  font: 600 0.9rem "Chakra Petch", sans-serif;
+  font:
+    600 0.9rem "Chakra Petch",
+    sans-serif;
   outline: none;
   box-shadow: inset 0 1px 3px rgba(18, 48, 73, 0.16);
   cursor: default;
@@ -2253,7 +2373,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   border-radius: 50%;
   border: 1px solid rgba(239, 244, 250, 0.7);
   box-shadow: 0 1px 2px rgba(9, 19, 29, 0.35);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .gate-radio-input:checked + .gate-radio-dot {
@@ -2307,14 +2429,13 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   transform-origin: left center;
   border: 0;
   border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
+  background: radial-gradient(
+    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+    transparent 56%,
+    rgba(154, 170, 186, 0.95) 60%,
+    rgba(52, 67, 83, 0.98) 69%,
+    transparent 75%
+  );
   background-size: 16px 100%;
   background-repeat: repeat-x;
   filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
@@ -2544,14 +2665,13 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   transform-origin: left center;
   border: 0;
   border-radius: calc(var(--spring-height) / 2);
-  background:
-    radial-gradient(
-      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-      transparent 56%,
-      rgba(154, 170, 186, 0.95) 60%,
-      rgba(52, 67, 83, 0.98) 69%,
-      transparent 75%
-    );
+  background: radial-gradient(
+    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+    transparent 56%,
+    rgba(154, 170, 186, 0.95) 60%,
+    rgba(52, 67, 83, 0.98) 69%,
+    transparent 75%
+  );
   background-size: 16px 100%;
   background-repeat: repeat-x;
   filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
@@ -2590,7 +2710,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   z-index: 4;
   box-shadow: 0 5px 10px rgba(18, 41, 64, 0.28);
   background-color: var(--qubit-fill);
-  transition: box-shadow 120ms ease, transform 120ms ease;
+  transition:
+    box-shadow 120ms ease,
+    transform 120ms ease;
   touch-action: none;
 }
 
@@ -2601,7 +2723,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   display: grid;
   place-items: center;
   color: #ffffff;
-  font: 700 2rem/1 "Aldrich", sans-serif;
+  font:
+    700 2rem/1 "Aldrich",
+    sans-serif;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
   pointer-events: none;
 }
@@ -2615,7 +2739,10 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 }
 
 .qubit.collapse-animating {
-  transition: box-shadow 120ms ease, transform 120ms ease, background-color 1000ms linear;
+  transition:
+    box-shadow 120ms ease,
+    transform 120ms ease,
+    background-color 1000ms linear;
 }
 
 .qubit.measurement-pellet {
@@ -2683,12 +2810,11 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   position: absolute;
   height: 8px;
   border-radius: 999px;
-  background:
-    repeating-linear-gradient(
-      115deg,
-      rgba(255, 245, 170, 1) 0 10px,
-      rgba(255, 185, 62, 1) 10px 16px
-    );
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(255, 245, 170, 1) 0 10px,
+    rgba(255, 185, 62, 1) 10px 16px
+  );
   box-shadow:
     0 0 8px rgba(255, 191, 80, 0.95),
     0 0 14px rgba(255, 230, 140, 0.62);
@@ -2731,7 +2857,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   border: 1px solid #7d93a6;
   background: #f7fbff;
   color: #1d3f5b;
-  font: 600 0.8rem "Chakra Petch", sans-serif;
+  font:
+    600 0.8rem "Chakra Petch",
+    sans-serif;
   display: grid;
   place-items: center;
   box-shadow: inset 0 1px 2px rgba(20, 52, 78, 0.14);
@@ -2744,7 +2872,11 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   border: 3px solid #6a7f91;
   border-top-width: 8px;
   background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.58), rgba(230, 241, 250, 0.2)),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.58),
+      rgba(230, 241, 250, 0.2)
+    ),
     rgba(237, 246, 253, 0.7);
   box-shadow:
     inset 0 0 0 2px rgba(255, 255, 255, 0.42),
@@ -2783,7 +2915,8 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   display: grid;
   place-items: center;
   transform: translate(var(--tool-shift-x), var(--tool-shift-y));
-  background: url("Magnifying%20glass%20transparent.png") center / contain no-repeat;
+  background: url("Magnifying%20glass%20transparent.png") center / contain
+    no-repeat;
   box-shadow: none;
   z-index: 1;
 }
@@ -2830,7 +2963,9 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   border: 1px solid #73889a;
   background: rgba(247, 252, 255, 0.95);
   color: #17344f;
-  font: 700 1rem "Aldrich", sans-serif;
+  font:
+    700 1rem "Aldrich",
+    sans-serif;
   text-align: center;
   text-align-last: center;
   cursor: pointer;
@@ -2862,7 +2997,13 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   border-radius: 50%;
   border: 14px solid transparent;
   background:
-    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.85), rgba(227, 241, 255, 0.4) 35%, rgba(167, 196, 219, 0.45) 66%, rgba(117, 145, 167, 0.6)),
+    radial-gradient(
+      circle at 34% 30%,
+      rgba(255, 255, 255, 0.85),
+      rgba(227, 241, 255, 0.4) 35%,
+      rgba(167, 196, 219, 0.45) 66%,
+      rgba(117, 145, 167, 0.6)
+    ),
     linear-gradient(145deg, var(--edge-a), var(--edge-b));
   background-origin: border-box;
   background-clip: padding-box, border-box;
@@ -2876,8 +3017,12 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   position: absolute;
   inset: 9%;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 40% 28%, rgba(247, 252, 255, 0.8), rgba(201, 223, 241, 0.5) 46%, rgba(132, 160, 186, 0.5) 100%);
+  background: radial-gradient(
+    circle at 40% 28%,
+    rgba(247, 252, 255, 0.8),
+    rgba(201, 223, 241, 0.5) 46%,
+    rgba(132, 160, 186, 0.5) 100%
+  );
   box-shadow:
     inset 0 -12px 20px rgba(54, 82, 108, 0.2),
     inset 0 6px 12px rgba(255, 255, 255, 0.52);
