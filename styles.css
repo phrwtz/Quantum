@@ -413,10 +413,110 @@ body.layout-edit-active *::after {
   cursor: not-allowed;
 }
 
+.playground-tool-btn.active:not(:disabled) {
+  border-color: #206c9b;
+  color: #062033;
+  background: linear-gradient(165deg, #ffedca, #ffcf86);
+  box-shadow:
+    0 0 0 2px rgba(255, 188, 93, 0.34),
+    0 1px 2px rgba(16, 41, 63, 0.2);
+}
+
 .playground-status {
   min-width: 90px;
   color: #1e4b6b;
   font: 600 0.75rem/1 "Chakra Petch", sans-serif;
+}
+
+.playground-save-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(8, 22, 34, 0.48);
+}
+
+.playground-save-modal {
+  width: min(92vw, 440px);
+  border-radius: 0.8rem;
+  border: 2px solid #8fa6b9;
+  background: linear-gradient(180deg, #f7fbff, #deebf4);
+  color: #17344f;
+  box-shadow:
+    0 22px 44px rgba(4, 17, 28, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 1rem;
+  display: grid;
+  gap: 0.7rem;
+  font-family: "Chakra Petch", sans-serif;
+}
+
+.playground-save-modal h2 {
+  margin: 0;
+  font: 700 1rem "Aldrich", sans-serif;
+}
+
+.playground-save-modal label {
+  display: grid;
+  gap: 0.28rem;
+  font-weight: 700;
+}
+
+.playground-save-modal [hidden] {
+  display: none !important;
+}
+
+.playground-save-modal select,
+.playground-save-modal input {
+  min-height: 2.2rem;
+  border-radius: 0.5rem;
+  border: 1px solid #8ea6b8;
+  background: #fafdff;
+  color: #17344f;
+  font: 600 0.95rem "Chakra Petch", sans-serif;
+  padding: 0 0.65rem;
+}
+
+.playground-save-warning,
+.playground-save-error {
+  min-height: 1.2rem;
+  margin: 0;
+  font: 700 0.82rem/1.35 "Chakra Petch", sans-serif;
+}
+
+.playground-save-warning {
+  color: #7a4115;
+}
+
+.playground-save-error {
+  color: #9d1d2a;
+}
+
+.playground-save-actions {
+  display: flex;
+  justify-content: end;
+  gap: 0.55rem;
+}
+
+.playground-save-actions button {
+  min-height: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid #809bad;
+  padding: 0 0.8rem;
+  font: 700 0.82rem "Aldrich", sans-serif;
+  cursor: pointer;
+}
+
+.playground-save-cancel {
+  background: #edf5fb;
+  color: #264a63;
+}
+
+.playground-save-submit {
+  background: linear-gradient(165deg, #fff0cf, #ffc575);
+  color: #14344d;
 }
 
 .playground-canvas {
@@ -469,17 +569,78 @@ body.layout-edit-active *::after {
   cursor: nwse-resize;
 }
 
-body.layout-edit-active #panel-playground .playground-node {
+body.layout-edit-active #panel-plaground .playground-node {
   cursor: grab;
 }
 
-body.layout-edit-active #panel-playground .playground-node::after {
+body.layout-edit-active #panel-plaground .playground-node::after {
   opacity: 1;
 }
 
-body.layout-edit-active #panel-playground .playground-node.selected {
+body.layout-edit-active #panel-plaground .playground-node.selected {
   outline: 3px solid rgba(34, 99, 153, 0.95);
   outline-offset: 2px;
+}
+
+body.layout-edit-active #panel-plaground .playground-node.qubit {
+  overflow: visible;
+  cursor: nwse-resize;
+}
+
+body.layout-edit-active #panel-plaground .playground-node.qubit > .layout-resize-handle {
+  display: block;
+  right: -2px;
+  bottom: -2px;
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  box-shadow: 0 2px 4px rgba(9, 23, 38, 0.55);
+}
+
+#panel-plaground .playground-node.playground-qubit-shell {
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+
+#panel-plaground .playground-node.playground-qubit-shell .playground-qubit-core {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1;
+  transform: none !important;
+  border-radius: 50%;
+  display: block;
+  pointer-events: none;
+  cursor: inherit;
+}
+
+#panel-plaground .playground-node.playground-qubit-shell.migrating {
+  transition:
+    left var(--move-duration, 620ms) ease-in-out,
+    top var(--move-duration, 620ms) ease-in-out;
+  pointer-events: none;
+}
+
+body.layout-edit-active #panel-plaground .playground-node.playground-qubit-shell {
+  outline: 2px dashed rgba(237, 170, 59, 0.9);
+  outline-offset: 2px;
+}
+
+body.layout-edit-active #panel-plaground .playground-node.playground-qubit-shell > .layout-resize-handle {
+  display: block;
+  right: -2px;
+  bottom: -2px;
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  box-shadow: 0 2px 4px rgba(9, 23, 38, 0.55);
 }
 
 .playground-fallback {
@@ -499,53 +660,62 @@ body.layout-edit-active #panel-playground .playground-node.selected {
   text-align: center;
 }
 
-#panel-playground .playground-node .top-controls,
-#panel-playground .playground-node .reset-btn {
+#panel-plaground .playground-node .top-controls,
+#panel-plaground .playground-node .reset-btn {
   display: none;
 }
 
-#panel-playground .playground-node,
-#panel-playground .playground-node * {
+#panel-plaground .playground-node,
+#panel-plaground .playground-node * {
   user-select: none;
 }
 
-#panel-playground .playground-node * {
+#panel-plaground .playground-node * {
   pointer-events: none;
 }
 
-body.layout-edit-active #panel-playground .playground-node * {
+#panel-plaground .playground-node.window-wrap.single-qubit-gate .ticks,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate .tick,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate .arrow-layer,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate .arrow-group,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate .arrow-group * {
   pointer-events: auto;
 }
 
-#panel-playground .playground-node {
+body.layout-edit-active #panel-plaground .playground-node * {
   pointer-events: auto;
 }
 
-#panel-playground .playground-node.qubit,
-#panel-playground .playground-node.window-wrap.single-qubit-gate,
-#panel-playground .playground-node.cnot-gate,
-#panel-playground .playground-node.ent-double-gate,
-#panel-playground .playground-node.measurement-stage,
-#panel-playground .playground-node.pair-measurement {
+#panel-plaground .playground-node {
+  pointer-events: auto;
+}
+
+#panel-plaground .playground-node.qubit,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
+#panel-plaground .playground-node.cnot-gate,
+#panel-plaground .playground-node.ent-double-gate,
+#panel-plaground .playground-node.measurement-stage,
+#panel-plaground .playground-node.pair-measurement {
+  position: absolute;
   left: auto;
   top: auto;
   transform: none;
 }
 
-#panel-playground .playground-node.qubit {
+#panel-plaground .playground-node.qubit {
   border-radius: 50%;
 }
 
-#panel-playground .playground-node.window-wrap.single-qubit-gate,
-#panel-playground .playground-node.cnot-gate,
-#panel-playground .playground-node.ent-double-gate {
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
+#panel-plaground .playground-node.cnot-gate,
+#panel-plaground .playground-node.ent-double-gate {
   width: 100%;
   height: 100%;
   max-width: none;
 }
 
-#panel-playground .playground-node.measurement-stage,
-#panel-playground .playground-node.pair-measurement {
+#panel-plaground .playground-node.measurement-stage,
+#panel-plaground .playground-node.pair-measurement {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -556,28 +726,226 @@ body.layout-edit-active #panel-playground .playground-node * {
   padding: 0.25rem;
 }
 
-#panel-playground .playground-node .tube-rack,
-#panel-playground .playground-node .pair-tube-rack {
+#panel-plaground .playground-node .tube-rack,
+#panel-plaground .playground-node .pair-tube-rack {
   width: max-content;
   justify-self: center;
 }
 
-#panel-playground .playground-node .tube-capacity,
-#panel-playground .playground-node .pair-capacity {
+#panel-plaground .playground-node .tube-capacity,
+#panel-plaground .playground-node .pair-capacity {
   width: 100%;
   min-width: 0;
 }
 
-#panel-playground .playground-node .measurement-count,
-#panel-playground .playground-node .pair-measurement-count {
+#panel-plaground .playground-node .measurement-count,
+#panel-plaground .playground-node .pair-measurement-count {
   width: 70px;
   justify-self: center;
 }
 
-#panel-playground .playground-node .magnifier,
-#panel-playground .playground-node .pair-magnifier {
+#panel-plaground .playground-node .magnifier,
+#panel-plaground .playground-node .pair-magnifier {
   transform: none;
   justify-self: center;
+}
+
+#panel-plaground .playground-node .pair-magnifier {
+  width: 314px;
+  max-width: none;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: url("New magnifying glass.png") center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+
+#panel-plaground .playground-node .pair-magnifier::after {
+  content: none;
+}
+
+#panel-plaground .playground-node .pair-measurement-funnel,
+#panel-plaground .playground-node .pair-measurement-platform,
+#panel-plaground .playground-node .pair-slot {
+  display: none !important;
+}
+
+.generated-tab-panel {
+  max-width: 100%;
+}
+
+.generated-editor-toolbar {
+  display: none;
+}
+
+body.layout-edit-active .generated-editor-toolbar {
+  display: flex;
+}
+
+.generated-layout-canvas {
+  resize: none;
+  overflow: auto;
+}
+
+.generated-layout-canvas .playground-node,
+.generated-layout-canvas .playground-node * {
+  user-select: none;
+}
+
+.generated-layout-canvas .playground-node * {
+  pointer-events: none;
+}
+
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .ticks,
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .tick,
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .arrow-layer,
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .arrow-group,
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .arrow-group * {
+  pointer-events: auto;
+}
+
+.generated-layout-canvas .playground-node.measurement-stage .magnifier,
+.generated-layout-canvas .playground-node.measurement-stage .measurement-count,
+.generated-layout-canvas .playground-node.pair-measurement .pair-magnifier,
+.generated-layout-canvas .playground-node.pair-measurement .pair-measurement-count {
+  pointer-events: auto;
+}
+
+body.layout-edit-active .generated-layout-canvas .playground-node * {
+  pointer-events: auto;
+}
+
+.generated-layout-canvas .playground-node {
+  pointer-events: auto;
+}
+
+body.layout-edit-active .generated-layout-canvas .playground-node {
+  cursor: grab;
+}
+
+body.layout-edit-active .generated-layout-canvas .playground-node.selected {
+  outline: 3px solid rgba(34, 99, 153, 0.95);
+  outline-offset: 2px;
+}
+
+body.layout-edit-active .generated-layout-canvas .playground-node.playground-qubit-shell {
+  outline: 2px dashed rgba(237, 170, 59, 0.9);
+  outline-offset: 2px;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell {
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell.dragging {
+  cursor: grabbing;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell.migrating {
+  transition:
+    left var(--move-duration, 620ms) ease-in-out,
+    top var(--move-duration, 620ms) ease-in-out;
+  pointer-events: none;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell.generated-automation-active {
+  z-index: 10000 !important;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell .playground-qubit-core {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1;
+  transform: none !important;
+  border-radius: 50%;
+  display: block;
+  pointer-events: none;
+}
+
+.generated-layout-canvas .playground-node.qubit,
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
+.generated-layout-canvas .playground-node.cnot-gate,
+.generated-layout-canvas .playground-node.ent-double-gate,
+.generated-layout-canvas .playground-node.measurement-stage,
+.generated-layout-canvas .playground-node.pair-measurement {
+  position: absolute;
+  left: auto;
+  top: auto;
+  transform: none;
+}
+
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
+.generated-layout-canvas .playground-node.cnot-gate,
+.generated-layout-canvas .playground-node.ent-double-gate {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+.generated-layout-canvas .playground-node.measurement-stage,
+.generated-layout-canvas .playground-node.pair-measurement {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  row-gap: 0.45rem;
+  padding: 0.25rem;
+}
+
+.generated-layout-canvas .playground-node .tube-rack,
+.generated-layout-canvas .playground-node .pair-tube-rack {
+  width: max-content;
+  justify-self: center;
+}
+
+.generated-layout-canvas .playground-node .tube-capacity,
+.generated-layout-canvas .playground-node .pair-capacity {
+  width: 100%;
+  min-width: 0;
+}
+
+.generated-layout-canvas .playground-node .measurement-count,
+.generated-layout-canvas .playground-node .pair-measurement-count {
+  width: 70px;
+  justify-self: center;
+}
+
+.generated-layout-canvas .playground-node .magnifier,
+.generated-layout-canvas .playground-node .pair-magnifier {
+  transform: none;
+  justify-self: center;
+}
+
+.generated-layout-canvas .playground-node .pair-magnifier {
+  width: 314px;
+  max-width: none;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: url("New magnifying glass.png") center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+
+.generated-layout-canvas .playground-node .pair-magnifier::after {
+  content: none;
+}
+
+.generated-layout-canvas .playground-node .pair-measurement-funnel,
+.generated-layout-canvas .playground-node .pair-measurement-platform,
+.generated-layout-canvas .playground-node .pair-slot {
+  display: none !important;
 }
 
 .ent-pre-gates {
@@ -992,12 +1360,55 @@ body.layout-edit-active #panel-playground .playground-node * {
 
 body.layout-edit-active .cnot-gate .cnot-input-funnel,
 body.layout-edit-active .cnot-gate .ent-input-funnel,
+body.layout-edit-active .cnot-gate .cnot-body,
+body.layout-edit-active .cnot-gate .ent-pipe,
 body.layout-edit-active .cnot-gate .cnot-porthole,
 body.layout-edit-active .cnot-gate .ent-window,
 body.layout-edit-active .cnot-gate .cnot-output-flange,
 body.layout-edit-active .cnot-gate .ent-output-flange {
   outline: 2px dashed rgba(30, 117, 187, 0.85);
   outline-offset: 2px;
+}
+
+body.layout-edit-active #panel-plaground .cnot-gate [data-playground-cnot-part] {
+  pointer-events: auto;
+}
+
+body.layout-edit-active #panel-plaground .cnot-gate [data-playground-cnot-part] > .layout-resize-handle {
+  width: 16px;
+  height: 16px;
+  z-index: 90;
+}
+
+body.layout-edit-active #panel-plaground .cnot-gate .cnot-input-funnel > .layout-resize-handle {
+  right: 5px;
+  top: calc(50% - 8px);
+  bottom: auto;
+}
+
+body.layout-edit-active #panel-plaground .pair-measurement [data-playground-measurement-part],
+body.layout-edit-active .generated-layout-canvas .pair-measurement [data-playground-measurement-part] {
+  pointer-events: auto;
+}
+
+body.layout-edit-active #panel-plaground .pair-measurement [data-playground-measurement-part] > .layout-resize-handle,
+body.layout-edit-active .generated-layout-canvas .pair-measurement [data-playground-measurement-part] > .layout-resize-handle {
+  width: 16px;
+  height: 16px;
+  z-index: 90;
+}
+
+body.layout-edit-active #panel-plaground .pair-measurement-funnel > .layout-resize-handle,
+body.layout-edit-active .generated-layout-canvas .pair-measurement-funnel > .layout-resize-handle {
+  right: 8px;
+  top: calc(50% - 8px);
+  bottom: auto;
+}
+
+body.layout-edit-active #panel-plaground .pair-measurement-platform,
+body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
+  opacity: 0.72;
+  transform: translateY(-50%) scaleX(1);
 }
 
 .ent-gate-sim .ent-gate-shell .ent-measurement-block {
@@ -1060,6 +1471,8 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 .two-qubit-pair-host {
   width: fit-content;
   max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .pair-sim {
@@ -1118,6 +1531,48 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   display: grid;
   justify-items: stretch;
   row-gap: 0.62rem;
+}
+
+.pair-sim .pair-shell {
+  display: grid;
+  grid-template-columns: 520px 372px max-content;
+  grid-template-rows: auto;
+  align-items: start;
+  column-gap: 2.2rem;
+  row-gap: 0.8rem;
+  width: max-content;
+  min-height: 560px;
+  padding-right: calc(0.7rem + 140px);
+}
+
+.pair-sim .pair-gate-stack {
+  grid-column: 1;
+  grid-row: 1;
+  margin-right: 0;
+}
+
+.pair-cnot-host {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+  width: 372px;
+  z-index: 2;
+}
+
+.pair-sim .pair-cnot-host .cnot-gate {
+  width: 372px;
+  height: 204px;
+}
+
+.pair-sim .pair-measurement {
+  grid-column: 3;
+  grid-row: 1;
+  margin-left: 0;
+  margin-right: 0;
+  justify-self: start;
+  align-self: start;
 }
 
 .pair-capacity {
@@ -1589,7 +2044,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate,
 #panel-two-qubits .single-qubit-gate,
 #panel-entanglement .single-qubit-gate,
-#panel-playground .single-qubit-gate {
+#panel-plaground .single-qubit-gate {
   left: calc(52% + 58px);
   top: 50%;
   width: min(86%, 418px);
@@ -1608,7 +2063,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .tube-funnel,
 #panel-two-qubits .single-qubit-gate .tube-funnel,
 #panel-entanglement .single-qubit-gate .tube-funnel,
-#panel-playground .single-qubit-gate .tube-funnel {
+#panel-plaground .single-qubit-gate .tube-funnel {
   position: relative;
   width: 60px;
   height: 102px;
@@ -1633,7 +2088,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .tube-funnel::after,
 #panel-two-qubits .single-qubit-gate .tube-funnel::after,
 #panel-entanglement .single-qubit-gate .tube-funnel::after,
-#panel-playground .single-qubit-gate .tube-funnel::after {
+#panel-plaground .single-qubit-gate .tube-funnel::after {
   content: "";
   position: absolute;
   right: -9px;
@@ -1658,7 +2113,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .window,
 #panel-two-qubits .single-qubit-gate .window,
 #panel-entanglement .single-qubit-gate .window,
-#panel-playground .single-qubit-gate .window {
+#panel-plaground .single-qubit-gate .window {
   position: relative;
   inset: auto;
   width: 100%;
@@ -1689,14 +2144,14 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .tube-core,
 #panel-two-qubits .single-qubit-gate .tube-core,
 #panel-entanglement .single-qubit-gate .tube-core,
-#panel-playground .single-qubit-gate .tube-core {
+#panel-plaground .single-qubit-gate .tube-core {
   display: none;
 }
 
 #panel-one-qubit .single-qubit-gate .window::after,
 #panel-two-qubits .single-qubit-gate .window::after,
 #panel-entanglement .single-qubit-gate .window::after,
-#panel-playground .single-qubit-gate .window::after {
+#panel-plaground .single-qubit-gate .window::after {
   content: "";
   position: absolute;
   right: -6px;
@@ -1721,7 +2176,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .window .ticks,
 #panel-two-qubits .single-qubit-gate .window .ticks,
 #panel-entanglement .single-qubit-gate .window .ticks,
-#panel-playground .single-qubit-gate .window .ticks {
+#panel-plaground .single-qubit-gate .window .ticks {
   inset: auto;
   left: 50%;
   top: 50%;
@@ -1735,7 +2190,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .window .tick,
 #panel-two-qubits .single-qubit-gate .window .tick,
 #panel-entanglement .single-qubit-gate .window .tick,
-#panel-playground .single-qubit-gate .window .tick {
+#panel-plaground .single-qubit-gate .window .tick {
   width: 6px;
   height: 12px;
 }
@@ -1743,7 +2198,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .window .arrow-layer,
 #panel-two-qubits .single-qubit-gate .window .arrow-layer,
 #panel-entanglement .single-qubit-gate .window .arrow-layer,
-#panel-playground .single-qubit-gate .window .arrow-layer {
+#panel-plaground .single-qubit-gate .window .arrow-layer {
   inset: auto;
   left: 50%;
   top: 50%;
@@ -1757,7 +2212,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .window .arrow-group,
 #panel-two-qubits .single-qubit-gate .window .arrow-group,
 #panel-entanglement .single-qubit-gate .window .arrow-group,
-#panel-playground .single-qubit-gate .window .arrow-group {
+#panel-plaground .single-qubit-gate .window .arrow-group {
   pointer-events: auto;
 }
 
@@ -1817,7 +2272,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .tube-platform-bay,
 #panel-two-qubits .single-qubit-gate .tube-platform-bay,
 #panel-entanglement .single-qubit-gate .tube-platform-bay,
-#panel-playground .single-qubit-gate .tube-platform-bay {
+#panel-plaground .single-qubit-gate .tube-platform-bay {
   position: absolute;
   right: 14px;
   top: 50%;
@@ -1834,14 +2289,14 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .tube-platform-bay::before,
 #panel-two-qubits .single-qubit-gate .tube-platform-bay::before,
 #panel-entanglement .single-qubit-gate .tube-platform-bay::before,
-#panel-playground .single-qubit-gate .tube-platform-bay::before {
+#panel-plaground .single-qubit-gate .tube-platform-bay::before {
   content: none;
 }
 
 #panel-one-qubit .single-qubit-gate .tube-platform,
 #panel-two-qubits .single-qubit-gate .tube-platform,
 #panel-entanglement .single-qubit-gate .tube-platform,
-#panel-playground .single-qubit-gate .tube-platform {
+#panel-plaground .single-qubit-gate .tube-platform {
   --spring-height: 38px;
   --spring-length: 132px;
   position: absolute;
@@ -1873,14 +2328,14 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate .tube-platform::after,
 #panel-two-qubits .single-qubit-gate .tube-platform::after,
 #panel-entanglement .single-qubit-gate .tube-platform::after,
-#panel-playground .single-qubit-gate .tube-platform::after {
+#panel-plaground .single-qubit-gate .tube-platform::after {
   content: none;
 }
 
 #panel-one-qubit .single-qubit-gate.platform-extended .tube-platform,
 #panel-two-qubits .single-qubit-gate.platform-extended .tube-platform,
 #panel-entanglement .single-qubit-gate.platform-extended .tube-platform,
-#panel-playground .single-qubit-gate.platform-extended .tube-platform {
+#panel-plaground .single-qubit-gate.platform-extended .tube-platform {
   opacity: 1;
   transform: translateY(-50%) scaleX(1);
   transition:
@@ -1901,7 +2356,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
 #panel-one-qubit .single-qubit-gate.gate-busy .window,
 #panel-two-qubits .single-qubit-gate.gate-busy .window,
 #panel-entanglement .single-qubit-gate.gate-busy .window,
-#panel-playground .single-qubit-gate.gate-busy .window {
+#panel-plaground .single-qubit-gate.gate-busy .window {
   box-shadow:
     inset 0 8px 10px rgba(255, 255, 255, 0.52),
     inset 0 -10px 12px rgba(38, 58, 76, 0.28),
@@ -1909,14 +2364,215 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
     0 0 12px rgba(255, 195, 109, 0.45);
 }
 
-#panel-playground .playground-node.window-wrap.single-qubit-gate {
-  position: relative;
+#panel-plaground .playground-node.window-wrap.single-qubit-gate {
+  position: absolute;
   left: auto;
   top: auto;
   transform: none;
   width: 100%;
   height: 100%;
   max-width: none;
+  overflow: visible;
+}
+
+.generated-layout-canvas .playground-node.window-wrap.single-qubit-gate {
+  position: absolute;
+  left: auto;
+  top: auto;
+  transform: none;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  overflow: visible;
+  aspect-ratio: auto;
+  display: grid;
+  grid-template-columns: 64px minmax(220px, 1fr);
+  align-items: center;
+  gap: 0;
+}
+
+.generated-layout-canvas .single-qubit-gate .tube-funnel {
+  position: relative;
+  width: 60px;
+  height: 102px;
+  justify-self: end;
+  margin-right: -6px;
+  clip-path: polygon(0 7%, 0 93%, 100% 50%);
+  border-radius: 0.45rem 0 0 0.45rem;
+  border: 2px solid #687888;
+  background:
+    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
+    repeating-linear-gradient(
+      -8deg,
+      rgba(255, 255, 255, 0.34) 0 4px,
+      rgba(255, 255, 255, 0) 4px 11px
+    );
+  box-shadow:
+    inset 0 3px 5px rgba(255, 255, 255, 0.52),
+    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
+    0 2px 5px rgba(22, 40, 57, 0.3);
+}
+
+.generated-layout-canvas .single-qubit-gate .tube-funnel::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 14px;
+  height: 74px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(96, 112, 126, 0.9);
+  background:
+    linear-gradient(180deg, #d7e1ea, #a9b8c6 58%, #8a98a6),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.24) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.48),
+    inset 0 -3px 4px rgba(46, 66, 84, 0.26);
+}
+
+.generated-layout-canvas .single-qubit-gate .window {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 102px;
+  border-radius: 999px;
+  border: 3px solid #5f6f7f;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(239, 245, 251, 0.95) 0%,
+      rgba(186, 199, 212, 0.92) 38%,
+      rgba(122, 137, 151, 0.96) 50%,
+      rgba(171, 185, 198, 0.94) 66%,
+      rgba(212, 222, 232, 0.95) 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.14) 0 2px,
+      rgba(255, 255, 255, 0) 2px 8px
+    );
+  box-shadow:
+    inset 0 8px 10px rgba(255, 255, 255, 0.54),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 3px 7px rgba(16, 35, 52, 0.28);
+  overflow: visible;
+}
+
+.generated-layout-canvas .single-qubit-gate .tube-core {
+  display: none;
+}
+
+.generated-layout-canvas .single-qubit-gate .window::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 16px;
+  height: 78px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(84, 99, 113, 0.92);
+  background:
+    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.2) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+}
+
+.generated-layout-canvas .single-qubit-gate .window .ticks,
+.generated-layout-canvas .single-qubit-gate .window .arrow-layer {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.generated-layout-canvas .single-qubit-gate .window .ticks {
+  z-index: 3;
+}
+
+.generated-layout-canvas .single-qubit-gate .window .arrow-layer {
+  z-index: 4;
+  pointer-events: none;
+}
+
+.generated-layout-canvas .single-qubit-gate .window .tick {
+  width: 6px;
+  height: 12px;
+}
+
+.generated-layout-canvas .single-qubit-gate .tube-platform-bay {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 22px;
+  height: 42px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.generated-layout-canvas .single-qubit-gate .tube-platform-bay::before,
+.generated-layout-canvas .single-qubit-gate .tube-platform::after {
+  content: none;
+}
+
+.generated-layout-canvas .single-qubit-gate .tube-platform {
+  --spring-height: 38px;
+  --spring-length: 132px;
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  width: var(--spring-length);
+  height: var(--spring-height);
+  transform-origin: left center;
+  border: 0;
+  border-radius: calc(var(--spring-height) / 2);
+  background:
+    radial-gradient(
+      ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
+      transparent 56%,
+      rgba(154, 170, 186, 0.95) 60%,
+      rgba(52, 67, 83, 0.98) 69%,
+      transparent 75%
+    );
+  background-size: 16px 100%;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
+  opacity: 0;
+  transform: translateY(-50%) scaleX(0.04);
+}
+
+.generated-layout-canvas .single-qubit-gate.platform-extended .tube-platform {
+  opacity: 1;
+  transform: translateY(-50%) scaleX(1);
+  transition:
+    transform 1000ms ease-in-out,
+    opacity 0ms linear 0ms;
+}
+
+.generated-layout-canvas .single-qubit-gate.gate-busy .window {
+  box-shadow:
+    inset 0 8px 10px rgba(255, 255, 255, 0.52),
+    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
+    0 0 0 2px rgba(255, 188, 93, 0.48),
+    0 0 12px rgba(255, 195, 109, 0.45);
 }
 
 .qubit {
@@ -2496,6 +3152,16 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
     padding: 0.45rem 0.45rem 2.4rem;
   }
 
+  .pair-sim .pair-shell {
+    display: grid;
+    grid-template-columns: min(100%, 360px) 300px;
+    grid-template-rows: auto auto;
+    align-items: start;
+    column-gap: 1rem;
+    row-gap: 0.55rem;
+    padding: 0.45rem;
+  }
+
   .ent-gate-sim .ent-gate-shell {
     display: grid;
     grid-template-columns: min(100%, 360px) 300px;
@@ -2512,6 +3178,15 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
     gap: 0.4rem;
   }
 
+  .pair-cnot-host {
+    width: 300px;
+  }
+
+  .pair-sim .pair-cnot-host .cnot-gate {
+    width: 300px;
+    height: 178px;
+  }
+
   .pair-gate-stage {
     width: min(100%, 360px);
     height: 184px;
@@ -2522,6 +3197,13 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
     margin-left: 0;
     margin-right: calc(220px - 0.45rem);
     margin-top: 0.1rem;
+  }
+
+  .pair-sim .pair-measurement {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    margin-right: 0;
+    justify-self: center;
   }
 
   .pair-capacity {
@@ -2641,7 +3323,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate,
   #panel-two-qubits .single-qubit-gate,
   #panel-entanglement .single-qubit-gate,
-  #panel-playground .single-qubit-gate {
+  #panel-plaground .single-qubit-gate {
     left: calc(52% + 44px);
     width: min(90%, 322px);
     height: 146px;
@@ -2652,7 +3334,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate .tube-funnel,
   #panel-two-qubits .single-qubit-gate .tube-funnel,
   #panel-entanglement .single-qubit-gate .tube-funnel,
-  #panel-playground .single-qubit-gate .tube-funnel {
+  #panel-plaground .single-qubit-gate .tube-funnel {
     width: 44px;
     height: 80px;
     margin-right: -5px;
@@ -2661,7 +3343,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate .window,
   #panel-two-qubits .single-qubit-gate .window,
   #panel-entanglement .single-qubit-gate .window,
-  #panel-playground .single-qubit-gate .window {
+  #panel-plaground .single-qubit-gate .window {
     height: 84px;
   }
 
@@ -2671,8 +3353,8 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-two-qubits .single-qubit-gate .window .arrow-layer,
   #panel-entanglement .single-qubit-gate .window .ticks,
   #panel-entanglement .single-qubit-gate .window .arrow-layer,
-  #panel-playground .single-qubit-gate .window .ticks,
-  #panel-playground .single-qubit-gate .window .arrow-layer {
+  #panel-plaground .single-qubit-gate .window .ticks,
+  #panel-plaground .single-qubit-gate .window .arrow-layer {
     width: 82px;
     height: 82px;
   }
@@ -2680,7 +3362,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate .window .tick,
   #panel-two-qubits .single-qubit-gate .window .tick,
   #panel-entanglement .single-qubit-gate .window .tick,
-  #panel-playground .single-qubit-gate .window .tick {
+  #panel-plaground .single-qubit-gate .window .tick {
     height: 10px;
   }
 
@@ -2703,7 +3385,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate .tube-platform-bay,
   #panel-two-qubits .single-qubit-gate .tube-platform-bay,
   #panel-entanglement .single-qubit-gate .tube-platform-bay,
-  #panel-playground .single-qubit-gate .tube-platform-bay {
+  #panel-plaground .single-qubit-gate .tube-platform-bay {
     right: 9px;
     width: 18px;
     height: 30px;
@@ -2712,7 +3394,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate .tube-platform,
   #panel-two-qubits .single-qubit-gate .tube-platform,
   #panel-entanglement .single-qubit-gate .tube-platform,
-  #panel-playground .single-qubit-gate .tube-platform {
+  #panel-plaground .single-qubit-gate .tube-platform {
     --spring-height: 26px;
     --spring-length: 116px;
     left: -2px;
@@ -2721,7 +3403,7 @@ body.layout-edit-active .cnot-gate .ent-output-flange {
   #panel-one-qubit .single-qubit-gate .tube-platform::after,
   #panel-two-qubits .single-qubit-gate .tube-platform::after,
   #panel-entanglement .single-qubit-gate .tube-platform::after,
-  #panel-playground .single-qubit-gate .tube-platform::after {
+  #panel-plaground .single-qubit-gate .tube-platform::after {
     content: none;
   }
 
