@@ -798,6 +798,16 @@ body.layout-edit-active #panel-plaground .playground-node * {
   min-width: 0;
 }
 
+#panel-plaground .playground-node .pair-capacity {
+  box-sizing: border-box;
+  width: 314px;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: center;
+  white-space: normal;
+  line-height: 1.05;
+}
+
 #panel-plaground .playground-node .measurement-count,
 #panel-plaground .playground-node .pair-measurement-count {
   width: 70px;
@@ -840,6 +850,16 @@ body.layout-edit-active #panel-plaground .playground-node * {
 
 body.layout-edit-active .generated-editor-toolbar {
   display: flex;
+}
+
+.generated-experiment-toolbar {
+  display: flex;
+}
+
+.generated-experiment-toolbar .playground-tool-btn.active {
+  background: #ba2f3f;
+  border-color: #8f1f2d;
+  color: #fff;
 }
 
 .generated-layout-canvas {
@@ -886,6 +906,12 @@ body.layout-edit-active .generated-layout-canvas .playground-node * {
 
 .generated-layout-canvas .playground-node {
   pointer-events: auto;
+}
+
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node:not(.playground-qubit-shell) {
+  pointer-events: none;
 }
 
 body.layout-edit-active .generated-layout-canvas .playground-node {
@@ -988,6 +1014,16 @@ body.layout-edit-active
 .generated-layout-canvas .playground-node .pair-capacity {
   width: 100%;
   min-width: 0;
+}
+
+.generated-layout-canvas .playground-node .pair-capacity {
+  box-sizing: border-box;
+  width: 314px;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: center;
+  white-space: normal;
+  line-height: 1.05;
 }
 
 .generated-layout-canvas .playground-node .measurement-count,
@@ -1697,6 +1733,7 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 }
 
 .pair-tube-rack {
+  position: relative;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -1854,6 +1891,35 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 .pair-slot-right {
   left: 50%;
   top: calc(50% + 41px);
+}
+
+.pair-ejection-site {
+  position: absolute;
+  left: calc(100% + 62px);
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px dashed rgba(34, 99, 153, 0.9);
+  background: rgba(217, 239, 255, 0.52);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.82);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.pair-ejection-site-left {
+  top: calc(50% - 49px);
+}
+
+.pair-ejection-site-right {
+  top: calc(50% + 49px);
+}
+
+body.layout-edit-active .pair-ejection-site {
+  opacity: 0.78;
+  pointer-events: auto;
 }
 
 .pair-measurement-count {
@@ -3419,6 +3485,20 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 
   .pair-slot-right {
     top: calc(50% + 33px);
+  }
+
+  .pair-ejection-site {
+    left: calc(100% + 55px);
+    width: 58px;
+    height: 58px;
+  }
+
+  .pair-ejection-site-left {
+    top: calc(50% - 42px);
+  }
+
+  .pair-ejection-site-right {
+    top: calc(50% + 42px);
   }
 
   .pair-sim .pair-slot,
