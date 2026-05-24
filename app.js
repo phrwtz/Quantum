@@ -1,17 +1,10 @@
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
 const simulatorTemplate = document.getElementById("simulatorTemplate");
-const twoQubitPairTemplate = document.getElementById("twoQubitPairTemplate");
-const entanglementGateTemplate = document.getElementById(
-  "entanglementGateTemplate",
-);
 const pairMeasurementToolTemplate = document.getElementById(
   "pairMeasurementToolTemplate",
 );
 const cnotGateTemplate = document.getElementById("cnotGateTemplate");
-const oneQubitHost = document.getElementById("oneQubitHost");
-const twoQubitsHost = document.getElementById("twoQubitsHost");
-const entanglementHost = document.getElementById("entanglementHost");
 const playgroundCanvas = document.getElementById("playgroundCanvas");
 const playgroundComponentSelect = document.getElementById(
   "playgroundComponentSelect",
@@ -26,6 +19,9 @@ const playgroundDeleteButton = document.getElementById(
 const playgroundSaveComponentButton = document.getElementById(
   "playgroundSaveComponentButton",
 );
+const playgroundSaveGroupButton = document.getElementById(
+  "playgroundSaveGroupButton",
+);
 const playgroundSaveButton = document.getElementById("playgroundSaveButton");
 const playgroundSaveAsButton = document.getElementById(
   "playgroundSaveAsButton",
@@ -38,6 +34,7 @@ const editorOpenTabButton = document.getElementById("editorOpenTabButton");
 const editorNewTabButton = document.getElementById("editorNewTabButton");
 const editorRenameTabButton = document.getElementById("editorRenameTabButton");
 const editorDeleteTabButton = document.getElementById("editorDeleteTabButton");
+const editorDocumentStatus = document.getElementById("editorDocumentStatus");
 const layoutEditToggle = document.getElementById("layoutEditToggle");
 const layoutSaveButton = document.getElementById("layoutSaveButton");
 const layoutResetButton = document.getElementById("layoutResetButton");
@@ -47,7 +44,6 @@ const STEP_DEG = 30;
 const SNAP_OVERLAP_THRESHOLD = 0.9;
 const MEASUREMENT_OVERLAP_THRESHOLD = 0.3;
 const QUBIT_START_EDGE_GAP = 20;
-const TWO_QUBIT_START_SHIFT_PX = 50;
 const ARROW_SCALE = 0.92;
 const BLUE_RGB = [38, 111, 247];
 const RED_RGB = [225, 54, 56];
@@ -64,9 +60,7 @@ const GATE_PLATFORM_EXTEND_MS = 1000;
 const GATE_PLATFORM_RETRACT_MS = 1000;
 const DOUBLE_MEASUREMENT_COLLAPSE_DELAY_MS = 300;
 const DOUBLE_MEASUREMENT_POST_COLLAPSE_DELAY_MS = 500;
-const ONE_QUBIT_MEASUREMENT_TOOL_SHIFT_Y = 45;
 const TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y = -34;
-const TWO_QUBIT_INNER_BOX_EXTRA_BOTTOM_PX = 120;
 const CNOT_FUNNEL_OVERLAP_THRESHOLD = 0.5;
 const TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X = -89;
 const TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y = -42;
@@ -93,13 +87,15 @@ const DEFAULT_GATE_BUTTON_INDEX = Math.floor(
   ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length / 2,
 );
 const DEFAULT_SINGLE_GATE_TICK_INDEX = 3;
-const ENT_TOP_DEFAULT_GATE_TICK_INDEX = 6;
-const ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX = 0;
 const LAYOUT_STORAGE_KEY = "quantum_layout_editor_v1";
 const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
 const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
   "quantum_playground_component_defaults_v1";
 const GENERATED_TABS_STORAGE_KEY = "quantum_generated_tabs_v1";
+const QUBIT_ID_STORAGE_KEY = "quantum_qubit_next_id_v1";
+const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
+  "quantum_playground_group_components_v1";
+const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
   qubit: { label: "Qubit", width: 72, height: 72 },
@@ -115,21 +111,43 @@ const PLAYGROUND_COMPONENT_LIBRARY = {
     width: 500,
     height: 500,
   },
+  "measurement-capacity": {
+    label: "Capacity Text Box",
+    width: 330,
+    height: 70,
+  },
+  "single-tube-array": {
+    label: "Two Testtube Array",
+    width: 220,
+    height: 235,
+  },
+  "double-tube-array": {
+    label: "Four Testtube Array",
+    width: 360,
+    height: 245,
+  },
+  "single-magnifier": {
+    label: "Single-Qubit Magnifier",
+    width: 160,
+    height: 130,
+  },
+  "double-magnifier": {
+    label: "Double-Qubit Magnifier",
+    width: 340,
+    height: 190,
+  },
+  "measurement-count-menu": {
+    label: "Iteration Count Menu",
+    width: 110,
+    height: 62,
+  },
+  "text-box": {
+    label: "Text Box",
+    width: 300,
+    height: 150,
+  },
 };
 
-// Global entanglement recording/state (shared across modules)
-let entangledState = { amplitudes: [1, 0, 0, 0] };
-let recordedExperimentActions = [];
-let recordedExperimentInitialAmplitudes = entangledState.amplitudes.slice();
-let recordedExperimentGateSettings = [
-  ENT_TOP_DEFAULT_GATE_TICK_INDEX,
-  ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX,
-];
-// Expose debugging globals for runtime inspection
-window.entangledState = entangledState;
-window.recordedExperimentActions = recordedExperimentActions;
-window.recordedExperimentInitialAmplitudes = recordedExperimentInitialAmplitudes;
-window.recordedExperimentGateSettings = recordedExperimentGateSettings;
 const PLAYGROUND_SINGLE_MEASUREMENT_PART_SPECS = [
   {
     key: "capacity",
@@ -290,22 +308,6 @@ const PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS = [
     minHeight: 30,
   },
   {
-    key: "ejectLeft",
-    selector: '[data-role="pair-eject-left"]',
-    resizable: true,
-    uniform: true,
-    minWidth: 30,
-    minHeight: 30,
-  },
-  {
-    key: "ejectRight",
-    selector: '[data-role="pair-eject-right"]',
-    resizable: true,
-    uniform: true,
-    minWidth: 30,
-    minHeight: 30,
-  },
-  {
     key: "platform",
     selector: ".pair-measurement-platform",
     resizable: true,
@@ -322,18 +324,23 @@ const PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS = [
 ];
 let playgroundComponentDefaultsCache = null;
 let generatedTabsState = {
-  overrides: {},
   customTabs: [],
 };
+let legacyGroupComponentIdRedirects = new Map();
+let draggedGeneratedTabId = "";
+let generatedTabPointerDrag = null;
 const generatedSingleGateRuntimes = new Map();
 const generatedQubitRuntimes = new Map();
 const generatedSingleMeasurementRuntimes = new Map();
 const generatedDoubleMeasurementRuntimes = new Map();
+const generatedSeparatedPairMeasurementRuntimes = new Map();
 const generatedCnotRuntimes = new Map();
 const generatedExperimentStates = new WeakMap();
 let generatedLayoutGesture = null;
 let generatedRuntimeDrag = null;
 let generatedItemIdCounter = 0;
+let playgroundGroupComponentsCache = null;
+let generatedExperimentPlaybackSpeed = 1;
 
 const LAYOUT_EDIT_TARGET_SPECS = [
   {
@@ -350,26 +357,26 @@ const LAYOUT_EDIT_TARGET_SPECS = [
     minHeight: 80,
   },
   {
-    selector: ".cnot-gate, .ent-double-gate",
+    selector: ".cnot-gate",
     resizable: true,
     minWidth: 180,
     minHeight: 120,
   },
   {
-    selector: ".cnot-input-funnel, .ent-input-funnel",
+    selector: ".cnot-input-funnel",
     resizable: true,
     minWidth: 24,
     minHeight: 40,
   },
   {
-    selector: ".cnot-porthole, .ent-window",
+    selector: ".cnot-porthole",
     resizable: true,
     uniform: true,
     minWidth: 30,
     minHeight: 30,
   },
   {
-    selector: ".cnot-output-flange, .ent-output-flange",
+    selector: ".cnot-output-flange",
     resizable: true,
     minWidth: 10,
     minHeight: 28,
@@ -394,7 +401,7 @@ const LAYOUT_EDIT_TARGET_SPECS = [
     minHeight: 80,
   },
   {
-    selector: ".measurement-stage, .pair-measurement, .ent-measurement-block",
+    selector: ".measurement-stage, .pair-measurement",
     resizable: true,
     minWidth: 220,
     minHeight: 120,
@@ -415,35 +422,19 @@ let selectedLayoutTarget = null;
 let selectedGeneratedLayoutItem = null;
 let selectedGeneratedLayoutPart = null;
 
-function mountOneQubitSimulator() {
-  if (!simulatorTemplate || !oneQubitHost) {
+function cloneTemplateElement(template, selector) {
+  if (!(template instanceof HTMLTemplateElement)) {
     return null;
   }
-
-  const fragment = simulatorTemplate.content.cloneNode(true);
-  oneQubitHost.appendChild(fragment);
-  return oneQubitHost.querySelector(".quantum-sim");
+  const fragment = template.content.cloneNode(true);
+  const element = selector
+    ? fragment.querySelector(selector)
+    : fragment.firstElementChild;
+  return element instanceof HTMLElement ? element : null;
 }
 
-function mountTwoQubitPair() {
-  if (!twoQubitPairTemplate || !twoQubitsHost) {
-    return null;
-  }
-
-  const fragment = twoQubitPairTemplate.content.cloneNode(true);
-  twoQubitsHost.appendChild(fragment);
-  return twoQubitsHost.querySelector(".pair-sim");
-}
-
-function mountEntanglementGate(host) {
-  if (!entanglementGateTemplate || !host) {
-    return null;
-  }
-
-  host.innerHTML = "";
-  const fragment = entanglementGateTemplate.content.cloneNode(true);
-  host.appendChild(fragment);
-  return host.querySelector(".ent-gate-sim");
+function cloneSingleQubitBlueprint(selector) {
+  return cloneTemplateElement(simulatorTemplate, selector);
 }
 
 function mountPairMeasurementTool(host) {
@@ -469,7 +460,28 @@ function mountPairMeasurementTool(host) {
   return host;
 }
 
-function createCnotGateElement({ withEntanglementRoles = false } = {}) {
+function ensurePlaygroundGroupFrame(item) {
+  if (!(item instanceof HTMLElement)) {
+    return;
+  }
+  if (item.querySelector(":scope > .playground-group-frame")) {
+    return;
+  }
+  const frame = document.createElement("div");
+  frame.className = "playground-group-frame";
+  frame.setAttribute("aria-hidden", "true");
+  ["top", "right", "bottom", "left"].forEach((edgeName) => {
+    const edge = document.createElement("span");
+    edge.className = `playground-group-frame-edge playground-group-frame-edge-${edgeName}`;
+    frame.appendChild(edge);
+  });
+  const corner = document.createElement("span");
+  corner.className = "playground-group-frame-corner";
+  frame.appendChild(corner);
+  item.appendChild(frame);
+}
+
+function createCnotGateElement() {
   if (!cnotGateTemplate) {
     return null;
   }
@@ -478,35 +490,70 @@ function createCnotGateElement({ withEntanglementRoles = false } = {}) {
   if (!(root instanceof HTMLElement)) {
     return null;
   }
-  if (withEntanglementRoles) {
-    root.dataset.role = "ent-gate";
-    const body = root.querySelector('[data-part="body"]');
-    const funnelTop = root.querySelector('[data-part="funnel-top"]');
-    const funnelBottom = root.querySelector('[data-part="funnel-bottom"]');
-    const windowTop = root.querySelector('[data-part="window-top"]');
-    const windowBottom = root.querySelector('[data-part="window-bottom"]');
-    const platform = root.querySelector('[data-part="platform"]');
+  return root;
+}
 
-    if (body instanceof HTMLElement) {
-      body.dataset.role = "ent-pipe";
-    }
-    if (funnelTop instanceof HTMLElement) {
-      funnelTop.dataset.role = "ent-funnel-top";
-    }
-    if (funnelBottom instanceof HTMLElement) {
-      funnelBottom.dataset.role = "ent-funnel-bottom";
-    }
-    if (windowTop instanceof HTMLElement) {
-      windowTop.dataset.role = "ent-window-top";
-    }
-    if (windowBottom instanceof HTMLElement) {
-      windowBottom.dataset.role = "ent-window-bottom";
-    }
-    if (platform instanceof HTMLElement) {
-      platform.dataset.role = "ent-platform";
+function doubleMeasurementDefaultsAreCorrupt(payload) {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const geometry = componentGeometryDefaults(payload)["double-measurement"];
+  if (geometry && typeof geometry === "object") {
+    const width = Number(geometry.width);
+    const height = Number(geometry.height);
+    if (
+      (Number.isFinite(width) && (width < 220 || width > 900)) ||
+      (Number.isFinite(height) && (height < 120 || height > 900))
+    ) {
+      return true;
     }
   }
-  return root;
+  const measurementLayout = payload["double-measurement"];
+  if (!measurementLayout || typeof measurementLayout !== "object") {
+    return false;
+  }
+  const savedParts = savedPlaygroundMeasurementParts(measurementLayout);
+  if (!savedParts || typeof savedParts !== "object") {
+    return false;
+  }
+  return PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS.some((spec) => {
+    const snapshot = savedParts[spec.key];
+    if (!snapshot || typeof snapshot !== "object") {
+      return false;
+    }
+    const tx = Number(snapshot.tx);
+    const ty = Number(snapshot.ty);
+    const width = Number.parseFloat(snapshot.width);
+    const height = Number.parseFloat(snapshot.height);
+    return (
+      (Number.isFinite(tx) && Math.abs(tx) > 350) ||
+      (Number.isFinite(ty) && Math.abs(ty) > 350) ||
+      (Number.isFinite(width) && width > 900) ||
+      (Number.isFinite(height) && height > 900)
+    );
+  });
+}
+
+function normalizePlaygroundComponentDefaultsPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return { payload: {}, changed: false };
+  }
+  let changed = false;
+  if (payload["double-measurement"]?.group) {
+    payload["double-measurement"] = { ...payload["double-measurement"] };
+    delete payload["double-measurement"].group;
+    changed = true;
+  }
+  if (doubleMeasurementDefaultsAreCorrupt(payload)) {
+    delete payload["double-measurement"];
+    const geometryDefaults = componentGeometryDefaults(payload);
+    if (geometryDefaults["double-measurement"]) {
+      payload.__componentGeometryDefaults = { ...geometryDefaults };
+      delete payload.__componentGeometryDefaults["double-measurement"];
+    }
+    changed = true;
+  }
+  return { payload, changed };
 }
 
 function readPlaygroundComponentDefaultsPayload() {
@@ -518,7 +565,16 @@ function readPlaygroundComponentDefaultsPayload() {
       return {};
     }
     const parsed = JSON.parse(serialized);
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const normalized = normalizePlaygroundComponentDefaultsPayload(
+      parsed && typeof parsed === "object" ? parsed : {},
+    );
+    if (normalized.changed) {
+      window.localStorage.setItem(
+        PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY,
+        JSON.stringify(normalized.payload),
+      );
+    }
+    return normalized.payload;
   } catch (_error) {
     return {};
   }
@@ -595,20 +651,16 @@ function resolveCnotPartElements(root) {
   }
   return {
     gate: root,
-    body: root.querySelector(
-      ".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']",
-    ),
+    body: root.querySelector(".cnot-body, [data-part='body']"),
     funnelTop: root.querySelector(
-      "[data-part='funnel-top'], .cnot-input-funnel-top, [data-role='ent-funnel-top']",
+      "[data-part='funnel-top'], .cnot-input-funnel-top",
     ),
     funnelBottom: root.querySelector(
-      "[data-part='funnel-bottom'], .cnot-input-funnel-bottom, [data-role='ent-funnel-bottom']",
+      "[data-part='funnel-bottom'], .cnot-input-funnel-bottom",
     ),
-    windowTop: root.querySelector(
-      "[data-part='window-top'], .cnot-porthole-top, [data-role='ent-window-top']",
-    ),
+    windowTop: root.querySelector("[data-part='window-top'], .cnot-porthole-top"),
     windowBottom: root.querySelector(
-      "[data-part='window-bottom'], .cnot-porthole-bottom, [data-role='ent-window-bottom']",
+      "[data-part='window-bottom'], .cnot-porthole-bottom",
     ),
     flangeTop: root.querySelector(".cnot-output-flange-top"),
     flangeBottom: root.querySelector(".cnot-output-flange-bottom"),
@@ -740,6 +792,506 @@ function cloneJson(value) {
   }
 }
 
+function normalizeQubitId(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : null;
+}
+
+function qubitLogicalIdForItem(item) {
+  return normalizeQubitId(item?.dataset?.qubitId);
+}
+
+function maxQubitIdInLayoutItems(items) {
+  if (!Array.isArray(items)) {
+    return 0;
+  }
+  return items.reduce((maxId, item) => {
+    if (!item || typeof item !== "object") {
+      return maxId;
+    }
+    let nextMax = Math.max(maxId, normalizeQubitId(item.qubitId) || 0);
+    if (Array.isArray(item.items)) {
+      nextMax = Math.max(nextMax, maxQubitIdInLayoutItems(item.items));
+    }
+    if (Array.isArray(item.layout?.items)) {
+      nextMax = Math.max(nextMax, maxQubitIdInLayoutItems(item.layout.items));
+    }
+    return nextMax;
+  }, 0);
+}
+
+function maxQubitIdInGeneratedTabsPayload(payload) {
+  const tabs = Array.isArray(payload?.customTabs) ? payload.customTabs : [];
+  return tabs.reduce(
+    (maxId, tab) =>
+      Math.max(maxId, maxQubitIdInLayoutItems(tab?.layout?.items)),
+    0,
+  );
+}
+
+function maxQubitIdInGroupComponentsPayload(payload) {
+  const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+  return groups.reduce(
+    (maxId, group) => Math.max(maxId, maxQubitIdInLayoutItems(group?.items)),
+    0,
+  );
+}
+
+function maxQubitIdInDom(root = document) {
+  if (!root?.querySelectorAll) {
+    return 0;
+  }
+  return Array.from(root.querySelectorAll("[data-qubit-id]")).reduce(
+    (maxId, element) =>
+      Math.max(maxId, normalizeQubitId(element.dataset.qubitId) || 0),
+    0,
+  );
+}
+
+function readStoredNextQubitId() {
+  try {
+    return normalizeQubitId(window.localStorage.getItem(QUBIT_ID_STORAGE_KEY));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function writeStoredNextQubitId(nextId) {
+  const normalized = normalizeQubitId(nextId);
+  if (!normalized) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(QUBIT_ID_STORAGE_KEY, String(normalized));
+  } catch (_error) {
+    // Ignore storage failures; in-memory DOM ids still distinguish this run.
+  }
+}
+
+function maxKnownQubitId() {
+  let maxId = maxQubitIdInDom(document);
+  maxId = Math.max(maxId, maxQubitIdInGeneratedTabsPayload(generatedTabsState));
+  maxId = Math.max(
+    maxId,
+    maxQubitIdInGroupComponentsPayload(playgroundGroupComponentsCache),
+  );
+  try {
+    const generatedTabsPayload = JSON.parse(
+      window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY) || "{}",
+    );
+    maxId = Math.max(maxId, maxQubitIdInGeneratedTabsPayload(generatedTabsPayload));
+  } catch (_error) {
+    // Ignore malformed persisted tabs when choosing the next id.
+  }
+  try {
+    const groupPayload = JSON.parse(
+      window.localStorage.getItem(PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY) ||
+        "{}",
+    );
+    maxId = Math.max(maxId, maxQubitIdInGroupComponentsPayload(groupPayload));
+  } catch (_error) {
+    // Ignore malformed saved groups when choosing the next id.
+  }
+  try {
+    const draftPayload = JSON.parse(
+      window.localStorage.getItem(PLAYGROUND_LAYOUT_STORAGE_KEY) || "{}",
+    );
+    maxId = Math.max(maxId, maxQubitIdInLayoutItems(draftPayload.items));
+  } catch (_error) {
+    // Ignore malformed editor drafts when choosing the next id.
+  }
+  return maxId;
+}
+
+function reserveNextQubitId() {
+  const storedNext = readStoredNextQubitId() || 1;
+  const nextId = Math.max(storedNext, maxKnownQubitId() + 1, 1);
+  writeStoredNextQubitId(nextId + 1);
+  return nextId;
+}
+
+function ensureQubitLogicalId(item, preferredId = null) {
+  if (!(item instanceof HTMLElement) || item.dataset.component !== "qubit") {
+    return null;
+  }
+  const existing = qubitLogicalIdForItem(item);
+  if (existing) {
+    return existing;
+  }
+  const nextId = normalizeQubitId(preferredId) || reserveNextQubitId();
+  item.dataset.qubitId = String(nextId);
+  return nextId;
+}
+
+function stripQubitIdsFromLayoutGeometry(geometry) {
+  if (!geometry || typeof geometry !== "object") {
+    return geometry;
+  }
+  if (geometry.type === "qubit") {
+    delete geometry.qubitId;
+  }
+  if (Array.isArray(geometry.items)) {
+    geometry.items.forEach((item) => stripQubitIdsFromLayoutGeometry(item));
+  }
+  if (Array.isArray(geometry.layout?.items)) {
+    geometry.layout.items.forEach((item) => stripQubitIdsFromLayoutGeometry(item));
+  }
+  return geometry;
+}
+
+const SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL =
+  "Sequential two qubit measurement";
+const LEGACY_SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABELS = new Set([
+  "separate",
+  "separate two qubit measurement",
+  "seperate two qubit measurement",
+]);
+const HIDDEN_COMPONENT_PICKER_GROUP_IDS = new Set([
+  "separate",
+  "separate-two-qubit-measurement",
+  "seperate-two-qubit-measurement",
+  "sequential-two-qubit-measurement",
+]);
+const GENERATED_TAB_LABEL_RENAMES_BY_ID = new Map([
+  ["custom-entanglement-2", "Entanglement 1"],
+  ["entanglement-2", "Entanglement 1"],
+  ["custom-entanglement-3", "Entanglement 2"],
+  ["entanglement-3", "Entanglement 2"],
+]);
+
+function storageLabelKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function storageIdentifierKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .toLowerCase();
+}
+
+function isLegacySequentialTwoQubitMeasurementGroup(group) {
+  return LEGACY_SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABELS.has(
+    storageLabelKey(group?.label),
+  );
+}
+
+function isHiddenComponentPickerGroup(group) {
+  return HIDDEN_COMPONENT_PICKER_GROUP_IDS.has(storageIdentifierKey(group?.id));
+}
+
+function remapGroupComponentReferencesInItems(items, redirectMap) {
+  if (!Array.isArray(items) || !(redirectMap instanceof Map) || redirectMap.size === 0) {
+    return { items: Array.isArray(items) ? items : [], changed: false };
+  }
+  let changed = false;
+  const nextItems = items.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    const next = { ...item };
+    if (redirectMap.has(next.groupComponentId)) {
+      next.groupComponentId = redirectMap.get(next.groupComponentId);
+      changed = true;
+    }
+    if (
+      typeof next.type === "string" &&
+      next.type.startsWith("group:") &&
+      redirectMap.has(next.type.slice("group:".length))
+    ) {
+      next.type = `group:${redirectMap.get(next.type.slice("group:".length))}`;
+      changed = true;
+    }
+    if (Array.isArray(next.items)) {
+      const nested = remapGroupComponentReferencesInItems(next.items, redirectMap);
+      next.items = nested.items;
+      changed = nested.changed || changed;
+    }
+    if (next.layout && typeof next.layout === "object" && Array.isArray(next.layout.items)) {
+      const nestedLayout = remapGroupComponentReferencesInItems(
+        next.layout.items,
+        redirectMap,
+      );
+      next.layout = { ...next.layout, items: nestedLayout.items };
+      changed = nestedLayout.changed || changed;
+    }
+    return next;
+  });
+  return { items: nextItems, changed };
+}
+
+function normalizePlaygroundGroupComponentsPayload(payload) {
+  const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+  const redirectMap = new Map();
+  const canonicalGroup =
+    groups.find((group) => storageLabelKey(group?.label) === "separate") ||
+    groups.find(isLegacySequentialTwoQubitMeasurementGroup) ||
+    null;
+  const canonicalId =
+    canonicalGroup && typeof canonicalGroup.id === "string" ? canonicalGroup.id : "";
+  let changed = false;
+
+  const normalizedGroups = groups.reduce((acc, group) => {
+    if (!group || typeof group !== "object") {
+      return acc;
+    }
+    const isLegacy = isLegacySequentialTwoQubitMeasurementGroup(group);
+    const groupId = typeof group.id === "string" ? group.id : "";
+    if (isLegacy && canonicalId && groupId && groupId !== canonicalId) {
+      redirectMap.set(groupId, canonicalId);
+      changed = true;
+      return acc;
+    }
+    const nextGroup = { ...group };
+    if (isLegacy && nextGroup.label !== SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) {
+      nextGroup.label = SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL;
+      changed = true;
+    }
+    acc.push(nextGroup);
+    return acc;
+  }, []);
+
+  const remappedGroups = normalizedGroups.map((group) => {
+    if (!Array.isArray(group.items)) {
+      return group;
+    }
+    const remapped = remapGroupComponentReferencesInItems(group.items, redirectMap);
+    changed = remapped.changed || changed;
+    return remapped.changed ? { ...group, items: remapped.items } : group;
+  });
+
+  legacyGroupComponentIdRedirects = redirectMap;
+  return { payload: { groups: remappedGroups }, changed };
+}
+
+function readPlaygroundGroupComponentsPayload() {
+  try {
+    const serialized = window.localStorage.getItem(
+      PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
+    );
+    if (!serialized) {
+      legacyGroupComponentIdRedirects = new Map();
+      return { groups: [] };
+    }
+    const parsed = JSON.parse(serialized);
+    const normalized = normalizePlaygroundGroupComponentsPayload(parsed);
+    if (normalized.changed) {
+      window.localStorage.setItem(
+        PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
+        JSON.stringify(normalized.payload),
+      );
+    }
+    return normalized.payload;
+  } catch (_error) {
+    legacyGroupComponentIdRedirects = new Map();
+    return { groups: [] };
+  }
+}
+
+function writePlaygroundGroupComponentsPayload(payload) {
+  try {
+    const normalized = normalizePlaygroundGroupComponentsPayload(payload);
+    window.localStorage.setItem(
+      PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
+      JSON.stringify(normalized.payload),
+    );
+    playgroundGroupComponentsCache = normalized.payload;
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function playgroundGroupComponents() {
+  if (!playgroundGroupComponentsCache) {
+    playgroundGroupComponentsCache = readPlaygroundGroupComponentsPayload();
+  }
+  return Array.isArray(playgroundGroupComponentsCache.groups)
+    ? playgroundGroupComponentsCache.groups
+    : [];
+}
+
+function savedGroupComponentType(groupId) {
+  return `group:${groupId}`;
+}
+
+function savedGroupIdFromComponentType(type) {
+  return typeof type === "string" && type.startsWith("group:")
+    ? type.slice("group:".length)
+    : "";
+}
+
+function savedGroupComponentForType(type) {
+  const groupId = savedGroupIdFromComponentType(type);
+  if (!groupId) {
+    return null;
+  }
+  return playgroundGroupComponentById(groupId);
+}
+
+function playgroundGroupComponentById(groupId) {
+  if (!groupId) {
+    return null;
+  }
+  return (
+    playgroundGroupComponents().find((group) => group?.id === groupId) || null
+  );
+}
+
+function componentConfigForType(type, geometry = {}) {
+  if (PLAYGROUND_COMPONENT_LIBRARY[type]) {
+    return PLAYGROUND_COMPONENT_LIBRARY[type];
+  }
+  if (type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE) {
+    const group = playgroundGroupComponentById(geometry?.groupComponentId);
+    return {
+      label: group?.label || "Saved Group",
+      width: Number.isFinite(group?.width) ? group.width : 320,
+      height: Number.isFinite(group?.height) ? group.height : 240,
+    };
+  }
+  const group = savedGroupComponentForType(type);
+  if (group) {
+    return {
+      label: group.label || "Saved Group",
+      width: Number.isFinite(group.width) ? group.width : 320,
+      height: Number.isFinite(group.height) ? group.height : 240,
+    };
+  }
+  return null;
+}
+
+function populateComponentPicker(select) {
+  if (!(select instanceof HTMLSelectElement)) {
+    return;
+  }
+  const previous = select.value;
+  select.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.selected = true;
+  placeholder.textContent = "Click here";
+  select.appendChild(placeholder);
+  Object.entries(PLAYGROUND_COMPONENT_LIBRARY).forEach(([type, config]) => {
+    const option = document.createElement("option");
+    option.value = type;
+    option.textContent = config.label;
+    select.appendChild(option);
+  });
+  playgroundGroupComponents().forEach((group) => {
+    if (!group?.id || isHiddenComponentPickerGroup(group)) {
+      return;
+    }
+    const option = document.createElement("option");
+    option.value = savedGroupComponentType(group.id);
+    option.textContent = group.label || "Saved Group";
+    select.appendChild(option);
+  });
+  select.value = Array.from(select.options).some(
+    (option) => option.value === previous,
+  )
+    ? previous
+    : "";
+}
+
+function refreshAllComponentPickers() {
+  populateComponentPicker(playgroundComponentSelect);
+  document
+    .querySelectorAll('[data-generated-editor-role="component-select"]')
+    .forEach((select) => populateComponentPicker(select));
+}
+
+function normalizeSavedGroupLayoutItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  const looseGroups = new Map();
+  items.forEach((item, index) => {
+    if (
+      !item ||
+      item.type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE ||
+      !item.groupComponentId ||
+      !item.measurementGroupId ||
+      !playgroundGroupComponentById(item.groupComponentId)
+    ) {
+      return;
+    }
+    const key = `${item.groupComponentId}::${item.measurementGroupId}`;
+    const entry = looseGroups.get(key) || {
+      groupComponentId: item.groupComponentId,
+      measurementGroupId: item.measurementGroupId,
+      firstIndex: index,
+      items: [],
+    };
+    entry.items.push(item);
+    looseGroups.set(key, entry);
+  });
+  looseGroups.forEach((entry, key) => {
+    if (entry.items.length < 2) {
+      looseGroups.delete(key);
+    }
+  });
+  if (looseGroups.size === 0) {
+    return items;
+  }
+  const consumed = new Set();
+  const wrappersByFirstIndex = new Map();
+  looseGroups.forEach((entry) => {
+    const bounds = entry.items.reduce(
+      (acc, item) => {
+        const left = parseLayoutNumeric(item.left, 0);
+        const top = parseLayoutNumeric(item.top, 0);
+        const width = parseLayoutNumeric(item.width, 0);
+        const height = parseLayoutNumeric(item.height, 0);
+        return {
+          left: Math.min(acc.left, left),
+          top: Math.min(acc.top, top),
+          right: Math.max(acc.right, left + width),
+          bottom: Math.max(acc.bottom, top + height),
+          z: Math.max(acc.z, parseLayoutNumeric(item.z, 1)),
+        };
+      },
+      {
+        left: Number.POSITIVE_INFINITY,
+        top: Number.POSITIVE_INFINITY,
+        right: Number.NEGATIVE_INFINITY,
+        bottom: Number.NEGATIVE_INFINITY,
+        z: 1,
+      },
+    );
+    if (
+      ![bounds.left, bounds.top, bounds.right, bounds.bottom].every(
+        Number.isFinite,
+      )
+    ) {
+      return;
+    }
+    entry.items.forEach((item) => consumed.add(item));
+    wrappersByFirstIndex.set(entry.firstIndex, {
+      type: PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+      left: bounds.left,
+      top: bounds.top,
+      width: Math.max(1, bounds.right - bounds.left),
+      height: Math.max(1, bounds.bottom - bounds.top),
+      z: bounds.z,
+      measurementGroupId: entry.measurementGroupId,
+      groupComponentId: entry.groupComponentId,
+    });
+  });
+  return items.reduce((acc, item, index) => {
+    if (wrappersByFirstIndex.has(index)) {
+      acc.push(wrappersByFirstIndex.get(index));
+    }
+    if (!consumed.has(item)) {
+      acc.push(item);
+    }
+    return acc;
+  }, []);
+}
+
 function validPoint(point) {
   return point && Number.isFinite(point.x) && Number.isFinite(point.y)
     ? point
@@ -760,28 +1312,103 @@ function generatedTabSlug(label) {
   return slug || "tab";
 }
 
+function isLegacyTestGeneratedTab(entry) {
+  const label = storageLabelKey(entry?.label);
+  const id = storageLabelKey(entry?.id);
+  return label === "test" || id === "test" || id === "custom-test";
+}
+
+function normalizedGeneratedTabLabel(entry) {
+  const renamedLabel = GENERATED_TAB_LABEL_RENAMES_BY_ID.get(
+    storageIdentifierKey(entry?.id),
+  );
+  return renamedLabel || entry?.label;
+}
+
+function normalizeGeneratedTabLayout(layout) {
+  if (!layout || typeof layout !== "object") {
+    return { layout, changed: false };
+  }
+  const remapped = remapGroupComponentReferencesInItems(
+    layout.items,
+    legacyGroupComponentIdRedirects,
+  );
+  if (!remapped.changed) {
+    return { layout, changed: false };
+  }
+  return {
+    layout: {
+      ...layout,
+      items: remapped.items,
+    },
+    changed: true,
+  };
+}
+
+function normalizeGeneratedTabsState(state) {
+  const customTabs = Array.isArray(state?.customTabs) ? state.customTabs : [];
+  let changed = false;
+  const normalizedTabs = customTabs.reduce((acc, entry) => {
+    if (!entry || typeof entry !== "object") {
+      return acc;
+    }
+    if (isLegacyTestGeneratedTab(entry)) {
+      changed = true;
+      return acc;
+    }
+    const normalizedLayout = normalizeGeneratedTabLayout(entry.layout);
+    changed = normalizedLayout.changed || changed;
+    let normalizedEntry = normalizedLayout.changed
+      ? { ...entry, layout: normalizedLayout.layout }
+      : entry;
+    const nextLabel = normalizedGeneratedTabLabel(normalizedEntry);
+    if (
+      typeof nextLabel === "string" &&
+      typeof normalizedEntry.label === "string" &&
+      nextLabel !== normalizedEntry.label
+    ) {
+      normalizedEntry = { ...normalizedEntry, label: nextLabel };
+      changed = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(normalizedEntry, "experiment")) {
+      const cleanEntry = { ...normalizedEntry };
+      delete cleanEntry.experiment;
+      acc.push(cleanEntry);
+      changed = true;
+    } else {
+      acc.push(normalizedEntry);
+    }
+    return acc;
+  }, []);
+  return { state: { customTabs: normalizedTabs }, changed };
+}
+
 function readGeneratedTabsState() {
   try {
     const serialized = window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY);
     if (!serialized) {
-      return { overrides: {}, customTabs: [] };
+      return { customTabs: [] };
     }
     const parsed = JSON.parse(serialized);
-    return {
-      overrides:
-        parsed && typeof parsed.overrides === "object" ? parsed.overrides : {},
-      customTabs: Array.isArray(parsed?.customTabs) ? parsed.customTabs : [],
-    };
+    const normalized = normalizeGeneratedTabsState(parsed);
+    if (normalized.changed) {
+      window.localStorage.setItem(
+        GENERATED_TABS_STORAGE_KEY,
+        JSON.stringify(normalized.state),
+      );
+    }
+    return normalized.state;
   } catch (_error) {
-    return { overrides: {}, customTabs: [] };
+    return { customTabs: [] };
   }
 }
 
 function writeGeneratedTabsState(state) {
   try {
+    const normalized = normalizeGeneratedTabsState(state);
     window.localStorage.setItem(
       GENERATED_TABS_STORAGE_KEY,
-      JSON.stringify(state),
+      JSON.stringify(normalized.state),
     );
     return true;
   } catch (_error) {
@@ -1074,7 +1701,7 @@ function persistPlaygroundMeasurementDefaultsFromDom(
   const snapshot = captureMeasurementLayoutSnapshot(
     source,
     editableMeasurementPartSpecsForType(type),
-    { includeGroup: true, captureAll: true },
+    { includeGroup: false, captureAll: true },
   );
   if (!snapshot) {
     return false;
@@ -1088,28 +1715,6 @@ function persistPlaygroundMeasurementDefaultsFromDom(
       height: Math.round(source.offsetHeight),
     },
   };
-  const saved = writePlaygroundComponentDefaultsPayload(payload);
-  if (saved) {
-    playgroundComponentDefaultsCache = payload;
-  }
-  return saved;
-}
-
-function persistPrimaryTwoQubitMeasurementDefaultsFromDom() {
-  const primary = getPrimaryTwoQubitMeasurementGroup();
-  if (!primary?.measurementGroup) {
-    return false;
-  }
-  const snapshot = captureMeasurementLayoutSnapshot(
-    primary.measurementGroup,
-    editableMeasurementPartSpecsForType("double-measurement"),
-    { includeGroup: true, captureAll: true },
-  );
-  if (!snapshot) {
-    return false;
-  }
-  const payload = readPlaygroundComponentDefaultsPayload();
-  payload["double-measurement"] = snapshot;
   const saved = writePlaygroundComponentDefaultsPayload(payload);
   if (saved) {
     playgroundComponentDefaultsCache = payload;
@@ -1170,6 +1775,12 @@ function persistGeneratedComponentDefaultsFromElement(item) {
   if (type === "cnot-gate") {
     return persistPlaygroundCnotDefaultsFromDom(item);
   }
+  if (
+    type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE &&
+    isSeparatedPairMeasurementGroupElement(item)
+  ) {
+    return persistSavedGroupComponentDefinitionFromElement(item);
+  }
 
   const geometryExtras = {};
   if (type === "single-gate") {
@@ -1214,30 +1825,21 @@ function persistVisibleGeneratedComponentDefaultsFromDom() {
   return savedAny;
 }
 
-function normalizeCnotGateElement(
-  root,
-  { withEntanglementRoles = false } = {},
-) {
+function normalizeCnotGateElement(root) {
   if (!(root instanceof HTMLElement)) {
     return root;
   }
 
-  root.classList.add("cnot-gate", "ent-double-gate");
+  root.classList.add("cnot-gate");
 
   const resolveBody = () =>
-    root.querySelector(
-      ".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']",
-    );
+    root.querySelector(".cnot-body, [data-part='body']");
   const resolveFunnels = () =>
-    root.querySelectorAll(
-      ".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']",
-    );
+    root.querySelectorAll(".cnot-input-funnel");
   const resolvePortholes = () =>
-    root.querySelectorAll(
-      ".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']",
-    );
+    root.querySelectorAll(".cnot-porthole");
   const resolveFlanges = () =>
-    root.querySelectorAll(".cnot-output-flange, .ent-output-flange");
+    root.querySelectorAll(".cnot-output-flange");
 
   const needsRebuild =
     !resolveBody() ||
@@ -1245,27 +1847,20 @@ function normalizeCnotGateElement(
     resolvePortholes().length < 2 ||
     resolveFlanges().length < 2;
   if (needsRebuild) {
-    const fresh = createCnotGateElement({ withEntanglementRoles: false });
+    const fresh = createCnotGateElement();
     if (fresh instanceof HTMLElement) {
       root.replaceChildren(...Array.from(fresh.childNodes));
     }
   }
 
-  const body = root.querySelector(
-    ".cnot-body, .ent-pipe, [data-part='body'], [data-role='ent-pipe']",
-  );
+  const body = root.querySelector(".cnot-body, [data-part='body']");
   if (body instanceof HTMLElement) {
-    body.classList.add("cnot-body", "ent-pipe");
+    body.classList.add("cnot-body");
     body.dataset.part = "body";
-    if (withEntanglementRoles) {
-      body.dataset.role = "ent-pipe";
-    }
   }
 
   const funnels = Array.from(
-    root.querySelectorAll(
-      ".cnot-input-funnel, .ent-input-funnel, [data-role='ent-funnel-top'], [data-role='ent-funnel-bottom']",
-    ),
+    root.querySelectorAll(".cnot-input-funnel"),
   ).slice(0, 2);
   funnels.forEach((funnel, index) => {
     if (!(funnel instanceof HTMLElement)) {
@@ -1275,16 +1870,10 @@ function normalizeCnotGateElement(
     funnel.dataset.part = index === 0 ? "funnel-top" : "funnel-bottom";
     funnel.classList.toggle("cnot-input-funnel-top", index === 0);
     funnel.classList.toggle("cnot-input-funnel-bottom", index === 1);
-    if (withEntanglementRoles) {
-      funnel.dataset.role =
-        index === 0 ? "ent-funnel-top" : "ent-funnel-bottom";
-    }
   });
 
   const portholes = Array.from(
-    root.querySelectorAll(
-      ".cnot-porthole, .ent-window, [data-role='ent-window-top'], [data-role='ent-window-bottom']",
-    ),
+    root.querySelectorAll(".cnot-porthole"),
   ).slice(0, 2);
   portholes.forEach((porthole, index) => {
     if (!(porthole instanceof HTMLElement)) {
@@ -1294,14 +1883,10 @@ function normalizeCnotGateElement(
     porthole.dataset.part = index === 0 ? "window-top" : "window-bottom";
     porthole.classList.toggle("cnot-porthole-top", index === 0);
     porthole.classList.toggle("cnot-porthole-bottom", index === 1);
-    if (withEntanglementRoles) {
-      porthole.dataset.role =
-        index === 0 ? "ent-window-top" : "ent-window-bottom";
-    }
   });
 
   const flanges = Array.from(
-    root.querySelectorAll(".cnot-output-flange, .ent-output-flange"),
+    root.querySelectorAll(".cnot-output-flange"),
   ).slice(0, 2);
   flanges.forEach((flange, index) => {
     if (!(flange instanceof HTMLElement)) {
@@ -1318,26 +1903,14 @@ function normalizeCnotGateElement(
     spring.classList.add("cnot-spring");
     spring.classList.toggle("cnot-spring-top", index === 0);
     spring.classList.toggle("cnot-spring-bottom", index === 1);
-    if (withEntanglementRoles && index === 0) {
-      spring.dataset.role = "ent-platform";
-    } else if (spring.dataset.role === "ent-platform") {
-      delete spring.dataset.role;
-    }
   });
 
-  if (withEntanglementRoles) {
-    root.dataset.role = "ent-gate";
-  }
   normalizeCnotBodyFill(root);
   return root;
 }
 
 function isCnotGateRoot(element) {
-  return (
-    element instanceof HTMLElement &&
-    (element.classList.contains("cnot-gate") ||
-      element.classList.contains("ent-double-gate"))
-  );
+  return element instanceof HTMLElement && element.classList.contains("cnot-gate");
 }
 
 function parsePixelValue(value) {
@@ -1359,7 +1932,6 @@ function captureCnotGeometryBaseline(root) {
     ".cnot-input-funnel-top",
     ".cnot-input-funnel-bottom",
     ".cnot-porthole",
-    ".ent-window",
     ".cnot-porthole-top",
     ".cnot-porthole-bottom",
     ".cnot-output-flange-top",
@@ -1431,20 +2003,14 @@ function applyCnotGeometryScale(root, baseline, nextWidth, nextHeight) {
     if (!(element instanceof HTMLElement)) {
       return;
     }
-    if (
-      (element.classList.contains("cnot-body") ||
-        element.classList.contains("ent-pipe")) &&
-      !isCnotBodyManuallySized(element)
-    ) {
+    if (element.classList.contains("cnot-body") && !isCnotBodyManuallySized(element)) {
       return;
     }
     const hasHorizontalAnchors =
       Number.isFinite(snapshot.left) && Number.isFinite(snapshot.right);
     const hasVerticalAnchors =
       Number.isFinite(snapshot.top) && Number.isFinite(snapshot.bottom);
-    const isPorthole =
-      element.classList.contains("cnot-porthole") ||
-      element.classList.contains("ent-window");
+    const isPorthole = element.classList.contains("cnot-porthole");
     if (Number.isFinite(snapshot.left)) {
       element.style.left = `${Number.parseFloat((snapshot.left * sx).toFixed(2))}px`;
     }
@@ -1569,7 +2135,7 @@ function makeCnotBodyExplicitlySized(body) {
   if (!(body instanceof HTMLElement)) {
     return;
   }
-  const root = body.closest(".cnot-gate, .ent-double-gate");
+  const root = body.closest(".cnot-gate");
   if (!(root instanceof HTMLElement)) {
     return;
   }
@@ -1614,37 +2180,6 @@ function normalizeCnotBodyFill(root) {
   resetCnotBodyFillGeometry(body);
 }
 
-function mountEntanglementCnotGate(root) {
-  const host = root.querySelector('[data-role="ent-cnot-host"]');
-  if (!(host instanceof HTMLElement)) {
-    return null;
-  }
-  if (!host.querySelector('[data-role="ent-pipe"]')) {
-    const cnotGate = createCnotGateElement({ withEntanglementRoles: true });
-    if (cnotGate) {
-      host.replaceChildren(cnotGate);
-    }
-  }
-  const cnot = host.querySelector(".cnot-gate, .ent-double-gate");
-  return normalizeCnotGateElement(cnot, { withEntanglementRoles: true });
-}
-
-function mountPairCnotGate(root) {
-  const host = root.querySelector('[data-role="pair-cnot-host"]');
-  if (!(host instanceof HTMLElement)) {
-    return null;
-  }
-  if (!host.querySelector(".cnot-gate, .ent-double-gate")) {
-    const cnotGate = createCnotGateElement();
-    if (cnotGate) {
-      cnotGate.classList.add("pair-cnot-gate");
-      host.replaceChildren(cnotGate);
-    }
-  }
-  const cnot = host.querySelector(".cnot-gate, .ent-double-gate");
-  return normalizeCnotGateElement(cnot);
-}
-
 function clonePlaygroundSourceElement(element) {
   if (!(element instanceof Element)) {
     return null;
@@ -1669,8 +2204,6 @@ function sanitizePlaygroundComponentNode(root, options = {}) {
     "platform-extended",
     "extended",
     "active",
-    "ent-hidden",
-    "ent-appearing",
     "collapse-animating",
     "measurement-pellet",
     "qubit-selected",
@@ -1715,21 +2248,528 @@ function createPlaygroundFallback(label) {
   return box;
 }
 
-function createPlaygroundComponentNode(type, sourceRoots) {
-  const { oneQubitRoot, twoQubitPairRoot } = sourceRoots;
+const TEXT_BOX_BUTTON_MODES = new Set(["none", "next", "ok"]);
+
+function normalizeTextBoxButtonMode(value) {
+  return TEXT_BOX_BUTTON_MODES.has(value) ? value : "none";
+}
+
+function textBoxButtonLabel(mode) {
+  if (mode === "next") {
+    return "Next";
+  }
+  if (mode === "ok") {
+    return "OK";
+  }
+  return "";
+}
+
+function applyTextBoxButtonMode(root, mode) {
+  if (!(root instanceof HTMLElement)) {
+    return;
+  }
+  const normalizedMode = normalizeTextBoxButtonMode(mode);
+  root.dataset.textBoxButton = normalizedMode;
+  const select = root.querySelector('[data-role="text-box-button-mode"]');
+  if (select instanceof HTMLSelectElement) {
+    select.value = normalizedMode;
+  }
+  const action = root.querySelector('[data-role="text-box-action"]');
+  if (action instanceof HTMLButtonElement) {
+    const label = textBoxButtonLabel(normalizedMode);
+    action.hidden = !label;
+    action.textContent = label;
+  }
+}
+
+function textBoxRootForItem(item) {
+  if (!(item instanceof HTMLElement)) {
+    return null;
+  }
+  if (item.classList.contains("playground-text-box")) {
+    return item;
+  }
+  const root = item.querySelector(".playground-text-box");
+  return root instanceof HTMLElement ? root : null;
+}
+
+function captureTextBoxSnapshot(item) {
+  const root = textBoxRootForItem(item);
+  if (!root) {
+    return null;
+  }
+  const body = root.querySelector('[data-role="text-box-body"]');
+  const select = root.querySelector('[data-role="text-box-button-mode"]');
+  return {
+    text: body instanceof HTMLElement ? body.textContent || "" : "",
+    buttonMode: normalizeTextBoxButtonMode(
+      root.dataset.textBoxButton ||
+        (select instanceof HTMLSelectElement ? select.value : "none"),
+    ),
+  };
+}
+
+function applyTextBoxSnapshotToElement(item, geometry = {}) {
+  const root = textBoxRootForItem(item);
+  if (!root) {
+    return;
+  }
+  const body = root.querySelector('[data-role="text-box-body"]');
+  if (body instanceof HTMLElement && typeof geometry?.text === "string") {
+    body.textContent = geometry.text;
+  }
+  applyTextBoxButtonMode(root, geometry?.buttonMode);
+}
+
+function markTextBoxEdited(root) {
+  if (!(root instanceof HTMLElement)) {
+    return;
+  }
+  if (root.closest(".generated-layout-canvas")) {
+    setLayoutSaveButtonSavedState(false);
+  }
+}
+
+function stopTextBoxControlPropagation(element) {
+  ["mousedown", "touchstart", "click"].forEach((eventName) => {
+    element.addEventListener(eventName, (event) => {
+      event.stopPropagation();
+    });
+  });
+}
+
+function createTextBoxElement(geometry = {}) {
+  const root = document.createElement("div");
+  root.className = "playground-text-box";
+
+  const controls = document.createElement("div");
+  controls.className = "text-box-editor-controls";
+  controls.dataset.role = "text-box-controls";
+
+  const label = document.createElement("label");
+  label.textContent = "Button";
+
+  const select = document.createElement("select");
+  select.dataset.role = "text-box-button-mode";
+  [
+    ["none", "No button"],
+    ["next", "Next"],
+    ["ok", "OK"],
+  ].forEach(([value, text]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    select.appendChild(option);
+  });
+  label.appendChild(select);
+  controls.appendChild(label);
+
+  const body = document.createElement("div");
+  body.className = "text-box-body";
+  body.dataset.role = "text-box-body";
+  body.contentEditable = "true";
+  body.spellcheck = true;
+  body.textContent =
+    typeof geometry?.text === "string" ? geometry.text : "Text";
+
+  const action = document.createElement("button");
+  action.className = "text-box-action";
+  action.dataset.role = "text-box-action";
+  action.type = "button";
+
+  select.addEventListener("change", () => {
+    applyTextBoxButtonMode(root, select.value);
+    markTextBoxEdited(root);
+  });
+  body.addEventListener("input", () => markTextBoxEdited(root));
+  action.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  [select, body, action].forEach(stopTextBoxControlPropagation);
+
+  root.append(controls, body, action);
+  applyTextBoxButtonMode(root, geometry?.buttonMode);
+  return root;
+}
+
+function isMeasurementPieceComponentType(type) {
+  return (
+    type === "measurement-capacity" ||
+    type === "single-tube-array" ||
+    type === "double-tube-array" ||
+    type === "single-magnifier" ||
+    type === "double-magnifier" ||
+    type === "measurement-count-menu"
+  );
+}
+
+function measurementPieceRoleForType(type) {
+  return (
+    {
+      "measurement-capacity": "capacity",
+      "single-tube-array": "single-tubes",
+      "double-tube-array": "double-tubes",
+      "single-magnifier": "single-magnifier",
+      "double-magnifier": "double-magnifier",
+      "measurement-count-menu": "iteration-count",
+    }[type] || ""
+  );
+}
+
+function clonePairMeasurementPart(selector) {
+  const host = document.createElement("section");
+  mountPairMeasurementTool(host);
+  const part = host.querySelector(selector);
+  return part instanceof HTMLElement ? part.cloneNode(true) : null;
+}
+
+function createMeasurementPieceNode(type) {
+  const wrapper = document.createElement("div");
+  wrapper.className = `measurement-piece measurement-piece-${type}`;
+  wrapper.dataset.measurementRole = measurementPieceRoleForType(type);
 
   let node = null;
+  if (type === "measurement-capacity") {
+    node = clonePairMeasurementPart('[data-role="pair-capacity"]');
+    if (node instanceof HTMLElement) {
+      node.textContent = "The testtubes can each hold 5 qubit pairs.";
+    }
+  } else if (type === "single-tube-array") {
+    node = clonePlaygroundSourceElement(
+      cloneSingleQubitBlueprint('[data-role="tube-rack"]'),
+    );
+  } else if (type === "double-tube-array") {
+    node = clonePairMeasurementPart(".pair-tube-rack");
+  } else if (type === "single-magnifier") {
+    node = clonePlaygroundSourceElement(
+      cloneSingleQubitBlueprint('[data-role="measurement-tool"]'),
+    );
+  } else if (type === "double-magnifier") {
+    node = clonePairMeasurementPart('[data-role="pair-lens"]');
+  } else if (type === "measurement-count-menu") {
+    node = clonePlaygroundSourceElement(
+      cloneSingleQubitBlueprint('[data-role="measurement-count"]'),
+    );
+  }
+
+  if (!(node instanceof HTMLElement)) {
+    wrapper.appendChild(
+      createPlaygroundFallback(PLAYGROUND_COMPONENT_LIBRARY[type]?.label || type),
+    );
+    return wrapper;
+  }
+  wrapper.appendChild(node);
+  return wrapper;
+}
+
+function isSeparatedPairMeasurementGroupElement(item) {
+  if (
+    !(item instanceof HTMLElement) ||
+    item.dataset.component !== PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE
+  ) {
+    return false;
+  }
+  const magnifierCount = item.querySelectorAll(
+    ':scope > .saved-group-child[data-component="single-magnifier"] [data-role="measurement-tool"]',
+  ).length;
+  const requiredTubeKeys = ["bb", "br", "rb", "rr"];
+  return (
+    magnifierCount >= 2 &&
+    requiredTubeKeys.every((key) =>
+      item.querySelector(`.pair-tube-column[data-key="${key}"]`),
+    )
+  );
+}
+
+function savedGroupChildEditSpec(child, index) {
+  const type = child?.dataset?.component || "";
+  const role =
+    child?.dataset?.measurementRole || measurementPieceRoleForType(type);
+  const baseKey = role || type || `child-${index + 1}`;
+  const defaults =
+    {
+      "measurement-capacity": { minWidth: 120, minHeight: 24 },
+      "single-tube-array": { minWidth: 120, minHeight: 80 },
+      "double-tube-array": { minWidth: 160, minHeight: 90 },
+      "single-magnifier": { minWidth: 100, minHeight: 80 },
+      "double-magnifier": { minWidth: 160, minHeight: 100 },
+      "measurement-count-menu": { minWidth: 60, minHeight: 24 },
+    }[type] || { minWidth: 40, minHeight: 30 };
+  return {
+    key: `${baseKey}-${index + 1}`,
+    resizable: true,
+    uniform: false,
+    ...defaults,
+  };
+}
+
+function editableSavedGroupChildPartEntries(item) {
+  if (!isSeparatedPairMeasurementGroupElement(item)) {
+    return [];
+  }
+  return Array.from(item.querySelectorAll(":scope > .saved-group-child"))
+    .filter((child) => child instanceof HTMLElement)
+    .map((element, index) => ({
+      element,
+      spec: savedGroupChildEditSpec(element, index),
+    }));
+}
+
+function finitePositiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function captureSavedGroupChildLayoutSnapshot(item) {
+  const entries = editableSavedGroupChildPartEntries(item);
+  if (entries.length === 0) {
+    return null;
+  }
+  const groupRect = item.getBoundingClientRect();
+  const items = entries.map(({ element }, index) => {
+    const rect = element.getBoundingClientRect();
+    const type = element.dataset.component || "qubit";
+    const geometry = {
+      type,
+      left: Number.parseFloat((rect.left - groupRect.left).toFixed(2)),
+      top: Number.parseFloat((rect.top - groupRect.top).toFixed(2)),
+      width: Number.parseFloat(rect.width.toFixed(2)),
+      height: Number.parseFloat(rect.height.toFixed(2)),
+      z: parseLayoutNumeric(element.style.zIndex, index + 1),
+    };
+    const measurementRole =
+      element.dataset.measurementRole || measurementPieceRoleForType(type);
+    if (measurementRole) {
+      geometry.measurementRole = measurementRole;
+    }
+    if (type === "qubit") {
+      const qubitId = ensureQubitLogicalId(element);
+      if (qubitId) {
+        geometry.qubitId = qubitId;
+      }
+    }
+    if (type === "text-box") {
+      Object.assign(geometry, captureTextBoxSnapshot(element));
+    }
+    if (isMeasurementComponentType(type)) {
+      const measurementLayout = captureMeasurementLayoutSnapshot(
+        element,
+        editableMeasurementPartSpecsForType(type),
+      );
+      if (measurementLayout) {
+        geometry.measurementLayout = measurementLayout;
+      }
+    }
+    if (type === "cnot-gate") {
+      const cnotLayout = captureCnotComponentDefaultsFromElement(element);
+      if (cnotLayout) {
+        geometry.cnotLayout = cnotLayout;
+      }
+    }
+    return geometry;
+  });
+  return {
+    items,
+    itemsWidth: Number.parseFloat(groupRect.width.toFixed(2)),
+    itemsHeight: Number.parseFloat(groupRect.height.toFixed(2)),
+  };
+}
+
+function persistSavedGroupComponentDefinitionFromElement(item) {
+  if (
+    !isSeparatedPairMeasurementGroupElement(item) ||
+    !item.dataset.groupComponentId
+  ) {
+    return false;
+  }
+  const snapshot = captureSavedGroupChildLayoutSnapshot(item);
+  if (!snapshot?.items?.length) {
+    return false;
+  }
+  const payload = readPlaygroundGroupComponentsPayload();
+  const groups = Array.isArray(payload.groups) ? payload.groups : [];
+  const index = groups.findIndex(
+    (group) => group?.id === item.dataset.groupComponentId,
+  );
+  if (index < 0) {
+    return false;
+  }
+    groups[index] = {
+      ...groups[index],
+      width: snapshot.itemsWidth,
+      height: snapshot.itemsHeight,
+      items: snapshot.items.map((item) =>
+        stripQubitIdsFromLayoutGeometry({ ...item }),
+      ),
+      savedAt: Date.now(),
+    };
+  const saved = writePlaygroundGroupComponentsPayload({ groups });
+  if (saved) {
+    refreshAllComponentPickers();
+  }
+  return saved;
+}
+
+function applySavedGroupChildGeometry(child, storedGeometry, groupWidth, groupHeight) {
+  const config = componentConfigForType(
+    storedGeometry?.type,
+    storedGeometry,
+  ) || {
+    width: 120,
+    height: 100,
+  };
+  const left = finitePositiveNumber(storedGeometry?.left, 0);
+  const top = finitePositiveNumber(storedGeometry?.top, 0);
+  const width = finitePositiveNumber(storedGeometry?.width, config.width);
+  const height = finitePositiveNumber(storedGeometry?.height, config.height);
+  child.style.left = `${(left / groupWidth) * 100}%`;
+  child.style.top = `${(top / groupHeight) * 100}%`;
+  child.style.width = `${(width / groupWidth) * 100}%`;
+  child.style.height = `${(height / groupHeight) * 100}%`;
+  child.style.zIndex = `${Math.round(Number(storedGeometry?.z) || 1)}`;
+}
+
+function applySavedGroupChildSnapshot(child, storedGeometry) {
+  const type = storedGeometry?.type;
+  if (!(child instanceof HTMLElement)) {
+    return;
+  }
+  if (type === "cnot-gate") {
+    applyCnotComponentDefaultsToElement(child, {
+      includeGateGeometry: !storedGeometry?.cnotLayout,
+    });
+    if (storedGeometry?.cnotLayout) {
+      applyCnotSnapshotToElement(child, storedGeometry.cnotLayout, {
+        includeGateGeometry: false,
+      });
+    }
+  }
+  if (isMeasurementComponentType(type)) {
+    applyMeasurementLayoutSnapshot(
+      child,
+      storedGeometry?.measurementLayout ||
+        playgroundComponentDefaultsCache?.[type],
+      editableMeasurementPartSpecsForType(type),
+      { includeGroupGeometry: false },
+    );
+  }
+  if (type === "single-gate" && Number.isFinite(storedGeometry?.singleGateTick)) {
+    child.dataset.playgroundSingleGateTick = `${normalizeTickIndex(
+      storedGeometry.singleGateTick,
+    )}`;
+  }
+  if (type === "text-box") {
+    applyTextBoxSnapshotToElement(child, storedGeometry);
+  }
+}
+
+function createSavedGroupNode(group, geometry = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "saved-component-group component-group";
+  const groupId = group?.id || geometry?.groupComponentId || "";
+  if (groupId) {
+    wrapper.dataset.groupComponentId = groupId;
+  }
+  if (!group || !Array.isArray(group.items) || group.items.length === 0) {
+    wrapper.appendChild(createPlaygroundFallback("Saved group"));
+    return wrapper;
+  }
+  const renderDepth = Number(geometry?.groupRenderDepth) || 0;
+  if (renderDepth > 4) {
+    wrapper.appendChild(createPlaygroundFallback(group.label || "Saved group"));
+    return wrapper;
+  }
+  const instanceItems =
+    Array.isArray(geometry?.items) && geometry.items.length > 0
+      ? geometry.items
+      : null;
+  const groupItems = instanceItems || group.items;
+  const groupWidth = instanceItems
+    ? finitePositiveNumber(
+        geometry?.itemsWidth,
+        finitePositiveNumber(
+          geometry?.width,
+          finitePositiveNumber(group.width, 320),
+        ),
+      )
+    : finitePositiveNumber(group.width, 320);
+  const groupHeight = instanceItems
+    ? finitePositiveNumber(
+        geometry?.itemsHeight,
+        finitePositiveNumber(
+          geometry?.height,
+          finitePositiveNumber(group.height, 240),
+        ),
+      )
+    : finitePositiveNumber(group.height, 240);
+  groupItems
+    .slice()
+    .sort((a, b) => (Number(a?.z) || 0) - (Number(b?.z) || 0))
+    .forEach((storedGeometry) => {
+      const childType =
+        typeof storedGeometry?.type === "string" ? storedGeometry.type : "qubit";
+      const childGeometry = {
+        ...storedGeometry,
+        groupRenderDepth: renderDepth + 1,
+      };
+      const child =
+        createPlaygroundComponentNode(childType, childGeometry) ||
+        createPlaygroundFallback(
+          componentConfigForType(childType, childGeometry)?.label || "Component",
+        );
+      if (!(child instanceof HTMLElement)) {
+        return;
+      }
+      child.classList.add("saved-group-child");
+      child.dataset.component = childType;
+      if (childType === "qubit") {
+        ensureQubitLogicalId(child, storedGeometry?.qubitId);
+      }
+      if (typeof storedGeometry?.measurementRole === "string") {
+        child.dataset.measurementRole = storedGeometry.measurementRole;
+      }
+      if (groupId) {
+        child.dataset.groupComponentId = groupId;
+      }
+      applySavedGroupChildGeometry(
+        child,
+        storedGeometry,
+        groupWidth,
+        groupHeight,
+      );
+      applySavedGroupChildSnapshot(child, storedGeometry);
+      wrapper.appendChild(child);
+    });
+  return wrapper;
+}
+
+function createPlaygroundComponentNode(type, geometry = {}) {
+  if (type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE) {
+    return createSavedGroupNode(
+      playgroundGroupComponentById(geometry?.groupComponentId),
+      geometry,
+    );
+  }
+  const pickerGroup = savedGroupComponentForType(type);
+  if (pickerGroup) {
+    return createSavedGroupNode(pickerGroup, {
+      ...geometry,
+      groupComponentId: pickerGroup.id,
+    });
+  }
+  let node = null;
   if (type === "qubit") {
-    node = clonePlaygroundSourceElement(oneQubitRoot?.querySelector(".qubit"));
+    node = clonePlaygroundSourceElement(cloneSingleQubitBlueprint(".qubit"));
   } else if (type === "single-gate") {
     node = clonePlaygroundSourceElement(
-      oneQubitRoot?.querySelector(".window-wrap.single-qubit-gate"),
+      cloneSingleQubitBlueprint(".window-wrap.single-qubit-gate"),
     );
   } else if (type === "cnot-gate") {
     node = createCnotGateElement();
   } else if (type === "single-measurement") {
     node = clonePlaygroundSourceElement(
-      oneQubitRoot?.querySelector(".measurement-stage"),
+      cloneSingleQubitBlueprint(".measurement-stage"),
     );
   } else if (type === "double-measurement") {
     node = document.createElement("section");
@@ -1737,11 +2777,10 @@ function createPlaygroundComponentNode(type, sourceRoots) {
     node.dataset.role = "pair-measurement-host";
     node.setAttribute("aria-label", "Two qubit measurement tool");
     mountPairMeasurementTool(node);
-    if (!node.querySelector('[data-role="pair-lens"]')) {
-      node = clonePlaygroundSourceElement(
-        twoQubitPairRoot?.querySelector(".pair-measurement"),
-      );
-    }
+  } else if (type === "text-box") {
+    node = createTextBoxElement(geometry);
+  } else if (isMeasurementPieceComponentType(type)) {
+    node = createMeasurementPieceNode(type);
   }
 
   if (!node) {
@@ -1768,6 +2807,7 @@ function createPlaygroundComponentNode(type, sourceRoots) {
     if (capacity) {
       capacity.textContent = "The testtubes can each hold 5 qubit pairs.";
     }
+    ensurePlaygroundGroupFrame(node);
   }
   return node;
 }
@@ -1775,6 +2815,24 @@ function createPlaygroundComponentNode(type, sourceRoots) {
 function minGeneratedLayoutSizeForType(type) {
   if (type === "qubit") {
     return { minWidth: 12, minHeight: 12 };
+  }
+  if (type === "text-box") {
+    return { minWidth: 140, minHeight: 88 };
+  }
+  if (type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE) {
+    return { minWidth: 80, minHeight: 60 };
+  }
+  if (isMeasurementPieceComponentType(type)) {
+    if (type === "measurement-count-menu") {
+      return { minWidth: 70, minHeight: 42 };
+    }
+    if (type === "measurement-capacity") {
+      return { minWidth: 160, minHeight: 48 };
+    }
+    if (type === "single-magnifier") {
+      return { minWidth: 90, minHeight: 70 };
+    }
+    return { minWidth: 110, minHeight: 80 };
   }
   return { minWidth: 120, minHeight: 100 };
 }
@@ -1816,6 +2874,16 @@ function isGeneratedDoubleMeasurementItem(item) {
     isGeneratedLayoutItem(item) &&
     item.dataset.component === "double-measurement"
   );
+}
+
+function isGeneratedSeparatedPairMeasurementItem(item) {
+  if (
+    !isGeneratedLayoutItem(item) ||
+    item.dataset.component !== PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE
+  ) {
+    return false;
+  }
+  return isSeparatedPairMeasurementGroupElement(item);
 }
 
 function isGeneratedCnotItem(item) {
@@ -1876,17 +2944,6 @@ function generatedItemsByIds(canvas, itemIds) {
     .filter((item) => item instanceof HTMLElement);
 }
 
-function generatedCanvasTabId(canvas) {
-  if (!isGeneratedLayoutCanvas(canvas)) {
-    return "";
-  }
-  if (canvas.dataset.generatedTabId) {
-    return canvas.dataset.generatedTabId;
-  }
-  const panel = canvas.closest('[data-generated-layout-panel="true"]');
-  return panel instanceof HTMLElement ? panel.id.replace(/^panel-/, "") : "";
-}
-
 function cloneGeneratedExperiment(experiment) {
   if (!experiment || typeof experiment !== "object") {
     return null;
@@ -1905,10 +2962,8 @@ function generatedExperimentStateForCanvas(canvas) {
       recording: false,
       playing: false,
       actions: [],
-      activeDrag: null,
       experiment: null,
       toolbar: null,
-      recordButton: null,
       status: null,
       startedAt: 0,
       initialQubits: [],
@@ -1921,6 +2976,72 @@ function generatedExperimentStateForCanvas(canvas) {
 
 function isGeneratedExperimentRecording(canvas) {
   return Boolean(generatedExperimentStateForCanvas(canvas)?.recording);
+}
+
+function generatedTabEntryForCanvas(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return null;
+  }
+  const tabId = canvas.dataset.generatedTabId || "";
+  if (!tabId) {
+    return null;
+  }
+  return (
+    (generatedTabsState.customTabs || []).find((entry) => entry?.id === tabId) ||
+    null
+  );
+}
+
+function clearGeneratedExperimentStateForCanvas(canvas) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state) {
+    return;
+  }
+  state.recording = false;
+  state.playing = false;
+  state.actions = [];
+  state.experiment = null;
+  state.startedAt = 0;
+  state.initialQubits = [];
+  state.gateSettings = [];
+  canvas.classList.remove("generated-recording-active");
+  updateGeneratedExperimentToolbar(canvas);
+}
+
+function clearGeneratedTransientStateForCanvas(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return;
+  }
+  if (generatedRuntimeDrag?.canvas === canvas) {
+    generatedRuntimeDrag.item?.classList.remove("dragging");
+    generatedRuntimeDrag = null;
+  }
+  if (generatedLayoutGesture?.canvas === canvas) {
+    generatedLayoutGesture.part?.classList.remove("layout-edit-dragging");
+    generatedLayoutGesture.item?.classList.remove("dragging", "resizing");
+    generatedLayoutGesture = null;
+  }
+  if (
+    selectedGeneratedLayoutItem instanceof HTMLElement &&
+    generatedCanvasForItem(selectedGeneratedLayoutItem) === canvas
+  ) {
+    clearSelectedGeneratedLayoutItem();
+  }
+  clearGeneratedExperimentStateForCanvas(canvas);
+  releaseGeneratedRuntimeSlotsForCanvas(canvas);
+  clearGeneratedMeasurementsForCanvas(canvas);
+}
+
+function resetGeneratedTabForCanvas(canvas) {
+  const entry = generatedTabEntryForCanvas(canvas);
+  const panel = canvas?.closest?.('[data-generated-layout-panel="true"]');
+  if (!entry || !(panel instanceof HTMLElement)) {
+    return false;
+  }
+  clearGeneratedTransientStateForCanvas(canvas);
+  renderGeneratedLayoutPanel(panel, entry);
+  pruneGeneratedRuntimeState();
+  return true;
 }
 
 function generatedCanvasAllowsRuntime(canvas) {
@@ -1946,6 +3067,7 @@ function generatedRuntimeVectorSnapshot(item) {
 function captureGeneratedInitialQubits(canvas) {
   return generatedItemsOfType(canvas, "qubit").map((item) => ({
     itemId: ensureGeneratedItemId(item, "qubit"),
+    logicalQubitId: ensureQubitLogicalId(item),
     center: generatedItemCenterSnapshot(canvas, item),
     vector: generatedRuntimeVectorSnapshot(item),
   }));
@@ -1965,17 +3087,10 @@ function captureGeneratedGateSettings(canvas) {
 
 function syncGeneratedExperimentGateSettingsFromCanvas(canvas) {
   const state = generatedExperimentStateForCanvas(canvas);
-  if (!state || state.playing) {
+  if (!state || state.playing || state.recording) {
     return;
   }
   state.gateSettings = captureGeneratedGateSettings(canvas);
-  if (!state.experiment) {
-    return;
-  }
-  state.experiment.gateSettings = state.gateSettings.map((entry) => ({
-    ...entry,
-  }));
-  persistGeneratedExperimentForCanvas(canvas, state.experiment);
 }
 
 function updateGeneratedExperimentToolbar(canvas) {
@@ -1983,64 +3098,15 @@ function updateGeneratedExperimentToolbar(canvas) {
   if (!state) {
     return;
   }
-  if (state.recordButton instanceof HTMLButtonElement) {
-    state.recordButton.textContent = state.recording ? "Stop Recording" : "Record";
-    state.recordButton.classList.toggle("active", state.recording);
-    state.recordButton.setAttribute(
-      "aria-pressed",
-      state.recording ? "true" : "false",
-    );
-  }
   if (state.status instanceof HTMLElement) {
-    state.status.textContent = state.recording
-      ? "Recording"
-      : state.experiment
-        ? "Experiment saved"
-        : "";
+    state.status.textContent = state.playing
+      ? "Running experiment"
+      : state.recording
+        ? "Recording"
+        : state.experiment
+          ? "Experiment ready"
+          : "No experiment recorded";
   }
-}
-
-function persistGeneratedExperimentForCanvas(canvas, experiment) {
-  if (!isGeneratedLayoutCanvas(canvas)) {
-    return false;
-  }
-  const targetId = generatedCanvasTabId(canvas);
-  if (!targetId) {
-    return false;
-  }
-  const nextState = cloneJson(generatedTabsState) || {
-    overrides: {},
-    customTabs: [],
-  };
-  nextState.overrides = nextState.overrides || {};
-  nextState.customTabs = Array.isArray(nextState.customTabs)
-    ? nextState.customTabs
-    : [];
-  const layout = captureGeneratedLayoutFromCanvas(canvas);
-  const customEntry = nextState.customTabs.find((entry) => entry.id === targetId);
-  if (customEntry) {
-    if (layout) {
-      customEntry.layout = layout;
-    }
-    customEntry.experiment = experiment;
-  } else {
-    const targetButton = tabButtons.find(
-      (button) => button.dataset.tabTarget === targetId,
-    );
-    nextState.overrides[targetId] = {
-      label: targetButton ? tabLabelForButton(targetButton) : targetId,
-      layout:
-        layout ||
-        nextState.overrides[targetId]?.layout ||
-        generatedTabsState.overrides?.[targetId]?.layout,
-      experiment,
-    };
-  }
-  if (!writeGeneratedTabsState(nextState)) {
-    return false;
-  }
-  generatedTabsState = nextState;
-  return true;
 }
 
 function recordGeneratedExperimentAction(canvas, action) {
@@ -2051,6 +3117,28 @@ function recordGeneratedExperimentAction(canvas, action) {
   state.actions.push({
     ...action,
     t: Math.round(performance.now() - state.startedAt),
+  });
+}
+
+function recordGeneratedGateSettingAction(canvas, gateItem, tickIndex) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state?.recording || !(gateItem instanceof HTMLElement)) {
+    return;
+  }
+  const normalizedTick = normalizeTickIndex(tickIndex);
+  const gateId = ensureGeneratedItemId(gateItem, "single-gate");
+  const previousAction = state.actions[state.actions.length - 1];
+  if (
+    previousAction?.type === "gate-setting" &&
+    previousAction.gateId === gateId &&
+    normalizeTickIndex(previousAction.tickIndex ?? 0) === normalizedTick
+  ) {
+    return;
+  }
+  recordGeneratedExperimentAction(canvas, {
+    type: "gate-setting",
+    gateId,
+    tickIndex: normalizedTick,
   });
 }
 
@@ -2088,20 +3176,51 @@ function commitGeneratedDragRecord(gesture) {
 function beginGeneratedExperimentRecording(canvas) {
   const state = generatedExperimentStateForCanvas(canvas);
   if (!state || state.playing) {
-    return;
+    return false;
+  }
+  if (state.recording) {
+    return true;
   }
   if (layoutEditorState.enabled) {
     setLayoutEditEnabled(false);
   }
   state.recording = true;
   state.actions = [];
-  state.activeDrag = null;
   state.startedAt = performance.now();
   state.initialQubits = captureGeneratedInitialQubits(canvas);
   state.gateSettings = captureGeneratedGateSettings(canvas);
   state.experiment = null;
   canvas.classList.add("generated-recording-active");
   updateGeneratedExperimentToolbar(canvas);
+  return true;
+}
+
+function startGeneratedDragRecordingIfNeeded(gesture) {
+  if (!gesture?.canvas || gesture.recordingPath) {
+    return Boolean(gesture?.recordingPath);
+  }
+  const state = generatedExperimentStateForCanvas(gesture.canvas);
+  if (!state || state.playing) {
+    return false;
+  }
+  if (!state.recording && !beginGeneratedExperimentRecording(gesture.canvas)) {
+    return false;
+  }
+  const initialRecordPoint =
+    gesture.initialRecordPoint ||
+    generatedItemCenterSnapshot(gesture.canvas, gesture.item);
+  if (!initialRecordPoint) {
+    return false;
+  }
+  const recordingState = generatedExperimentStateForCanvas(gesture.canvas);
+  gesture.recordingPath = [
+    {
+      ...initialRecordPoint,
+      t: 0,
+    },
+  ];
+  gesture.recordingStartedAt = recordingState?.startedAt || performance.now();
+  return true;
 }
 
 function finishGeneratedExperimentRecording(canvas) {
@@ -2111,25 +3230,20 @@ function finishGeneratedExperimentRecording(canvas) {
   }
   state.recording = false;
   canvas.classList.remove("generated-recording-active");
-  state.gateSettings = captureGeneratedGateSettings(canvas);
   state.experiment = {
     version: 1,
     recordedAt: Date.now(),
     initialQubits: state.initialQubits,
-    gateSettings: state.gateSettings,
+    gateSettings: state.gateSettings.map((entry) => ({ ...entry })),
     actions: cloneRecordedActions(state.actions),
   };
-  persistGeneratedExperimentForCanvas(canvas, state.experiment);
   updateGeneratedExperimentToolbar(canvas);
 }
 
-function setGeneratedCanvasExperiment(canvas, experiment) {
-  const state = generatedExperimentStateForCanvas(canvas);
-  if (!state) {
-    return;
+function finishGeneratedExperimentRecordingAfterMeasurement(canvas) {
+  if (isGeneratedExperimentRecording(canvas)) {
+    finishGeneratedExperimentRecording(canvas);
   }
-  state.experiment = cloneGeneratedExperiment(experiment);
-  updateGeneratedExperimentToolbar(canvas);
 }
 
 function generatedToolbarForCanvas(canvas) {
@@ -2223,9 +3337,20 @@ function getGeneratedQubitCore(item) {
   return core instanceof HTMLElement ? core : item;
 }
 
+function generatedAnimatedReplaySpeedForIterationCount(iterations) {
+  const count = Math.max(1, Number(iterations) || 1);
+  return count > 1 && count < 100 ? count : 1;
+}
+
+function scaledGeneratedDuration(duration) {
+  const rawDuration = Math.max(0, Number(duration) || 0);
+  const speed = Math.max(1, Number(generatedExperimentPlaybackSpeed) || 1);
+  return rawDuration / speed;
+}
+
 function waitForDuration(duration) {
   return new Promise((resolve) => {
-    window.setTimeout(resolve, duration);
+    window.setTimeout(resolve, scaledGeneratedDuration(duration));
   });
 }
 
@@ -2241,6 +3366,7 @@ function pruneGeneratedRuntimeState() {
     generatedQubitRuntimes,
     generatedSingleMeasurementRuntimes,
     generatedDoubleMeasurementRuntimes,
+    generatedSeparatedPairMeasurementRuntimes,
     generatedCnotRuntimes,
   ].forEach((runtimeMap) => {
     Array.from(runtimeMap.keys()).forEach((item) => {
@@ -2276,6 +3402,8 @@ function ensureGeneratedQubitRuntimeState(item) {
     state = {
       vector: [1, 0],
       transiting: false,
+      pairState: null,
+      pairQubitIndex: null,
       cnotSourceSlot: null,
       cnotPairToken: null,
       cnotOutcomeProbabilities: null,
@@ -2285,6 +3413,110 @@ function ensureGeneratedQubitRuntimeState(item) {
   }
   applyGeneratedQubitVectorVisualState(item);
   return state;
+}
+
+function clearGeneratedQubitPairState(qubitItem) {
+  const state = ensureGeneratedQubitRuntimeState(qubitItem);
+  if (!state) {
+    return;
+  }
+  state.pairState = null;
+  state.pairQubitIndex = null;
+}
+
+function syncGeneratedPairStateVisuals(pairState) {
+  if (!pairState?.members) {
+    return;
+  }
+  pairState.members.forEach(({ item, state, qubitIndex }) => {
+    if (!(item instanceof HTMLElement) || !item.isConnected || !state) {
+      return;
+    }
+    state.vector = displayVectorForPairMember(pairState, qubitIndex);
+    applyGeneratedQubitVectorVisualState(item);
+  });
+}
+
+function createGeneratedPairState(topQubitItem, bottomQubitItem) {
+  const topState = ensureGeneratedQubitRuntimeState(topQubitItem);
+  const bottomState = ensureGeneratedQubitRuntimeState(bottomQubitItem);
+  if (!topState || !bottomState) {
+    return null;
+  }
+  const pairState = {
+    amplitudes: entangledAmplitudesFromQubitVectors(
+      topState.vector,
+      bottomState.vector,
+    ),
+    displayMode: "marginal",
+    members: [
+      { item: topQubitItem, state: topState, qubitIndex: 0 },
+      { item: bottomQubitItem, state: bottomState, qubitIndex: 1 },
+    ],
+  };
+  topState.pairState = pairState;
+  topState.pairQubitIndex = 0;
+  bottomState.pairState = pairState;
+  bottomState.pairQubitIndex = 1;
+  return pairState;
+}
+
+function applyGeneratedSingleGateToQubitState(qubitItem, tickIndex) {
+  const state = ensureGeneratedQubitRuntimeState(qubitItem);
+  if (!state) {
+    return;
+  }
+  if (state.pairState && Number.isFinite(state.pairQubitIndex)) {
+    applySingleQubitGateToPair(
+      state.pairState,
+      state.pairQubitIndex,
+      gateMatrixForTick(tickIndex),
+    );
+    syncGeneratedPairStateVisuals(state.pairState);
+    return;
+  }
+  state.vector = normalizeVector2(
+    vectorTimesMatrix2(state.vector, gateMatrixForTick(tickIndex)),
+  );
+  applyGeneratedQubitVectorVisualState(qubitItem);
+}
+
+function collapseGeneratedSingleQubitFromPair(qubitItem, color) {
+  const state = ensureGeneratedQubitRuntimeState(qubitItem);
+  const pairState = state?.pairState;
+  if (!state || !pairState || !Number.isFinite(state.pairQubitIndex)) {
+    return false;
+  }
+  const measuredIndex = state.pairQubitIndex;
+  const otherMember = pairState.members?.find(
+    (member) => member.state && member.state !== state,
+  );
+  const otherVector = conditionalVectorAfterPairMeasurement(
+    pairState,
+    measuredIndex,
+    color,
+  );
+  collapsePairStateBySingleQubitMeasurement(pairState, measuredIndex, color);
+  state.vector = color === "blue" ? [1, 0] : [0, 1];
+  state.pairState = null;
+  state.pairQubitIndex = null;
+  state.cnotSourceSlot = null;
+  state.cnotPairToken = null;
+  state.cnotOutcomeProbabilities = null;
+  state.doubleMeasurementReturnPoint = null;
+  if (otherMember?.state) {
+    otherMember.state.vector = otherVector;
+    otherMember.state.pairState = null;
+    otherMember.state.pairQubitIndex = null;
+    otherMember.state.cnotSourceSlot = null;
+    otherMember.state.cnotPairToken = null;
+    otherMember.state.cnotOutcomeProbabilities = null;
+    if (otherMember.item instanceof HTMLElement) {
+      applyGeneratedQubitVectorVisualState(otherMember.item);
+    }
+  }
+  applyGeneratedQubitVectorVisualState(qubitItem);
+  return true;
 }
 
 function settleGeneratedQubitVisualState(item) {
@@ -2387,20 +3619,24 @@ function generatedCircleIntersectionArea(r1, r2, distance) {
 function prepareGeneratedMeasurementParts(item) {
   if (
     !(item instanceof HTMLElement) ||
-    !isMeasurementComponentType(item.dataset.component)
+    (!isMeasurementComponentType(item.dataset.component) &&
+      !isSeparatedPairMeasurementGroupElement(item))
   ) {
     return;
   }
-  const specs = editableMeasurementPartSpecsForType(item.dataset.component);
-  if (specs.length === 0) {
+  const entries = isSeparatedPairMeasurementGroupElement(item)
+    ? editableSavedGroupChildPartEntries(item)
+    : editableMeasurementPartSpecsForType(item.dataset.component)
+        .map((spec) => {
+          const element = item.querySelector(spec.selector);
+          return element instanceof HTMLElement ? { spec, element } : null;
+        })
+        .filter(Boolean);
+  if (entries.length === 0) {
     clearMeasurementPartLayoutEditing(item);
     return;
   }
-  specs.forEach((spec) => {
-    const element = item.querySelector(spec.selector);
-    if (!(element instanceof HTMLElement)) {
-      return;
-    }
+  entries.forEach(({ spec, element }) => {
     element.dataset.playgroundMeasurementPart = spec.key;
     element.dataset.layoutEditTarget = "true";
     element.dataset.layoutResizable = spec.resizable ? "true" : "false";
@@ -2424,6 +3660,7 @@ function prepareGeneratedLayoutItem(item) {
     return;
   }
   ensureGeneratedItemId(item);
+  ensureQubitLogicalId(item);
   item.dataset.layoutEditTarget = "true";
   item.dataset.layoutResizable = "true";
   item.dataset.layoutUniformResize =
@@ -2518,6 +3755,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
       if (canvas && meta.changed && !meta.deferMeasurementClear) {
         clearGeneratedMeasurementsForCanvas(canvas);
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
+        recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
       }
     },
     onTickCommitted: ({ changed }) => {
@@ -2525,6 +3763,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
       if (canvas && changed) {
         clearGeneratedMeasurementsForCanvas(canvas);
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
+        recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
       }
     },
   });
@@ -2683,6 +3922,178 @@ function clearGeneratedDoubleMeasurementApparatus(runtime) {
   updateGeneratedDoubleMeasurementTubeFills(runtime);
 }
 
+function generatedSeparatedPairMeasurementMagnifiers(item) {
+  if (!(item instanceof HTMLElement)) {
+    return [];
+  }
+  return Array.from(
+    item.querySelectorAll(
+      '.saved-group-child[data-component="single-magnifier"]',
+    ),
+  )
+    .map((child, index) => {
+      const measurementTool = child.matches('[data-role="measurement-tool"]')
+        ? child
+        : child.querySelector('[data-role="measurement-tool"]');
+      const measureLens = child.querySelector('[data-role="measure-lens"]');
+      if (!(measurementTool instanceof HTMLElement)) {
+        return null;
+      }
+      return {
+        index,
+        child,
+        measurementTool,
+        measureLens:
+          measureLens instanceof HTMLElement ? measureLens : measurementTool,
+      };
+    })
+    .filter(Boolean);
+}
+
+function initializeGeneratedSeparatedPairMeasurementItem(item) {
+  if (!isGeneratedSeparatedPairMeasurementItem(item)) {
+    return null;
+  }
+  const existing = generatedSeparatedPairMeasurementRuntimes.get(item);
+  if (existing) {
+    return existing;
+  }
+
+  const magnifiers = generatedSeparatedPairMeasurementMagnifiers(item).slice(
+    0,
+    2,
+  );
+  const capacity = item.querySelector('[data-role="pair-capacity"]');
+  const measurementCount = item.querySelector(
+    '.saved-group-child[data-component="measurement-count-menu"] [data-role="measurement-count"], [data-role="pair-measurement-count"]',
+  );
+  const columns = Array.from(
+    item.querySelectorAll(".pair-tube-column[data-key]"),
+  );
+  if (magnifiers.length < 2) {
+    return null;
+  }
+
+  const tubeElements = {};
+  const liquidElements = {};
+  const countElements = {};
+  columns.forEach((column) => {
+    const key = column.dataset.key;
+    if (!key) {
+      return;
+    }
+    const tube = column.querySelector(".pair-tube");
+    const liquid = column.querySelector(".tube-liquid");
+    const count = column.querySelector(".tube-count");
+    if (
+      tube instanceof HTMLElement &&
+      liquid instanceof HTMLElement &&
+      count instanceof HTMLElement
+    ) {
+      tubeElements[key] = tube;
+      liquidElements[key] = liquid;
+      countElements[key] = count;
+    }
+  });
+  const requiredKeys = ["bb", "br", "rb", "rr"];
+  if (
+    !requiredKeys.every(
+      (key) => tubeElements[key] && liquidElements[key] && countElements[key],
+    )
+  ) {
+    return null;
+  }
+
+  item.dataset.separatedPairMeasurement = "true";
+  const runtime = {
+    item,
+    magnifiers,
+    measurementCount:
+      measurementCount instanceof HTMLSelectElement ? measurementCount : null,
+    capacityElement: capacity instanceof HTMLElement ? capacity : null,
+    tubeElements,
+    liquidElements,
+    countElements,
+    tubeCounts: {
+      bb: Number.parseInt(countElements.bb.textContent || "0", 10) || 0,
+      br: Number.parseInt(countElements.br.textContent || "0", 10) || 0,
+      rb: Number.parseInt(countElements.rb.textContent || "0", 10) || 0,
+      rr: Number.parseInt(countElements.rr.textContent || "0", 10) || 0,
+    },
+    tubePairCapacity: INITIAL_TUBE_QUBIT_CAPACITY,
+    pendingMeasurements: [],
+    measurementSequence: 0,
+    busy: false,
+    completing: false,
+  };
+  updateGeneratedDoubleMeasurementTubeFills(runtime);
+
+  const runRecordedExperimentFromControl = () => {
+    if (layoutEditorState.enabled) {
+      return;
+    }
+    const canvas = generatedCanvasForItem(item);
+    if (!canvas) {
+      return;
+    }
+    const state = generatedExperimentStateForCanvas(canvas);
+    if (!state?.experiment) {
+      return;
+    }
+    const iterations = Math.max(
+      1,
+      Number(runtime.measurementCount?.value) || 1,
+    );
+    runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
+  };
+
+  if (runtime.measurementCount) {
+    runtime.measurementCount.addEventListener("mousedown", (event) =>
+      event.stopPropagation(),
+    );
+    runtime.measurementCount.addEventListener("touchstart", (event) =>
+      event.stopPropagation(),
+    );
+    runtime.measurementCount.addEventListener("click", (event) =>
+      event.stopPropagation(),
+    );
+    runtime.measurementCount.addEventListener("change", () => {
+      const canvas = generatedCanvasForItem(item);
+      if (!canvas) {
+        return;
+      }
+      clearGeneratedSeparatedPairMeasurementApparatus(runtime);
+      runRecordedExperimentFromControl();
+    });
+  }
+  magnifiers.forEach(({ measurementTool }) => {
+    measurementTool.addEventListener("click", (event) => {
+      if (layoutEditorState.enabled) {
+        return;
+      }
+      event.stopPropagation();
+      runRecordedExperimentFromControl();
+    });
+  });
+
+  generatedSeparatedPairMeasurementRuntimes.set(item, runtime);
+  return runtime;
+}
+
+function clearGeneratedSeparatedPairMeasurementApparatus(runtime) {
+  if (!runtime) {
+    return;
+  }
+  runtime.tubePairCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
+  ["bb", "br", "rb", "rr"].forEach((key) => {
+    runtime.tubeCounts[key] = 0;
+  });
+  runtime.pendingMeasurements = [];
+  runtime.busy = false;
+  runtime.completing = false;
+  updateGeneratedDoubleMeasurementTubeFills(runtime);
+}
+
 function clearGeneratedMeasurementsForCanvas(canvas) {
   if (!isGeneratedLayoutCanvas(canvas)) {
     return;
@@ -2697,6 +4108,13 @@ function clearGeneratedMeasurementsForCanvas(canvas) {
       initializeGeneratedDoubleMeasurementItem(item),
     );
   });
+  generatedItemsOfType(canvas, PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE).forEach(
+    (item) => {
+      clearGeneratedSeparatedPairMeasurementApparatus(
+        initializeGeneratedSeparatedPairMeasurementItem(item),
+      );
+    },
+  );
 }
 
 function initializeGeneratedDoubleMeasurementItem(item) {
@@ -2849,7 +4267,7 @@ function initializeGeneratedCnotItem(item) {
     return existing;
   }
 
-  const body = item.querySelector(".cnot-body, .ent-pipe, [data-part='body']");
+  const body = item.querySelector(".cnot-body, [data-part='body']");
   const funnelTop = item.querySelector(
     ".cnot-input-funnel-top, [data-part='funnel-top']",
   );
@@ -2953,6 +4371,8 @@ function initializeGeneratedLayoutItemRuntime(item) {
     initializeGeneratedSingleMeasurementItem(item);
   } else if (isGeneratedDoubleMeasurementItem(item)) {
     initializeGeneratedDoubleMeasurementItem(item);
+  } else if (isGeneratedSeparatedPairMeasurementItem(item)) {
+    initializeGeneratedSeparatedPairMeasurementItem(item);
   } else if (isGeneratedCnotItem(item)) {
     initializeGeneratedCnotItem(item);
   }
@@ -3001,9 +4421,33 @@ function serializeGeneratedLayoutItem(item) {
   if (singleGateRuntime?.dial) {
     serialized.singleGateTick = singleGateRuntime.dial.getTick();
   }
+  if (item.dataset.component === "qubit") {
+    const qubitId = ensureQubitLogicalId(item);
+    if (qubitId) {
+      serialized.qubitId = qubitId;
+    }
+  }
+  if (item.dataset.component === "text-box") {
+    Object.assign(serialized, captureTextBoxSnapshot(item));
+  }
   const measurementLayout = captureGeneratedMeasurementLayoutSnapshot(item);
   if (measurementLayout) {
     serialized.measurementLayout = measurementLayout;
+  }
+  const savedGroupLayout = captureSavedGroupChildLayoutSnapshot(item);
+  if (savedGroupLayout) {
+    serialized.items = savedGroupLayout.items;
+    serialized.itemsWidth = savedGroupLayout.itemsWidth;
+    serialized.itemsHeight = savedGroupLayout.itemsHeight;
+  }
+  if (item.dataset.measurementGroupId) {
+    serialized.measurementGroupId = item.dataset.measurementGroupId;
+  }
+  if (item.dataset.groupComponentId) {
+    serialized.groupComponentId = item.dataset.groupComponentId;
+  }
+  if (item.dataset.measurementRole) {
+    serialized.measurementRole = item.dataset.measurementRole;
   }
   if (item.dataset.component === "cnot-gate") {
     const cnotLayout = captureCnotComponentDefaultsFromElement(item);
@@ -3030,11 +4474,7 @@ function captureGeneratedLayoutFromCanvas(canvas) {
 }
 
 function persistGeneratedLayoutEditsFromDom() {
-  const nextState = cloneJson(generatedTabsState) || {
-    overrides: {},
-    customTabs: [],
-  };
-  nextState.overrides = nextState.overrides || {};
+  const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
   nextState.customTabs = Array.isArray(nextState.customTabs)
     ? nextState.customTabs
     : [];
@@ -3059,25 +4499,6 @@ function persistGeneratedLayoutEditsFromDom() {
       );
       if (customEntry) {
         customEntry.layout = layout;
-        const state = generatedExperimentStateForCanvas(canvas);
-        if (state?.experiment) {
-          customEntry.experiment = state.experiment;
-        }
-        changed = true;
-        return;
-      }
-      const targetButton = tabButtons.find(
-        (button) => button.dataset.tabTarget === targetId,
-      );
-      if (targetButton) {
-        nextState.overrides[targetId] = {
-          label: tabLabelForButton(targetButton),
-          layout,
-          experiment:
-            generatedExperimentStateForCanvas(canvas)?.experiment ||
-            nextState.overrides[targetId]?.experiment ||
-            generatedTabsState.overrides?.[targetId]?.experiment,
-        };
         changed = true;
       }
     });
@@ -3091,16 +4512,21 @@ function persistGeneratedLayoutEditsFromDom() {
   return true;
 }
 
-function createGeneratedLayoutItemNode(type, geometry = {}, sourceRoots) {
+function createGeneratedLayoutItemNode(type, geometry = {}) {
   const hasSavedGeometry =
     geometry &&
     typeof geometry === "object" &&
     Object.keys(geometry).length > 0;
   geometry = geometry && typeof geometry === "object" ? geometry : {};
+  const pickerGroup = savedGroupComponentForType(type);
+  if (pickerGroup) {
+    type = PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE;
+    geometry = { ...geometry, groupComponentId: pickerGroup.id };
+  }
   const config =
-    PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
+    componentConfigForType(type, geometry) || PLAYGROUND_COMPONENT_LIBRARY.qubit;
   const defaultsGeometry = defaultsGeometryForComponentType(type);
-  const componentNode = createPlaygroundComponentNode(type, sourceRoots);
+  const componentNode = createPlaygroundComponentNode(type, geometry);
   let item =
     componentNode instanceof HTMLElement
       ? componentNode
@@ -3122,6 +4548,18 @@ function createGeneratedLayoutItemNode(type, geometry = {}, sourceRoots) {
   }
 
   item.dataset.component = type;
+  if (type === "qubit") {
+    ensureQubitLogicalId(item, geometry.qubitId);
+  }
+  if (typeof geometry.measurementGroupId === "string") {
+    item.dataset.measurementGroupId = geometry.measurementGroupId;
+  }
+  if (typeof geometry.groupComponentId === "string") {
+    item.dataset.groupComponentId = geometry.groupComponentId;
+  }
+  if (typeof geometry.measurementRole === "string") {
+    item.dataset.measurementRole = geometry.measurementRole;
+  }
   item.dataset.generatedItemId =
     typeof geometry.id === "string" && geometry.id
       ? geometry.id
@@ -3165,7 +4603,7 @@ function createGeneratedLayoutItemNode(type, geometry = {}, sourceRoots) {
       item,
       playgroundComponentDefaultsCache?.[type],
       editableMeasurementPartSpecsForType(type),
-      { includeGroupGeometry: !hasSavedGeometry },
+      { includeGroupGeometry: false },
     );
     if (geometry.measurementLayout) {
       applyMeasurementLayoutSnapshot(
@@ -3251,23 +4689,55 @@ function selectedGeneratedComponentType(toolbar) {
   return select instanceof HTMLSelectElement ? select.value : "";
 }
 
-function addGeneratedComponentAtPoint(
-  canvas,
-  type,
-  clientX,
-  clientY,
-  sourceRoots,
-) {
-  if (!isGeneratedLayoutCanvas(canvas) || !PLAYGROUND_COMPONENT_LIBRARY[type]) {
+function addGeneratedComponentAtPoint(canvas, type, clientX, clientY) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
     return null;
   }
-  const item = createGeneratedLayoutItemNode(type, {}, sourceRoots);
+  const savedGroup = savedGroupComponentForType(type);
+  if (savedGroup) {
+    return addGeneratedGroupComponentAtPoint(canvas, savedGroup, clientX, clientY);
+  }
+  if (!PLAYGROUND_COMPONENT_LIBRARY[type]) {
+    return null;
+  }
+  const item = createGeneratedLayoutItemNode(type, {});
   appendGeneratedLayoutItemToCanvas(canvas, item);
   positionGeneratedItemFromClientPoint(canvas, item, clientX, clientY);
   return item;
 }
 
-function duplicateSelectedGeneratedLayoutItem(sourceRoots) {
+function addGeneratedGroupComponentAtPoint(canvas, group, clientX, clientY) {
+  if (
+    !isGeneratedLayoutCanvas(canvas) ||
+    !group ||
+    !Array.isArray(group.items) ||
+    group.items.length === 0
+  ) {
+    return null;
+  }
+  const canvasRect = canvas.getBoundingClientRect();
+  const origin = {
+    left: clientX - canvasRect.left + canvas.scrollLeft,
+    top: clientY - canvasRect.top + canvas.scrollTop,
+  };
+  const instanceId = `${group.id || "group"}-${Date.now().toString(36)}`;
+  const geometry = {
+    type: PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+    left: origin.left,
+    top: origin.top,
+    width: Number.isFinite(group.width) ? group.width : 320,
+    height: Number.isFinite(group.height) ? group.height : 240,
+    measurementGroupId: instanceId,
+    groupComponentId: group.id || "",
+  };
+  const item = createGeneratedLayoutItemNode(
+    PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+    geometry,
+  );
+  return appendGeneratedLayoutItemToCanvas(canvas, item);
+}
+
+function duplicateSelectedGeneratedLayoutItem() {
   if (
     !layoutEditorState.enabled ||
     !(selectedGeneratedLayoutItem instanceof HTMLElement) ||
@@ -3280,13 +4750,10 @@ function duplicateSelectedGeneratedLayoutItem(sourceRoots) {
     return false;
   }
   const geometry = serializeGeneratedLayoutItem(selectedGeneratedLayoutItem);
+  stripQubitIdsFromLayoutGeometry(geometry);
   geometry.left += PLAYGROUND_GRID_SIZE;
   geometry.top += PLAYGROUND_GRID_SIZE;
-  const item = createGeneratedLayoutItemNode(
-    geometry.type,
-    geometry,
-    sourceRoots,
-  );
+  const item = createGeneratedLayoutItemNode(geometry.type, geometry);
   appendGeneratedLayoutItemToCanvas(canvas, item);
   const clamped = generatedLayoutClampItemPosition(
     canvas,
@@ -3322,11 +4789,19 @@ function removeGeneratedLayoutItem(item) {
         }
       },
     );
+    Array.from(generatedSeparatedPairMeasurementRuntimes.values()).forEach(
+      (runtime) => {
+        runtime.pendingMeasurements = runtime.pendingMeasurements.filter(
+          (entry) => entry.qubitItem !== item,
+        );
+      },
+    );
   }
   generatedSingleGateRuntimes.delete(item);
   generatedQubitRuntimes.delete(item);
   generatedSingleMeasurementRuntimes.delete(item);
   generatedDoubleMeasurementRuntimes.delete(item);
+  generatedSeparatedPairMeasurementRuntimes.delete(item);
   generatedCnotRuntimes.delete(item);
   if (selectedGeneratedLayoutItem === item) {
     selectedGeneratedLayoutItem = null;
@@ -3347,7 +4822,7 @@ function removeSelectedGeneratedLayoutItem() {
   return removeGeneratedLayoutItem(selectedGeneratedLayoutItem);
 }
 
-function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
+function createGeneratedEditorToolbar(entry, canvas) {
   const toolbar = document.createElement("div");
   toolbar.className = "playground-toolbar generated-editor-toolbar";
   toolbar.dataset.generatedEditorToolbar = "true";
@@ -3363,17 +4838,7 @@ function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
   select.className = "playground-component-select";
   select.dataset.generatedEditorRole = "component-select";
   select.setAttribute("aria-label", `${entry.label} component picker`);
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.selected = true;
-  placeholder.textContent = "Click here";
-  select.appendChild(placeholder);
-  Object.entries(PLAYGROUND_COMPONENT_LIBRARY).forEach(([type, config]) => {
-    const option = document.createElement("option");
-    option.value = type;
-    option.textContent = config.label;
-    select.appendChild(option);
-  });
+  populateComponentPicker(select);
   toolbar.appendChild(select);
 
   const saveComponentButton = document.createElement("button");
@@ -3400,7 +4865,7 @@ function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
   duplicateButton.textContent = "Duplicate";
   duplicateButton.disabled = true;
   duplicateButton.addEventListener("click", () => {
-    if (duplicateSelectedGeneratedLayoutItem(sourceRoots)) {
+    if (duplicateSelectedGeneratedLayoutItem()) {
       setGeneratedEditorStatus(toolbar, "Duplicated");
     }
   });
@@ -3447,7 +4912,6 @@ function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
       selectedType,
       event.clientX,
       event.clientY,
-      sourceRoots,
     );
     if (item) {
       select.value = "";
@@ -3458,17 +4922,20 @@ function createGeneratedEditorToolbar(entry, canvas, sourceRoots) {
   return toolbar;
 }
 
-function createGeneratedExperimentToolbar(entry, canvas) {
+function createGeneratedExperimentToolbar(canvas) {
   const toolbar = document.createElement("div");
   toolbar.className = "playground-toolbar generated-experiment-toolbar";
 
-  const recordButton = document.createElement("button");
-  recordButton.className = "playground-tool-btn";
-  recordButton.type = "button";
-  recordButton.dataset.generatedExperimentAction = "record";
-  recordButton.setAttribute("aria-pressed", "false");
-  recordButton.textContent = "Record";
-  toolbar.appendChild(recordButton);
+  const resetButton = document.createElement("button");
+  resetButton.className = "playground-tool-btn";
+  resetButton.type = "button";
+  resetButton.dataset.generatedExperimentAction = "reset";
+  resetButton.textContent = "Reset";
+  resetButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    resetGeneratedTabForCanvas(canvas);
+  });
+  toolbar.appendChild(resetButton);
 
   const status = document.createElement("span");
   status.className = "playground-status generated-experiment-status";
@@ -3478,30 +4945,15 @@ function createGeneratedExperimentToolbar(entry, canvas) {
   const state = generatedExperimentStateForCanvas(canvas);
   if (state) {
     state.toolbar = toolbar;
-    state.recordButton = recordButton;
     state.status = status;
-    state.experiment = cloneGeneratedExperiment(entry.experiment);
+    state.experiment = null;
   }
-
-  recordButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const currentState = generatedExperimentStateForCanvas(canvas);
-    if (!currentState || currentState.playing) {
-      return;
-    }
-    if (currentState.recording) {
-      finishGeneratedExperimentRecording(canvas);
-    } else {
-      beginGeneratedExperimentRecording(canvas);
-    }
-  });
-
   updateGeneratedExperimentToolbar(canvas);
   return toolbar;
 }
 
 function playgroundLayoutCanvasDimensions(layout) {
-  const items = Array.isArray(layout?.items) ? layout.items : [];
+  const items = normalizeSavedGroupLayoutItems(layout?.items);
   const bounds = items.reduce(
     (acc, item) => {
       const right =
@@ -3527,7 +4979,7 @@ function playgroundLayoutCanvasDimensions(layout) {
   };
 }
 
-function renderGeneratedLayoutPanel(panel, entry, sourceRoots) {
+function renderGeneratedLayoutPanel(panel, entry) {
   if (!(panel instanceof HTMLElement)) {
     return;
   }
@@ -3545,23 +4997,18 @@ function renderGeneratedLayoutPanel(panel, entry, sourceRoots) {
   const dimensions = playgroundLayoutCanvasDimensions(entry.layout);
   canvas.style.width = `${dimensions.width}px`;
   canvas.style.height = `${dimensions.height}px`;
-  const items = Array.isArray(entry.layout?.items) ? entry.layout.items : [];
+  const items = normalizeSavedGroupLayoutItems(entry.layout?.items);
   items.forEach((geometry) => {
     const type = typeof geometry?.type === "string" ? geometry.type : "qubit";
-    canvas.appendChild(
-      createGeneratedLayoutItemNode(type, geometry, sourceRoots),
-    );
+    canvas.appendChild(createGeneratedLayoutItemNode(type, geometry));
   });
   prepareGeneratedLayoutCanvas(canvas);
-  setGeneratedCanvasExperiment(canvas, entry.experiment);
   canvas.addEventListener("mousedown", beginGeneratedLayoutEditGesture);
   canvas.addEventListener("touchstart", beginGeneratedLayoutEditGesture, {
     passive: false,
   });
-  gatePanel.appendChild(
-    createGeneratedEditorToolbar(entry, canvas, sourceRoots),
-  );
-  gatePanel.appendChild(createGeneratedExperimentToolbar(entry, canvas));
+  gatePanel.appendChild(createGeneratedEditorToolbar(entry, canvas));
+  gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
   gatePanel.appendChild(canvas);
   panel.appendChild(gatePanel);
   updateGeneratedEditorButtons(canvas);
@@ -3708,17 +5155,13 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
       gateId: ensureGeneratedItemId(gateRuntime.item, "single-gate"),
       tickIndex,
     });
-    qubitState.vector = normalizeVector2(
-      vectorTimesMatrix2(
-        qubitState.vector,
-        gateMatrixForTick(tickIndex),
-      ),
-    );
-    qubitState.cnotSourceSlot = null;
-    qubitState.cnotPairToken = null;
-    qubitState.cnotOutcomeProbabilities = null;
+    applyGeneratedSingleGateToQubitState(qubitItem, tickIndex);
+    if (!qubitState.pairState) {
+      qubitState.cnotSourceSlot = null;
+      qubitState.cnotPairToken = null;
+      qubitState.cnotOutcomeProbabilities = null;
+    }
     qubitState.doubleMeasurementReturnPoint = null;
-    applyGeneratedQubitVectorVisualState(qubitItem);
 
     settleGeneratedQubitVisualState(qubitItem);
     const platformCenter = generatedCanvasPointForElementCenter(
@@ -3854,24 +5297,18 @@ function applyGeneratedCnotToQubitStates(topQubitItem, bottomQubitItem) {
     return;
   }
 
-  const topSign = topState.vector[1] < 0 ? -1 : 1;
-  const bottomSign = bottomState.vector[1] < 0 ? -1 : 1;
-  const marginals = cnotMarginalProbabilitiesFromQubitVectors(
-    topState.vector,
-    bottomState.vector,
-  );
+  if (runtimeStatesSharePairState(topState, bottomState)) {
+    applyCNOTToPairWithControl(topState.pairState, topState.pairQubitIndex);
+    syncGeneratedPairStateVisuals(topState.pairState);
+    return;
+  }
 
-  topState.vector = canonicalizeRealAmplitudeVector([
-    Math.sqrt(clamp(marginals.control[0], 0, 1)),
-    topSign * Math.sqrt(clamp(marginals.control[1], 0, 1)),
-  ]);
-  bottomState.vector = canonicalizeRealAmplitudeVector([
-    Math.sqrt(clamp(marginals.target[0], 0, 1)),
-    bottomSign * Math.sqrt(clamp(marginals.target[1], 0, 1)),
-  ]);
-
-  applyGeneratedQubitVectorVisualState(topQubitItem);
-  applyGeneratedQubitVectorVisualState(bottomQubitItem);
+  const pairState = createGeneratedPairState(topQubitItem, bottomQubitItem);
+  if (!pairState) {
+    return;
+  }
+  applyCNOTToPair(pairState);
+  syncGeneratedPairStateVisuals(pairState);
 }
 
 async function runGeneratedCnotCycle(canvas, runtime) {
@@ -3912,22 +5349,23 @@ async function runGeneratedCnotCycle(canvas, runtime) {
         return false;
       }
 
-      const cnotOutcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
-        topState.vector,
-        bottomState.vector,
-      );
       const pairToken = `${Date.now()}-${Math.random()}`;
       recordGeneratedExperimentAction(canvas, {
         type: "cnot",
         cnotId: ensureGeneratedItemId(runtime.item, "cnot-gate"),
         topQubitId: ensureGeneratedItemId(topQubit, "qubit"),
         bottomQubitId: ensureGeneratedItemId(bottomQubit, "qubit"),
+        topQubitLogicalId: ensureQubitLogicalId(topQubit),
+        bottomQubitLogicalId: ensureQubitLogicalId(bottomQubit),
       });
       applyGeneratedCnotToQubitStates(topQubit, bottomQubit);
       topState.cnotSourceSlot = "top";
       bottomState.cnotSourceSlot = "bottom";
       topState.cnotPairToken = pairToken;
       bottomState.cnotPairToken = pairToken;
+      const cnotOutcomeProbabilities = pairOutcomeProbabilitiesFromState(
+        topState.pairState,
+      );
       topState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
       bottomState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
 
@@ -4157,6 +5595,14 @@ function collapseGeneratedQubitState(qubitItem) {
   if (!qubitState) {
     return "blue";
   }
+  if (qubitState.pairState && Number.isFinite(qubitState.pairQubitIndex)) {
+    const color = sampleSingleQubitOutcomeFromPairState(
+      qubitState.pairState,
+      qubitState.pairQubitIndex,
+    );
+    collapseGeneratedSingleQubitFromPair(qubitItem, color);
+    return color;
+  }
   const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
   const collapseToBlue =
     blueProbability >= 1 ||
@@ -4187,12 +5633,13 @@ function createGeneratedMeasurementPayload(canvas, color, startPoint) {
 
 function moveGeneratedPayloadToPoint(payload, x, y, duration = AUTO_TRAVEL_MS) {
   return new Promise((resolve) => {
-    payload.style.setProperty("--move-duration", `${duration}ms`);
+    const moveDuration = scaledGeneratedDuration(duration);
+    payload.style.setProperty("--move-duration", `${moveDuration}ms`);
     payload.classList.add("migrating");
     payload.getBoundingClientRect();
     payload.style.left = `${x}px`;
     payload.style.top = `${y}px`;
-    window.setTimeout(resolve, duration);
+    window.setTimeout(resolve, moveDuration);
   });
 }
 
@@ -4225,7 +5672,10 @@ async function animateGeneratedMeasurementPayloadToTube(
       migrationDuration,
     );
 
-    payload.style.setProperty("--melt-duration", `${meltDuration}ms`);
+    payload.style.setProperty(
+      "--melt-duration",
+      `${scaledGeneratedDuration(meltDuration)}ms`,
+    );
     payload.classList.add("melting");
     await waitForDuration(meltDuration);
 
@@ -4308,6 +5758,7 @@ async function runGeneratedSingleMeasurementTransit(
       lensCenter.x + 100,
       lensCenter.y,
     );
+    finishGeneratedExperimentRecordingAfterMeasurement(canvas);
     return true;
   } finally {
     const core = getGeneratedQubitCore(qubitItem);
@@ -4479,25 +5930,39 @@ function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
     return null;
   }
 
-  let probabilities = null;
-  if (
-    topState.cnotPairToken &&
-    topState.cnotPairToken === bottomState.cnotPairToken &&
-    topState.cnotOutcomeProbabilities &&
-    bottomState.cnotOutcomeProbabilities
-  ) {
-    probabilities = topState.cnotOutcomeProbabilities;
-  } else {
-    probabilities = cnotOutcomeProbabilitiesFromQubitVectors(
-      topState.vector,
-      bottomState.vector,
+  let argumentOutcomeKey = "bb";
+  if (runtimeStatesSharePairState(topState, bottomState)) {
+    const stateOrderOutcome = samplePairOutcomeFromEntangledState(
+      topState.pairState,
     );
+    collapsePairStateToOutcome(topState.pairState, stateOrderOutcome);
+    argumentOutcomeKey = outcomeKeyForPairStatesInArgumentOrder(
+      stateOrderOutcome,
+      topState,
+      bottomState,
+    );
+  } else {
+    const productState = {
+      amplitudes: entangledAmplitudesFromQubitVectors(
+        topState.vector,
+        bottomState.vector,
+      ),
+    };
+    argumentOutcomeKey = samplePairOutcomeFromEntangledState(productState);
   }
-  const outcomeKey = samplePairOutcomeFromProbabilities(probabilities);
-  const topBlue = outcomeKey[0] === "b";
-  const bottomBlue = outcomeKey[1] === "b";
+  const topBlue = argumentOutcomeKey[0] === "b";
+  const bottomBlue = argumentOutcomeKey[1] === "b";
+  const outcomeKey = orderedOutcomeKeyForQubitItems(
+    argumentOutcomeKey,
+    topQubitItem,
+    bottomQubitItem,
+  );
   topState.vector = topBlue ? [1, 0] : [0, 1];
   bottomState.vector = bottomBlue ? [1, 0] : [0, 1];
+  topState.pairState = null;
+  bottomState.pairState = null;
+  topState.pairQubitIndex = null;
+  bottomState.pairQubitIndex = null;
   topState.cnotSourceSlot = null;
   bottomState.cnotSourceSlot = null;
   topState.cnotPairToken = null;
@@ -4557,6 +6022,8 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
         measurementId: ensureGeneratedItemId(runtime.item, "double-measurement"),
         leftQubitId: ensureGeneratedItemId(leftQubit, "qubit"),
         rightQubitId: ensureGeneratedItemId(rightQubit, "qubit"),
+        leftQubitLogicalId: ensureQubitLogicalId(leftQubit),
+        rightQubitLogicalId: ensureQubitLogicalId(rightQubit),
       });
       const collapseResult = collapseGeneratedQubitPairFromCnot(
         rightQubit,
@@ -4591,11 +6058,6 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
       const leftReturn = leftSource;
       const rightReturn = rightSource;
 
-      leftState.vector = [1, 0];
-      rightState.vector = [1, 0];
-      applyGeneratedQubitVectorVisualState(leftQubit);
-      applyGeneratedQubitVectorVisualState(rightQubit);
-
       await Promise.all([
         moveGeneratedQubitToPoint(
           canvas,
@@ -4614,6 +6076,7 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
       ]);
       settleGeneratedQubitVisualState(leftQubit);
       settleGeneratedQubitVisualState(rightQubit);
+      finishGeneratedExperimentRecordingAfterMeasurement(canvas);
       return true;
     } finally {
       leftQubit.classList.remove("collapse-animating");
@@ -4722,6 +6185,566 @@ function maybeSnapGeneratedQubitToDoubleMeasurement(qubitItem) {
   runGeneratedDoubleMeasurementIngress(canvas, qubitItem, runtime).catch(
     () => {},
   );
+  return true;
+}
+
+function generatedSeparatedPairMeasurementLensCircle(magnifier) {
+  const measureLens = magnifier?.measureLens;
+  if (!(measureLens instanceof HTMLElement)) {
+    return null;
+  }
+  const lensRect = measureLens.getBoundingClientRect();
+  const radius = Math.min(lensRect.width, lensRect.height) / 2;
+  if (radius <= 0) {
+    return null;
+  }
+  return {
+    x: lensRect.left + lensRect.width / 2,
+    y: lensRect.top + lensRect.height / 2,
+    radius,
+  };
+}
+
+function generatedQubitOverlapRatioWithSeparatedPairMagnifier(
+  qubitItem,
+  magnifier,
+) {
+  const lensCircle = generatedSeparatedPairMeasurementLensCircle(magnifier);
+  if (!lensCircle) {
+    return 0;
+  }
+  const qubitRect = qubitItem.getBoundingClientRect();
+  const qRadius = qubitRect.width / 2;
+  if (qRadius <= 0) {
+    return 0;
+  }
+  const qCx = qubitRect.left + qRadius;
+  const qCy = qubitRect.top + qRadius;
+  const distance = Math.hypot(qCx - lensCircle.x, qCy - lensCircle.y);
+  const overlapArea = generatedCircleIntersectionArea(
+    qRadius,
+    lensCircle.radius,
+    distance,
+  );
+  const qubitArea = Math.PI * qRadius * qRadius;
+  return qubitArea > 0 ? overlapArea / qubitArea : 0;
+}
+
+function generatedSeparatedPairMeasurementTargetForQubit(
+  canvas,
+  qubitItem,
+  runtime,
+  magnifierIndex = null,
+) {
+  if (!runtime?.magnifiers?.length) {
+    return null;
+  }
+  if (Number.isFinite(magnifierIndex)) {
+    return (
+      runtime.magnifiers.find(
+        (magnifier) => magnifier.index === Number(magnifierIndex),
+      ) || null
+    );
+  }
+  let bestMagnifier = null;
+  let bestOverlap = MEASUREMENT_OVERLAP_THRESHOLD;
+  runtime.magnifiers.forEach((magnifier) => {
+    const overlap = Math.max(
+      generatedQubitOverlapRatioWithSeparatedPairMagnifier(
+        qubitItem,
+        magnifier,
+      ),
+      generatedQubitOverlapRatioWithRect(qubitItem, magnifier.measurementTool),
+    );
+    if (overlap >= bestOverlap) {
+      bestOverlap = overlap;
+      bestMagnifier = magnifier;
+    }
+  });
+  return bestMagnifier;
+}
+
+function findBestGeneratedSeparatedPairMeasurementRuntimeForQubit(
+  canvas,
+  qubitItem,
+) {
+  pruneGeneratedRuntimeState();
+  let best = null;
+  let bestOverlap = MEASUREMENT_OVERLAP_THRESHOLD;
+  canvas
+    .querySelectorAll(
+      `.playground-node[data-component="${PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE}"]`,
+    )
+    .forEach((item) => {
+      if (!(item instanceof HTMLElement)) {
+        return;
+      }
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(item);
+      if (
+        !runtime ||
+        runtime.busy ||
+        runtime.completing ||
+        runtime.pendingMeasurements.some(
+          (entry) => entry.qubitItem === qubitItem,
+        )
+      ) {
+        return;
+      }
+      runtime.magnifiers.forEach((magnifier) => {
+        const overlap = Math.max(
+          generatedQubitOverlapRatioWithSeparatedPairMagnifier(
+            qubitItem,
+            magnifier,
+          ),
+          generatedQubitOverlapRatioWithRect(
+            qubitItem,
+            magnifier.measurementTool,
+          ),
+        );
+        if (overlap >= bestOverlap) {
+          bestOverlap = overlap;
+          best = { runtime, magnifier };
+        }
+      });
+    });
+  return best;
+}
+
+function generatedPairPartnerInfoForQubit(canvas, qubitItem, qubitState) {
+  if (!qubitState) {
+    return null;
+  }
+  if (qubitState.pairState?.members) {
+    const partner = qubitState.pairState.members.find(
+      (member) => member.item instanceof HTMLElement && member.item !== qubitItem,
+    );
+    if (partner?.item instanceof HTMLElement) {
+      return {
+        partnerItem: partner.item,
+        partnerId: ensureGeneratedItemId(partner.item, "qubit"),
+        logicalQubitId: qubitLogicalIdForItem(partner.item),
+        partnerOrderIndex: Number.isFinite(partner.qubitIndex)
+          ? partner.qubitIndex
+          : partner.state?.pairQubitIndex,
+      };
+    }
+  }
+  if (qubitState.cnotPairToken) {
+    for (const [candidateItem, candidateState] of generatedQubitRuntimes) {
+      if (
+        candidateItem !== qubitItem &&
+        generatedCanvasForItem(candidateItem) === canvas &&
+        candidateState?.cnotPairToken === qubitState.cnotPairToken
+      ) {
+        return {
+          partnerItem: candidateItem,
+          partnerId: ensureGeneratedItemId(candidateItem, "qubit"),
+          logicalQubitId: qubitLogicalIdForItem(candidateItem),
+          partnerOrderIndex:
+            candidateState.cnotSourceSlot === "top"
+              ? 0
+              : candidateState.cnotSourceSlot === "bottom"
+                ? 1
+                : candidateState.pairQubitIndex,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function generatedSeparatedPairOrderIndexForQubit(
+  canvas,
+  runtime,
+  qubitItem,
+  qubitState,
+) {
+  const logicalQubitId = qubitLogicalIdForItem(qubitItem);
+  const partnerInfo = generatedPairPartnerInfoForQubit(
+    canvas,
+    qubitItem,
+    qubitState,
+  );
+  const partnerLogicalQubitId = normalizeQubitId(partnerInfo?.logicalQubitId);
+  if (
+    logicalQubitId &&
+    partnerLogicalQubitId &&
+    logicalQubitId !== partnerLogicalQubitId
+  ) {
+    return logicalQubitId < partnerLogicalQubitId ? 0 : 1;
+  }
+
+  if (Number.isFinite(qubitState?.pairQubitIndex)) {
+    return qubitState.pairQubitIndex === 0 ? 0 : 1;
+  }
+  if (qubitState?.cnotSourceSlot === "top") {
+    return 0;
+  }
+  if (qubitState?.cnotSourceSlot === "bottom") {
+    return 1;
+  }
+
+  const qubitId = ensureGeneratedItemId(qubitItem, "qubit");
+  const expectedFromPending = runtime.pendingMeasurements.find(
+    (entry) => entry.partnerId === qubitId,
+  );
+  const expectedLogicalId = normalizeQubitId(
+    expectedFromPending?.logicalQubitId,
+  );
+  if (
+    logicalQubitId &&
+    expectedLogicalId &&
+    logicalQubitId !== expectedLogicalId
+  ) {
+    return logicalQubitId < expectedLogicalId ? 0 : 1;
+  }
+  if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
+    return expectedFromPending.partnerOrderIndex === 0 ? 0 : 1;
+  }
+
+  const pendingLogicalId = normalizeQubitId(
+    runtime.pendingMeasurements.find((entry) =>
+      normalizeQubitId(entry.logicalQubitId),
+    )?.logicalQubitId,
+  );
+  if (
+    logicalQubitId &&
+    pendingLogicalId &&
+    logicalQubitId !== pendingLogicalId
+  ) {
+    return logicalQubitId < pendingLogicalId ? 0 : 1;
+  }
+
+  const sortedQubits = sortGeneratedItemsTopToBottom(
+    canvas,
+    generatedItemsOfType(canvas, "qubit"),
+  ).slice(0, 2);
+  const sortedIndex = sortedQubits.indexOf(qubitItem);
+  if (sortedIndex === 0 || sortedIndex === 1) {
+    return sortedIndex;
+  }
+
+  const used = new Set(
+    runtime.pendingMeasurements
+      .map((entry) => entry.orderIndex)
+      .filter((orderIndex) => orderIndex === 0 || orderIndex === 1),
+  );
+  if (!used.has(0)) {
+    return 0;
+  }
+  return 1;
+}
+
+function storeGeneratedSeparatedPairMeasurementPending(runtime, entry) {
+  runtime.pendingMeasurements = runtime.pendingMeasurements.filter(
+    (pending) => pending.qubitId !== entry.qubitId,
+  );
+  if (runtime.pendingMeasurements.length >= 2) {
+    runtime.pendingMeasurements = [];
+  }
+  runtime.measurementSequence += 1;
+  runtime.pendingMeasurements.push({
+    ...entry,
+    sequence: runtime.measurementSequence,
+  });
+}
+
+function generatedSeparatedPairMeasurementOutcomeEntries(runtime) {
+  const entries = runtime.pendingMeasurements.slice(0, 2);
+  const logicalIds = entries
+    .map((entry) => normalizeQubitId(entry.logicalQubitId))
+    .filter(Boolean);
+  if (logicalIds.length === entries.length && new Set(logicalIds).size > 1) {
+    return entries
+      .slice()
+      .sort(
+        (a, b) =>
+          normalizeQubitId(a.logicalQubitId) -
+          normalizeQubitId(b.logicalQubitId),
+      );
+  }
+  const top = entries.find((entry) => entry.orderIndex === 0);
+  const bottom = entries.find((entry) => entry.orderIndex === 1);
+  if (top && bottom && top !== bottom) {
+    return [top, bottom];
+  }
+  return entries
+    .slice()
+    .sort(
+      (a, b) => {
+        const aLogicalId = normalizeQubitId(a.logicalQubitId);
+        const bLogicalId = normalizeQubitId(b.logicalQubitId);
+        if (aLogicalId && bLogicalId && aLogicalId !== bLogicalId) {
+          return aLogicalId - bLogicalId;
+        }
+        return (
+          (Number.isFinite(a.orderIndex) ? a.orderIndex : 2) -
+          (Number.isFinite(b.orderIndex) ? b.orderIndex : 2) ||
+          a.sequence - b.sequence
+        );
+      },
+    );
+}
+
+function generatedPairMeasurementTubeTargetPoint(canvas, runtime, outcomeKey) {
+  const tube = runtime?.tubeElements?.[outcomeKey];
+  if (!(tube instanceof HTMLElement)) {
+    return null;
+  }
+  const tubeRect = tube.getBoundingClientRect();
+  return generatedViewportPointToCanvasPoint(
+    canvas,
+    tubeRect.left + tubeRect.width / 2,
+    tubeRect.top + tubeRect.height * 0.22,
+  );
+}
+
+async function animateGeneratedSeparatedPairPayloadsToTube(
+  canvas,
+  runtime,
+  entries,
+  outcomeKey,
+) {
+  const targetPoint = generatedPairMeasurementTubeTargetPoint(
+    canvas,
+    runtime,
+    outcomeKey,
+  );
+  if (!targetPoint) {
+    return false;
+  }
+  const payloads = entries.map((entry) =>
+    createGeneratedMeasurementPayload(canvas, entry.color, entry.startPoint),
+  );
+  try {
+    await Promise.all(
+      payloads.map((payload, index) =>
+        moveGeneratedPayloadToPoint(
+          payload,
+          targetPoint.x + (index === 0 ? -7 : 7),
+          targetPoint.y,
+          AUTO_TRAVEL_MS,
+        ),
+      ),
+    );
+    payloads.forEach((payload) => {
+      payload.style.setProperty(
+        "--melt-duration",
+        `${scaledGeneratedDuration(AUTO_MELT_MS)}ms`,
+      );
+      payload.classList.add("melting");
+    });
+    await waitForDuration(AUTO_MELT_MS);
+    return true;
+  } finally {
+    payloads.forEach((payload) => payload.remove());
+  }
+}
+
+async function maybeCompleteGeneratedSeparatedPairMeasurement(canvas, runtime) {
+  if (
+    !runtime ||
+    runtime.completing ||
+    runtime.pendingMeasurements.length < 2
+  ) {
+    return false;
+  }
+  const entries = generatedSeparatedPairMeasurementOutcomeEntries(runtime);
+  if (entries.length < 2) {
+    return false;
+  }
+  const [topEntry, bottomEntry] = entries;
+  const outcomeKey = pairOutcomeKeyFromColorBooleans(
+    topEntry.color === "blue",
+    bottomEntry.color === "blue",
+  );
+  runtime.completing = true;
+  try {
+    await animateGeneratedSeparatedPairPayloadsToTube(
+      canvas,
+      runtime,
+      entries,
+      outcomeKey,
+    );
+    runtime.tubeCounts[outcomeKey] += 1;
+    maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
+    updateGeneratedDoubleMeasurementTubeFills(runtime);
+    finishGeneratedExperimentRecordingAfterMeasurement(canvas);
+    return true;
+  } finally {
+    runtime.pendingMeasurements = [];
+    runtime.completing = false;
+  }
+}
+
+function generatedSeparatedPairMeasurementEjectionPoint(
+  canvas,
+  magnifier,
+  qubitItem,
+) {
+  const toolRect = magnifier.measurementTool.getBoundingClientRect();
+  const qubitRect = qubitItem.getBoundingClientRect();
+  const candidate = generatedViewportPointToCanvasPoint(
+    canvas,
+    toolRect.right + Math.max(28, qubitRect.width * 0.7),
+    toolRect.top + toolRect.height / 2,
+  );
+  const radius = Math.max(1, qubitRect.width / 2);
+  return {
+    x: clamp(candidate.x, radius, canvas.scrollWidth - radius),
+    y: clamp(candidate.y, radius, canvas.scrollHeight - radius),
+  };
+}
+
+async function runGeneratedSeparatedPairMeasurementTransit(
+  canvas,
+  qubitItem,
+  runtime,
+  magnifierIndex = null,
+) {
+  if (
+    !isGeneratedQubitItem(qubitItem) ||
+    !runtime ||
+    runtime.busy ||
+    runtime.completing ||
+    !generatedCanvasAllowsRuntime(canvas)
+  ) {
+    return false;
+  }
+  const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
+  if (!qubitState || qubitState.transiting) {
+    return false;
+  }
+  const qubitId = ensureGeneratedItemId(qubitItem, "qubit");
+  if (
+    runtime.pendingMeasurements.some((entry) => entry.qubitId === qubitId)
+  ) {
+    return false;
+  }
+  const target = generatedSeparatedPairMeasurementTargetForQubit(
+    canvas,
+    qubitItem,
+    runtime,
+    magnifierIndex,
+  );
+  if (!target) {
+    return false;
+  }
+
+  const partnerInfo = generatedPairPartnerInfoForQubit(
+    canvas,
+    qubitItem,
+    qubitState,
+  );
+  const orderIndex = generatedSeparatedPairOrderIndexForQubit(
+    canvas,
+    runtime,
+    qubitItem,
+    qubitState,
+  );
+  const lensCenter = generatedCanvasPointForElementCenter(
+    canvas,
+    target.measureLens,
+  );
+  qubitState.transiting = true;
+  runtime.busy = true;
+  if (generatedRuntimeDrag?.item === qubitItem) {
+    commitGeneratedDragRecord(generatedRuntimeDrag);
+    qubitItem.classList.remove("dragging");
+    generatedRuntimeDrag = null;
+  }
+
+  const core = getGeneratedQubitCore(qubitItem);
+  try {
+    await moveGeneratedQubitToPoint(
+      canvas,
+      qubitItem,
+      lensCenter.x,
+      lensCenter.y,
+      AUTO_TRAVEL_MS,
+    );
+    settleGeneratedQubitVisualState(qubitItem);
+    setGeneratedQubitCenter(canvas, qubitItem, lensCenter.x, lensCenter.y);
+    if (core instanceof HTMLElement) {
+      core.classList.add("collapse-animating");
+    }
+    recordGeneratedExperimentAction(canvas, {
+      type: "separated-pair-measure",
+      measurementId: ensureGeneratedItemId(
+        runtime.item,
+        "separated-pair-measurement",
+      ),
+      qubitId,
+      logicalQubitId: ensureQubitLogicalId(qubitItem),
+      partnerLogicalQubitId: partnerInfo?.logicalQubitId,
+      magnifierIndex: target.index,
+    });
+    const collapsedColor = collapseGeneratedQubitState(qubitItem);
+    if (core instanceof HTMLElement) {
+      core.classList.remove("collapse-animating");
+    }
+
+    const ejectionPoint = generatedSeparatedPairMeasurementEjectionPoint(
+      canvas,
+      target,
+      qubitItem,
+    );
+    await moveGeneratedQubitToPoint(
+      canvas,
+      qubitItem,
+      ejectionPoint.x,
+      ejectionPoint.y,
+      AUTO_TRAVEL_MS,
+    );
+    settleGeneratedQubitVisualState(qubitItem);
+
+    storeGeneratedSeparatedPairMeasurementPending(runtime, {
+      qubitId,
+      qubitItem,
+      logicalQubitId: ensureQubitLogicalId(qubitItem),
+      color: collapsedColor,
+      orderIndex,
+      startPoint: lensCenter,
+      partnerId: partnerInfo?.partnerId || "",
+      partnerLogicalQubitId: partnerInfo?.logicalQubitId,
+      partnerOrderIndex: partnerInfo?.partnerOrderIndex,
+    });
+    await maybeCompleteGeneratedSeparatedPairMeasurement(canvas, runtime);
+    return true;
+  } finally {
+    if (core instanceof HTMLElement) {
+      core.classList.remove("collapse-animating");
+    }
+    qubitState.transiting = false;
+    runtime.busy = false;
+  }
+}
+
+function maybeSnapGeneratedQubitToSeparatedPairMeasurement(qubitItem) {
+  if (!isGeneratedQubitItem(qubitItem)) {
+    return false;
+  }
+  const canvas = generatedCanvasForItem(qubitItem);
+  if (!generatedCanvasAllowsRuntime(canvas)) {
+    return false;
+  }
+  const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
+  if (!canvas || !qubitState || qubitState.transiting) {
+    return false;
+  }
+  const target = findBestGeneratedSeparatedPairMeasurementRuntimeForQubit(
+    canvas,
+    qubitItem,
+  );
+  if (!target) {
+    return false;
+  }
+  runGeneratedSeparatedPairMeasurementTransit(
+    canvas,
+    qubitItem,
+    target.runtime,
+    target.magnifier.index,
+  ).catch(() => {});
   return true;
 }
 
@@ -5180,6 +7203,20 @@ function generatedExperimentInitialVectorMap(experiment) {
   return vectors;
 }
 
+function generatedExperimentQubitLogicalIdMap(experiment) {
+  const logicalIds = new Map();
+  (Array.isArray(experiment?.initialQubits)
+    ? experiment.initialQubits
+    : []
+  ).forEach((entry) => {
+    const logicalQubitId = normalizeQubitId(entry?.logicalQubitId);
+    if (entry?.itemId && logicalQubitId) {
+      logicalIds.set(entry.itemId, logicalQubitId);
+    }
+  });
+  return logicalIds;
+}
+
 function generatedExperimentGateTickMap(experiment) {
   const ticks = new Map();
   (Array.isArray(experiment?.gateSettings)
@@ -5194,9 +7231,9 @@ function generatedExperimentGateTickMap(experiment) {
 }
 
 function generatedCurrentGateTickMap(canvas, experiment) {
-  const ticks = generatedExperimentGateTickMap(experiment);
+  const ticks = new Map();
   if (!isGeneratedLayoutCanvas(canvas)) {
-    return ticks;
+    return generatedExperimentGateTickMap(experiment);
   }
   generatedItemsOfType(canvas, "single-gate").forEach((item) => {
     const runtime = initializeGeneratedSingleGateItem(item, {
@@ -5210,16 +7247,40 @@ function generatedCurrentGateTickMap(canvas, experiment) {
       normalizeTickIndex(runtime.activeTick),
     );
   });
-  return ticks;
+  if (ticks.size > 0) {
+    return ticks;
+  }
+  return generatedExperimentGateTickMap(experiment);
+}
+
+function applyGeneratedGateTickMapToCanvas(canvas, gateTicks) {
+  if (!(gateTicks instanceof Map) || gateTicks.size === 0) {
+    return;
+  }
+  generatedItemsOfType(canvas, "single-gate").forEach((item) => {
+    const gateId = ensureGeneratedItemId(item, "single-gate");
+    if (!gateTicks.has(gateId)) {
+      return;
+    }
+    const tickIndex = normalizeTickIndex(gateTicks.get(gateId));
+    const runtime = initializeGeneratedSingleGateItem(item, {
+      singleGateTick: tickIndex,
+    });
+    setGeneratedGateRuntimeTick(runtime, tickIndex);
+  });
 }
 
 function generatedGateTickForRecordedAction(action, gateTicks = new Map()) {
+  if (action?.type === "gate-setting" && Number.isFinite(action?.tickIndex)) {
+    return normalizeTickIndex(action.tickIndex);
+  }
   if (action?.gateId && gateTicks.has(action.gateId)) {
     return normalizeTickIndex(gateTicks.get(action.gateId));
   }
-  return normalizeTickIndex(
-    Number.isFinite(action?.tickIndex) ? action.tickIndex : 0,
-  );
+  if (Number.isFinite(action?.tickIndex)) {
+    return normalizeTickIndex(action.tickIndex);
+  }
+  return 0;
 }
 
 function generatedExperimentInitialCenterMap(experiment) {
@@ -5235,8 +7296,11 @@ function generatedExperimentInitialCenterMap(experiment) {
   return centers;
 }
 
-function resetGeneratedCanvasToExperimentStart(canvas, experiment) {
+function resetGeneratedCanvasToExperimentStart(canvas, experiment, options = {}) {
   releaseGeneratedRuntimeSlotsForCanvas(canvas);
+  const gateTicks =
+    options.gateTicks instanceof Map ? options.gateTicks : null;
+  applyGeneratedGateTickMapToCanvas(canvas, gateTicks);
   (Array.isArray(experiment?.initialQubits)
     ? experiment.initialQubits
     : []
@@ -5248,6 +7312,8 @@ function resetGeneratedCanvasToExperimentStart(canvas, experiment) {
     }
     qubitState.vector = normalizeVector2(entry.vector || [1, 0]);
     qubitState.transiting = false;
+    qubitState.pairState = null;
+    qubitState.pairQubitIndex = null;
     qubitState.cnotSourceSlot = null;
     qubitState.cnotPairToken = null;
     qubitState.cnotOutcomeProbabilities = null;
@@ -5274,6 +7340,15 @@ function releaseGeneratedRuntimeSlotsForCanvas(canvas) {
       runtime.slotOccupants.right = null;
     }
   });
+  Array.from(generatedSeparatedPairMeasurementRuntimes.values()).forEach(
+    (runtime) => {
+      if (generatedCanvasForItem(runtime.item) === canvas) {
+        runtime.pendingMeasurements = [];
+        runtime.busy = false;
+        runtime.completing = false;
+      }
+    },
+  );
 }
 
 function setGeneratedGateRuntimeTick(gateRuntime, tickIndex) {
@@ -5286,6 +7361,22 @@ function setGeneratedGateRuntimeTick(gateRuntime, tickIndex) {
     deferMeasurementClear: true,
     reason: "programmatic",
   });
+}
+
+function applyGeneratedRecordedGateSettingAction(canvas, action, gateTicks) {
+  const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
+  if (action?.gateId) {
+    gateTicks.set(action.gateId, tickIndex);
+  }
+  const gateRuntime = initializeGeneratedSingleGateItem(
+    generatedItemById(canvas, action.gateId),
+    { singleGateTick: tickIndex },
+  );
+  if (!gateRuntime) {
+    return false;
+  }
+  setGeneratedGateRuntimeTick(gateRuntime, tickIndex);
+  return true;
 }
 
 async function replayGeneratedRecordedDragAction(canvas, action) {
@@ -5374,13 +7465,51 @@ async function replayGeneratedRecordedDoubleMeasureAction(
   return Boolean(await runGeneratedDoubleMeasurementCycle(canvas, runtime));
 }
 
-async function replayGeneratedRecordedExperimentAnimated(canvas, experiment) {
-  resetGeneratedCanvasToExperimentStart(canvas, experiment);
-  const gateTicks = generatedCurrentGateTickMap(canvas, experiment);
+async function replayGeneratedRecordedSeparatedPairMeasureAction(
+  canvas,
+  action,
+) {
+  let measurementItem = generatedItemById(canvas, action.measurementId);
+  if (!(measurementItem instanceof HTMLElement)) {
+    measurementItem = generatedItemsOfType(
+      canvas,
+      PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+    ).find((item) => initializeGeneratedSeparatedPairMeasurementItem(item));
+  }
+  const runtime =
+    initializeGeneratedSeparatedPairMeasurementItem(measurementItem);
+  const qubitItem = generatedItemById(canvas, action.qubitId);
+  if (!runtime || !qubitItem) {
+    return false;
+  }
+  return Boolean(
+    await runGeneratedSeparatedPairMeasurementTransit(
+      canvas,
+      qubitItem,
+      runtime,
+      action.magnifierIndex,
+    ),
+  );
+}
+
+async function replayGeneratedRecordedExperimentAnimated(
+  canvas,
+  experiment,
+  initialGateTicks = null,
+) {
+  const gateTicks =
+    initialGateTicks instanceof Map
+      ? new Map(initialGateTicks)
+      : generatedCurrentGateTickMap(canvas, experiment);
+  resetGeneratedCanvasToExperimentStart(canvas, experiment, { gateTicks });
   const initialCenters = generatedExperimentInitialCenterMap(experiment);
   for (const action of experiment.actions || []) {
     if (action.type === "drag") {
       await replayGeneratedRecordedDragAction(canvas, action);
+    } else if (action.type === "gate-setting") {
+      if (!applyGeneratedRecordedGateSettingAction(canvas, action, gateTicks)) {
+        return false;
+      }
     } else if (action.type === "gate") {
       const qubitItem = generatedItemById(canvas, action.qubitId);
       const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
@@ -5415,6 +7544,12 @@ async function replayGeneratedRecordedExperimentAnimated(canvas, experiment) {
         qubitItem,
         runtime,
       );
+      if (!completed) {
+        return false;
+      }
+    } else if (action.type === "separated-pair-measure") {
+      const completed =
+        await replayGeneratedRecordedSeparatedPairMeasureAction(canvas, action);
       if (!completed) {
         return false;
       }
@@ -5462,14 +7597,69 @@ function applyGeneratedFastGateToVectorMap(
   return pairState;
 }
 
-function replayGeneratedRecordedExperimentFast(canvas, experiment, iterations) {
+function generatedSeparatedPairRuntimeForFastAction(canvas, action) {
+  let measurementItem = generatedItemById(canvas, action.measurementId);
+  if (!(measurementItem instanceof HTMLElement)) {
+    measurementItem = generatedItemsOfType(
+      canvas,
+      PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+    ).find((item) => initializeGeneratedSeparatedPairMeasurementItem(item));
+  }
+  return initializeGeneratedSeparatedPairMeasurementItem(measurementItem);
+}
+
+function orderedFastSeparatedPairEntries(entries) {
+  const logicalIds = entries
+    .map((entry) => normalizeQubitId(entry.logicalQubitId))
+    .filter(Boolean);
+  if (logicalIds.length === entries.length && new Set(logicalIds).size > 1) {
+    return entries
+      .slice()
+      .sort(
+        (a, b) =>
+          normalizeQubitId(a.logicalQubitId) -
+          normalizeQubitId(b.logicalQubitId),
+      );
+  }
+  const top = entries.find((entry) => entry.orderIndex === 0);
+  const bottom = entries.find((entry) => entry.orderIndex === 1);
+  if (top && bottom && top !== bottom) {
+    return [top, bottom];
+  }
+  return entries
+    .slice()
+    .sort(
+      (a, b) =>
+        (Number.isFinite(a.orderIndex) ? a.orderIndex : 2) -
+          (Number.isFinite(b.orderIndex) ? b.orderIndex : 2) ||
+        a.sequence - b.sequence,
+    );
+}
+
+function replayGeneratedRecordedExperimentFast(
+  canvas,
+  experiment,
+  iterations,
+  initialGateTicks = null,
+) {
   const measurementRuntimesToUpdate = new Set();
-  const gateTicks = generatedCurrentGateTickMap(canvas, experiment);
+  const baseGateTicks =
+    initialGateTicks instanceof Map
+      ? new Map(initialGateTicks)
+      : generatedCurrentGateTickMap(canvas, experiment);
+  const logicalQubitIds = generatedExperimentQubitLogicalIdMap(experiment);
   for (let run = 0; run < iterations; run += 1) {
     const vectors = generatedExperimentInitialVectorMap(experiment);
+    const gateTicks = new Map(baseGateTicks);
     let pairState = null;
+    const separatedPendingByMeasurement = new Map();
     (experiment.actions || []).forEach((action) => {
-      if (action.type === "gate") {
+      if (action.type === "gate-setting") {
+        const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
+        if (action.gateId) {
+          gateTicks.set(action.gateId, tickIndex);
+        }
+      } else if (action.type === "gate") {
         pairState = applyGeneratedFastGateToVectorMap(
           vectors,
           pairState,
@@ -5482,6 +7672,12 @@ function replayGeneratedRecordedExperimentFast(canvas, experiment, iterations) {
         pairState = {
           topId: action.topQubitId,
           bottomId: action.bottomQubitId,
+          topLogicalId:
+            normalizeQubitId(action.topQubitLogicalId) ||
+            logicalQubitIds.get(action.topQubitId),
+          bottomLogicalId:
+            normalizeQubitId(action.bottomQubitLogicalId) ||
+            logicalQubitIds.get(action.bottomQubitId),
           state: {
             amplitudes: entangledAmplitudesFromQubitVectors(
               topVector,
@@ -5503,16 +7699,27 @@ function replayGeneratedRecordedExperimentFast(canvas, experiment, iterations) {
           (action.qubitId === pairState.topId ||
             action.qubitId === pairState.bottomId)
         ) {
-          const outcome = samplePairOutcomeFromEntangledState(pairState.state);
-          color =
-            action.qubitId === pairState.topId
-              ? outcome[0] === "b"
-                ? "blue"
-                : "red"
-              : outcome[1] === "b"
-                ? "blue"
-                : "red";
-          collapsePairStateToOutcome(pairState.state, outcome);
+          const qubitIndex = action.qubitId === pairState.topId ? 0 : 1;
+          color = sampleSingleQubitOutcomeFromPairState(
+            pairState.state,
+            qubitIndex,
+          );
+          const otherVector = conditionalVectorAfterPairMeasurement(
+            pairState.state,
+            qubitIndex,
+            color,
+          );
+          collapsePairStateBySingleQubitMeasurement(
+            pairState.state,
+            qubitIndex,
+            color,
+          );
+          vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
+          vectors.set(
+            qubitIndex === 0 ? pairState.bottomId : pairState.topId,
+            otherVector,
+          );
+          pairState = null;
         } else {
           color = sampleSingleQubitOutcomeFromVector(
             vectors.get(action.qubitId) || [1, 0],
@@ -5526,6 +7733,134 @@ function replayGeneratedRecordedExperimentFast(canvas, experiment, iterations) {
         }
         maybeExpandGeneratedMeasurementTubeCapacity(runtime);
         measurementRuntimesToUpdate.add(runtime);
+      } else if (action.type === "separated-pair-measure") {
+        const runtime = generatedSeparatedPairRuntimeForFastAction(
+          canvas,
+          action,
+        );
+        if (!runtime) {
+          return;
+        }
+        const measurementId =
+          action.measurementId ||
+          ensureGeneratedItemId(runtime.item, "separated-pair-measurement");
+        const pending =
+          separatedPendingByMeasurement.get(measurementId) || [];
+        let color = "blue";
+        let orderIndex = null;
+        let partnerId = "";
+        let partnerOrderIndex = null;
+        const logicalQubitId =
+          normalizeQubitId(action.logicalQubitId) ||
+          logicalQubitIds.get(action.qubitId);
+        let partnerLogicalQubitId = normalizeQubitId(
+          action.partnerLogicalQubitId,
+        );
+
+        if (
+          pairState &&
+          (action.qubitId === pairState.topId ||
+            action.qubitId === pairState.bottomId)
+        ) {
+          const qubitIndex = action.qubitId === pairState.topId ? 0 : 1;
+          partnerId = qubitIndex === 0 ? pairState.bottomId : pairState.topId;
+          partnerLogicalQubitId =
+            qubitIndex === 0
+              ? pairState.bottomLogicalId
+              : pairState.topLogicalId;
+          orderIndex =
+            logicalQubitId &&
+            partnerLogicalQubitId &&
+            logicalQubitId !== partnerLogicalQubitId
+              ? logicalQubitId < partnerLogicalQubitId
+                ? 0
+                : 1
+              : qubitIndex;
+          partnerOrderIndex = qubitIndex === 0 ? 1 : 0;
+          color = sampleSingleQubitOutcomeFromPairState(
+            pairState.state,
+            qubitIndex,
+          );
+          const otherVector = conditionalVectorAfterPairMeasurement(
+            pairState.state,
+            qubitIndex,
+            color,
+          );
+          collapsePairStateBySingleQubitMeasurement(
+            pairState.state,
+            qubitIndex,
+            color,
+          );
+          vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
+          vectors.set(partnerId, otherVector);
+          pairState = null;
+        } else {
+          color = sampleSingleQubitOutcomeFromVector(
+            vectors.get(action.qubitId) || [1, 0],
+          );
+          vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
+        }
+
+        if (!Number.isFinite(orderIndex)) {
+          const expectedFromPending = pending.find(
+            (entry) => entry.partnerId === action.qubitId,
+          );
+          const expectedLogicalId = normalizeQubitId(
+            expectedFromPending?.logicalQubitId,
+          );
+          const pendingLogicalId = normalizeQubitId(pending[0]?.logicalQubitId);
+          if (
+            logicalQubitId &&
+            expectedLogicalId &&
+            logicalQubitId !== expectedLogicalId
+          ) {
+            orderIndex = logicalQubitId < expectedLogicalId ? 0 : 1;
+          } else if (
+            logicalQubitId &&
+            pendingLogicalId &&
+            logicalQubitId !== pendingLogicalId
+          ) {
+            orderIndex = logicalQubitId < pendingLogicalId ? 0 : 1;
+          } else if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
+            orderIndex =
+              expectedFromPending.partnerOrderIndex === 0 ? 0 : 1;
+          } else if (
+            pending.length === 1 &&
+            Number.isFinite(pending[0].orderIndex)
+          ) {
+            orderIndex = pending[0].orderIndex === 0 ? 1 : 0;
+          } else {
+            orderIndex = pending.length === 0 ? 0 : 1;
+          }
+        }
+
+        const nextPending = pending
+          .filter((entry) => entry.qubitId !== action.qubitId)
+          .concat({
+            qubitId: action.qubitId,
+            logicalQubitId,
+            color,
+            orderIndex,
+            partnerId,
+            partnerLogicalQubitId,
+            partnerOrderIndex,
+            sequence: pending.length + 1,
+          })
+          .slice(-2);
+        if (nextPending.length >= 2) {
+          const [topEntry, bottomEntry] =
+            orderedFastSeparatedPairEntries(nextPending);
+          const outcome = pairOutcomeKeyFromColorBooleans(
+            topEntry.color === "blue",
+            bottomEntry.color === "blue",
+          );
+          runtime.tubeCounts[outcome] += 1;
+          maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
+          measurementRuntimesToUpdate.add(runtime);
+          separatedPendingByMeasurement.set(measurementId, []);
+        } else {
+          separatedPendingByMeasurement.set(measurementId, nextPending);
+        }
       } else if (action.type === "double-measure") {
         const runtime = initializeGeneratedDoubleMeasurementItem(
           generatedItemById(canvas, action.measurementId),
@@ -5533,15 +7868,42 @@ function replayGeneratedRecordedExperimentFast(canvas, experiment, iterations) {
         if (!runtime) {
           return;
         }
-        const outcome = pairState
+        const stateOrderOutcome = pairState
           ? samplePairOutcomeFromEntangledState(pairState.state)
-          : samplePairOutcomeFromProbabilities({ bb: 1, br: 0, rb: 0, rr: 0 });
+          : null;
+        const argumentOutcome = pairState
+          ? outcomeKeyForPairIdsInArgumentOrder(
+              stateOrderOutcome,
+              pairState.topId,
+              pairState.bottomId,
+              action.rightQubitId,
+              action.leftQubitId,
+            )
+          : samplePairOutcomeFromEntangledState({
+              amplitudes: entangledAmplitudesFromQubitVectors(
+                vectors.get(action.rightQubitId) || [1, 0],
+                vectors.get(action.leftQubitId) || [1, 0],
+              ),
+            });
+        const outcome = orderedOutcomeKeyForQubitIds(
+          argumentOutcome,
+          normalizeQubitId(action.rightQubitLogicalId) ||
+            logicalQubitIds.get(action.rightQubitId),
+          normalizeQubitId(action.leftQubitLogicalId) ||
+            logicalQubitIds.get(action.leftQubitId),
+        );
         runtime.tubeCounts[outcome] += 1;
         maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
         measurementRuntimesToUpdate.add(runtime);
-        if (pairState) {
-          collapsePairStateToOutcome(pairState.state, outcome);
-        }
+        vectors.set(
+          action.rightQubitId,
+          argumentOutcome[0] === "b" ? [1, 0] : [0, 1],
+        );
+        vectors.set(
+          action.leftQubitId,
+          argumentOutcome[1] === "b" ? [1, 0] : [0, 1],
+        );
+        pairState = null;
       }
     });
   }
@@ -5569,31 +7931,42 @@ async function runGeneratedRecordedExperiment(canvas, iterations) {
     return false;
   }
   const count = Math.max(1, Number(iterations) || 1);
+  const initialGateTicks = generatedCurrentGateTickMap(canvas, experiment);
   state.playing = true;
-  if (state.recordButton instanceof HTMLButtonElement) {
-    state.recordButton.disabled = true;
-  }
+  updateGeneratedExperimentToolbar(canvas);
   try {
     if (count >= 100) {
-      replayGeneratedRecordedExperimentFast(canvas, experiment, count);
-      resetGeneratedCanvasToExperimentStart(canvas, experiment);
-      return true;
-    }
-    for (let run = 0; run < count; run += 1) {
-      const completed = await replayGeneratedRecordedExperimentAnimated(
+      replayGeneratedRecordedExperimentFast(
         canvas,
         experiment,
+        count,
+        initialGateTicks,
       );
-      if (!completed) {
-        return false;
+      resetGeneratedCanvasToExperimentStart(canvas, experiment, {
+        gateTicks: initialGateTicks,
+      });
+      return true;
+    }
+    const previousPlaybackSpeed = generatedExperimentPlaybackSpeed;
+    generatedExperimentPlaybackSpeed =
+      generatedAnimatedReplaySpeedForIterationCount(count);
+    try {
+      for (let run = 0; run < count; run += 1) {
+        const completed = await replayGeneratedRecordedExperimentAnimated(
+          canvas,
+          experiment,
+          initialGateTicks,
+        );
+        if (!completed) {
+          return false;
+        }
       }
+    } finally {
+      generatedExperimentPlaybackSpeed = previousPlaybackSpeed;
     }
     return true;
   } finally {
     state.playing = false;
-    if (state.recordButton instanceof HTMLButtonElement) {
-      state.recordButton.disabled = false;
-    }
     updateGeneratedExperimentToolbar(canvas);
   }
 }
@@ -5607,15 +7980,16 @@ function moveGeneratedQubitToPoint(
 ) {
   return new Promise((resolve) => {
     const core = getGeneratedQubitCore(qubitItem);
-    qubitItem.style.setProperty("--move-duration", `${duration}ms`);
+    const moveDuration = scaledGeneratedDuration(duration);
+    qubitItem.style.setProperty("--move-duration", `${moveDuration}ms`);
     qubitItem.classList.add("migrating");
     if (core instanceof HTMLElement) {
-      core.style.setProperty("--move-duration", `${duration}ms`);
+      core.style.setProperty("--move-duration", `${moveDuration}ms`);
       core.classList.add("migrating");
     }
     qubitItem.getBoundingClientRect();
     setGeneratedQubitCenter(canvas, qubitItem, x, y);
-    window.setTimeout(resolve, duration);
+    window.setTimeout(resolve, moveDuration);
   });
 }
 
@@ -5628,7 +8002,13 @@ function beginGeneratedRuntimeQubitDrag(item, event) {
     return;
   }
   const state = ensureGeneratedQubitRuntimeState(item);
-  if (!canvas || state?.transiting || !isPrimaryMouseButton(event)) {
+  const experimentState = generatedExperimentStateForCanvas(canvas);
+  if (
+    !canvas ||
+    state?.transiting ||
+    experimentState?.playing ||
+    !isPrimaryMouseButton(event)
+  ) {
     return;
   }
   const point = getPointer(event);
@@ -5646,7 +8026,8 @@ function beginGeneratedRuntimeQubitDrag(item, event) {
     startPoint: generatedCanvasPointForElementCenter(canvas, item),
     pointerOffsetX: point.clientX - itemRect.left,
     pointerOffsetY: point.clientY - itemRect.top,
-    recordingPath: isGeneratedExperimentRecording(canvas) && initialRecordPoint
+    initialRecordPoint,
+    recordingPath: experimentState?.recording && initialRecordPoint
       ? [
           {
             ...initialRecordPoint,
@@ -5654,7 +8035,7 @@ function beginGeneratedRuntimeQubitDrag(item, event) {
           },
         ]
       : null,
-    recordingStartedAt: performance.now(),
+    recordingStartedAt: experimentState?.startedAt || performance.now(),
   };
   item.classList.add("dragging");
   event.preventDefault();
@@ -5673,6 +8054,7 @@ function continueGeneratedRuntimeGesture(event) {
   if (event.touches) {
     event.preventDefault();
   }
+  startGeneratedDragRecordingIfNeeded(gesture);
   const canvasRect = gesture.canvas.getBoundingClientRect();
   const left =
     point.clientX -
@@ -5702,6 +8084,9 @@ function continueGeneratedRuntimeGesture(event) {
   if (maybeSnapGeneratedQubitToDoubleMeasurement(gesture.item)) {
     return;
   }
+  if (maybeSnapGeneratedQubitToSeparatedPairMeasurement(gesture.item)) {
+    return;
+  }
   maybeSnapGeneratedQubitToSingleMeasurement(gesture.item);
 }
 
@@ -5726,7 +8111,9 @@ function endGeneratedRuntimeGesture() {
     if (!maybeSnapGeneratedQubitToSingleGate(gesture.item)) {
       if (!maybeSnapGeneratedQubitToCnot(gesture.item)) {
         if (!maybeSnapGeneratedQubitToDoubleMeasurement(gesture.item)) {
-          maybeSnapGeneratedQubitToSingleMeasurement(gesture.item);
+          if (!maybeSnapGeneratedQubitToSeparatedPairMeasurement(gesture.item)) {
+            maybeSnapGeneratedQubitToSingleMeasurement(gesture.item);
+          }
         }
       }
     }
@@ -5765,6 +8152,37 @@ function beginGeneratedLayoutEditGesture(event) {
   const origin = event.target;
   if (!(origin instanceof Element)) {
     return;
+  }
+  const originItem = origin.closest(".playground-node");
+  if (
+    originItem instanceof HTMLElement &&
+    originItem.parentElement === canvas &&
+    originItem.dataset.component === "double-measurement" &&
+    !pointerNearResizeCorner(originItem, point, 22)
+  ) {
+    const behindItem = layoutItemBehindPoint(canvas, originItem, point);
+    if (behindItem?.dataset?.component === "qubit") {
+      setSelectedGeneratedLayoutItem(behindItem);
+      generatedLayoutGesture = {
+        mode: "item-move",
+        canvas,
+        item: behindItem,
+        startX: point.clientX,
+        startY: point.clientY,
+        startLeft: parseLayoutNumeric(behindItem.style.left, 0),
+        startTop: parseLayoutNumeric(behindItem.style.top, 0),
+        startWidth: behindItem.offsetWidth,
+        startHeight: behindItem.offsetHeight,
+        minWidth: minGeneratedLayoutSizeForType(behindItem.dataset.component)
+          .minWidth,
+        minHeight: minGeneratedLayoutSizeForType(behindItem.dataset.component)
+          .minHeight,
+      };
+      behindItem.classList.add("dragging");
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
   }
   const measurementPart = origin.closest("[data-playground-measurement-part]");
   if (
@@ -5813,8 +8231,9 @@ function beginGeneratedLayoutEditGesture(event) {
   let targetItem = item;
   if (
     item.dataset.component === "double-measurement" &&
-    origin === item &&
-    !origin.closest(".layout-resize-handle") &&
+    !origin.closest(
+      "[data-playground-measurement-part], .layout-resize-handle",
+    ) &&
     !pointerNearResizeCorner(item, point, 22)
   ) {
     const behindItem = layoutItemBehindPoint(canvas, item, point);
@@ -5949,6 +8368,335 @@ function endGeneratedLayoutEditGesture() {
   generatedLayoutGesture = null;
 }
 
+function orderedTabButtons() {
+  if (tabStrip instanceof HTMLElement) {
+    return Array.from(tabStrip.querySelectorAll(".tab-btn")).filter(
+      (button) => button instanceof HTMLButtonElement,
+    );
+  }
+  return tabButtons;
+}
+
+function syncTabButtonsFromDom() {
+  tabButtons.splice(0, tabButtons.length, ...orderedTabButtons());
+}
+
+function generatedTabInsertionPoint() {
+  return layoutEditToggle instanceof HTMLElement ? layoutEditToggle : null;
+}
+
+function clearGeneratedTabDragClasses() {
+  orderedTabButtons().forEach((button) => {
+    button.classList.remove(
+      "tab-dragging",
+      "tab-drop-before",
+      "tab-drop-after",
+    );
+  });
+}
+
+function generatedTabButtonForId(tabId) {
+  if (!tabId) {
+    return null;
+  }
+  const button = document.getElementById(`tab-${tabId}`);
+  return button instanceof HTMLButtonElement ? button : null;
+}
+
+function generatedTabButtonsExcluding(tabId = "") {
+  return orderedTabButtons().filter(
+    (button) =>
+      button.dataset.generatedTab === "true" &&
+      button.dataset.tabTarget &&
+      button.dataset.tabTarget !== tabId,
+  );
+}
+
+function applyGeneratedTabDropCue(placement, sourceId = "") {
+  clearGeneratedTabDragClasses();
+  if (!placement) {
+    return;
+  }
+  if (!placement.targetId) {
+    const lastGenerated = generatedTabButtonsExcluding(sourceId).at(-1);
+    lastGenerated?.classList.add("tab-drop-after");
+    return;
+  }
+  const targetButton = generatedTabButtonForId(placement.targetId);
+  targetButton?.classList.add(
+    placement.placeBefore ? "tab-drop-before" : "tab-drop-after",
+  );
+}
+
+function generatedTabDropTargetFromPoint(clientX, clientY, sourceId = "") {
+  const elements =
+    typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(clientX, clientY)
+      : [];
+  const hoveredGeneratedButton = elements
+    .map((element) => element?.closest?.(".generated-tab-btn"))
+    .find(
+      (button) =>
+        button instanceof HTMLButtonElement &&
+        button.dataset.tabTarget &&
+        button.dataset.tabTarget !== sourceId,
+    );
+  if (hoveredGeneratedButton instanceof HTMLButtonElement) {
+    const rect = hoveredGeneratedButton.getBoundingClientRect();
+    return {
+      targetId: hoveredGeneratedButton.dataset.tabTarget || "",
+      placeBefore: clientX < rect.left + rect.width / 2,
+    };
+  }
+  if (!(tabStrip instanceof HTMLElement)) {
+    return null;
+  }
+  const stripRect = tabStrip.getBoundingClientRect();
+  const insideStrip =
+    clientX >= stripRect.left &&
+    clientX <= stripRect.right &&
+    clientY >= stripRect.top &&
+    clientY <= stripRect.bottom;
+  if (!insideStrip) {
+    return null;
+  }
+  const buttons = generatedTabButtonsExcluding(sourceId);
+  for (const button of buttons) {
+    const rect = button.getBoundingClientRect();
+    if (clientX < rect.left + rect.width / 2) {
+      return {
+        targetId: button.dataset.tabTarget || "",
+        placeBefore: true,
+      };
+    }
+  }
+  return { targetId: "", placeBefore: false };
+}
+
+function updateGeneratedTabDropCue(button, event) {
+  if (!(button instanceof HTMLButtonElement)) {
+    clearGeneratedTabDragClasses();
+    return;
+  }
+  const rect = button.getBoundingClientRect();
+  applyGeneratedTabDropCue({
+    targetId: button.dataset.tabTarget || "",
+    placeBefore: event.clientX < rect.left + rect.width / 2,
+  });
+}
+
+function reorderGeneratedTab(sourceId, targetId = "", placeBefore = false) {
+  if (!sourceId || sourceId === targetId) {
+    return false;
+  }
+  const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
+  nextState.customTabs = Array.isArray(nextState.customTabs)
+    ? nextState.customTabs
+    : [];
+  const sourceIndex = nextState.customTabs.findIndex(
+    (entry) => entry?.id === sourceId,
+  );
+  if (sourceIndex < 0) {
+    return false;
+  }
+  const [source] = nextState.customTabs.splice(sourceIndex, 1);
+  let insertIndex = nextState.customTabs.length;
+  if (targetId) {
+    const targetIndex = nextState.customTabs.findIndex(
+      (entry) => entry?.id === targetId,
+    );
+    if (targetIndex < 0) {
+      return false;
+    }
+    insertIndex = placeBefore ? targetIndex : targetIndex + 1;
+  }
+  nextState.customTabs.splice(insertIndex, 0, source);
+  if (!writeGeneratedTabsState(nextState)) {
+    return false;
+  }
+  applyGeneratedTabsState(nextState);
+  plagroundComposer?.handleGeneratedTabsChanged?.();
+  return true;
+}
+
+function suppressGeneratedTabClick(button) {
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+  button.dataset.suppressNextClick = "true";
+  window.setTimeout(() => {
+    delete button.dataset.suppressNextClick;
+  }, 180);
+}
+
+function endGeneratedTabPointerDrag(event) {
+  const drag = generatedTabPointerDrag;
+  if (!drag) {
+    return;
+  }
+  window.removeEventListener("mousemove", updateGeneratedTabPointerDrag);
+  window.removeEventListener("mouseup", endGeneratedTabPointerDrag);
+  generatedTabPointerDrag = null;
+  draggedGeneratedTabId = "";
+  if (drag.moved) {
+    event?.preventDefault?.();
+    const placement =
+      generatedTabDropTargetFromPoint(
+        event?.clientX ?? drag.lastX,
+        event?.clientY ?? drag.lastY,
+        drag.sourceId,
+      ) || drag.placement;
+    if (placement) {
+      reorderGeneratedTab(
+        drag.sourceId,
+        placement.targetId,
+        placement.placeBefore,
+      );
+    }
+    suppressGeneratedTabClick(drag.button);
+  }
+  clearGeneratedTabDragClasses();
+}
+
+function updateGeneratedTabPointerDrag(event) {
+  const drag = generatedTabPointerDrag;
+  if (!drag) {
+    return;
+  }
+  drag.lastX = event.clientX;
+  drag.lastY = event.clientY;
+  const distance = Math.hypot(
+    event.clientX - drag.startX,
+    event.clientY - drag.startY,
+  );
+  if (!drag.moved && distance < 5) {
+    return;
+  }
+  drag.moved = true;
+  draggedGeneratedTabId = drag.sourceId;
+  drag.button.classList.add("tab-dragging");
+  event.preventDefault();
+  drag.placement = generatedTabDropTargetFromPoint(
+    event.clientX,
+    event.clientY,
+    drag.sourceId,
+  );
+  applyGeneratedTabDropCue(drag.placement, drag.sourceId);
+}
+
+function beginGeneratedTabPointerDrag(button, event) {
+  if (
+    !(button instanceof HTMLButtonElement) ||
+    event.button !== 0 ||
+    !button.dataset.tabTarget
+  ) {
+    return;
+  }
+  if (generatedTabPointerDrag) {
+    endGeneratedTabPointerDrag(event);
+  }
+  generatedTabPointerDrag = {
+    button,
+    sourceId: button.dataset.tabTarget,
+    startX: event.clientX,
+    startY: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+    moved: false,
+    placement: null,
+  };
+  window.addEventListener("mousemove", updateGeneratedTabPointerDrag);
+  window.addEventListener("mouseup", endGeneratedTabPointerDrag);
+}
+
+function setupGeneratedTabDrag(button) {
+  if (
+    !(button instanceof HTMLButtonElement) ||
+    button.dataset.generatedTab !== "true" ||
+    button.dataset.tabDragRegistered === "true"
+  ) {
+    return;
+  }
+  button.dataset.tabDragRegistered = "true";
+  button.draggable = false;
+  button.addEventListener("mousedown", (event) => {
+    beginGeneratedTabPointerDrag(button, event);
+  });
+  button.addEventListener("dragstart", (event) => {
+    const tabId = button.dataset.tabTarget || "";
+    if (!tabId) {
+      event.preventDefault();
+      return;
+    }
+    draggedGeneratedTabId = tabId;
+    button.classList.add("tab-dragging");
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", tabId);
+    }
+  });
+  button.addEventListener("dragover", (event) => {
+    if (!draggedGeneratedTabId) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+    updateGeneratedTabDropCue(button, event);
+  });
+  button.addEventListener("dragleave", () => {
+    button.classList.remove("tab-drop-before", "tab-drop-after");
+  });
+  button.addEventListener("drop", (event) => {
+    const sourceId =
+      event.dataTransfer?.getData("text/plain") || draggedGeneratedTabId;
+    const targetId = button.dataset.tabTarget || "";
+    if (!sourceId || !targetId) {
+      return;
+    }
+    event.preventDefault();
+    const rect = button.getBoundingClientRect();
+    const placeBefore = event.clientX < rect.left + rect.width / 2;
+    reorderGeneratedTab(sourceId, targetId, placeBefore);
+    clearGeneratedTabDragClasses();
+  });
+  button.addEventListener("dragend", () => {
+    draggedGeneratedTabId = "";
+    button.dataset.suppressNextClick = "true";
+    window.setTimeout(() => {
+      delete button.dataset.suppressNextClick;
+    }, 160);
+    clearGeneratedTabDragClasses();
+  });
+}
+
+if (tabStrip instanceof HTMLElement) {
+  tabStrip.addEventListener("dragover", (event) => {
+    if (!draggedGeneratedTabId) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  });
+  tabStrip.addEventListener("drop", (event) => {
+    const sourceId =
+      event.dataTransfer?.getData("text/plain") || draggedGeneratedTabId;
+    if (!sourceId) {
+      return;
+    }
+    const targetButton = event.target?.closest?.(".generated-tab-btn");
+    if (targetButton instanceof HTMLButtonElement) {
+      return;
+    }
+    event.preventDefault();
+    reorderGeneratedTab(sourceId, "", false);
+    clearGeneratedTabDragClasses();
+  });
+}
+
 function registerTabButton(button) {
   if (
     !(button instanceof HTMLButtonElement) ||
@@ -5958,6 +8706,9 @@ function registerTabButton(button) {
   }
   button.dataset.tabRegistered = "true";
   button.addEventListener("click", () => {
+    if (button.dataset.suppressNextClick === "true") {
+      return;
+    }
     const target = button.dataset.tabTarget;
     if (!target) {
       return;
@@ -5974,26 +8725,30 @@ function tabLabelForButton(button) {
 
 function existingTabLabelSet() {
   return new Set(
-    tabButtons.map((button) => normalizeTabLabel(tabLabelForButton(button))),
+    orderedTabButtons().map((button) =>
+      normalizeTabLabel(tabLabelForButton(button)),
+    ),
   );
 }
 
 function collectPlaygroundSaveTargets() {
-  return tabButtons
+  return orderedTabButtons()
     .filter(
       (button) =>
-        button.dataset.tabTarget && button.dataset.tabTarget !== "plaground",
+        button.dataset.tabTarget &&
+        button.dataset.generatedTab === "true",
     )
     .map((button) => ({
       id: button.dataset.tabTarget,
       label: tabLabelForButton(button),
-      generated: button.dataset.generatedTab === "true",
     }));
 }
 
 function uniqueGeneratedTabTarget(label) {
   const used = new Set(
-    tabButtons.map((button) => button.dataset.tabTarget).filter(Boolean),
+    orderedTabButtons()
+      .map((button) => button.dataset.tabTarget)
+      .filter(Boolean),
   );
   let base = `custom-${generatedTabSlug(label)}`;
   let candidate = base;
@@ -6017,14 +8772,14 @@ function ensureGeneratedTabButton(entry) {
     button.tabIndex = -1;
     button.dataset.generatedTab = "true";
     button.dataset.tabTarget = entry.id;
-    const insertionPoint =
-      layoutEditToggle instanceof HTMLElement ? layoutEditToggle : null;
-    tabStrip?.insertBefore(button, insertionPoint);
+    tabStrip?.insertBefore(button, generatedTabInsertionPoint());
     tabButtons.push(button);
   }
   button.textContent = entry.label;
+  button.draggable = false;
   button.setAttribute("aria-controls", `panel-${entry.id}`);
   registerTabButton(button);
+  setupGeneratedTabDrag(button);
   return button;
 }
 
@@ -6043,8 +8798,8 @@ function ensureGeneratedTabPanel(entry) {
   return panel;
 }
 
-function applyGeneratedTabsState(state, sourceRoots) {
-  generatedTabsState = state || { overrides: {}, customTabs: [] };
+function applyGeneratedTabsState(state) {
+  generatedTabsState = state || { customTabs: [] };
   const customIds = new Set(
     (generatedTabsState.customTabs || [])
       .filter((entry) => entry && typeof entry.id === "string")
@@ -6074,32 +8829,6 @@ function applyGeneratedTabsState(state, sourceRoots) {
       }
     });
 
-  Object.entries(generatedTabsState.overrides || {}).forEach(
-    ([target, entry]) => {
-      const button = tabButtons.find(
-        (candidate) => candidate.dataset.tabTarget === target,
-      );
-      const panel = document.getElementById(`panel-${target}`);
-      if (
-        !(button instanceof HTMLButtonElement) ||
-        !(panel instanceof HTMLElement)
-      ) {
-        return;
-      }
-      const label = entry?.label || tabLabelForButton(button);
-      renderGeneratedLayoutPanel(
-        panel,
-        {
-          id: target,
-          label,
-          layout: entry?.layout,
-          experiment: entry?.experiment,
-        },
-        sourceRoots,
-      );
-    },
-  );
-
   (generatedTabsState.customTabs || []).forEach((entry) => {
     if (
       !entry ||
@@ -6108,217 +8837,15 @@ function applyGeneratedTabsState(state, sourceRoots) {
     ) {
       return;
     }
-    ensureGeneratedTabButton(entry);
-    renderGeneratedLayoutPanel(
-      ensureGeneratedTabPanel(entry),
-      entry,
-      sourceRoots,
-    );
+    const button = ensureGeneratedTabButton(entry);
+    tabStrip?.insertBefore(button, generatedTabInsertionPoint());
+    renderGeneratedLayoutPanel(ensureGeneratedTabPanel(entry), entry);
   });
+  syncTabButtonsFromDom();
 }
 
-function restoreGeneratedTabs(sourceRoots) {
-  applyGeneratedTabsState(readGeneratedTabsState(), sourceRoots);
-}
-
-function openPlaygroundSaveTargetDialog() {
-  const targets = collectPlaygroundSaveTargets();
-  return new Promise((resolve) => {
-    const overlay = document.createElement("div");
-    overlay.className = "playground-save-modal-backdrop";
-    overlay.setAttribute("role", "presentation");
-
-    const panel = document.createElement("form");
-    panel.className = "playground-save-modal";
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-modal", "true");
-    panel.setAttribute("aria-labelledby", "playgroundSaveModalTitle");
-
-    const title = document.createElement("h2");
-    title.id = "playgroundSaveModalTitle";
-    title.textContent = "Save Playground Layout";
-
-    const targetLabel = document.createElement("label");
-    targetLabel.textContent = "Save to";
-    targetLabel.setAttribute("for", "playgroundSaveTargetSelect");
-
-    const select = document.createElement("select");
-    select.id = "playgroundSaveTargetSelect";
-    select.required = true;
-
-    const newOption = document.createElement("option");
-    newOption.value = "__new__";
-    newOption.textContent = "New tab";
-    select.appendChild(newOption);
-
-    targets.forEach((target) => {
-      const option = document.createElement("option");
-      option.value = target.id;
-      option.textContent = target.label;
-      select.appendChild(option);
-    });
-
-    const newTabWrap = document.createElement("label");
-    newTabWrap.className = "playground-save-new-tab";
-    newTabWrap.textContent = "Tab label";
-
-    const nameInput = document.createElement("input");
-    nameInput.type = "text";
-    nameInput.autocomplete = "off";
-    nameInput.placeholder = "New tab name";
-    nameInput.maxLength = 48;
-    newTabWrap.appendChild(nameInput);
-
-    const warning = document.createElement("p");
-    warning.className = "playground-save-warning";
-    warning.setAttribute("aria-live", "polite");
-
-    const error = document.createElement("p");
-    error.className = "playground-save-error";
-    error.setAttribute("aria-live", "polite");
-
-    const actions = document.createElement("div");
-    actions.className = "playground-save-actions";
-    const cancelButton = document.createElement("button");
-    cancelButton.type = "button";
-    cancelButton.className = "playground-save-cancel";
-    cancelButton.textContent = "Cancel";
-    const submitButton = document.createElement("button");
-    submitButton.type = "submit";
-    submitButton.className = "playground-save-submit";
-    submitButton.textContent = "Save";
-    actions.append(cancelButton, submitButton);
-
-    panel.append(
-      title,
-      targetLabel,
-      select,
-      newTabWrap,
-      warning,
-      error,
-      actions,
-    );
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
-
-    const close = (value) => {
-      overlay.remove();
-      resolve(value);
-    };
-
-    const selectedTarget = () =>
-      targets.find((target) => target.id === select.value) || null;
-    const updateMode = () => {
-      const target = selectedTarget();
-      const isNew = select.value === "__new__";
-      newTabWrap.hidden = !isNew;
-      nameInput.required = isNew;
-      warning.textContent = target
-        ? `Are you sure you want to modify ${target.label}. That change will be irreversible.`
-        : "";
-      error.textContent = "";
-      if (isNew) {
-        window.requestAnimationFrame(() => nameInput.focus());
-      }
-    };
-
-    select.addEventListener("change", updateMode);
-    cancelButton.addEventListener("click", () => close(null));
-    overlay.addEventListener("mousedown", (event) => {
-      if (event.target === overlay) {
-        close(null);
-      }
-    });
-    panel.addEventListener("submit", (event) => {
-      event.preventDefault();
-      error.textContent = "";
-      if (select.value === "__new__") {
-        const label = nameInput.value.trim().replace(/\s+/g, " ");
-        if (!label) {
-          error.textContent = "Name the new tab before saving.";
-          nameInput.focus();
-          return;
-        }
-        if (existingTabLabelSet().has(normalizeTabLabel(label))) {
-          error.textContent = "A tab with that name already exists.";
-          nameInput.focus();
-          nameInput.select();
-          return;
-        }
-        close({ mode: "new", label });
-        return;
-      }
-      const target = selectedTarget();
-      if (!target) {
-        error.textContent = "Choose a tab to save to.";
-        return;
-      }
-      close({ mode: "existing", target });
-    });
-
-    updateMode();
-  });
-}
-
-async function savePlaygroundLayoutToGeneratedTab(layoutPayload, sourceRoots) {
-  const selection = await openPlaygroundSaveTargetDialog();
-  if (!selection) {
-    return false;
-  }
-  const nextState = cloneJson(generatedTabsState) || {
-    overrides: {},
-    customTabs: [],
-  };
-  nextState.overrides = nextState.overrides || {};
-  nextState.customTabs = Array.isArray(nextState.customTabs)
-    ? nextState.customTabs
-    : [];
-  const layout = cloneJson(layoutPayload);
-  if (!layout) {
-    throw new Error("Unable to save layout");
-  }
-
-  let targetId = null;
-  if (selection.mode === "new") {
-    targetId = uniqueGeneratedTabTarget(selection.label);
-    nextState.customTabs.push({
-      id: targetId,
-      label: selection.label,
-      layout,
-    });
-  } else {
-    targetId = selection.target.id;
-    if (selection.target.generated) {
-      const customEntry = nextState.customTabs.find(
-        (entry) => entry.id === targetId,
-      );
-      if (customEntry) {
-        const previousExperiment = customEntry.experiment;
-        customEntry.layout = layout;
-        if (previousExperiment) {
-          customEntry.experiment = previousExperiment;
-        }
-      }
-    } else {
-      nextState.overrides[targetId] = {
-        label: selection.target.label,
-        layout,
-        experiment:
-          nextState.overrides[targetId]?.experiment ||
-          generatedTabsState.overrides?.[targetId]?.experiment,
-      };
-    }
-  }
-
-  if (!writeGeneratedTabsState(nextState)) {
-    throw new Error("Unable to persist generated tabs");
-  }
-  applyGeneratedTabsState(nextState, sourceRoots);
-  if (targetId) {
-    setLayoutEditEnabled(false);
-    setActiveTab(targetId);
-  }
-  return true;
+function restoreGeneratedTabs() {
+  applyGeneratedTabsState(readGeneratedTabsState());
 }
 
 function ensurePlaygroundQubitLayoutRegistration(element) {
@@ -6331,6 +8858,7 @@ function ensurePlaygroundQubitLayoutRegistration(element) {
   ) {
     return;
   }
+  ensureQubitLogicalId(element);
   element.dataset.layoutEditTarget = "true";
   element.dataset.layoutResizable = "true";
   element.dataset.layoutUniformResize = "true";
@@ -6361,12 +8889,13 @@ function ensurePlaygroundQubitLayoutRegistration(element) {
   }
 }
 
-function setupPlagroundComposer(sourceRoots) {
+function setupPlagroundComposer() {
   if (!playgroundCanvas || !playgroundComponentSelect) {
     return null;
   }
   // Default to a null selection so canvas clicks do nothing until the user picks a component.
   playgroundComponentSelect.value = "";
+  populateComponentPicker(playgroundComponentSelect);
 
   let zCounter = 5;
   let dragState = null;
@@ -6374,6 +8903,7 @@ function setupPlagroundComposer(sourceRoots) {
   let measurementPartGesture = null;
   let cnotPartGesture = null;
   let selectedItem = null;
+  let selectedItems = new Set();
   let selectedComponentPart = null;
   let statusTimer = null;
 
@@ -6389,12 +8919,23 @@ function setupPlagroundComposer(sourceRoots) {
   const isPlaygroundDoubleMeasurementItem = (item) =>
     item instanceof HTMLElement &&
     item.dataset.component === "double-measurement";
+  const isPlaygroundEditableSavedGroupItem = (item) =>
+    isSeparatedPairMeasurementGroupElement(item);
   const isPlaygroundMeasurementItem = (item) =>
     isPlaygroundSingleMeasurementItem(item) ||
     isPlaygroundDoubleMeasurementItem(item);
   const minSizeForItem = (item) => {
     if (isPlaygroundQubitItem(item)) {
       return { minWidth: 12, minHeight: 12 };
+    }
+    if (item?.dataset?.component === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE) {
+      return minGeneratedLayoutSizeForType(PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE);
+    }
+    if (isMeasurementPieceComponentType(item?.dataset?.component)) {
+      return minGeneratedLayoutSizeForType(item.dataset.component);
+    }
+    if (item?.dataset?.component === "text-box") {
+      return minGeneratedLayoutSizeForType("text-box");
     }
     return { minWidth: 120, minHeight: 100 };
   };
@@ -6531,6 +9072,8 @@ function setupPlagroundComposer(sourceRoots) {
       state = {
         vector: [1, 0],
         transiting: false,
+        pairState: null,
+        pairQubitIndex: null,
         cnotSourceSlot: null,
         cnotPairToken: null,
         cnotOutcomeProbabilities: null,
@@ -6542,7 +9085,105 @@ function setupPlagroundComposer(sourceRoots) {
     return state;
   };
 
+  const syncPlaygroundPairStateVisuals = (pairState) => {
+    if (!pairState?.members) {
+      return;
+    }
+    pairState.members.forEach(({ item, state, qubitIndex }) => {
+      if (!(item instanceof HTMLElement) || !item.isConnected || !state) {
+        return;
+      }
+      state.vector = displayVectorForPairMember(pairState, qubitIndex);
+      applyPlaygroundQubitVectorVisualState(item);
+    });
+  };
+
+  const createPlaygroundPairState = (topQubitItem, bottomQubitItem) => {
+    const topState = ensurePlaygroundQubitRuntimeState(topQubitItem);
+    const bottomState = ensurePlaygroundQubitRuntimeState(bottomQubitItem);
+    if (!topState || !bottomState) {
+      return null;
+    }
+      const pairState = {
+        amplitudes: entangledAmplitudesFromQubitVectors(
+          topState.vector,
+          bottomState.vector,
+        ),
+        displayMode: "marginal",
+        members: [
+          { item: topQubitItem, state: topState, qubitIndex: 0 },
+          { item: bottomQubitItem, state: bottomState, qubitIndex: 1 },
+      ],
+    };
+    topState.pairState = pairState;
+    topState.pairQubitIndex = 0;
+    bottomState.pairState = pairState;
+    bottomState.pairQubitIndex = 1;
+    return pairState;
+  };
+
+  const applyPlaygroundSingleGateToQubitState = (qubitItem, tickIndex) => {
+    const state = ensurePlaygroundQubitRuntimeState(qubitItem);
+    if (!state) {
+      return;
+    }
+    if (state.pairState && Number.isFinite(state.pairQubitIndex)) {
+      applySingleQubitGateToPair(
+        state.pairState,
+        state.pairQubitIndex,
+        gateMatrixForTick(tickIndex),
+      );
+      syncPlaygroundPairStateVisuals(state.pairState);
+      return;
+    }
+    state.vector = normalizeVector2(
+      vectorTimesMatrix2(state.vector, gateMatrixForTick(tickIndex)),
+    );
+    applyPlaygroundQubitVectorVisualState(qubitItem);
+  };
+
+  const collapsePlaygroundSingleQubitFromPair = (qubitItem, color) => {
+    const state = ensurePlaygroundQubitRuntimeState(qubitItem);
+    const pairState = state?.pairState;
+    if (!state || !pairState || !Number.isFinite(state.pairQubitIndex)) {
+      return false;
+    }
+    const measuredIndex = state.pairQubitIndex;
+    const otherMember = pairState.members?.find(
+      (member) => member.state && member.state !== state,
+    );
+    const otherVector = conditionalVectorAfterPairMeasurement(
+      pairState,
+      measuredIndex,
+      color,
+    );
+    collapsePairStateBySingleQubitMeasurement(pairState, measuredIndex, color);
+    state.vector = color === "blue" ? [1, 0] : [0, 1];
+    state.pairState = null;
+    state.pairQubitIndex = null;
+    state.cnotSourceSlot = null;
+    state.cnotPairToken = null;
+    state.cnotOutcomeProbabilities = null;
+    state.doubleMeasurementReturnPoint = null;
+    if (otherMember?.state) {
+      otherMember.state.vector = otherVector;
+      otherMember.state.pairState = null;
+      otherMember.state.pairQubitIndex = null;
+      otherMember.state.cnotSourceSlot = null;
+      otherMember.state.cnotPairToken = null;
+      otherMember.state.cnotOutcomeProbabilities = null;
+      if (otherMember.item instanceof HTMLElement) {
+        applyPlaygroundQubitVectorVisualState(otherMember.item);
+      }
+    }
+    applyPlaygroundQubitVectorVisualState(qubitItem);
+    return true;
+  };
+
   const resolvePlaygroundMeasurementPartEntries = (item) => {
+    if (isPlaygroundEditableSavedGroupItem(item)) {
+      return editableSavedGroupChildPartEntries(item);
+    }
     if (!isPlaygroundMeasurementItem(item)) {
       return [];
     }
@@ -6710,10 +9351,20 @@ function setupPlagroundComposer(sourceRoots) {
     const owner = selectedComponentPart?.closest?.(".playground-node");
     return owner instanceof HTMLElement && owner.isConnected ? owner : null;
   };
+  const selectedComponentItems = () => {
+    const selected = Array.from(selectedItems).filter(
+      (item) => item instanceof HTMLElement && item.isConnected,
+    );
+    if (selected.length > 0) {
+      return selected;
+    }
+    const single = selectedComponentItem();
+    return single instanceof HTMLElement ? [single] : [];
+  };
 
   const updateActionButtons = () => {
-    const hasSelection =
-      selectedComponentItem() instanceof HTMLElement;
+    const selectionCount = selectedComponentItems().length;
+    const hasSelection = selectionCount > 0;
     if (playgroundDuplicateButton) {
       playgroundDuplicateButton.disabled = !hasSelection;
     }
@@ -6724,6 +9375,9 @@ function setupPlagroundComposer(sourceRoots) {
       playgroundSaveComponentButton.disabled = !hasSelection;
       playgroundSaveComponentButton.classList.toggle("active", hasSelection);
     }
+    if (playgroundSaveGroupButton) {
+      playgroundSaveGroupButton.disabled = selectionCount < 2;
+    }
   };
 
   const clearSelectedComponentPart = () => {
@@ -6733,16 +9387,40 @@ function setupPlagroundComposer(sourceRoots) {
     selectedComponentPart = null;
   };
 
-  const setSelectedItem = (item, part = null) => {
-    if (selectedItem && selectedItem !== item) {
-      selectedItem.classList.remove("selected");
-    }
-    clearSelectedComponentPart();
+  const setSelectedItem = (item, part = null, { additive = false } = {}) => {
     if (!(item instanceof HTMLElement) || !item.isConnected) {
+      selectedItems.forEach((selected) => selected.classList.remove("selected"));
+      selectedItems = new Set();
+      clearSelectedComponentPart();
       selectedItem = null;
       updateActionButtons();
       return;
     }
+    if (additive) {
+      clearSelectedComponentPart();
+      if (selectedItems.has(item)) {
+        selectedItems.delete(item);
+        item.classList.remove("selected");
+        selectedItem = Array.from(selectedItems).at(-1) || null;
+      } else {
+        selectedItems.add(item);
+        selectedItem = item;
+      }
+      syncSelectionUiState();
+      bringToFront(item);
+      updateActionButtons();
+      return;
+    }
+    if (selectedItem && selectedItem !== item) {
+      selectedItem.classList.remove("selected");
+    }
+    selectedItems.forEach((selected) => {
+      if (selected !== item) {
+        selected.classList.remove("selected");
+      }
+    });
+    selectedItems = new Set([item]);
+    clearSelectedComponentPart();
     selectedItem = item;
     if (layoutEditorState.enabled) {
       selectedItem.classList.add("selected");
@@ -6771,12 +9449,20 @@ function setupPlagroundComposer(sourceRoots) {
         "[data-playground-measurement-part].layout-edit-selected, [data-playground-cnot-part].layout-edit-selected",
       )
       .forEach((part) => part.classList.remove("layout-edit-selected"));
+    selectedItems = new Set(
+      Array.from(selectedItems).filter(
+        (item) => item instanceof HTMLElement && item.isConnected,
+      ),
+    );
     if (
-      layoutEditorState.enabled &&
       selectedItem instanceof HTMLElement &&
-      selectedItem.isConnected
+      selectedItem.isConnected &&
+      !selectedItems.has(selectedItem)
     ) {
-      selectedItem.classList.add("selected");
+      selectedItems.add(selectedItem);
+    }
+    if (layoutEditorState.enabled) {
+      selectedItems.forEach((item) => item.classList.add("selected"));
     }
     if (
       layoutEditorState.enabled &&
@@ -7131,17 +9817,16 @@ function setupPlagroundComposer(sourceRoots) {
         return false;
       }
 
-      qubitState.vector = normalizeVector2(
-        vectorTimesMatrix2(
-          qubitState.vector,
-          gateMatrixForTick(gateRuntime.activeTick),
-        ),
+      applyPlaygroundSingleGateToQubitState(
+        qubitItem,
+        gateRuntime.activeTick,
       );
-      qubitState.cnotSourceSlot = null;
-      qubitState.cnotPairToken = null;
-      qubitState.cnotOutcomeProbabilities = null;
+      if (!qubitState.pairState) {
+        qubitState.cnotSourceSlot = null;
+        qubitState.cnotPairToken = null;
+        qubitState.cnotOutcomeProbabilities = null;
+      }
       qubitState.doubleMeasurementReturnPoint = null;
-      applyPlaygroundQubitVectorVisualState(qubitItem);
 
       settlePlaygroundQubitVisualState(qubitItem);
       const platformCenter = canvasPointForElementCenter(
@@ -7218,7 +9903,7 @@ function setupPlagroundComposer(sourceRoots) {
       return existing;
     }
     const body = item.querySelector(
-      ".cnot-body, .ent-pipe, [data-part='body']",
+      ".cnot-body, [data-part='body']",
     );
     const funnelTop = item.querySelector(
       ".cnot-input-funnel-top, [data-part='funnel-top']",
@@ -7317,24 +10002,17 @@ function setupPlagroundComposer(sourceRoots) {
     if (!topState || !bottomState) {
       return;
     }
-    const topSign = topState.vector[1] < 0 ? -1 : 1;
-    const bottomSign = bottomState.vector[1] < 0 ? -1 : 1;
-    const marginals = cnotMarginalProbabilitiesFromQubitVectors(
-      topState.vector,
-      bottomState.vector,
-    );
-
-    topState.vector = canonicalizeRealAmplitudeVector([
-      Math.sqrt(clamp(marginals.control[0], 0, 1)),
-      topSign * Math.sqrt(clamp(marginals.control[1], 0, 1)),
-    ]);
-    bottomState.vector = canonicalizeRealAmplitudeVector([
-      Math.sqrt(clamp(marginals.target[0], 0, 1)),
-      bottomSign * Math.sqrt(clamp(marginals.target[1], 0, 1)),
-    ]);
-
-    applyPlaygroundQubitVectorVisualState(topQubitItem);
-    applyPlaygroundQubitVectorVisualState(bottomQubitItem);
+    if (runtimeStatesSharePairState(topState, bottomState)) {
+      applyCNOTToPairWithControl(topState.pairState, topState.pairQubitIndex);
+      syncPlaygroundPairStateVisuals(topState.pairState);
+      return;
+    }
+    const pairState = createPlaygroundPairState(topQubitItem, bottomQubitItem);
+    if (!pairState) {
+      return;
+    }
+    applyCNOTToPair(pairState);
+    syncPlaygroundPairStateVisuals(pairState);
   };
 
   const runPlaygroundCnotCycle = async (runtime) => {
@@ -7375,17 +10053,15 @@ function setupPlagroundComposer(sourceRoots) {
           return false;
         }
 
-        const cnotOutcomeProbabilities =
-          cnotOutcomeProbabilitiesFromQubitVectors(
-            topState.vector,
-            bottomState.vector,
-          );
         const pairToken = `${Date.now()}-${Math.random()}`;
         applyPlaygroundCnotToQubitStates(topQubit, bottomQubit);
         topState.cnotSourceSlot = "top";
         bottomState.cnotSourceSlot = "bottom";
         topState.cnotPairToken = pairToken;
         bottomState.cnotPairToken = pairToken;
+        const cnotOutcomeProbabilities = pairOutcomeProbabilitiesFromState(
+          topState.pairState,
+        );
         topState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
         bottomState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
 
@@ -7621,6 +10297,14 @@ function setupPlagroundComposer(sourceRoots) {
     const qubitState = ensurePlaygroundQubitRuntimeState(qubitItem);
     if (!qubitState) {
       return "blue";
+    }
+    if (qubitState.pairState && Number.isFinite(qubitState.pairQubitIndex)) {
+      const color = sampleSingleQubitOutcomeFromPairState(
+        qubitState.pairState,
+        qubitState.pairQubitIndex,
+      );
+      collapsePlaygroundSingleQubitFromPair(qubitItem, color);
+      return color;
     }
     const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
     const collapseToBlue =
@@ -8069,25 +10753,39 @@ function setupPlagroundComposer(sourceRoots) {
       return null;
     }
 
-    let probabilities = null;
-    if (
-      topState.cnotPairToken &&
-      topState.cnotPairToken === bottomState.cnotPairToken &&
-      topState.cnotOutcomeProbabilities &&
-      bottomState.cnotOutcomeProbabilities
-    ) {
-      probabilities = topState.cnotOutcomeProbabilities;
-    } else {
-      probabilities = cnotOutcomeProbabilitiesFromQubitVectors(
-        topState.vector,
-        bottomState.vector,
+    let argumentOutcomeKey = "bb";
+    if (runtimeStatesSharePairState(topState, bottomState)) {
+      const stateOrderOutcome = samplePairOutcomeFromEntangledState(
+        topState.pairState,
       );
+      collapsePairStateToOutcome(topState.pairState, stateOrderOutcome);
+      argumentOutcomeKey = outcomeKeyForPairStatesInArgumentOrder(
+        stateOrderOutcome,
+        topState,
+        bottomState,
+      );
+    } else {
+      const productState = {
+        amplitudes: entangledAmplitudesFromQubitVectors(
+          topState.vector,
+          bottomState.vector,
+        ),
+      };
+      argumentOutcomeKey = samplePairOutcomeFromEntangledState(productState);
     }
-    const outcomeKey = samplePairOutcomeFromProbabilities(probabilities);
-    const topBlue = outcomeKey[0] === "b";
-    const bottomBlue = outcomeKey[1] === "b";
+    const topBlue = argumentOutcomeKey[0] === "b";
+    const bottomBlue = argumentOutcomeKey[1] === "b";
+    const outcomeKey = orderedOutcomeKeyForQubitItems(
+      argumentOutcomeKey,
+      topQubitItem,
+      bottomQubitItem,
+    );
     topState.vector = topBlue ? [1, 0] : [0, 1];
     bottomState.vector = bottomBlue ? [1, 0] : [0, 1];
+    topState.pairState = null;
+    bottomState.pairState = null;
+    topState.pairQubitIndex = null;
+    bottomState.pairQubitIndex = null;
     topState.cnotSourceSlot = null;
     bottomState.cnotSourceSlot = null;
     topState.cnotPairToken = null;
@@ -8174,11 +10872,6 @@ function setupPlagroundComposer(sourceRoots) {
           playgroundDoubleMeasurementSlotCenter(runtime, "right");
         const leftReturn = leftSource;
         const rightReturn = rightSource;
-
-        leftState.vector = [1, 0];
-        rightState.vector = [1, 0];
-        applyPlaygroundQubitVectorVisualState(leftQubit);
-        applyPlaygroundQubitVectorVisualState(rightQubit);
 
         await Promise.all([
           movePlaygroundQubitToPoint(
@@ -8332,7 +11025,11 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const findPlaygroundMeasurementPartFromEvent = (item, event) => {
-    if (!layoutEditorState.enabled || !isPlaygroundMeasurementItem(item)) {
+    if (
+      !layoutEditorState.enabled ||
+      (!isPlaygroundMeasurementItem(item) &&
+        !isPlaygroundEditableSavedGroupItem(item))
+    ) {
       return null;
     }
     const origin = event.target;
@@ -8413,10 +11110,7 @@ function setupPlagroundComposer(sourceRoots) {
         ? "resize"
         : "move";
     const initialTranslate = layoutTargetTranslate(part);
-    if (
-      part.classList.contains("cnot-body") ||
-      part.classList.contains("ent-pipe")
-    ) {
+    if (part.classList.contains("cnot-body")) {
       makeCnotBodyExplicitlySized(part);
     }
     const rect = part.getBoundingClientRect();
@@ -8464,14 +11158,24 @@ function setupPlagroundComposer(sourceRoots) {
     if (!point) {
       return;
     }
+    const origin = event.target;
+    if (!(origin instanceof Element)) {
+      return;
+    }
     if (
       layoutEditorState.enabled &&
       item.dataset.component === "double-measurement" &&
-      event.target === item &&
       !pointerIsOnResizeCorner(item, point)
     ) {
       const behindItem = layoutItemBehindPoint(playgroundCanvas, item, point);
-      if (behindItem) {
+      const isInteractiveMeasurementTarget = Boolean(
+        origin.closest("[data-playground-measurement-part], .layout-resize-handle"),
+      );
+      if (
+        behindItem &&
+        (!isInteractiveMeasurementTarget ||
+          behindItem.dataset.component === "qubit")
+      ) {
         beginItemDrag(behindItem, event);
         return;
       }
@@ -8518,7 +11222,9 @@ function setupPlagroundComposer(sourceRoots) {
       releasePlaygroundQubitFromDoubleMeasurementSlots(item);
     }
     bringToFront(item);
-    setSelectedItem(item);
+    setSelectedItem(item, null, {
+      additive: Boolean(event.shiftKey || event.metaKey || event.ctrlKey),
+    });
     const itemRect = item.getBoundingClientRect();
     dragState = {
       item,
@@ -8770,10 +11476,15 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const createItem = (type, geometry = null) => {
+    const pickerGroup = savedGroupComponentForType(type);
+    if (pickerGroup) {
+      type = PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE;
+      geometry = { ...(geometry || {}), groupComponentId: pickerGroup.id };
+    }
     const config =
-      PLAYGROUND_COMPONENT_LIBRARY[type] || PLAYGROUND_COMPONENT_LIBRARY.qubit;
+      componentConfigForType(type, geometry) || PLAYGROUND_COMPONENT_LIBRARY.qubit;
     const defaultsGeometry = defaultsGeometryForComponentType(type);
-    const componentNode = createPlaygroundComponentNode(type, sourceRoots);
+    const componentNode = createPlaygroundComponentNode(type, geometry || {});
     let item =
       componentNode instanceof HTMLElement
         ? componentNode
@@ -8794,6 +11505,18 @@ function setupPlagroundComposer(sourceRoots) {
       item.classList.add("playground-node");
     }
     item.dataset.component = type;
+    if (type === "qubit") {
+      ensureQubitLogicalId(item, geometry?.qubitId);
+    }
+    if (typeof geometry?.measurementGroupId === "string") {
+      item.dataset.measurementGroupId = geometry.measurementGroupId;
+    }
+    if (typeof geometry?.groupComponentId === "string") {
+      item.dataset.groupComponentId = geometry.groupComponentId;
+    }
+    if (typeof geometry?.measurementRole === "string") {
+      item.dataset.measurementRole = geometry.measurementRole;
+    }
     const minSize = minSizeForItem(item);
     const width = Number.isFinite(geometry?.width)
       ? geometry.width
@@ -8823,7 +11546,7 @@ function setupPlagroundComposer(sourceRoots) {
       applyPlaygroundMeasurementLayoutSnapshot(
         item,
         playgroundComponentDefaultsCache?.[type],
-        { includeGroupGeometry: !geometry },
+        { includeGroupGeometry: false },
       );
       if (geometry?.measurementLayout) {
         applyPlaygroundMeasurementLayoutSnapshot(
@@ -8847,7 +11570,6 @@ function setupPlagroundComposer(sourceRoots) {
 
     item.addEventListener("mousedown", () => {
       bringToFront(item);
-      setSelectedItem(item);
     });
     item.addEventListener(
       "touchstart",
@@ -8893,35 +11615,62 @@ function setupPlagroundComposer(sourceRoots) {
     preparePlaygroundMeasurementParts(item);
   };
 
+  const serializePlaygroundItem = (item) => {
+    const serialized = {
+      type: item.dataset.component || "qubit",
+      left: parseLayoutNumeric(item.style.left, 0),
+      top: parseLayoutNumeric(item.style.top, 0),
+      width: item.offsetWidth,
+      height: item.offsetHeight,
+      z: parseLayoutNumeric(item.style.zIndex, 1),
+    };
+    const measurementLayout = capturePlaygroundMeasurementLayoutSnapshot(item);
+    if (measurementLayout) {
+      serialized.measurementLayout = measurementLayout;
+    }
+    const savedGroupLayout = captureSavedGroupChildLayoutSnapshot(item);
+    if (savedGroupLayout) {
+      serialized.items = savedGroupLayout.items;
+      serialized.itemsWidth = savedGroupLayout.itemsWidth;
+      serialized.itemsHeight = savedGroupLayout.itemsHeight;
+    }
+    if (isPlaygroundCnotItem(item)) {
+      preparePlaygroundCnotParts(item);
+      const cnotLayout = captureCnotComponentDefaultsFromElement(item);
+      if (cnotLayout) {
+        serialized.cnotLayout = cnotLayout;
+      }
+    }
+    const singleGateRuntime = playgroundSingleGateRuntime.get(item);
+    if (singleGateRuntime?.dial) {
+      serialized.singleGateTick = singleGateRuntime.dial.getTick();
+    }
+    if (item.dataset.component === "qubit") {
+      const qubitId = ensureQubitLogicalId(item);
+      if (qubitId) {
+        serialized.qubitId = qubitId;
+      }
+    }
+    if (item.dataset.component === "text-box") {
+      Object.assign(serialized, captureTextBoxSnapshot(item));
+    }
+    if (item.dataset.measurementGroupId) {
+      serialized.measurementGroupId = item.dataset.measurementGroupId;
+    }
+    if (item.dataset.groupComponentId) {
+      serialized.groupComponentId = item.dataset.groupComponentId;
+    }
+    if (item.dataset.measurementRole) {
+      serialized.measurementRole = item.dataset.measurementRole;
+    }
+    return serialized;
+  };
+
   const serializeItems = () =>
-    Array.from(playgroundCanvas.querySelectorAll(".playground-node")).map(
-      (item) => {
-        const serialized = {
-          type: item.dataset.component || "qubit",
-          left: parseLayoutNumeric(item.style.left, 0),
-          top: parseLayoutNumeric(item.style.top, 0),
-          width: item.offsetWidth,
-          height: item.offsetHeight,
-          z: parseLayoutNumeric(item.style.zIndex, 1),
-        };
-        const measurementLayout =
-          capturePlaygroundMeasurementLayoutSnapshot(item);
-        if (measurementLayout) {
-          serialized.measurementLayout = measurementLayout;
-        }
-        if (isPlaygroundCnotItem(item)) {
-          preparePlaygroundCnotParts(item);
-          const cnotLayout = captureCnotComponentDefaultsFromElement(item);
-          if (cnotLayout) {
-            serialized.cnotLayout = cnotLayout;
-          }
-        }
-        const singleGateRuntime = playgroundSingleGateRuntime.get(item);
-        if (singleGateRuntime?.dial) {
-          serialized.singleGateTick = singleGateRuntime.dial.getTick();
-        }
-        return serialized;
-      },
+    normalizeSavedGroupLayoutItems(
+      Array.from(
+        playgroundCanvas.querySelectorAll(":scope > .playground-node"),
+      ).map((item) => serializePlaygroundItem(item)),
     );
 
   const buildLayoutPayload = () => ({
@@ -8937,27 +11686,68 @@ function setupPlagroundComposer(sourceRoots) {
       .trim()
       .replace(/\s+/g, " ");
 
-  const selectedProductionTargetId = () =>
+  let currentEditorTabId = null;
+  let currentEditorTabLabel = "";
+
+  const selectedOpenTargetId = () =>
     editorTargetTabSelect instanceof HTMLSelectElement &&
     editorTargetTabSelect.value
       ? editorTargetTabSelect.value
-      : "__new__";
+      : "__none__";
 
   const targetById = (targetId) =>
     collectPlaygroundSaveTargets().find((target) => target.id === targetId) ||
     null;
 
+  const currentEditorTarget = () =>
+    currentEditorTabId ? targetById(currentEditorTabId) : null;
+
+  const syncEditorDocumentChrome = () => {
+    const target = currentEditorTarget();
+    if (currentEditorTabId && !target) {
+      currentEditorTabId = null;
+      currentEditorTabLabel = "";
+    }
+    const label = target?.label || currentEditorTabLabel || "Untitled";
+    if (editorDocumentStatus instanceof HTMLElement) {
+      editorDocumentStatus.textContent = `Editing: ${label}`;
+    }
+    if (playgroundSaveButton instanceof HTMLButtonElement) {
+      playgroundSaveButton.textContent = "Save";
+    }
+    if (editorRenameTabButton) {
+      editorRenameTabButton.disabled = !currentEditorTabId;
+    }
+    if (editorDeleteTabButton) {
+      editorDeleteTabButton.disabled = !currentEditorTabId;
+    }
+  };
+
+  const setCurrentEditorDocument = (targetId, label = "", { syncName = true } = {}) => {
+    currentEditorTabId = targetId || null;
+    currentEditorTabLabel = currentEditorTabId ? label : "";
+    if (syncName && editorNewTabName instanceof HTMLInputElement) {
+      editorNewTabName.value = currentEditorTabLabel;
+    }
+    syncEditorDocumentChrome();
+  };
+
   const refreshEditorTabControls = (preferredTarget = null) => {
     if (!(editorTargetTabSelect instanceof HTMLSelectElement)) {
+      syncEditorDocumentChrome();
       return;
     }
-    const prior = preferredTarget || selectedProductionTargetId();
+    const prior = preferredTarget || selectedOpenTargetId();
     const targets = collectPlaygroundSaveTargets();
+    if (currentEditorTabId && !targets.some((target) => target.id === currentEditorTabId)) {
+      currentEditorTabId = null;
+      currentEditorTabLabel = "";
+    }
     editorTargetTabSelect.replaceChildren();
-    const newOption = document.createElement("option");
-    newOption.value = "__new__";
-    newOption.textContent = "New tab (blank)";
-    editorTargetTabSelect.appendChild(newOption);
+    const placeholderOption = document.createElement("option");
+    placeholderOption.value = "__none__";
+    placeholderOption.textContent = "Choose tab...";
+    editorTargetTabSelect.appendChild(placeholderOption);
     targets.forEach((target) => {
       const option = document.createElement("option");
       option.value = target.id;
@@ -8965,28 +11755,23 @@ function setupPlagroundComposer(sourceRoots) {
       editorTargetTabSelect.appendChild(option);
     });
     const validValues = new Set([
-      "__new__",
+      "__none__",
       ...targets.map((target) => target.id),
     ]);
-    const nextValue = validValues.has(prior) ? prior : "__new__";
+    const nextValue = validValues.has(prior)
+      ? prior
+      : currentEditorTabId && validValues.has(currentEditorTabId)
+        ? currentEditorTabId
+        : "__none__";
     editorTargetTabSelect.value = nextValue;
-    const isNew = nextValue === "__new__";
-    const selectedTarget = targetById(nextValue);
     if (editorNewTabName instanceof HTMLInputElement) {
-      editorNewTabName.hidden = !isNew;
-      editorNewTabName.required = isNew;
+      editorNewTabName.hidden = false;
+      editorNewTabName.required = !currentEditorTabId;
     }
     if (editorOpenTabButton) {
-      editorOpenTabButton.disabled = isNew;
+      editorOpenTabButton.disabled = !targetById(nextValue);
     }
-    if (editorRenameTabButton) {
-      editorRenameTabButton.disabled =
-        !selectedTarget || !selectedTarget.generated;
-    }
-    if (editorDeleteTabButton) {
-      editorDeleteTabButton.disabled =
-        !selectedTarget || !selectedTarget.generated;
-    }
+    syncEditorDocumentChrome();
   };
 
   const applyLayoutPayloadToEditor = (payload, { statusText = "" } = {}) => {
@@ -8998,7 +11783,7 @@ function setupPlagroundComposer(sourceRoots) {
       playgroundSnapToggle.checked = payload.gridSnap;
     }
     clearLayout();
-    payload.items.forEach((geometry) => {
+    normalizeSavedGroupLayoutItems(payload.items).forEach((geometry) => {
       const type = typeof geometry.type === "string" ? geometry.type : "qubit";
       const item = createItem(type, geometry);
       appendItemToCanvas(item);
@@ -9011,7 +11796,6 @@ function setupPlagroundComposer(sourceRoots) {
 
   const saveLayout = async ({ forceNew = false } = {}) => {
     persistVisiblePlaygroundComponentDefaultsFromDom();
-    persistPrimaryTwoQubitMeasurementDefaultsFromDom();
     const payload = buildLayoutPayload();
     const layout = cloneJson(payload);
     if (!layout) {
@@ -9019,12 +11803,8 @@ function setupPlagroundComposer(sourceRoots) {
       return false;
     }
 
-    const targetId = forceNew ? "__new__" : selectedProductionTargetId();
-    const nextState = cloneJson(generatedTabsState) || {
-      overrides: {},
-      customTabs: [],
-    };
-    nextState.overrides = nextState.overrides || {};
+    const targetId = forceNew ? "__new__" : currentEditorTabId || "__new__";
+    const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
     nextState.customTabs = Array.isArray(nextState.customTabs)
       ? nextState.customTabs
       : [];
@@ -9033,9 +11813,6 @@ function setupPlagroundComposer(sourceRoots) {
     let savedTargetId = targetId;
     if (targetId === "__new__") {
       let label = normalizeTabLabelInput(editorNewTabName?.value);
-      if (forceNew && !label) {
-        label = normalizeTabLabelInput(window.prompt("Name for new tab", ""));
-      }
       if (!label) {
         setStatus("Name the new tab before saving");
         editorNewTabName?.focus();
@@ -9060,39 +11837,26 @@ function setupPlagroundComposer(sourceRoots) {
     } else {
       const target = targetById(targetId);
       if (!target) {
-        setStatus("Choose a production tab");
+        setStatus("Open a tab first");
         return false;
       }
       savedLabel = target.label;
-      if (target.generated) {
-        const customEntry = nextState.customTabs.find(
-          (entry) => entry.id === targetId,
-        );
-        if (!customEntry) {
-          setStatus("Save failed");
-          return false;
-        }
-        const previousExperiment = customEntry.experiment;
-        customEntry.layout = layout;
-        if (previousExperiment) {
-          customEntry.experiment = previousExperiment;
-        }
-      } else {
-        nextState.overrides[targetId] = {
-          label: target.label,
-          layout,
-          experiment:
-            nextState.overrides[targetId]?.experiment ||
-            generatedTabsState.overrides?.[targetId]?.experiment,
-        };
+      const customEntry = nextState.customTabs.find(
+        (entry) => entry.id === targetId,
+      );
+      if (!customEntry) {
+        setStatus("Save failed");
+        return false;
       }
+      customEntry.layout = layout;
     }
 
     if (!writeGeneratedTabsState(nextState)) {
       setStatus("Save failed");
       return false;
     }
-    applyGeneratedTabsState(nextState, sourceRoots);
+    applyGeneratedTabsState(nextState);
+    setCurrentEditorDocument(savedTargetId, savedLabel);
     refreshEditorTabControls(savedTargetId);
     try {
       window.localStorage.setItem(
@@ -9108,7 +11872,7 @@ function setupPlagroundComposer(sourceRoots) {
 
   const clearLayout = ({ clearStorage = false } = {}) => {
     playgroundCanvas
-      .querySelectorAll(".playground-node")
+      .querySelectorAll(":scope > .playground-node")
       .forEach((item) => item.remove());
     playgroundSingleGateRuntime.clear();
     playgroundSingleMeasurementRuntime.clear();
@@ -9125,54 +11889,55 @@ function setupPlagroundComposer(sourceRoots) {
     }
   };
 
-  const openSelectedProductionTab = () => {
-    const targetId = selectedProductionTargetId();
-    if (targetId === "__new__") {
-      clearLayout();
-      setStatus("Blank tab ready");
-      return true;
-    }
+  const openSelectedEditorTab = () => {
+    const targetId = selectedOpenTargetId();
     const target = targetById(targetId);
     if (!target) {
-      setStatus("Choose a production tab");
+      setStatus("Choose a tab to open");
       return false;
     }
     let layout = null;
-    if (target.generated) {
-      const customEntry = (generatedTabsState.customTabs || []).find(
-        (entry) => entry.id === targetId,
-      );
-      layout = customEntry?.layout || null;
-    } else {
-      layout = generatedTabsState.overrides?.[targetId]?.layout || null;
-    }
+    const customEntry = (generatedTabsState.customTabs || []).find(
+      (entry) => entry.id === targetId,
+    );
+    layout = customEntry?.layout || null;
     if (!layout) {
       setStatus("No saved editor layout for this tab yet");
       return false;
     }
-    return applyLayoutPayloadToEditor(layout, {
+    const applied = applyLayoutPayloadToEditor(layout, {
       statusText: `Opened ${target.label}`,
     });
+    if (applied) {
+      setCurrentEditorDocument(target.id, target.label);
+      refreshEditorTabControls(target.id);
+    }
+    return applied;
   };
 
   const startNewBlankTabDraft = () => {
-    clearLayout();
-    refreshEditorTabControls("__new__");
+    clearLayout({ clearStorage: true });
+    setCurrentEditorDocument(null, "");
+    refreshEditorTabControls("__none__");
     editorNewTabName?.focus();
-    setStatus("Blank tab ready");
+    setStatus("New blank tab ready");
   };
 
-  const renameSelectedProductionTab = () => {
-    const targetId = selectedProductionTargetId();
+  const renameSelectedEditorTab = () => {
+    const targetId = currentEditorTabId;
     const target = targetById(targetId);
-    if (!target || !target.generated) {
-      setStatus("Only custom tabs can be renamed");
+    if (!target) {
+      setStatus("Open a tab first");
       return false;
     }
     const nextLabel = normalizeTabLabelInput(
-      window.prompt("Rename tab", target.label),
+      editorNewTabName instanceof HTMLInputElement
+        ? editorNewTabName.value
+        : target.label,
     );
     if (!nextLabel) {
+      setStatus("Enter a tab name");
+      editorNewTabName?.focus();
       return false;
     }
     const normalizedNext = normalizeTabLabel(nextLabel);
@@ -9183,13 +11948,11 @@ function setupPlagroundComposer(sourceRoots) {
     );
     if (duplicate) {
       setStatus("A tab with that name already exists");
+      editorNewTabName?.focus();
+      editorNewTabName?.select();
       return false;
     }
-    const nextState = cloneJson(generatedTabsState) || {
-      overrides: {},
-      customTabs: [],
-    };
-    nextState.overrides = nextState.overrides || {};
+    const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
     nextState.customTabs = Array.isArray(nextState.customTabs)
       ? nextState.customTabs
       : [];
@@ -9205,17 +11968,18 @@ function setupPlagroundComposer(sourceRoots) {
       setStatus("Rename failed");
       return false;
     }
-    applyGeneratedTabsState(nextState, sourceRoots);
+    applyGeneratedTabsState(nextState);
+    setCurrentEditorDocument(targetId, nextLabel);
     refreshEditorTabControls(targetId);
     setStatus(`Renamed to ${nextLabel}`);
     return true;
   };
 
-  const deleteSelectedProductionTab = () => {
-    const targetId = selectedProductionTargetId();
+  const deleteSelectedEditorTab = () => {
+    const targetId = currentEditorTabId;
     const target = targetById(targetId);
-    if (!target || !target.generated) {
-      setStatus("Only custom tabs can be deleted");
+    if (!target) {
+      setStatus("Open a tab first");
       return false;
     }
     const confirmed = window.confirm(
@@ -9224,11 +11988,7 @@ function setupPlagroundComposer(sourceRoots) {
     if (!confirmed) {
       return false;
     }
-    const nextState = cloneJson(generatedTabsState) || {
-      overrides: {},
-      customTabs: [],
-    };
-    nextState.overrides = nextState.overrides || {};
+    const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
     nextState.customTabs = Array.isArray(nextState.customTabs)
       ? nextState.customTabs
       : [];
@@ -9246,8 +12006,10 @@ function setupPlagroundComposer(sourceRoots) {
     ) {
       setActiveTab("plaground");
     }
-    applyGeneratedTabsState(nextState, sourceRoots);
-    refreshEditorTabControls("__new__");
+    applyGeneratedTabsState(nextState);
+    clearLayout({ clearStorage: true });
+    setCurrentEditorDocument(null, "");
+    refreshEditorTabControls("__none__");
     setStatus(`Deleted ${target.label}`);
     return true;
   };
@@ -9265,11 +12027,27 @@ function setupPlagroundComposer(sourceRoots) {
       width: sourceItem.offsetWidth,
       height: sourceItem.offsetHeight,
     };
+    if (sourceItem.dataset.measurementGroupId) {
+      geometry.measurementGroupId = `${sourceItem.dataset.measurementGroupId}-copy-${Date.now().toString(36)}`;
+    }
+    if (sourceItem.dataset.groupComponentId) {
+      geometry.groupComponentId = sourceItem.dataset.groupComponentId;
+    }
+    if (sourceItem.dataset.measurementRole) {
+      geometry.measurementRole = sourceItem.dataset.measurementRole;
+    }
     const measurementLayout =
       capturePlaygroundMeasurementLayoutSnapshot(sourceItem);
     if (measurementLayout) {
       geometry.measurementLayout = measurementLayout;
     }
+    const savedGroupLayout = captureSavedGroupChildLayoutSnapshot(sourceItem);
+    if (savedGroupLayout) {
+      geometry.items = savedGroupLayout.items;
+      geometry.itemsWidth = savedGroupLayout.itemsWidth;
+      geometry.itemsHeight = savedGroupLayout.itemsHeight;
+    }
+    stripQubitIdsFromLayoutGeometry(geometry);
     if (isPlaygroundCnotItem(sourceItem)) {
       preparePlaygroundCnotParts(sourceItem);
       const cnotLayout = captureCnotComponentDefaultsFromElement(sourceItem);
@@ -9285,21 +12063,23 @@ function setupPlagroundComposer(sourceRoots) {
   };
 
   const deleteSelected = () => {
-    const doomed = selectedComponentItem();
-    if (!(doomed instanceof HTMLElement)) {
+    const doomedItems = selectedComponentItems();
+    if (doomedItems.length === 0) {
       return false;
     }
-    if (isPlaygroundQubitItem(doomed)) {
-      releasePlaygroundQubitFromCnotSlots(doomed);
-      releasePlaygroundQubitFromDoubleMeasurementSlots(doomed);
-    }
-    playgroundSingleGateRuntime.delete(doomed);
-    playgroundSingleMeasurementRuntime.delete(doomed);
-    playgroundDoubleMeasurementRuntime.delete(doomed);
-    playgroundCnotRuntime.delete(doomed);
-    playgroundQubitRuntime.delete(doomed);
+    doomedItems.forEach((doomed) => {
+      if (isPlaygroundQubitItem(doomed)) {
+        releasePlaygroundQubitFromCnotSlots(doomed);
+        releasePlaygroundQubitFromDoubleMeasurementSlots(doomed);
+      }
+      playgroundSingleGateRuntime.delete(doomed);
+      playgroundSingleMeasurementRuntime.delete(doomed);
+      playgroundDoubleMeasurementRuntime.delete(doomed);
+      playgroundCnotRuntime.delete(doomed);
+      playgroundQubitRuntime.delete(doomed);
+      doomed.remove();
+    });
     setSelectedItem(null);
-    doomed.remove();
     prunePlaygroundRuntimeState();
     setStatus("Deleted");
     return true;
@@ -9353,6 +12133,17 @@ function setupPlagroundComposer(sourceRoots) {
       setStatus("Measurement component saved");
       return true;
     }
+    if (
+      selectedType === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE &&
+      isSeparatedPairMeasurementGroupElement(componentItem)
+    ) {
+      if (!persistSavedGroupComponentDefinitionFromElement(componentItem)) {
+        setStatus("Group component save failed");
+        return false;
+      }
+      setStatus("Sequential measurement component saved");
+      return true;
+    }
     if (selectedType === "single-gate") {
       setStatus("Single gate component saved");
       return true;
@@ -9365,9 +12156,157 @@ function setupPlagroundComposer(sourceRoots) {
     return true;
   };
 
+  const saveSelectedGroupComponent = () => {
+    const items = selectedComponentItems();
+    if (items.length < 2) {
+      setStatus("Select two or more components");
+      return false;
+    }
+    const label = normalizeTabLabelInput(
+      window.prompt("Save group as", "Measurement Group"),
+    );
+    if (!label) {
+      setStatus("Group save canceled");
+      return false;
+    }
+    const bounds = items.reduce(
+      (acc, item) => {
+        const left = parseLayoutNumeric(item.style.left, 0);
+        const top = parseLayoutNumeric(item.style.top, 0);
+        return {
+          left: Math.min(acc.left, left),
+          top: Math.min(acc.top, top),
+          right: Math.max(acc.right, left + item.offsetWidth),
+          bottom: Math.max(acc.bottom, top + item.offsetHeight),
+        };
+      },
+      {
+        left: Number.POSITIVE_INFINITY,
+        top: Number.POSITIVE_INFINITY,
+        right: Number.NEGATIVE_INFINITY,
+        bottom: Number.NEGATIVE_INFINITY,
+      },
+    );
+    if (
+      ![bounds.left, bounds.top, bounds.right, bounds.bottom].every(
+        Number.isFinite,
+      )
+    ) {
+      setStatus("Group bounds invalid");
+      return false;
+    }
+    const id = generatedTabSlug(label) || `group-${Date.now().toString(36)}`;
+    const existing = readPlaygroundGroupComponentsPayload();
+    const filteredGroups = existing.groups.filter((group) => group.id !== id);
+    const groupWidth = Math.max(1, bounds.right - bounds.left);
+    const groupHeight = Math.max(1, bounds.bottom - bounds.top);
+    const groupItems = items
+      .map((item, index) => {
+        const geometry = serializePlaygroundItem(item);
+        geometry.left -= bounds.left;
+        geometry.top -= bounds.top;
+        geometry.z = index + 1;
+        geometry.measurementGroupId = "";
+        geometry.groupComponentId =
+          geometry.type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE
+            ? geometry.groupComponentId || ""
+            : id;
+        geometry.measurementRole =
+          geometry.measurementRole || measurementPieceRoleForType(geometry.type);
+        delete geometry.id;
+        stripQubitIdsFromLayoutGeometry(geometry);
+        return geometry;
+      })
+      .sort((a, b) => (a.z || 0) - (b.z || 0));
+    const savedGroup = {
+      id,
+      label,
+      width: groupWidth,
+      height: groupHeight,
+      items: groupItems,
+      savedAt: Date.now(),
+    };
+    const payload = {
+      groups: [...filteredGroups, savedGroup],
+    };
+    if (!writePlaygroundGroupComponentsPayload(payload)) {
+      setStatus("Group save failed");
+      return false;
+    }
+    refreshAllComponentPickers();
+    items.forEach((item) => {
+      playgroundSingleGateRuntime.delete(item);
+      playgroundSingleMeasurementRuntime.delete(item);
+      playgroundDoubleMeasurementRuntime.delete(item);
+      playgroundCnotRuntime.delete(item);
+      playgroundQubitRuntime.delete(item);
+      item.remove();
+    });
+    prunePlaygroundRuntimeState();
+    const replacement = createItem(PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE, {
+      left: bounds.left,
+      top: bounds.top,
+      width: groupWidth,
+      height: groupHeight,
+      z: Math.max(
+        ...items.map((item) => parseLayoutNumeric(item.style.zIndex, 1)),
+        1,
+      ),
+      measurementGroupId: `${id}-${Date.now().toString(36)}`,
+      groupComponentId: id,
+    });
+    appendItemToCanvas(replacement);
+    bringToFront(replacement);
+    setSelectedItem(replacement);
+    setStatus(`Saved group ${label}`);
+    return true;
+  };
+
+  const addGroupComponentAtPoint = (group, clientX, clientY) => {
+    if (!group || !Array.isArray(group.items) || group.items.length === 0) {
+      return null;
+    }
+    const canvasRect = playgroundCanvas.getBoundingClientRect();
+    const origin = {
+      left: clientX - canvasRect.left + playgroundCanvas.scrollLeft,
+      top: clientY - canvasRect.top + playgroundCanvas.scrollTop,
+    };
+    const instanceId = `${group.id || "group"}-${Date.now().toString(36)}`;
+    const geometry = {
+      type: PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+      left: origin.left,
+      top: origin.top,
+      width: Number.isFinite(group.width) ? group.width : 320,
+      height: Number.isFinite(group.height) ? group.height : 240,
+      measurementGroupId: instanceId,
+      groupComponentId: group.id || "",
+    };
+    const item = createItem(PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE, geometry);
+    appendItemToCanvas(item);
+    bringToFront(item);
+    selectedItems = new Set([item]);
+    selectedItem = item;
+    syncSelectionUiState();
+    updateActionButtons();
+    return selectedItem;
+  };
+
   playgroundCanvas.addEventListener("click", (event) => {
     const selectedType = playgroundComponentSelect.value;
     if (!selectedType) {
+      return;
+    }
+    const savedGroup = savedGroupComponentForType(selectedType);
+    if (savedGroup) {
+      const item = addGroupComponentAtPoint(
+        savedGroup,
+        event.clientX,
+        event.clientY,
+      );
+      playgroundComponentSelect.value = "";
+      if (item) {
+        setStatus("Group added");
+      }
       return;
     }
     const item = createItem(selectedType);
@@ -9408,6 +12347,11 @@ function setupPlagroundComposer(sourceRoots) {
       saveSelectedComponent();
     });
   }
+  if (playgroundSaveGroupButton) {
+    playgroundSaveGroupButton.addEventListener("click", () => {
+      saveSelectedGroupComponent();
+    });
+  }
   if (playgroundSaveButton) {
     playgroundSaveButton.addEventListener("click", () => {
       saveLayout().catch(() => {
@@ -9430,12 +12374,16 @@ function setupPlagroundComposer(sourceRoots) {
   }
   if (editorTargetTabSelect instanceof HTMLSelectElement) {
     editorTargetTabSelect.addEventListener("change", () => {
-      refreshEditorTabControls(editorTargetTabSelect.value);
+      if (targetById(editorTargetTabSelect.value)) {
+        openSelectedEditorTab();
+      } else {
+        refreshEditorTabControls(editorTargetTabSelect.value);
+      }
     });
   }
   if (editorOpenTabButton) {
     editorOpenTabButton.addEventListener("click", () => {
-      openSelectedProductionTab();
+      openSelectedEditorTab();
     });
   }
   if (editorNewTabButton) {
@@ -9445,12 +12393,12 @@ function setupPlagroundComposer(sourceRoots) {
   }
   if (editorRenameTabButton) {
     editorRenameTabButton.addEventListener("click", () => {
-      renameSelectedProductionTab();
+      renameSelectedEditorTab();
     });
   }
   if (editorDeleteTabButton) {
     editorDeleteTabButton.addEventListener("click", () => {
-      deleteSelectedProductionTab();
+      deleteSelectedEditorTab();
     });
   }
   if (playgroundSnapToggle) {
@@ -9522,7 +12470,8 @@ function setupPlagroundComposer(sourceRoots) {
   window.addEventListener("touchcancel", settleDraggedOrSelectedItem);
 
   updateActionButtons();
-  refreshEditorTabControls("__new__");
+  setCurrentEditorDocument(null, "");
+  refreshEditorTabControls("__none__");
 
   return {
     handleResize: () => {
@@ -9963,154 +12912,6 @@ function slotOffsetDatasetKeys(slot) {
   return { x: "layoutPairLensRightDx", y: "layoutPairLensRightDy" };
 }
 
-function setPairLensSlotOffsetOnShell(shell, slot, dx, dy) {
-  const keys = slotOffsetDatasetKeys(slot);
-  shell.dataset[keys.x] = `${Number.parseFloat(dx.toFixed(2))}`;
-  shell.dataset[keys.y] = `${Number.parseFloat(dy.toFixed(2))}`;
-}
-
-function clearPairLensSlotOffsetsOnShell(shell) {
-  delete shell.dataset.layoutPairLensLeftDx;
-  delete shell.dataset.layoutPairLensLeftDy;
-  delete shell.dataset.layoutPairLensRightDx;
-  delete shell.dataset.layoutPairLensRightDy;
-}
-
-function getPairLensSlotOffsetFromShell(shell, slot) {
-  const keys = slotOffsetDatasetKeys(slot);
-  return {
-    x: parseLayoutNumeric(
-      shell.dataset[keys.x],
-      TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
-    ),
-    y: parseLayoutNumeric(
-      shell.dataset[keys.y],
-      TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
-    ),
-  };
-}
-
-function setPairMeasurementManualAlignment(shell, enabled) {
-  shell.dataset.layoutPairMeasurementManualAlign = enabled ? "true" : "false";
-}
-
-function isPairMeasurementManualAlignment(shell) {
-  return shell.dataset.layoutPairMeasurementManualAlign === "true";
-}
-
-function collectLayoutPairShells() {
-  return Array.from(document.querySelectorAll(".pair-shell"));
-}
-
-function captureTwoQubitLensOffsetsFromDom() {
-  const allOffsets = {};
-  const pairShells = collectLayoutPairShells();
-  pairShells.forEach((shell) => {
-    const shellRect = shell.getBoundingClientRect();
-    if (!shellRect.width || !shellRect.height) {
-      return;
-    }
-
-    const shellOffsets = {};
-    const mappings = [
-      {
-        slot: "left",
-        qubitSelector: '[data-role="pair-qubit-a"]',
-        slotSelector: '[data-role="pair-slot-left"]',
-      },
-      {
-        slot: "right",
-        qubitSelector: '[data-role="pair-qubit-b"]',
-        slotSelector: '[data-role="pair-slot-right"]',
-      },
-    ];
-
-    mappings.forEach(({ slot, qubitSelector, slotSelector }) => {
-      const qubit = shell.querySelector(qubitSelector);
-      const slotElement = shell.querySelector(slotSelector);
-      if (!qubit || !slotElement) {
-        return;
-      }
-      if (qubit.dataset.lensSlot !== slot) {
-        return;
-      }
-
-      const qubitRect = qubit.getBoundingClientRect();
-      const slotRect = slotElement.getBoundingClientRect();
-      const qubitCenter = {
-        x: qubitRect.left - shellRect.left + qubitRect.width / 2,
-        y: qubitRect.top - shellRect.top + qubitRect.height / 2,
-      };
-      const slotCenter = {
-        x: slotRect.left - shellRect.left + slotRect.width / 2,
-        y: slotRect.top - shellRect.top + slotRect.height / 2,
-      };
-      const dx = qubitCenter.x - slotCenter.x;
-      const dy = qubitCenter.y - slotCenter.y;
-      shellOffsets[slot] = { x: dx, y: dy };
-      setPairLensSlotOffsetOnShell(shell, slot, dx, dy);
-    });
-
-    if (Object.keys(shellOffsets).length > 0) {
-      const shellKey = deriveLayoutKey(shell);
-      allOffsets[shellKey] = shellOffsets;
-    }
-  });
-
-  return allOffsets;
-}
-
-function applyTwoQubitLensOffsetsFromSavedPayload(offsetPayload) {
-  if (!offsetPayload || typeof offsetPayload !== "object") {
-    return;
-  }
-
-  const pairShells = collectLayoutPairShells();
-  pairShells.forEach((shell) => {
-    const shellKey = deriveLayoutKey(shell);
-    const shellOffsets = offsetPayload[shellKey];
-    if (!shellOffsets || typeof shellOffsets !== "object") {
-      return;
-    }
-
-    const leftOffset = shellOffsets.left;
-    const rightOffset = shellOffsets.right;
-    if (
-      leftOffset &&
-      Number.isFinite(leftOffset.x) &&
-      Number.isFinite(leftOffset.y)
-    ) {
-      setPairLensSlotOffsetOnShell(shell, "left", leftOffset.x, leftOffset.y);
-    }
-    if (
-      rightOffset &&
-      Number.isFinite(rightOffset.x) &&
-      Number.isFinite(rightOffset.y)
-    ) {
-      setPairLensSlotOffsetOnShell(
-        shell,
-        "right",
-        rightOffset.x,
-        rightOffset.y,
-      );
-    }
-  });
-}
-
-function getPrimaryTwoQubitMeasurementGroup() {
-  const pairShell = collectLayoutPairShells().find((shell) =>
-    shell.querySelector('[data-role="pair-qubit-a"]'),
-  );
-  if (!(pairShell instanceof HTMLElement)) {
-    return null;
-  }
-  const measurementGroup = pairShell.querySelector(".pair-measurement");
-  if (!(measurementGroup instanceof HTMLElement)) {
-    return null;
-  }
-  return { pairShell, measurementGroup };
-}
-
 function collectLayoutTargets() {
   return Array.from(
     document.querySelectorAll('[data-layout-edit-target="true"]'),
@@ -10125,10 +12926,7 @@ function isLayoutTargetProtectedFromDeletion(element) {
   if (!(element instanceof HTMLElement)) {
     return false;
   }
-  // Core simulator controls should never be removable from saved layout state.
-  return element.matches(
-    '[data-role="ent-pipe"], [data-role="ent-gate"], [data-role="ent-measurement-host"]',
-  );
+  return false;
 }
 
 function isLayoutTargetPinnedToDefaultGeometry(element) {
@@ -10290,22 +13088,13 @@ function shouldPersistGenericLayoutTarget(element) {
   if (element.closest(".generated-layout-canvas")) {
     return false;
   }
-  // Pair qubits are used for lens/ejection hotspot calibration. Their generic
-  // element position must not be persisted, otherwise startup placement drifts.
-  if (
-    element.matches('[data-role="pair-qubit-a"], [data-role="pair-qubit-b"]')
-  ) {
-    return false;
-  }
   return true;
 }
 
 function saveLayoutEdits() {
   const generatedLayoutsSaved = persistGeneratedLayoutEditsFromDom();
   persistVisibleGeneratedComponentDefaultsFromDom();
-  persistPrimaryTwoQubitMeasurementDefaultsFromDom();
   persistVisiblePlaygroundComponentDefaultsFromDom();
-  const existingPayload = readSavedLayoutPayload();
   const payload = {};
   collectLayoutTargets().forEach((element) => {
     if (isLayoutTargetDeleted(element)) {
@@ -10322,37 +13111,6 @@ function saveLayoutEdits() {
       height: element.style.height || "",
     };
   });
-  const pairLensOffsets = captureTwoQubitLensOffsetsFromDom();
-  if (Object.keys(pairLensOffsets).length > 0) {
-    payload.__pairLensOffsets = pairLensOffsets;
-  } else if (existingPayload && existingPayload.__pairLensOffsets) {
-    payload.__pairLensOffsets = existingPayload.__pairLensOffsets;
-  }
-  const pairManualAlignment = {};
-  collectLayoutPairShells().forEach((shell) => {
-    if (!isPairMeasurementManualAlignment(shell)) {
-      return;
-    }
-    pairManualAlignment[deriveLayoutKey(shell)] = true;
-  });
-  if (Object.keys(pairManualAlignment).length > 0) {
-    payload.__pairManualAlignment = pairManualAlignment;
-  } else if (existingPayload && existingPayload.__pairManualAlignment) {
-    payload.__pairManualAlignment = existingPayload.__pairManualAlignment;
-  }
-  const primaryPairMeasurement = getPrimaryTwoQubitMeasurementGroup();
-  if (primaryPairMeasurement) {
-    payload.__twoQubitMeasurementGroupOffset = {
-      tx: parseLayoutNumeric(
-        primaryPairMeasurement.measurementGroup.dataset.layoutTx,
-        0,
-      ),
-      ty: parseLayoutNumeric(
-        primaryPairMeasurement.measurementGroup.dataset.layoutTy,
-        0,
-      ),
-    };
-  }
   const deletedTargetKeys = [...selectedLayoutTargetKeySet()];
   if (deletedTargetKeys.length > 0) {
     payload.__deletedLayoutTargets = deletedTargetKeys;
@@ -10392,19 +13150,6 @@ function applySavedLayoutEdits() {
       : [],
   );
 
-  applyTwoQubitLensOffsetsFromSavedPayload(payload.__pairLensOffsets);
-  if (
-    payload.__pairManualAlignment &&
-    typeof payload.__pairManualAlignment === "object"
-  ) {
-    collectLayoutPairShells().forEach((shell) => {
-      const shellKey = deriveLayoutKey(shell);
-      setPairMeasurementManualAlignment(
-        shell,
-        Boolean(payload.__pairManualAlignment[shellKey]),
-      );
-    });
-  }
   collectLayoutTargets().forEach((element) => {
     setLayoutTargetDeleted(element, false);
     const key = deriveLayoutKey(element);
@@ -10440,26 +13185,6 @@ function applySavedLayoutEdits() {
   });
   clearSelectedLayoutTarget();
 
-  const primaryPairMeasurement = getPrimaryTwoQubitMeasurementGroup();
-  const savedGroupOffset = payload.__twoQubitMeasurementGroupOffset;
-  if (
-    primaryPairMeasurement &&
-    savedGroupOffset &&
-    Number.isFinite(savedGroupOffset.tx) &&
-    Number.isFinite(savedGroupOffset.ty)
-  ) {
-    setLayoutTargetTranslate(
-      primaryPairMeasurement.measurementGroup,
-      savedGroupOffset.tx,
-      savedGroupOffset.ty,
-    );
-    if (
-      Math.abs(savedGroupOffset.tx) > 0.01 ||
-      Math.abs(savedGroupOffset.ty) > 0.01
-    ) {
-      setPairMeasurementManualAlignment(primaryPairMeasurement.pairShell, true);
-    }
-  }
 }
 
 function resetLayoutEditsToDefault() {
@@ -10471,10 +13196,6 @@ function resetLayoutEditsToDefault() {
       element.style.height = "";
     }
     setLayoutManualEdited(element, false);
-  });
-  collectLayoutPairShells().forEach((shell) => {
-    clearPairLensSlotOffsetsOnShell(shell);
-    setPairMeasurementManualAlignment(shell, false);
   });
   try {
     window.localStorage.removeItem(LAYOUT_STORAGE_KEY);
@@ -10590,12 +13311,6 @@ function continueLayoutGesture(event) {
       gesture.startTy + dy,
     );
     setLayoutManualEdited(gesture.element, true);
-    if (gesture.element.classList.contains("pair-measurement")) {
-      const pairShell = gesture.element.closest(".pair-shell");
-      if (pairShell instanceof HTMLElement) {
-        setPairMeasurementManualAlignment(pairShell, true);
-      }
-    }
   }
 
   setLayoutSaveButtonSavedState(false);
@@ -10617,6 +13332,9 @@ function registerLayoutEditTarget(element, spec) {
     return;
   }
   if (element.classList.contains("playground-qubit-core")) {
+    return;
+  }
+  if (element.closest(".saved-component-group")) {
     return;
   }
   if (layoutEditorState.registeredTargets.has(element)) {
@@ -10682,7 +13400,6 @@ function setLayoutEditEnabled(enabled) {
         }
         bakeLayoutTranslateIntoBasePosition(element);
       });
-      captureTwoQubitLensOffsetsFromDom();
       refreshVisibleSimulators();
     }
   } else {
@@ -11113,6 +13830,15 @@ function normalizeEntangledAmplitudes(amplitudes) {
 }
 
 function applySingleQubitGateToPair(state, qubitIndex, U) {
+  if (
+    state?.linkRelation === "correlated" ||
+    state?.linkRelation === "anti-correlated"
+  ) {
+    const currentVector = displayVectorForPairMember(state, qubitIndex);
+    const nextVector = normalizeVector2(vectorTimesMatrix2(currentVector, U));
+    setLinkedPairStateFromMemberVector(state, qubitIndex, nextVector);
+    return;
+  }
   // state: {amplitudes: [a_bb,a_br,a_rb,a_rr]}
   const a = state.amplitudes || [0, 0, 0, 0];
   const out = [0, 0, 0, 0];
@@ -11134,12 +13860,81 @@ function applySingleQubitGateToPair(state, qubitIndex, U) {
     out[3] = U[1][0] * a[2] + U[1][1] * a[3];
   }
   state.amplitudes = normalizeEntangledAmplitudes(out);
+  state.displayMode = "conditional";
+}
+
+function inferPairLinkRelation(state, tolerance = 1e-9) {
+  const probabilities = pairOutcomeProbabilitiesFromState(state);
+  const correlated = probabilities.bb + probabilities.rr;
+  const antiCorrelated = probabilities.br + probabilities.rb;
+  if (correlated >= 1 - tolerance) {
+    return "correlated";
+  }
+  if (antiCorrelated >= 1 - tolerance) {
+    return "anti-correlated";
+  }
+  return null;
+}
+
+function syncPairLinkRelation(state) {
+  if (!state) {
+    return null;
+  }
+  const relation = inferPairLinkRelation(state);
+  if (relation) {
+    state.linkRelation = relation;
+    state.displayMode = "linked";
+  } else {
+    delete state.linkRelation;
+    state.displayMode = "conditional";
+  }
+  return relation;
+}
+
+function setLinkedPairStateFromMemberVector(state, qubitIndex, vector) {
+  const [blueAmplitude, redAmplitude] = normalizeVector2(vector);
+  if (state?.linkRelation === "correlated") {
+    state.amplitudes = normalizeEntangledAmplitudes([
+      blueAmplitude,
+      0,
+      0,
+      redAmplitude,
+    ]);
+  } else if (state?.linkRelation === "anti-correlated" && qubitIndex === 1) {
+    state.amplitudes = normalizeEntangledAmplitudes([
+      0,
+      redAmplitude,
+      blueAmplitude,
+      0,
+    ]);
+  } else if (state?.linkRelation === "anti-correlated") {
+    state.amplitudes = normalizeEntangledAmplitudes([
+      0,
+      blueAmplitude,
+      redAmplitude,
+      0,
+    ]);
+  } else {
+    return;
+  }
+  state.displayMode = "linked";
+}
+
+function applyCNOTToPairWithControl(state, controlIndex = 0) {
+  const a = state.amplitudes || [0, 0, 0, 0];
+  if (controlIndex === 1) {
+    // Bottom controls top: permute |01> and |11>.
+    state.amplitudes = [a[0], a[3], a[2], a[1]];
+    syncPairLinkRelation(state);
+    return;
+  }
+  // Top controls bottom: permute |10> and |11>.
+  state.amplitudes = [a[0], a[1], a[3], a[2]];
+  syncPairLinkRelation(state);
 }
 
 function applyCNOTToPair(state) {
-  const a = state.amplitudes || [0, 0, 0, 0];
-  // CNOT (control=top, target=bottom) permutes |10> and |11>
-  state.amplitudes = [a[0], a[1], a[3], a[2]];
+  applyCNOTToPairWithControl(state, 0);
 }
 
 function samplePairOutcomeFromEntangledState(state) {
@@ -11169,6 +13964,216 @@ function collapsePairStateToOutcome(state, outcomeKey) {
   const idx = { bb: 0, br: 1, rb: 2, rr: 3 }[outcomeKey] ?? 0;
   state.amplitudes = [0, 0, 0, 0];
   state.amplitudes[idx] = 1;
+}
+
+function pairOutcomeKeyFromColorBooleans(topBlue, bottomBlue) {
+  if (topBlue && bottomBlue) {
+    return "bb";
+  }
+  if (topBlue && !bottomBlue) {
+    return "br";
+  }
+  if (!topBlue && bottomBlue) {
+    return "rb";
+  }
+  return "rr";
+}
+
+function swapPairOutcomeKey(outcomeKey) {
+  if (typeof outcomeKey !== "string" || outcomeKey.length < 2) {
+    return outcomeKey;
+  }
+  return `${outcomeKey[1]}${outcomeKey[0]}`;
+}
+
+function orderedOutcomeKeyForQubitIds(outcomeKey, firstQubitId, secondQubitId) {
+  const firstId = normalizeQubitId(firstQubitId);
+  const secondId = normalizeQubitId(secondQubitId);
+  if (firstId && secondId && secondId < firstId) {
+    return swapPairOutcomeKey(outcomeKey);
+  }
+  return outcomeKey;
+}
+
+function orderedOutcomeKeyForQubitItems(outcomeKey, firstItem, secondItem) {
+  return orderedOutcomeKeyForQubitIds(
+    outcomeKey,
+    qubitLogicalIdForItem(firstItem),
+    qubitLogicalIdForItem(secondItem),
+  );
+}
+
+function outcomeKeyForPairStatesInArgumentOrder(
+  outcomeKey,
+  firstState,
+  secondState,
+) {
+  const firstIndex = firstState?.pairQubitIndex;
+  const secondIndex = secondState?.pairQubitIndex;
+  if (firstIndex === 0 && secondIndex === 1) {
+    return outcomeKey;
+  }
+  if (firstIndex === 1 && secondIndex === 0) {
+    return swapPairOutcomeKey(outcomeKey);
+  }
+  return outcomeKey;
+}
+
+function outcomeKeyForPairIdsInArgumentOrder(
+  outcomeKey,
+  sourceFirstId,
+  sourceSecondId,
+  targetFirstId,
+  targetSecondId,
+) {
+  if (sourceFirstId && sourceSecondId && targetFirstId && targetSecondId) {
+    if (sourceFirstId === targetFirstId && sourceSecondId === targetSecondId) {
+      return outcomeKey;
+    }
+    if (sourceFirstId === targetSecondId && sourceSecondId === targetFirstId) {
+      return swapPairOutcomeKey(outcomeKey);
+    }
+  }
+  return outcomeKey;
+}
+
+function orderedOutcomeKeyForPairMembers(
+  outcomeKey,
+  firstState,
+  secondState,
+  firstItem = null,
+  secondItem = null,
+) {
+  return orderedOutcomeKeyForQubitItems(
+    outcomeKeyForPairStatesInArgumentOrder(
+      outcomeKey,
+      firstState,
+      secondState,
+    ),
+    firstItem,
+    secondItem,
+  );
+}
+
+function runtimeStatesSharePairState(firstState, secondState) {
+  return Boolean(
+    firstState?.pairState &&
+      firstState.pairState === secondState?.pairState &&
+      Number.isFinite(firstState.pairQubitIndex) &&
+      Number.isFinite(secondState.pairQubitIndex) &&
+      firstState.pairQubitIndex !== secondState.pairQubitIndex,
+  );
+}
+
+function singleQubitVectorFromPairState(pairState, qubitIndex) {
+  const marginals = pairMarginalsFromEntangledState(pairState);
+  const marginal = qubitIndex === 0 ? marginals.top : marginals.bottom;
+  return canonicalizeRealAmplitudeVector([
+    Math.sqrt(clamp(marginal.blue, 0, 1)),
+    Math.sqrt(clamp(marginal.red, 0, 1)),
+  ]);
+}
+
+function nonzeroConditionalPairVector(vector) {
+  if (!Array.isArray(vector) || vector.length < 2) {
+    return null;
+  }
+  const magnitude = Math.hypot(vector[0], vector[1]);
+  if (!Number.isFinite(magnitude) || magnitude <= 1e-12) {
+    return null;
+  }
+  return canonicalizeRealAmplitudeVector(vector);
+}
+
+function displayVectorForPairMember(pairState, qubitIndex) {
+  if (pairState?.linkRelation === "correlated") {
+    return (
+      nonzeroConditionalPairVector([
+        pairState.amplitudes?.[0] || 0,
+        pairState.amplitudes?.[3] || 0,
+      ]) || singleQubitVectorFromPairState(pairState, qubitIndex)
+    );
+  }
+  if (pairState?.linkRelation === "anti-correlated") {
+    if (qubitIndex === 1) {
+      return (
+        nonzeroConditionalPairVector([
+          pairState.amplitudes?.[2] || 0,
+          pairState.amplitudes?.[1] || 0,
+        ]) || singleQubitVectorFromPairState(pairState, qubitIndex)
+      );
+    }
+    return (
+      nonzeroConditionalPairVector([
+        pairState.amplitudes?.[1] || 0,
+        pairState.amplitudes?.[2] || 0,
+      ]) || singleQubitVectorFromPairState(pairState, qubitIndex)
+    );
+  }
+  if (pairState?.displayMode !== "conditional") {
+    return singleQubitVectorFromPairState(pairState, qubitIndex);
+  }
+  const amplitudes = normalizeEntangledAmplitudes(pairState?.amplitudes || []);
+  if (qubitIndex === 0) {
+    return (
+      nonzeroConditionalPairVector([amplitudes[0], amplitudes[2]]) ||
+      nonzeroConditionalPairVector([amplitudes[1], amplitudes[3]]) ||
+      singleQubitVectorFromPairState(pairState, qubitIndex)
+    );
+  }
+  if (qubitIndex === 1) {
+    return (
+      nonzeroConditionalPairVector([amplitudes[0], amplitudes[1]]) ||
+      nonzeroConditionalPairVector([amplitudes[2], amplitudes[3]]) ||
+      singleQubitVectorFromPairState(pairState, qubitIndex)
+    );
+  }
+  return singleQubitVectorFromPairState(pairState, qubitIndex);
+}
+
+function conditionalVectorAfterPairMeasurement(
+  pairState,
+  measuredQubitIndex,
+  measuredColor,
+) {
+  const a = normalizeEntangledAmplitudes(pairState?.amplitudes || []);
+  const measuredBlue = measuredColor === "blue" || measuredColor === "b";
+  if (measuredQubitIndex === 0) {
+    return normalizeVector2(measuredBlue ? [a[0], a[1]] : [a[2], a[3]]);
+  }
+  return normalizeVector2(measuredBlue ? [a[0], a[2]] : [a[1], a[3]]);
+}
+
+function collapsePairStateBySingleQubitMeasurement(
+  pairState,
+  measuredQubitIndex,
+  measuredColor,
+) {
+  const measuredBlue = measuredColor === "blue" || measuredColor === "b";
+  const source = normalizeEntangledAmplitudes(pairState?.amplitudes || []);
+  const next = source.map((amplitude, index) => {
+    const topBlue = index < 2;
+    const bottomBlue = index === 0 || index === 2;
+    const matches =
+      measuredQubitIndex === 0
+        ? topBlue === measuredBlue
+        : bottomBlue === measuredBlue;
+    return matches ? amplitude : 0;
+  });
+  pairState.amplitudes = normalizeEntangledAmplitudes(next);
+}
+
+function sampleSingleQubitOutcomeFromPairState(pairState, qubitIndex) {
+  const marginals = pairMarginalsFromEntangledState(pairState);
+  const blueProbability =
+    qubitIndex === 0 ? marginals.top.blue : marginals.bottom.blue;
+  if (blueProbability >= 1) {
+    return "blue";
+  }
+  if (blueProbability <= 0) {
+    return "red";
+  }
+  return Math.random() < blueProbability ? "blue" : "red";
 }
 
 function pairOutcomeProbabilitiesFromState(state) {
@@ -11285,9 +14290,9 @@ function replayRecordedSingleQubitExperiment(
 function replayRecordedExperiment(
   iterations,
   {
-    actions = recordedExperimentActions,
-    initialAmplitudes = recordedExperimentInitialAmplitudes,
-    gateSettings = recordedExperimentGateSettings,
+    actions = [],
+    initialAmplitudes = [1, 0, 0, 0],
+    gateSettings = [],
   } = {},
 ) {
   const counts = { bb: 0, br: 0, rb: 0, rr: 0 };
@@ -11871,5736 +14876,11 @@ function registerQubitInspector(element, getState) {
   });
 }
 
-function setupSimulator(root) {
-  const ticksWrap = root.querySelector('[data-role="ticks"]');
-  const gateArrow = root.querySelector('[data-role="gate-arrow"]');
-  const windowWrap = root.querySelector('[data-role="window-wrap"]');
-  const gateFunnel = root.querySelector('[data-role="tube-funnel"]');
-  const gateWindow = root.querySelector('[data-role="window"]');
-  const gatePlatform = root.querySelector('[data-role="tube-platform"]');
-  const gateDropZone = root.querySelector('[data-role="tube-drop-zone"]');
-  const gateStage = root.querySelector('[data-role="gate-stage"]');
-  const machineShell = root.querySelector('[data-role="machine-shell"]');
-  const qubit = root.querySelector('[data-role="qubit"]');
-  const measurementStage = root.querySelector(".measurement-stage");
-  const measurementTool = root.querySelector('[data-role="measurement-tool"]');
-  const measureLens = root.querySelector('[data-role="measure-lens"]');
-  const boltToGate = root.querySelector('[data-role="bolt-gate"]');
-  const boltToLens = root.querySelector('[data-role="bolt-lens"]');
-  const tubeRack = root.querySelector('[data-role="tube-rack"]');
-  const tubeBlue = root.querySelector('[data-role="tube-blue"]');
-  const tubeRed = root.querySelector('[data-role="tube-red"]');
-  const tubeBlueCount = root.querySelector('[data-role="tube-blue-count"]');
-  const tubeRedCount = root.querySelector('[data-role="tube-red-count"]');
-  const tubeBlueLiquid = root.querySelector('[data-role="tube-blue-liquid"]');
-  const tubeRedLiquid = root.querySelector('[data-role="tube-red-liquid"]');
-  const tubeCapacity = root.querySelector('[data-role="tube-capacity"]');
-  const measurementCount = root.querySelector(
-    '[data-role="measurement-count"]',
-  );
-  const resetButton = root.querySelector('[data-role="reset"]');
-  const messageBox = root.querySelector('[data-role="message-box"]');
-  const messageWrap = root.querySelector(".message-wrap");
-
-  if (
-    !ticksWrap ||
-    !gateArrow ||
-    !windowWrap ||
-    !gateFunnel ||
-    !gateWindow ||
-    !gatePlatform ||
-    !gateDropZone ||
-    !gateStage ||
-    !machineShell ||
-    !qubit ||
-    !measurementStage ||
-    !measurementTool ||
-    !measureLens ||
-    !boltToGate ||
-    !boltToLens ||
-    !tubeRack ||
-    !tubeBlue ||
-    !tubeRed ||
-    !tubeBlueCount ||
-    !tubeRedCount ||
-    !tubeBlueLiquid ||
-    !tubeRedLiquid ||
-    !measurementCount ||
-    !resetButton
-  ) {
-    return null;
-  }
-
-  registerSelectionContainer(gateStage);
-
-  let activeGateTick = 0;
-  let qubitDragging = false;
-  let qubitDocked = false;
-  let qubitDragOffsetX = 0;
-  let qubitDragOffsetY = 0;
-  let qubitInitialized = false;
-  let measurementInProgress = false;
-  let autoRunInProgress = false;
-  let runToken = 0;
-  let qubitVector = [1, 0];
-  let qubitBlueWeight = 1;
-  let qubitRedWeight = 0;
-  let qubitHasEnteredGate = false;
-  let gateTransitInProgress = false;
-  let tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-  let blueTubeCount = 0;
-  let redTubeCount = 0;
-  let measurementStageShiftY = 0;
-  let lastRequestedMeasurementCount = Number(measurementCount.value) || 1;
-  let gateDial = null;
-  let recordedOneQubitActions = [];
-  let recordedOneQubitInitialVector = qubitVector.slice();
-  let recordedOneQubitGateSettings = [activeGateTick];
-  let recordedOneQubitExperimentComplete = false;
-
-  registerQubitInspector(qubit, () => ({
-    label: "One-Qubit Mode",
-    blue: qubitBlueWeight,
-    red: qubitRedWeight,
-    vector: [qubitVector[0], qubitVector[1]],
-  }));
-  registerGateInspector(windowWrap, () => ({
-    label: "One-Qubit Gate",
-    matrix: gateMatrixForTick(activeGateTick),
-    tickIndex: activeGateTick,
-  }));
-
-  function applySingleGateSignFromVector() {
-    const phaseSign = phaseSignForRealAmplitudeVector(qubitVector);
-    if (!phaseSign) {
-      delete qubit.dataset.phaseSign;
-      return;
-    }
-    qubit.dataset.phaseSign = phaseSign;
-  }
-
-  function updateStateText(blueWeight, redWeight) {
-    if (!messageBox) {
-      return;
-    }
-    messageBox.value = `${formatFraction(blueWeight)} blue, ${formatFraction(redWeight)} red`;
-  }
-
-  function syncWeightsFromVector() {
-    const [blueWeight, redWeight] = probabilitiesFromVector2(qubitVector);
-    qubitBlueWeight = blueWeight;
-    qubitRedWeight = redWeight;
-  }
-
-  function setQubitVector(vector) {
-    qubitVector = normalizeVector2(vector);
-    syncWeightsFromVector();
-  }
-
-  function setRecordedOneQubitGateSetting(tickIndex) {
-    const normalizedTick = normalizeTickIndex(tickIndex);
-    recordedOneQubitGateSettings[0] = normalizedTick;
-    recordedOneQubitActions.forEach((action) => {
-      if (action.type === "gate") {
-        action.tickIndex = normalizedTick;
-      }
-    });
-  }
-
-  function clearRecordedOneQubitExperiment() {
-    recordedOneQubitActions = [];
-    recordedOneQubitInitialVector = normalizeVector2(qubitVector);
-    recordedOneQubitGateSettings = [activeGateTick];
-    recordedOneQubitExperimentComplete = false;
-  }
-
-  function recordOneQubitExperimentAction(action, beforeVector = qubitVector) {
-    if (autoRunInProgress || !action?.type) {
-      return;
-    }
-    if (
-      recordedOneQubitActions.length === 0 ||
-      recordedOneQubitExperimentComplete
-    ) {
-      recordedOneQubitActions = [];
-      recordedOneQubitInitialVector = normalizeVector2(beforeVector);
-      recordedOneQubitExperimentComplete = false;
-    }
-
-    if (action.type === "gate") {
-      const tickIndex = recordedGateTickForAction(action, [
-        recordedOneQubitGateSettings[0],
-      ]);
-      recordedOneQubitActions.push({ ...action, gateIndex: 0, tickIndex });
-    } else {
-      recordedOneQubitActions.push({ ...action });
-    }
-
-    if (action.type === "measure") {
-      recordedOneQubitExperimentComplete = true;
-    }
-  }
-
-  function oneQubitPlaybackExperiment() {
-    if (recordedOneQubitActions.length > 0) {
-      return {
-        actions: cloneRecordedActions(recordedOneQubitActions),
-        initialVector: normalizeVector2(recordedOneQubitInitialVector),
-        gateSettings: recordedOneQubitGateSettings.slice(),
-      };
-    }
-    const tickIndex = normalizeTickIndex(activeGateTick);
-    return {
-      actions: [
-        { type: "gate", gateIndex: 0, tickIndex },
-        { type: "measure" },
-      ],
-      initialVector: [1, 0],
-      gateSettings: [tickIndex],
-    };
-  }
-
-  function gateOutputWeightsForCurrentTickFromBlueBasis(
-    gateTick = activeGateTick,
-  ) {
-    const transformed = vectorTimesMatrix2(
-      [1, 0],
-      gateMatrixForTick(gateTick),
-    );
-    return probabilitiesFromVector2(normalizeVector2(transformed));
-  }
-
-  function applyActiveGateToQubitVector(gateTick = activeGateTick) {
-    setQubitVector(
-      vectorTimesMatrix2(qubitVector, gateMatrixForTick(gateTick)),
-    );
-  }
-
-  function applyQubitColorForTick() {
-    if (!qubitHasEnteredGate) {
-      return;
-    }
-
-    syncWeightsFromVector();
-    const blueWeight = qubitBlueWeight;
-    const redWeight = qubitRedWeight;
-    qubit.style.setProperty(
-      "--qubit-fill",
-      blendBlueRed(blueWeight, redWeight),
-    );
-  }
-
-  function stagePointForElementCenter(element) {
-    const stageRect = gateStage.getBoundingClientRect();
-    const rect = element.getBoundingClientRect();
-
-    return {
-      x: rect.left - stageRect.left + rect.width / 2,
-      y: rect.top - stageRect.top + rect.height / 2,
-    };
-  }
-
-  function setQubitCenter(x, y) {
-    const stageRect = gateStage.getBoundingClientRect();
-    const movementRect = machineShell.getBoundingClientRect();
-    const qubitRect = qubit.getBoundingClientRect();
-    const radius = qubitRect.width / 2;
-
-    const minX = movementRect.left - stageRect.left + radius;
-    const maxX = movementRect.right - stageRect.left - radius;
-    const minY = movementRect.top - stageRect.top + radius;
-    const maxY = movementRect.bottom - stageRect.top - radius;
-
-    const clampedX = Math.min(Math.max(x, minX), maxX);
-    const clampedY = Math.min(Math.max(y, minY), maxY);
-
-    qubit.style.left = `${clampedX}px`;
-    qubit.style.top = `${clampedY}px`;
-  }
-
-  function clearMeasurementApparatus() {
-    tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-    blueTubeCount = 0;
-    redTubeCount = 0;
-    updateTubeCapacityText();
-    updateTubeFills();
-  }
-
-  function setGateTick(
-    tickIndex,
-    {
-      deferMeasurementClear = false,
-      fromDial = false,
-      allowDuringAuto = false,
-    } = {},
-  ) {
-    if (autoRunInProgress && !fromDial && !allowDuringAuto) {
-      return;
-    }
-
-    const normalizedTick = normalizeTickIndex(tickIndex);
-    const gateStateChanged = normalizedTick !== activeGateTick;
-    activeGateTick = normalizedTick;
-    if (!autoRunInProgress) {
-      setRecordedOneQubitGateSetting(normalizedTick);
-    }
-
-    if (!fromDial && gateDial) {
-      gateDial.setTick(normalizedTick, {
-        deferMeasurementClear,
-        reason: "programmatic",
-      });
-      return;
-    }
-
-    if (gateStateChanged && !deferMeasurementClear) {
-      clearMeasurementApparatus();
-    }
-
-    const [blueWeight, redWeight] =
-      gateOutputWeightsForCurrentTickFromBlueBasis();
-    updateStateText(blueWeight, redWeight);
-    applyQubitColorForTick();
-  }
-
-  gateDial = createSingleQubitGateDial({
-    ticksWrap,
-    arrow: gateArrow,
-    initialTick: activeGateTick,
-    tickAriaLabelPrefix: "Tick",
-    orbitInset: 10,
-    canInteract: () => !autoRunInProgress,
-    onTickChange: (tick, meta) => {
-      setGateTick(tick, {
-        deferMeasurementClear: meta.deferMeasurementClear,
-        fromDial: true,
-      });
-    },
-    onTickCommitted: ({ changed }) => {
-      if (changed) {
-        clearMeasurementApparatus();
-      }
-    },
-  });
-
-  function undockQubit() {
-    if (!qubitDocked) {
-      return;
-    }
-
-    qubitDocked = false;
-    qubit.classList.remove("docked");
-  }
-
-  function snapQubitToWindowCenter() {
-    const windowCenter = stagePointForElementCenter(gateWindow);
-    setQubitCenter(windowCenter.x, windowCenter.y);
-
-    qubitDocked = true;
-    qubit.classList.add("docked");
-  }
-
-  function circleIntersectionArea(r1, r2, distance) {
-    if (distance >= r1 + r2) {
-      return 0;
-    }
-
-    if (distance <= Math.abs(r1 - r2)) {
-      const minRadius = Math.min(r1, r2);
-      return Math.PI * minRadius * minRadius;
-    }
-
-    const a1 = r1 * r1;
-    const a2 = r2 * r2;
-
-    const alpha = Math.acos(
-      (distance * distance + a1 - a2) / (2 * distance * r1),
-    );
-    const beta = Math.acos(
-      (distance * distance + a2 - a1) / (2 * distance * r2),
-    );
-
-    const overlap =
-      a1 * alpha +
-      a2 * beta -
-      0.5 *
-        Math.sqrt(
-          (-distance + r1 + r2) *
-            (distance + r1 - r2) *
-            (distance - r1 + r2) *
-            (distance + r1 + r2),
-        );
-
-    return overlap;
-  }
-
-  function qubitOverlapRatioWithRect(element) {
-    const qubitRect = qubit.getBoundingClientRect();
-    const targetRect = element.getBoundingClientRect();
-
-    const overlapWidth = Math.max(
-      0,
-      Math.min(qubitRect.right, targetRect.right) -
-        Math.max(qubitRect.left, targetRect.left),
-    );
-    const overlapHeight = Math.max(
-      0,
-      Math.min(qubitRect.bottom, targetRect.bottom) -
-        Math.max(qubitRect.top, targetRect.top),
-    );
-
-    const overlapArea = overlapWidth * overlapHeight;
-    const qubitArea = qubitRect.width * qubitRect.height;
-    return qubitArea > 0 ? overlapArea / qubitArea : 0;
-  }
-
-  function getMeasurementLensOffsetFromToolCenter() {
-    const toolRect = measurementTool.getBoundingClientRect();
-    const lensRect = measureLens.getBoundingClientRect();
-    const toolCenterX = toolRect.left + toolRect.width / 2;
-    const toolCenterY = toolRect.top + toolRect.height / 2;
-    const lensCenterX = lensRect.left + lensRect.width / 2;
-    const lensCenterY = lensRect.top + lensRect.height / 2;
-    return {
-      x: lensCenterX - toolCenterX,
-      y: lensCenterY - toolCenterY,
-    };
-  }
-
-  function getMeasurementLensCircleInViewport() {
-    const toolRect = measurementTool.getBoundingClientRect();
-    const toolCenterX = toolRect.left + toolRect.width / 2;
-    const toolCenterY = toolRect.top + toolRect.height / 2;
-    const lensOffset = getMeasurementLensOffsetFromToolCenter();
-    const lensRect = measureLens.getBoundingClientRect();
-    const lensRadius = Math.min(lensRect.width, lensRect.height) / 2;
-    return {
-      x: toolCenterX + lensOffset.x,
-      y: toolCenterY + lensOffset.y,
-      radius: lensRadius,
-    };
-  }
-
-  function getMeasurementLensCenterInStageCoords() {
-    const lensCircle = getMeasurementLensCircleInViewport();
-    return getStageCoordsFromViewportPoint(lensCircle.x, lensCircle.y);
-  }
-
-  function getMeasurementLensCenterInMachineCoords() {
-    const shellRect = machineShell.getBoundingClientRect();
-    const lensCircle = getMeasurementLensCircleInViewport();
-    return {
-      x: lensCircle.x - shellRect.left,
-      y: lensCircle.y - shellRect.top,
-    };
-  }
-
-  function qubitOverlapRatioWithLens() {
-    const qubitRect = qubit.getBoundingClientRect();
-
-    const qRadius = qubitRect.width / 2;
-    const lensCircle = getMeasurementLensCircleInViewport();
-    const lRadius = lensCircle.radius;
-    if (qRadius <= 0 || lRadius <= 0) {
-      return 0;
-    }
-
-    const qCx = qubitRect.left + qRadius;
-    const qCy = qubitRect.top + qRadius;
-    const lCx = lensCircle.x;
-    const lCy = lensCircle.y;
-
-    const distance = Math.hypot(qCx - lCx, qCy - lCy);
-    const overlapArea = circleIntersectionArea(qRadius, lRadius, distance);
-    const qubitArea = Math.PI * qRadius * qRadius;
-
-    return overlapArea / qubitArea;
-  }
-
-  function maybeSnapQubit() {
-    if (
-      qubitOverlapRatioWithRect(gateFunnel) >= 0.45 &&
-      !gateTransitInProgress &&
-      !autoRunInProgress &&
-      !measurementInProgress
-    ) {
-      runGateTransit(runToken).catch(() => {});
-      return true;
-    }
-
-    return false;
-  }
-
-  function qubitOverlapsMeasurementTool() {
-    return qubitOverlapRatioWithLens() >= MEASUREMENT_OVERLAP_THRESHOLD;
-  }
-
-  async function runMeasurementIngressAndSequence(
-    expectedRunToken = runToken,
-    { meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    if (
-      expectedRunToken !== runToken ||
-      gateTransitInProgress ||
-      measurementInProgress
-    ) {
-      return false;
-    }
-
-    qubitDragging = false;
-    qubit.classList.remove("dragging");
-    undockQubit();
-
-    const lensCenter = getMeasurementLensCenterInStageCoords();
-    setQubitCenter(lensCenter.x, lensCenter.y);
-    settleQubitVisualState();
-
-    await startMeasurementSequence(expectedRunToken, {
-      meltDuration,
-      requireLensOverlap: false,
-      collapsePauseMs: 0,
-      ejectAfterMeasurement: false,
-    });
-    return true;
-  }
-
-  function maybeSnapQubitToMeasurementTool() {
-    if (
-      qubitOverlapsMeasurementTool() &&
-      !gateTransitInProgress &&
-      !autoRunInProgress &&
-      !measurementInProgress
-    ) {
-      runMeasurementIngressAndSequence(runToken).catch(() => {});
-      return true;
-    }
-    return false;
-  }
-
-  function preventManualPipeOverlap() {
-    if (gateTransitInProgress || autoRunInProgress || measurementInProgress) {
-      return false;
-    }
-
-    const stageRect = gateStage.getBoundingClientRect();
-    const pipeRect = gateWindow.getBoundingClientRect();
-    const qubitRect = qubit.getBoundingClientRect();
-    const center = stagePointForElementCenter(qubit);
-    const resolved = resolveCircleRectOverlap(
-      center.x,
-      center.y,
-      qubitRect.width / 2,
-      {
-        left: pipeRect.left - stageRect.left,
-        right: pipeRect.right - stageRect.left,
-        top: pipeRect.top - stageRect.top,
-        bottom: pipeRect.bottom - stageRect.top,
-      },
-      1,
-    );
-
-    if (!resolved.overlapped) {
-      return false;
-    }
-
-    setQubitCenter(resolved.x, resolved.y);
-    return true;
-  }
-
-  function getStageCoordsFromViewportPoint(x, y) {
-    const stageRect = gateStage.getBoundingClientRect();
-    return {
-      x: x - stageRect.left,
-      y: y - stageRect.top,
-    };
-  }
-
-  function moveQubitToStagePoint(x, y, duration = 620) {
-    return new Promise((resolve) => {
-      qubit.style.setProperty("--move-duration", `${duration}ms`);
-      qubit.classList.add("migrating");
-      setQubitCenter(x, y);
-      window.setTimeout(resolve, duration);
-    });
-  }
-
-  function createMeasurementPayload(color, startPoint) {
-    const payload = document.createElement("span");
-    payload.className = "qubit measurement-pellet measurement-square-pellet";
-    payload.setAttribute("aria-hidden", "true");
-    payload.style.left = `${startPoint.x}px`;
-    payload.style.top = `${startPoint.y}px`;
-    payload.style.pointerEvents = "none";
-    payload.style.setProperty(
-      "--qubit-fill",
-      color === "blue" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
-    );
-    gateStage.appendChild(payload);
-    return payload;
-  }
-
-  function movePayloadToStagePoint(payload, x, y, duration = AUTO_TRAVEL_MS) {
-    return new Promise((resolve) => {
-      payload.style.setProperty("--move-duration", `${duration}ms`);
-      payload.classList.add("migrating");
-      payload.style.left = `${x}px`;
-      payload.style.top = `${y}px`;
-      window.setTimeout(resolve, duration);
-    });
-  }
-
-  function wait(duration) {
-    return new Promise((resolve) => window.setTimeout(resolve, duration));
-  }
-
-  function setPlatformExtended(extended) {
-    windowWrap.classList.toggle("platform-extended", extended);
-  }
-
-  function setMeasurementPlatformExtended(extended) {
-    measurementTool.classList.toggle("platform-extended", extended);
-  }
-
-  async function runGateTransit(
-    expectedRunToken = runToken,
-    {
-      travelDuration = AUTO_TRAVEL_MS,
-      dwellDuration = GATE_TUBE_DWELL_MS,
-      retractPauseDuration = GATE_PLATFORM_RETRACT_MS,
-      gateTick = activeGateTick,
-    } = {},
-  ) {
-    if (gateTransitInProgress || expectedRunToken !== runToken) {
-      return false;
-    }
-
-    gateTransitInProgress = true;
-    qubitDragging = false;
-    qubit.classList.remove("dragging");
-    undockQubit();
-    setPlatformExtended(false);
-    windowWrap.classList.add("gate-busy");
-
-    try {
-      const tubeCenter = stagePointForElementCenter(gateWindow);
-      await moveQubitToStagePoint(tubeCenter.x, tubeCenter.y, travelDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      snapQubitToWindowCenter();
-      await wait(dwellDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      const appliedGateTick = normalizeTickIndex(gateTick);
-      recordOneQubitExperimentAction(
-        { type: "gate", gateIndex: 0, tickIndex: appliedGateTick },
-        qubitVector,
-      );
-      applyActiveGateToQubitVector(appliedGateTick);
-      qubitHasEnteredGate = true;
-      updateStateText(qubitBlueWeight, qubitRedWeight);
-      applyQubitColorForTick();
-      applySingleGateSignFromVector();
-
-      const retractedPlatformPoint = stagePointForElementCenter(gatePlatform);
-      setQubitCenter(retractedPlatformPoint.x, retractedPlatformPoint.y);
-      qubit.classList.remove("docked");
-      qubitDocked = false;
-
-      setPlatformExtended(true);
-      const stageRect = gateStage.getBoundingClientRect();
-      const pipeRect = gateWindow.getBoundingClientRect();
-      const qubitRect = qubit.getBoundingClientRect();
-      const ejectedCenter = {
-        x: pipeRect.right - stageRect.left + 100 + qubitRect.width / 2,
-        y: retractedPlatformPoint.y,
-      };
-      await moveQubitToStagePoint(
-        ejectedCenter.x,
-        ejectedCenter.y,
-        GATE_PLATFORM_EXTEND_MS,
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      settleQubitVisualState();
-      setPlatformExtended(false);
-      if (retractPauseDuration > 0) {
-        await wait(retractPauseDuration);
-        if (expectedRunToken !== runToken) {
-          return false;
-        }
-      }
-
-      return true;
-    } finally {
-      windowWrap.classList.remove("gate-busy");
-      setPlatformExtended(false);
-      gateTransitInProgress = false;
-    }
-  }
-
-  function nextFrame() {
-    return new Promise((resolve) =>
-      window.requestAnimationFrame(() => resolve()),
-    );
-  }
-
-  function mergeOneQubitTubeCounts(counts) {
-    blueTubeCount += counts.blue || 0;
-    redTubeCount += counts.red || 0;
-    maybeExpandTubeCapacity();
-    updateTubeFills();
-  }
-
-  async function replayOneQubitMeasurementAction(
-    expectedRunToken,
-    { travelDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    const lensCenter = getMeasurementLensCenterInStageCoords();
-    await moveQubitToStagePoint(lensCenter.x, lensCenter.y, travelDuration);
-    if (expectedRunToken !== runToken) {
-      return false;
-    }
-
-    await startMeasurementSequence(expectedRunToken, {
-      migrationDuration: travelDuration,
-      meltDuration,
-      collapsePauseMs: 0,
-      ejectAfterMeasurement: false,
-    });
-    return expectedRunToken === runToken;
-  }
-
-  async function replayRecordedOneQubitExperimentAnimated(
-    expectedRunToken,
-    experiment,
-    { travelDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    const actions = cloneRecordedActions(experiment.actions);
-    if (!actions.length) {
-      return false;
-    }
-
-    placeQubitToLeftOfWindow();
-    setQubitVector(experiment.initialVector || [1, 0]);
-    qubitHasEnteredGate = false;
-    updateStateText(qubitBlueWeight, qubitRedWeight);
-    qubit.style.setProperty(
-      "--qubit-fill",
-      blendBlueRed(qubitBlueWeight, qubitRedWeight),
-    );
-    delete qubit.dataset.phaseSign;
-
-    let sawMeasurement = false;
-    for (const action of actions) {
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      if (action.type === "gate") {
-        const tickIndex = recordedGateTickForAction(
-          action,
-          experiment.gateSettings,
-        );
-        setGateTick(tickIndex, {
-          deferMeasurementClear: true,
-          allowDuringAuto: true,
-        });
-        const completed = await runGateTransit(expectedRunToken, {
-          travelDuration,
-          dwellDuration: GATE_TUBE_DWELL_MS,
-          gateTick: tickIndex,
-        });
-        if (!completed) {
-          return false;
-        }
-      } else if (action.type === "measure") {
-        sawMeasurement = true;
-        const completed = await replayOneQubitMeasurementAction(
-          expectedRunToken,
-          {
-            travelDuration,
-            meltDuration,
-          },
-        );
-        if (!completed) {
-          return false;
-        }
-      }
-    }
-
-    if (!sawMeasurement) {
-      return replayOneQubitMeasurementAction(expectedRunToken, {
-        travelDuration,
-        meltDuration,
-      });
-    }
-    return true;
-  }
-
-  function settleQubitVisualState() {
-    qubit.classList.remove("migrating");
-    qubit.classList.remove("melting");
-    qubit.classList.remove("collapse-animating");
-    qubit.classList.remove("measurement-pellet");
-    qubit.style.opacity = "";
-    qubit.style.removeProperty("--move-duration");
-    qubit.style.removeProperty("--melt-duration");
-  }
-
-  function updateTubeFills() {
-    const blueFillPercent = Math.min(
-      (blueTubeCount / tubeQubitCapacity) * 100,
-      100,
-    );
-    const redFillPercent = Math.min(
-      (redTubeCount / tubeQubitCapacity) * 100,
-      100,
-    );
-
-    tubeBlueCount.textContent = String(blueTubeCount);
-    tubeRedCount.textContent = String(redTubeCount);
-    tubeBlueLiquid.style.height = `${blueFillPercent}%`;
-    tubeRedLiquid.style.height = `${redFillPercent}%`;
-  }
-
-  function updateTubeCapacityText() {
-    if (!tubeCapacity) {
-      return;
-    }
-    tubeCapacity.textContent = `The testtubes can each hold ${tubeQubitCapacity} qubits.`;
-  }
-
-  function maybeExpandTubeCapacity() {
-    const largestTubeCount = Math.max(blueTubeCount, redTubeCount);
-    let expanded = false;
-
-    while (largestTubeCount > tubeQubitCapacity) {
-      tubeQubitCapacity *= 2;
-      expanded = true;
-    }
-
-    if (expanded) {
-      updateTubeCapacityText();
-    }
-  }
-
-  function positionTubeCapacityBox() {
-    if (!tubeCapacity) {
-      return;
-    }
-    tubeCapacity.style.left = "";
-  }
-
-  function alignMeasurementToolCenterWithGate() {
-    const gateCenterY = stagePointForElementCenter(gateWindow).y;
-    const measurementCenterY = stagePointForElementCenter(measurementTool).y;
-    const deltaY =
-      gateCenterY + ONE_QUBIT_MEASUREMENT_TOOL_SHIFT_Y - measurementCenterY;
-    measurementStageShiftY += deltaY;
-    measurementStage.style.transform = `translateY(${measurementStageShiftY}px)`;
-    if (messageWrap) {
-      messageWrap.style.transform = `translateX(-50%) translateY(${measurementStageShiftY}px)`;
-    }
-  }
-
-  function getElementCenterInMachineCoords(element) {
-    const shellRect = machineShell.getBoundingClientRect();
-    const rect = element.getBoundingClientRect();
-    return {
-      x: rect.left - shellRect.left + rect.width / 2,
-      y: rect.top - shellRect.top + rect.height / 2,
-    };
-  }
-
-  function positionLightningBolt(bolt, start, end) {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const length = Math.hypot(dx, dy);
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-
-    bolt.style.left = `${start.x}px`;
-    bolt.style.top = `${start.y}px`;
-    bolt.style.width = `${length}px`;
-    bolt.style.transform = `translateY(-50%) rotate(${angle}deg)`;
-  }
-
-  function positionLightningBolts() {
-    const origin = getElementCenterInMachineCoords(qubit);
-    const gateCenter = getElementCenterInMachineCoords(gateWindow);
-    const lensCenter = getMeasurementLensCenterInMachineCoords();
-
-    positionLightningBolt(boltToGate, origin, gateCenter);
-    positionLightningBolt(boltToLens, gateCenter, lensCenter);
-  }
-
-  function setLightningActive(active) {
-    boltToGate.classList.toggle("active", active);
-    boltToLens.classList.toggle("active", active);
-  }
-
-  function collapseQubitState() {
-    syncWeightsFromVector();
-    const blueProbability = qubitBlueWeight;
-
-    if (blueProbability >= 1) {
-      setQubitVector([1, 0]);
-      qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
-      delete qubit.dataset.phaseSign;
-      updateStateText(qubitBlueWeight, qubitRedWeight);
-      return "blue";
-    }
-
-    if (blueProbability <= 0) {
-      setQubitVector([0, 1]);
-      qubit.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
-      delete qubit.dataset.phaseSign;
-      updateStateText(qubitBlueWeight, qubitRedWeight);
-      return "red";
-    }
-
-    const collapseToBlue = Math.random() < blueProbability;
-
-    if (collapseToBlue) {
-      setQubitVector([1, 0]);
-      qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
-      delete qubit.dataset.phaseSign;
-      updateStateText(qubitBlueWeight, qubitRedWeight);
-      return "blue";
-    }
-
-    setQubitVector([0, 1]);
-    qubit.style.setProperty("--qubit-fill", blendBlueRed(0, 1));
-    delete qubit.dataset.phaseSign;
-    updateStateText(qubitBlueWeight, qubitRedWeight);
-    return "red";
-  }
-
-  async function animateMeasurementPayloadToTube(
-    collapsedColor,
-    startPoint,
-    expectedRunToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    const payload = createMeasurementPayload(collapsedColor, startPoint);
-    try {
-      const targetTube = collapsedColor === "blue" ? tubeBlue : tubeRed;
-      const targetRect = targetTube.getBoundingClientRect();
-      const targetPoint = getStageCoordsFromViewportPoint(
-        targetRect.left + targetRect.width / 2,
-        targetRect.top + targetRect.height * 0.22,
-      );
-
-      await movePayloadToStagePoint(
-        payload,
-        targetPoint.x,
-        targetPoint.y,
-        migrationDuration,
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      payload.style.setProperty("--melt-duration", `${meltDuration}ms`);
-      payload.classList.add("melting");
-      await wait(meltDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      if (collapsedColor === "blue") {
-        blueTubeCount += 1;
-      } else {
-        redTubeCount += 1;
-      }
-
-      maybeExpandTubeCapacity();
-      updateTubeFills();
-      return true;
-    } finally {
-      payload.remove();
-    }
-  }
-
-  async function startMeasurementSequence(
-    expectedRunToken = runToken,
-    {
-      migrationDuration = AUTO_TRAVEL_MS,
-      meltDuration = AUTO_MELT_MS,
-      requireLensOverlap = true,
-      collapsePauseMs = OBSERVABLE_COLLAPSE_PAUSE_MS,
-      ejectAfterMeasurement = true,
-      postMeasurementShiftX = 100,
-    } = {},
-  ) {
-    if (measurementInProgress || gateTransitInProgress) {
-      return;
-    }
-
-    if (expectedRunToken !== runToken) {
-      return;
-    }
-
-    if (
-      requireLensOverlap &&
-      qubitOverlapRatioWithLens() < MEASUREMENT_OVERLAP_THRESHOLD
-    ) {
-      return;
-    }
-
-    measurementInProgress = true;
-    qubitDragging = false;
-    qubit.classList.remove("dragging");
-    undockQubit();
-    setMeasurementPlatformExtended(false);
-
-    try {
-      qubit.classList.add("collapse-animating");
-      recordOneQubitExperimentAction({ type: "measure" }, qubitVector);
-      const collapsedColor = collapseQubitState();
-      if (collapsePauseMs > 0) {
-        await wait(collapsePauseMs);
-      }
-      qubit.classList.remove("collapse-animating");
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      let payloadStartPoint = null;
-      if (ejectAfterMeasurement) {
-        const stageRect = gateStage.getBoundingClientRect();
-        const measurementRect = measurementTool.getBoundingClientRect();
-        const qubitRect = qubit.getBoundingClientRect();
-        const ejectedPoint = {
-          x: measurementRect.right - stageRect.left + 20 + qubitRect.width / 2,
-          y: measurementRect.top - stageRect.top + measurementRect.height / 2,
-        };
-
-        setMeasurementPlatformExtended(true);
-        await moveQubitToStagePoint(
-          ejectedPoint.x,
-          ejectedPoint.y,
-          GATE_PLATFORM_EXTEND_MS,
-        );
-        setMeasurementPlatformExtended(false);
-        if (expectedRunToken !== runToken) {
-          return;
-        }
-        settleQubitVisualState();
-        setQubitCenter(ejectedPoint.x, ejectedPoint.y);
-        payloadStartPoint = ejectedPoint;
-      } else {
-        const lensCenter = getMeasurementLensCenterInStageCoords();
-        settleQubitVisualState();
-        setQubitCenter(lensCenter.x, lensCenter.y);
-        payloadStartPoint = lensCenter;
-      }
-
-      await animateMeasurementPayloadToTube(
-        collapsedColor,
-        payloadStartPoint,
-        expectedRunToken,
-        {
-          migrationDuration,
-          meltDuration,
-        },
-      );
-
-      if (
-        !ejectAfterMeasurement &&
-        postMeasurementShiftX !== 0 &&
-        expectedRunToken === runToken
-      ) {
-        setQubitCenter(
-          payloadStartPoint.x + postMeasurementShiftX,
-          payloadStartPoint.y,
-        );
-      }
-    } finally {
-      setMeasurementPlatformExtended(false);
-      qubit.classList.remove("collapse-animating");
-      measurementInProgress = false;
-    }
-  }
-
-  async function runAutomatedMeasurements(iterations) {
-    if (autoRunInProgress || measurementInProgress || gateTransitInProgress) {
-      return;
-    }
-
-    const useMachineMode = iterations >= 100;
-    const speedFactor = iterations >= 10 ? 2 : 1;
-    const travelDuration = Math.round(AUTO_TRAVEL_MS / speedFactor);
-    const meltDuration = Math.round(AUTO_MELT_MS / speedFactor);
-    const machineDuration =
-      iterations === 100
-        ? MACHINE_DURATION_100_MS
-        : iterations === 1000
-          ? MACHINE_DURATION_1000_MS
-          : null;
-    const playbackExperiment = oneQubitPlaybackExperiment();
-
-    const thisRunToken = runToken + 1;
-    runToken = thisRunToken;
-    autoRunInProgress = true;
-    measurementCount.disabled = true;
-    qubitDragging = false;
-    qubit.classList.remove("dragging");
-
-    try {
-      if (useMachineMode) {
-        placeQubitToLeftOfWindow();
-        positionLightningBolts();
-        setLightningActive(true);
-
-        const processOneMeasurement = () => {
-          const counts = replayRecordedSingleQubitExperiment(1, {
-            actions: playbackExperiment.actions,
-            initialVector: playbackExperiment.initialVector,
-            gateSettings: playbackExperiment.gateSettings,
-          });
-          blueTubeCount += counts.blue;
-          redTubeCount += counts.red;
-          maybeExpandTubeCapacity();
-        };
-
-        let processed = 0;
-
-        if (machineDuration !== null) {
-          const runStart = performance.now();
-
-          while (processed < iterations) {
-            if (thisRunToken !== runToken) {
-              break;
-            }
-
-            const elapsed = performance.now() - runStart;
-            const progress = Math.min(elapsed / machineDuration, 1);
-            const shouldBeProcessed = Math.floor(progress * iterations);
-
-            if (shouldBeProcessed <= processed) {
-              await nextFrame();
-              continue;
-            }
-
-            while (processed < shouldBeProcessed && processed < iterations) {
-              processOneMeasurement();
-              processed += 1;
-            }
-
-            updateTubeFills();
-            await nextFrame();
-          }
-        } else {
-          await nextFrame();
-          while (processed < iterations && thisRunToken === runToken) {
-            processOneMeasurement();
-            processed += 1;
-          }
-        }
-
-        updateTubeFills();
-        placeQubitToLeftOfWindow();
-        return;
-      }
-
-      for (let i = 0; i < iterations; i += 1) {
-        if (thisRunToken !== runToken) {
-          break;
-        }
-
-        const completed = await replayRecordedOneQubitExperimentAnimated(
-          thisRunToken,
-          playbackExperiment,
-          {
-            travelDuration,
-            meltDuration,
-          },
-        );
-        if (!completed || thisRunToken !== runToken) {
-          break;
-        }
-      }
-    } finally {
-      setLightningActive(false);
-      autoRunInProgress = false;
-      measurementCount.disabled = false;
-    }
-  }
-
-  function beginQubitDrag(event) {
-    if (handleShiftQubitSelection(event, qubit)) {
-      return;
-    }
-    if (measurementInProgress || autoRunInProgress || gateTransitInProgress) {
-      return;
-    }
-    if (!isPrimaryMouseButton(event)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const point = getPointer(event);
-    const qubitRect = qubit.getBoundingClientRect();
-
-    qubitDragging = true;
-    qubit.classList.add("dragging");
-    undockQubit();
-
-    qubitDragOffsetX = point.clientX - (qubitRect.left + qubitRect.width / 2);
-    qubitDragOffsetY = point.clientY - (qubitRect.top + qubitRect.height / 2);
-  }
-
-  function continueQubitDrag(event) {
-    if (
-      !qubitDragging ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      gateTransitInProgress
-    ) {
-      return;
-    }
-
-    if (event.touches) {
-      event.preventDefault();
-    }
-
-    const point = getPointer(event);
-    const stageRect = gateStage.getBoundingClientRect();
-
-    const nextX = point.clientX - stageRect.left - qubitDragOffsetX;
-    const nextY = point.clientY - stageRect.top - qubitDragOffsetY;
-
-    setQubitCenter(nextX, nextY);
-    if (maybeSnapQubit()) {
-      return;
-    }
-    if (maybeSnapQubitToMeasurementTool()) {
-      return;
-    }
-    preventManualPipeOverlap();
-  }
-
-  function endQubitDrag() {
-    if (
-      !qubitDragging ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      gateTransitInProgress
-    ) {
-      return;
-    }
-
-    qubitDragging = false;
-    qubit.classList.remove("dragging");
-
-    if (maybeSnapQubit()) {
-      return;
-    }
-    if (maybeSnapQubitToMeasurementTool()) {
-      return;
-    }
-    preventManualPipeOverlap();
-  }
-
-  function beginGateArrowDrag(event) {
-    gateDial?.beginDrag(event);
-  }
-
-  function continueGateArrowDrag(event) {
-    gateDial?.continueDrag(event);
-  }
-
-  function endGateArrowDrag() {
-    gateDial?.endDrag();
-  }
-
-  function placeQubitToLeftOfWindow() {
-    qubit.classList.remove("dragging");
-    qubit.classList.remove("migrating");
-    qubit.classList.remove("melting");
-    qubit.classList.remove("docked");
-    qubit.classList.remove("measurement-pellet");
-    const windowCenter = stagePointForElementCenter(gateWindow);
-    const stageRect = gateStage.getBoundingClientRect();
-    const movementRect = machineShell.getBoundingClientRect();
-    const baseWidth = qubit.offsetWidth || qubit.getBoundingClientRect().width;
-    const radius = baseWidth / 2;
-    const minX = movementRect.left - stageRect.left + radius;
-    const x = minX + QUBIT_START_EDGE_GAP + 5;
-
-    setQubitCenter(x, windowCenter.y);
-    qubitDocked = false;
-    qubitDragging = false;
-    setPlatformExtended(false);
-    setMeasurementPlatformExtended(false);
-    windowWrap.classList.remove("gate-busy");
-    qubit.style.setProperty("--qubit-fill", blendBlueRed(1, 0));
-    setQubitVector([1, 0]);
-    qubitHasEnteredGate = false;
-    delete qubit.dataset.phaseSign;
-    updateStateText(qubitBlueWeight, qubitRedWeight);
-  }
-
-  function handleResize() {
-    const stageRect = gateStage.getBoundingClientRect();
-    if (!stageRect.width || !stageRect.height) {
-      return;
-    }
-
-    gateDial?.layout();
-
-    positionTubeCapacityBox();
-    alignMeasurementToolCenterWithGate();
-    positionLightningBolts();
-
-    if (!qubitInitialized) {
-      placeQubitToLeftOfWindow();
-      qubitInitialized = true;
-      return;
-    }
-
-    if (qubitDocked) {
-      snapQubitToWindowCenter();
-      return;
-    }
-
-    const currentCenter = stagePointForElementCenter(qubit);
-    setQubitCenter(currentCenter.x, currentCenter.y);
-  }
-
-  function handleLensClickRun() {
-    if (autoRunInProgress || measurementInProgress || gateTransitInProgress) {
-      return;
-    }
-
-    const iterations = Number(measurementCount.value) || 1;
-    runAutomatedMeasurements(Math.max(1, iterations));
-  }
-
-  function resetAll() {
-    runToken += 1;
-    autoRunInProgress = false;
-    measurementInProgress = false;
-    gateTransitInProgress = false;
-    qubitDragging = false;
-    measurementCount.disabled = false;
-    measurementCount.value = "1";
-    lastRequestedMeasurementCount = 1;
-    qubit.classList.remove("dragging");
-    qubit.classList.remove("migrating");
-    qubit.classList.remove("melting");
-    qubit.classList.remove("docked");
-    qubit.classList.remove("measurement-pellet");
-    gateArrow.classList.remove("dragging");
-    setLightningActive(false);
-    setMeasurementPlatformExtended(false);
-    qubitHasEnteredGate = false;
-
-    tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-    blueTubeCount = 0;
-    redTubeCount = 0;
-    updateTubeCapacityText();
-    updateTubeFills();
-
-    setGateTick(DEFAULT_SINGLE_GATE_TICK_INDEX);
-    placeQubitToLeftOfWindow();
-    clearRecordedOneQubitExperiment();
-  }
-
-  qubit.addEventListener("mousedown", beginQubitDrag);
-  qubit.addEventListener("touchstart", beginQubitDrag, { passive: false });
-  gateArrow.addEventListener("mousedown", beginGateArrowDrag);
-  gateArrow.addEventListener("touchstart", beginGateArrowDrag, {
-    passive: false,
-  });
-  gateArrow.addEventListener("keydown", (event) =>
-    gateDial?.handleKeydown(event),
-  );
-
-  window.addEventListener("mousemove", (event) => {
-    continueGateArrowDrag(event);
-    continueQubitDrag(event);
-  });
-
-  window.addEventListener(
-    "touchmove",
-    (event) => {
-      continueGateArrowDrag(event);
-      continueQubitDrag(event);
-    },
-    { passive: false },
-  );
-
-  window.addEventListener("mouseup", () => {
-    endGateArrowDrag();
-    endQubitDrag();
-  });
-
-  window.addEventListener("touchend", () => {
-    endGateArrowDrag();
-    endQubitDrag();
-  });
-
-  window.addEventListener("touchcancel", () => {
-    endGateArrowDrag();
-    endQubitDrag();
-  });
-
-  measurementCount.addEventListener("mousedown", (event) => {
-    event.stopPropagation();
-  });
-
-  measurementCount.addEventListener("touchstart", (event) => {
-    event.stopPropagation();
-  });
-
-  measurementCount.addEventListener("click", (event) => {
-    event.stopPropagation();
-  });
-
-  measurementCount.addEventListener("change", () => {
-    const iterations = Math.max(1, Number(measurementCount.value) || 1);
-    if (iterations === lastRequestedMeasurementCount) {
-      return;
-    }
-    lastRequestedMeasurementCount = iterations;
-    clearMeasurementApparatus();
-    runAutomatedMeasurements(iterations);
-  });
-
-  measurementTool.addEventListener("click", () => {
-    handleLensClickRun();
-  });
-
-  resetButton.addEventListener("click", () => {
-    resetAll();
-  });
-
-  setGateTick(DEFAULT_SINGLE_GATE_TICK_INDEX);
-  updateTubeCapacityText();
-  updateTubeFills();
-
-  return {
-    handleResize,
-  };
-}
-
-function setupTwoQubitPair(root) {
-  const pairMeasurementHost = root.querySelector(
-    '[data-role="pair-measurement-host"]',
-  );
-  mountPairMeasurementTool(pairMeasurementHost);
-  mountPairCnotGate(root);
-  const pairShell = root.querySelector('[data-role="pair-shell"]');
-  const pairStageA = root.querySelector('[data-role="pair-stage-a"]');
-  const pairStageB = root.querySelector('[data-role="pair-stage-b"]');
-  const pairWindowWrapA = root.querySelector(
-    '[data-role="pair-window-wrap-a"]',
-  );
-  const pairWindowWrapB = root.querySelector(
-    '[data-role="pair-window-wrap-b"]',
-  );
-  const pairFunnelA = root.querySelector('[data-role="pair-tube-funnel-a"]');
-  const pairFunnelB = root.querySelector('[data-role="pair-tube-funnel-b"]');
-  const pairWindowA = root.querySelector('[data-role="pair-window-a"]');
-  const pairWindowB = root.querySelector('[data-role="pair-window-b"]');
-  const pairTicksA = root.querySelector('[data-role="pair-ticks-a"]');
-  const pairTicksB = root.querySelector('[data-role="pair-ticks-b"]');
-  const pairArrowA = root.querySelector('[data-role="pair-arrow-a"]');
-  const pairArrowB = root.querySelector('[data-role="pair-arrow-b"]');
-  const pairCnotHost = root.querySelector('[data-role="pair-cnot-host"]');
-  const pairCnotGate = pairCnotHost
-    ? pairCnotHost.querySelector(".cnot-gate, .ent-double-gate")
-    : null;
-  const pairCnotBody = pairCnotGate
-    ? pairCnotGate.querySelector(".cnot-body, .ent-pipe")
-    : null;
-  const pairCnotFunnelTop = pairCnotGate
-    ? pairCnotGate.querySelector(".cnot-input-funnel-top")
-    : null;
-  const pairCnotFunnelBottom = pairCnotGate
-    ? pairCnotGate.querySelector(".cnot-input-funnel-bottom")
-    : null;
-  const pairCnotWindowTop = pairCnotGate
-    ? pairCnotGate.querySelector(".cnot-porthole-top")
-    : null;
-  const pairCnotWindowBottom = pairCnotGate
-    ? pairCnotGate.querySelector(".cnot-porthole-bottom")
-    : null;
-  const pairCnotSpring = pairCnotGate
-    ? pairCnotGate.querySelector(".cnot-spring")
-    : null;
-  const qubitA = root.querySelector('[data-role="pair-qubit-a"]');
-  const qubitB = root.querySelector('[data-role="pair-qubit-b"]');
-  const pairLens = root.querySelector('[data-role="pair-lens"]');
-  const pairMeasurementFunnel = root.querySelector(
-    '[data-role="pair-measurement-funnel"]',
-  );
-  const pairSlotLeft = root.querySelector('[data-role="pair-slot-left"]');
-  const pairSlotRight = root.querySelector('[data-role="pair-slot-right"]');
-  const pairMeasurementPlatform = root.querySelector(
-    ".pair-measurement-platform",
-  );
-  const pairMeasurementCount = root.querySelector(
-    '[data-role="pair-measurement-count"]',
-  );
-  const pairMeasurementBlock = root.querySelector(".pair-measurement");
-  const pairTubeRack = root.querySelector(".pair-tube-rack");
-  const tubeBB = root.querySelector('[data-role="pair-tube-bb"]');
-  const tubeBR = root.querySelector('[data-role="pair-tube-br"]');
-  const tubeRB = root.querySelector('[data-role="pair-tube-rb"]');
-  const tubeRR = root.querySelector('[data-role="pair-tube-rr"]');
-  const liquidBB = root.querySelector('[data-role="pair-liquid-bb"]');
-  const liquidBR = root.querySelector('[data-role="pair-liquid-br"]');
-  const liquidRB = root.querySelector('[data-role="pair-liquid-rb"]');
-  const liquidRR = root.querySelector('[data-role="pair-liquid-rr"]');
-  const countBB = root.querySelector('[data-role="pair-count-bb"]');
-  const countBR = root.querySelector('[data-role="pair-count-br"]');
-  const countRB = root.querySelector('[data-role="pair-count-rb"]');
-  const countRR = root.querySelector('[data-role="pair-count-rr"]');
-  const boltA = root.querySelector('[data-role="pair-bolt-a"]');
-  const boltB = root.querySelector('[data-role="pair-bolt-b"]');
-  const pairCapacity = root.querySelector('[data-role="pair-capacity"]');
-  const pairResetButton = root.querySelector('[data-role="pair-reset"]');
-
-  if (
-    !pairMeasurementHost ||
-    !pairShell ||
-    !pairStageA ||
-    !pairStageB ||
-    !pairWindowWrapA ||
-    !pairWindowWrapB ||
-    !pairFunnelA ||
-    !pairFunnelB ||
-    !pairWindowA ||
-    !pairWindowB ||
-    !pairTicksA ||
-    !pairTicksB ||
-    !pairArrowA ||
-    !pairArrowB ||
-    !pairCnotHost ||
-    !pairCnotGate ||
-    !pairCnotBody ||
-    !pairCnotFunnelTop ||
-    !pairCnotFunnelBottom ||
-    !pairCnotWindowTop ||
-    !pairCnotWindowBottom ||
-    !pairCnotSpring ||
-    !qubitA ||
-    !qubitB ||
-    !pairLens ||
-    !pairMeasurementFunnel ||
-    !pairSlotLeft ||
-    !pairSlotRight ||
-    !pairMeasurementPlatform ||
-    !pairMeasurementCount ||
-    !pairMeasurementBlock ||
-    !pairTubeRack ||
-    !tubeBB ||
-    !tubeBR ||
-    !tubeRB ||
-    !tubeRR ||
-    !liquidBB ||
-    !liquidBR ||
-    !liquidRB ||
-    !liquidRR ||
-    !countBB ||
-    !countBR ||
-    !countRB ||
-    !countRR ||
-    !boltA ||
-    !boltB
-  ) {
-    return null;
-  }
-
-  registerSelectionContainer(pairShell);
-
-  const gates = [
-    {
-      stage: pairStageA,
-      wrap: pairWindowWrapA,
-      funnel: pairFunnelA,
-      window: pairWindowA,
-      ticksWrap: pairTicksA,
-      arrow: pairArrowA,
-      activeTick: 0,
-    },
-    {
-      stage: pairStageB,
-      wrap: pairWindowWrapB,
-      funnel: pairFunnelB,
-      window: pairWindowB,
-      ticksWrap: pairTicksB,
-      arrow: pairArrowB,
-      activeTick: 0,
-    },
-  ];
-  gates.forEach((gate, gateIndex) => {
-    const gateLabel =
-      gateIndex === 0
-        ? "Two-Qubit Mode Gate (Top)"
-        : "Two-Qubit Mode Gate (Bottom)";
-    registerGateInspector(gate.wrap, () => ({
-      label: gateLabel,
-      matrix: gateMatrixForTick(gate.activeTick),
-      tickIndex: gate.activeTick,
-    }));
-  });
-  registerGateInspector(pairCnotBody, () => ({
-    label: "Two-Qubit Mode CNOT Gate",
-    matrix: [
-      [1, 0, 0, 0],
-      [0, 1, 0, 0],
-      [0, 0, 0, 1],
-      [0, 0, 1, 0],
-    ],
-  }));
-
-  const qubits = [
-    {
-      key: "a",
-      element: qubitA,
-      gateIndex: 0,
-      cnotFunnel: pairCnotFunnelTop,
-      cnotWindow: pairCnotWindowTop,
-      blue: 1,
-      red: 0,
-      docked: false,
-      dragging: false,
-      dragOffsetX: 0,
-      dragOffsetY: 0,
-      dragStartPoint: null,
-      measurementReturnPoint: null,
-      lensSlot: null,
-      gateIngestTimer: null,
-      gateTransitInProgress: false,
-      inCnotWindow: false,
-      cnotPairToken: null,
-      cnotOutcomeProbabilities: null,
-    },
-    {
-      key: "b",
-      element: qubitB,
-      gateIndex: 1,
-      cnotFunnel: pairCnotFunnelBottom,
-      cnotWindow: pairCnotWindowBottom,
-      blue: 1,
-      red: 0,
-      docked: false,
-      dragging: false,
-      dragOffsetX: 0,
-      dragOffsetY: 0,
-      dragStartPoint: null,
-      measurementReturnPoint: null,
-      lensSlot: null,
-      gateIngestTimer: null,
-      gateTransitInProgress: false,
-      inCnotWindow: false,
-      cnotPairToken: null,
-      cnotOutcomeProbabilities: null,
-    },
-  ];
-
-  registerQubitInspector(qubits[0].element, () => ({
-    label: "Two-Qubit Mode (Top Qubit)",
-    blue: qubits[0].blue,
-    red: qubits[0].red,
-  }));
-  registerQubitInspector(qubits[1].element, () => ({
-    label: "Two-Qubit Mode (Bottom Qubit)",
-    blue: qubits[1].blue,
-    red: qubits[1].red,
-  }));
-
-  const tubeElementsByKey = {
-    bb: tubeBB,
-    br: tubeBR,
-    rb: tubeRB,
-    rr: tubeRR,
-  };
-  const tubeLiquidsByKey = {
-    bb: liquidBB,
-    br: liquidBR,
-    rb: liquidRB,
-    rr: liquidRR,
-  };
-  const tubeCountsByKey = {
-    bb: countBB,
-    br: countBR,
-    rb: countRB,
-    rr: countRR,
-  };
-
-  const slotOccupants = {
-    left: null,
-    right: null,
-  };
-  const tubeCountState = {
-    bb: 0,
-    br: 0,
-    rb: 0,
-    rr: 0,
-  };
-
-  let tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-  let measurementInProgress = false;
-  let cnotBusy = false;
-  let autoRunInProgress = false;
-  let runToken = 0;
-  let initialized = false;
-  const basePairShellPaddingBottom =
-    Number.parseFloat(window.getComputedStyle(pairShell).paddingBottom) || 0;
-  const gateDials = [];
-  let recordedPairExperimentActions = [];
-  let recordedPairInitialAmplitudes = [1, 0, 0, 0];
-  let recordedPairGateSettings = gates.map((gate) => gate.activeTick);
-  let recordedPairExperimentComplete = false;
-
-  function gateWeightsForSelection(selectionIndex) {
-    return oneQubitGateWeightsForTick(selectionIndex);
-  }
-
-  function stagePointForElementCenter(element) {
-    const shellRect = pairShell.getBoundingClientRect();
-    const rect = element.getBoundingClientRect();
-    return {
-      x: rect.left - shellRect.left + rect.width / 2,
-      y: rect.top - shellRect.top + rect.height / 2,
-    };
-  }
-
-  function setQubitCenter(qubit, x, y) {
-    const shellRect = pairShell.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const radius = qubitRect.width / 2;
-
-    const clampedX = Math.min(Math.max(x, radius), shellRect.width - radius);
-    const clampedY = Math.min(Math.max(y, radius), shellRect.height - radius);
-    qubit.element.style.left = `${clampedX}px`;
-    qubit.element.style.top = `${clampedY}px`;
-  }
-
-  function capturePairMeasurementReturnPoint(qubit) {
-    return (
-      validPoint(qubit.dragStartPoint) ||
-      stagePointForElementCenter(qubit.element)
-    );
-  }
-
-  function clearLensSlotForQubit(qubit) {
-    if (qubit.lensSlot && slotOccupants[qubit.lensSlot] === qubit) {
-      slotOccupants[qubit.lensSlot] = null;
-    }
-    qubit.lensSlot = null;
-    delete qubit.element.dataset.lensSlot;
-  }
-
-  function pairLensSlotOffset(slot) {
-    const keys = slotOffsetDatasetKeys(slot);
-    return {
-      x: parseLayoutNumeric(
-        pairShell.dataset[keys.x],
-        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
-      ),
-      y: parseLayoutNumeric(
-        pairShell.dataset[keys.y],
-        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
-      ),
-    };
-  }
-
-  function getLensSlotCenter(slot) {
-    const slotElement = slot === "left" ? pairSlotLeft : pairSlotRight;
-    const center = stagePointForElementCenter(slotElement);
-    const offset = pairLensSlotOffset(slot);
-    return {
-      x: center.x + offset.x,
-      y: center.y + offset.y,
-    };
-  }
-
-  function updateQubitColor(qubit) {
-    qubit.element.style.setProperty(
-      "--qubit-fill",
-      blendBlueRed(qubit.blue, qubit.red),
-    );
-  }
-
-  function applyGateStateToQubit(qubit, selectionIndex) {
-    const [blueWeight, redWeight] = gateWeightsForSelection(selectionIndex);
-    qubit.blue = blueWeight;
-    qubit.red = redWeight;
-    updateQubitColor(qubit);
-    const transformed = vectorTimesMatrix2(
-      [1, 0],
-      gateMatrixForTick(selectionIndex),
-    );
-    const phaseSign = phaseSignForRealAmplitudeVector(transformed);
-    if (phaseSign) {
-      qubit.element.dataset.phaseSign = phaseSign;
-    } else {
-      delete qubit.element.dataset.phaseSign;
-    }
-  }
-
-  function circleIntersectionArea(r1, r2, distance) {
-    if (distance >= r1 + r2) {
-      return 0;
-    }
-
-    if (distance <= Math.abs(r1 - r2)) {
-      const minRadius = Math.min(r1, r2);
-      return Math.PI * minRadius * minRadius;
-    }
-
-    const a1 = r1 * r1;
-    const a2 = r2 * r2;
-    const alpha = Math.acos(
-      (distance * distance + a1 - a2) / (2 * distance * r1),
-    );
-    const beta = Math.acos(
-      (distance * distance + a2 - a1) / (2 * distance * r2),
-    );
-    return (
-      a1 * alpha +
-      a2 * beta -
-      0.5 *
-        Math.sqrt(
-          (-distance + r1 + r2) *
-            (distance + r1 - r2) *
-            (distance - r1 + r2) *
-            (distance + r1 + r2),
-        )
-    );
-  }
-
-  function overlapRatioWithGate(qubit, gateWindow) {
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const windowRect = gateWindow.getBoundingClientRect();
-    const qRadius = qubitRect.width / 2;
-    const wRadius = windowRect.width / 2;
-    const qCx = qubitRect.left + qRadius;
-    const qCy = qubitRect.top + qRadius;
-    const wCx = windowRect.left + wRadius;
-    const wCy = windowRect.top + wRadius;
-    const distance = Math.hypot(qCx - wCx, qCy - wCy);
-    const overlapArea = circleIntersectionArea(qRadius, wRadius, distance);
-    const qubitArea = Math.PI * qRadius * qRadius;
-    return overlapArea / qubitArea;
-  }
-
-  function overlapRatioWithRect(qubit, rect) {
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const overlapWidth = Math.max(
-      0,
-      Math.min(qubitRect.right, rect.right) -
-        Math.max(qubitRect.left, rect.left),
-    );
-    const overlapHeight = Math.max(
-      0,
-      Math.min(qubitRect.bottom, rect.bottom) -
-        Math.max(qubitRect.top, rect.top),
-    );
-    const overlapArea = overlapWidth * overlapHeight;
-    const qubitArea = qubitRect.width * qubitRect.height;
-    return qubitArea > 0 ? overlapArea / qubitArea : 0;
-  }
-
-  function qubitReachedFunnelMidpoint(qubit, gateFunnel) {
-    const funnelRect = gateFunnel.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const funnelMidX = (funnelRect.left + funnelRect.right) / 2;
-    const verticalOverlap = Math.max(
-      0,
-      Math.min(qubitRect.bottom, funnelRect.bottom) -
-        Math.max(qubitRect.top, funnelRect.top),
-    );
-
-    return (
-      qubitRect.right >= funnelMidX &&
-      qubitRect.left < funnelRect.right &&
-      verticalOverlap >= qubitRect.height * 0.25
-    );
-  }
-
-  function clearGateIngestAnimation(qubit) {
-    if (qubit.gateIngestTimer !== null) {
-      window.clearTimeout(qubit.gateIngestTimer);
-      qubit.gateIngestTimer = null;
-    }
-    qubit.element.classList.remove("migrating");
-    qubit.element.style.removeProperty("--move-duration");
-  }
-
-  function preventManualPipeOverlapForPairQubit(qubit) {
-    if (measurementInProgress || autoRunInProgress) {
-      return false;
-    }
-
-    const shellRect = pairShell.getBoundingClientRect();
-    const pipeRect = gates[qubit.gateIndex].window.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const center = stagePointForElementCenter(qubit.element);
-    const resolved = resolveCircleRectOverlap(
-      center.x,
-      center.y,
-      qubitRect.width / 2,
-      {
-        left: pipeRect.left - shellRect.left,
-        right: pipeRect.right - shellRect.left,
-        top: pipeRect.top - shellRect.top,
-        bottom: pipeRect.bottom - shellRect.top,
-      },
-      1,
-    );
-
-    if (!resolved.overlapped) {
-      const cnotRect = pairCnotBody.getBoundingClientRect();
-      const cnotResolved = resolveCircleRectOverlap(
-        center.x,
-        center.y,
-        qubitRect.width / 2,
-        {
-          left: cnotRect.left - shellRect.left,
-          right: cnotRect.right - shellRect.left,
-          top: cnotRect.top - shellRect.top,
-          bottom: cnotRect.bottom - shellRect.top,
-        },
-        1,
-      );
-      if (!cnotResolved.overlapped) {
-        return false;
-      }
-      setQubitCenter(qubit, cnotResolved.x, cnotResolved.y);
-      return true;
-    }
-
-    setQubitCenter(qubit, resolved.x, resolved.y);
-    return true;
-  }
-
-  async function runPairGateTransit(
-    qubit,
-    expectedRunToken = runToken,
-    {
-      allowDuringAuto = false,
-      gateTick = gates[qubit.gateIndex].activeTick,
-      travelDuration = Math.max(220, Math.round(AUTO_TRAVEL_MS * 0.45)),
-      dwellDuration = GATE_TUBE_DWELL_MS,
-    } = {},
-  ) {
-    if (
-      qubit.gateTransitInProgress ||
-      measurementInProgress ||
-      (autoRunInProgress && !allowDuringAuto)
-    ) {
-      return false;
-    }
-
-    qubit.gateTransitInProgress = true;
-    qubit.dragging = false;
-    qubit.dragStartPoint = null;
-    qubit.element.classList.remove("dragging");
-    clearGateIngestAnimation(qubit);
-
-    try {
-      const gate = gates[qubit.gateIndex];
-      const gateCenter = stagePointForElementCenter(gate.window);
-      await moveQubitToPoint(
-          qubit,
-          gateCenter.x,
-          gateCenter.y,
-          travelDuration,
-        );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      qubit.docked = true;
-      qubit.element.classList.add("docked");
-      clearLensSlotForQubit(qubit);
-      await wait(dwellDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      const appliedGateTick = normalizeTickIndex(gateTick);
-      recordPairExperimentAction(
-        {
-          type: "gate",
-          gateIndex: qubit.gateIndex,
-          qubitIndex: qubit.gateIndex,
-          tickIndex: appliedGateTick,
-        },
-        currentPairAmplitudesFromQubits(),
-      );
-      applyGateStateToQubit(qubit, appliedGateTick);
-      qubit.docked = false;
-      qubit.element.classList.remove("docked");
-      gate.wrap.classList.add("platform-extended");
-
-      const shellRect = pairShell.getBoundingClientRect();
-      const pipeRect = gate.window.getBoundingClientRect();
-      const qubitRect = qubit.element.getBoundingClientRect();
-      const ejectedCenter = {
-        x: pipeRect.right - shellRect.left + 100 + qubitRect.width / 2,
-        y: gateCenter.y,
-      };
-
-      await moveQubitToPoint(
-        qubit,
-        ejectedCenter.x,
-        ejectedCenter.y,
-        GATE_PLATFORM_EXTEND_MS,
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      settleQubitVisualState(qubit);
-      gate.wrap.classList.remove("platform-extended");
-      await wait(GATE_PLATFORM_RETRACT_MS);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-      return true;
-    } finally {
-      gates[qubit.gateIndex].wrap.classList.remove("platform-extended");
-      qubit.element.classList.remove("migrating");
-      qubit.element.style.removeProperty("--move-duration");
-      qubit.gateTransitInProgress = false;
-    }
-  }
-
-  function maybeSnapQubitToGate(
-    qubit,
-    { allowWindowOverlap = false, runTransit = true } = {},
-  ) {
-    const gate = gates[qubit.gateIndex];
-    const windowOverlap = overlapRatioWithGate(qubit, gate.window);
-    const funnelReachedMidpoint = qubitReachedFunnelMidpoint(
-      qubit,
-      gate.funnel,
-    );
-    if (
-      (allowWindowOverlap && windowOverlap >= SNAP_OVERLAP_THRESHOLD) ||
-      funnelReachedMidpoint
-    ) {
-      if (runTransit && !allowWindowOverlap) {
-        runPairGateTransit(qubit, runToken).catch(() => {});
-        return true;
-      }
-
-      const center = stagePointForElementCenter(gate.window);
-      clearGateIngestAnimation(qubit);
-      qubit.dragging = false;
-      qubit.element.classList.remove("dragging");
-      setQubitCenter(qubit, center.x, center.y);
-      qubit.docked = true;
-      qubit.element.classList.add("docked");
-      clearLensSlotForQubit(qubit);
-      applyGateStateToQubit(qubit, gate.activeTick);
-      return true;
-    }
-
-    qubit.docked = false;
-    qubit.element.classList.remove("docked");
-    return false;
-  }
-
-  async function runPairMeasurementIngress(qubit, expectedRunToken = runToken) {
-    if (
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.gateTransitInProgress
-    ) {
-      return false;
-    }
-
-    const chosenSlot = qubit.gateIndex === 0 ? "left" : "right";
-    if (slotOccupants[chosenSlot] && slotOccupants[chosenSlot] !== qubit) {
-      return false;
-    }
-
-    clearGateIngestAnimation(qubit);
-    qubit.dragging = false;
-    qubit.element.classList.remove("dragging");
-    qubit.docked = false;
-    qubit.element.classList.remove("docked");
-    delete qubit.element.dataset.pairEjected;
-    qubit.measurementReturnPoint = capturePairMeasurementReturnPoint(qubit);
-    qubit.dragStartPoint = null;
-
-    if (
-      qubit.lensSlot &&
-      qubit.lensSlot !== chosenSlot &&
-      slotOccupants[qubit.lensSlot] === qubit
-    ) {
-      slotOccupants[qubit.lensSlot] = null;
-    }
-    slotOccupants[chosenSlot] = qubit;
-    qubit.lensSlot = chosenSlot;
-    qubit.element.dataset.lensSlot = chosenSlot;
-
-    const slotCenter = getLensSlotCenter(chosenSlot);
-    await moveQubitToPoint(qubit, slotCenter.x, slotCenter.y, 140);
-    if (
-      expectedRunToken !== runToken ||
-      measurementInProgress ||
-      autoRunInProgress
-    ) {
-      return false;
-    }
-    settleQubitVisualState(qubit);
-    setQubitCenter(qubit, slotCenter.x, slotCenter.y);
-
-    maybeTriggerManualPairMeasurement();
-    return true;
-  }
-
-  function qubitCenterInsidePairLens(qubit) {
-    const lensRect = pairLens.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const qubitCx = qubitRect.left + qubitRect.width / 2;
-    const qubitCy = qubitRect.top + qubitRect.height / 2;
-    return (
-      qubitCx >= lensRect.left &&
-      qubitCx <= lensRect.right &&
-      qubitCy >= lensRect.top &&
-      qubitCy <= lensRect.bottom
-    );
-  }
-
-  function maybeSnapQubitToMeasurementFunnel(qubit) {
-    if (!qubitCenterInsidePairLens(qubit)) {
-      return false;
-    }
-    if (
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.gateTransitInProgress
-    ) {
-      return false;
-    }
-
-    runPairMeasurementIngress(qubit, runToken).catch(() => {});
-    return true;
-  }
-
-  function maybeSnapQubitToLens(qubit) {
-    if (!qubitCenterInsidePairLens(qubit)) {
-      return false;
-    }
-
-    if (
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.gateTransitInProgress
-    ) {
-      return false;
-    }
-
-    runPairMeasurementIngress(qubit, runToken).catch(() => {});
-    return true;
-  }
-
-  function collapseQubitState(qubit) {
-    const totalWeight = qubit.blue + qubit.red;
-    const blueProbability = totalWeight > 0 ? qubit.blue / totalWeight : 0.5;
-    const blueResult =
-      blueProbability >= 1
-        ? true
-        : blueProbability <= 0
-          ? false
-          : Math.random() < blueProbability;
-    if (blueResult) {
-      qubit.blue = 1;
-      qubit.red = 0;
-      updateQubitColor(qubit);
-      delete qubit.element.dataset.phaseSign;
-      return "b";
-    }
-    qubit.blue = 0;
-    qubit.red = 1;
-    updateQubitColor(qubit);
-    delete qubit.element.dataset.phaseSign;
-    return "r";
-  }
-
-  function normalizedQubitVectorFromProbabilities(qubit) {
-    const total = qubit.blue + qubit.red;
-    const blue = total > 0 ? qubit.blue / total : 0.5;
-    const red = 1 - blue;
-    return [Math.sqrt(clamp(blue, 0, 1)), Math.sqrt(clamp(red, 0, 1))];
-  }
-
-  function currentPairAmplitudesFromQubits() {
-    return entangledAmplitudesFromQubitVectors(
-      normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1]),
-    );
-  }
-
-  function applyPairMarginalsFromAmplitudes(amplitudes) {
-    const marginals = pairMarginalsFromEntangledState({ amplitudes });
-    qubits[0].blue = marginals.top.blue;
-    qubits[0].red = marginals.top.red;
-    qubits[1].blue = marginals.bottom.blue;
-    qubits[1].red = marginals.bottom.red;
-    qubits.forEach((qubit) => updateQubitColor(qubit));
-  }
-
-  function setRecordedPairGateSetting(gateIndex, tickIndex) {
-    const normalizedTick = normalizeTickIndex(tickIndex);
-    recordedPairGateSettings[gateIndex] = normalizedTick;
-    recordedPairExperimentActions.forEach((action) => {
-      if (
-        action.type === "gate" &&
-        (action.gateIndex === gateIndex || action.qubitIndex === gateIndex)
-      ) {
-        action.tickIndex = normalizedTick;
-      }
-    });
-  }
-
-  function clearRecordedPairExperiment() {
-    recordedPairExperimentActions = [];
-    recordedPairInitialAmplitudes = currentPairAmplitudesFromQubits();
-    recordedPairGateSettings = gates.map((gate) =>
-      normalizeTickIndex(gate.activeTick),
-    );
-    recordedPairExperimentComplete = false;
-  }
-
-  function recordPairExperimentAction(
-    action,
-    beforeAmplitudes = currentPairAmplitudesFromQubits(),
-  ) {
-    if (autoRunInProgress || !action?.type) {
-      return;
-    }
-    if (
-      recordedPairExperimentActions.length === 0 ||
-      recordedPairExperimentComplete
-    ) {
-      recordedPairExperimentActions = [];
-      recordedPairInitialAmplitudes =
-        normalizeEntangledAmplitudes(beforeAmplitudes);
-      recordedPairExperimentComplete = false;
-    }
-
-    if (action.type === "gate") {
-      const gateIndex = Number.isFinite(action.gateIndex)
-        ? action.gateIndex
-        : Number.isFinite(action.qubitIndex)
-          ? action.qubitIndex
-          : 0;
-      const tickIndex = recordedGateTickForAction(
-        { ...action, gateIndex },
-        recordedPairGateSettings,
-      );
-      recordedPairExperimentActions.push({
-        ...action,
-        gateIndex,
-        qubitIndex: gateIndex,
-        tickIndex,
-      });
-    } else {
-      recordedPairExperimentActions.push({ ...action });
-    }
-
-    if (action.type === "measure") {
-      recordedPairExperimentComplete = true;
-    }
-  }
-
-  function recordedPairPlaybackExperiment() {
-    if (!recordedPairExperimentActions.length) {
-      return null;
-    }
-    return {
-      actions: cloneRecordedActions(recordedPairExperimentActions),
-      initialAmplitudes: normalizeEntangledAmplitudes(
-        recordedPairInitialAmplitudes,
-      ),
-      gateSettings: recordedPairGateSettings.slice(),
-    };
-  }
-
-  function annotateCnotOutcomeProbabilitiesForCurrentState() {
-    const outcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
-      normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1]),
-    );
-    const pairToken = `${Date.now()}-${Math.random()}`;
-    qubits[0].cnotPairToken = pairToken;
-    qubits[1].cnotPairToken = pairToken;
-    qubits[0].cnotOutcomeProbabilities = outcomeProbabilities;
-    qubits[1].cnotOutcomeProbabilities = outcomeProbabilities;
-  }
-
-  function applyCnotGateToQubits() {
-    recordPairExperimentAction(
-      { type: "cnot" },
-      currentPairAmplitudesFromQubits(),
-    );
-    const marginals = cnotMarginalProbabilitiesFromQubitVectors(
-      normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1]),
-    );
-    qubits[0].blue = marginals.control[0];
-    qubits[0].red = marginals.control[1];
-    qubits[1].blue = marginals.target[0];
-    qubits[1].red = marginals.target[1];
-    qubits.forEach((qubit) => {
-      delete qubit.element.dataset.phaseSign;
-      updateQubitColor(qubit);
-    });
-  }
-
-  function cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit) {
-    if (
-      topQubit.cnotPairToken &&
-      topQubit.cnotPairToken === bottomQubit.cnotPairToken &&
-      topQubit.cnotOutcomeProbabilities &&
-      bottomQubit.cnotOutcomeProbabilities
-    ) {
-      return topQubit.cnotOutcomeProbabilities;
-    }
-    return cnotOutcomeProbabilitiesFromQubitVectors(
-      normalizedQubitVectorFromProbabilities(topQubit),
-      normalizedQubitVectorFromProbabilities(bottomQubit),
-    );
-  }
-
-  function collapseQubitPairFromCnot(topQubit, bottomQubit) {
-    recordPairExperimentAction(
-      { type: "measure" },
-      currentPairAmplitudesFromQubits(),
-    );
-    const outcomeKey = samplePairOutcomeFromProbabilities(
-      cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit),
-    );
-    const topBlue = outcomeKey[0] === "b";
-    const bottomBlue = outcomeKey[1] === "b";
-    topQubit.blue = topBlue ? 1 : 0;
-    topQubit.red = topBlue ? 0 : 1;
-    bottomQubit.blue = bottomBlue ? 1 : 0;
-    bottomQubit.red = bottomBlue ? 0 : 1;
-    topQubit.cnotPairToken = null;
-    bottomQubit.cnotPairToken = null;
-    topQubit.cnotOutcomeProbabilities = null;
-    bottomQubit.cnotOutcomeProbabilities = null;
-    delete topQubit.element.dataset.phaseSign;
-    delete bottomQubit.element.dataset.phaseSign;
-    updateQubitColor(topQubit);
-    updateQubitColor(bottomQubit);
-    return {
-      outcomeKey,
-      topResult: topBlue ? "b" : "r",
-      bottomResult: bottomBlue ? "b" : "r",
-    };
-  }
-
-  function updateTubeFills() {
-    Object.entries(tubeCountState).forEach(([key, count]) => {
-      tubeCountsByKey[key].textContent = String(count);
-      const percent = Math.min((count / tubeQubitCapacity) * 100, 100);
-      tubeLiquidsByKey[key].style.height = `${percent}%`;
-    });
-  }
-
-  function updatePairCapacityText() {
-    if (!pairCapacity) {
-      return;
-    }
-    pairCapacity.textContent = `The testtubes can each hold ${tubeQubitCapacity} qubit pairs.`;
-  }
-
-  function maybeExpandTubeCapacity() {
-    let maxCount = 0;
-    Object.values(tubeCountState).forEach((count) => {
-      if (count > maxCount) {
-        maxCount = count;
-      }
-    });
-    let expanded = false;
-    while (maxCount > tubeQubitCapacity) {
-      tubeQubitCapacity *= 2;
-      expanded = true;
-    }
-    if (expanded) {
-      updatePairCapacityText();
-    }
-  }
-
-  function clearMeasurementApparatus() {
-    tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-    Object.keys(tubeCountState).forEach((key) => {
-      tubeCountState[key] = 0;
-    });
-    updatePairCapacityText();
-    updateTubeFills();
-  }
-
-  function placeQubitAtStart(qubit) {
-    clearGateIngestAnimation(qubit);
-    qubit.gateTransitInProgress = false;
-    clearLensSlotForQubit(qubit);
-    const gateWindow = gates[qubit.gateIndex].window;
-    const center = stagePointForElementCenter(gateWindow);
-    const rect = qubit.element.getBoundingClientRect();
-    const x =
-      rect.width / 2 + QUBIT_START_EDGE_GAP + TWO_QUBIT_START_SHIFT_PX - 20;
-    setQubitCenter(qubit, x, center.y);
-    qubit.docked = false;
-    qubit.dragging = false;
-    qubit.dragStartPoint = null;
-    qubit.measurementReturnPoint = null;
-    qubit.inCnotWindow = false;
-    qubit.cnotPairToken = null;
-    qubit.cnotOutcomeProbabilities = null;
-    qubit.element.classList.remove("dragging");
-    qubit.element.classList.remove("migrating");
-    qubit.element.classList.remove("melting");
-    qubit.element.classList.remove("docked");
-    qubit.element.classList.remove("measurement-pellet");
-    delete qubit.element.dataset.pairEjected;
-    qubit.blue = 1;
-    qubit.red = 0;
-    setPairCnotPlatformExtended(false);
-    updateQubitColor(qubit);
-    delete qubit.element.dataset.phaseSign;
-  }
-
-  function moveQubitToPoint(qubit, x, y, duration = AUTO_TRAVEL_MS) {
-    return new Promise((resolve) => {
-      qubit.element.style.setProperty("--move-duration", `${duration}ms`);
-      qubit.element.classList.add("migrating");
-      setQubitCenter(qubit, x, y);
-      window.setTimeout(resolve, duration);
-    });
-  }
-
-  function createPairMeasurementPayload(color, startPoint) {
-    const payload = document.createElement("span");
-    payload.className = "qubit measurement-pellet";
-    payload.setAttribute("aria-hidden", "true");
-    payload.style.left = `${startPoint.x}px`;
-    payload.style.top = `${startPoint.y}px`;
-    payload.style.pointerEvents = "none";
-    payload.style.setProperty(
-      "--qubit-fill",
-      color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
-    );
-    pairShell.appendChild(payload);
-    return payload;
-  }
-
-  function movePairPayloadToPoint(payload, x, y, duration = AUTO_TRAVEL_MS) {
-    return new Promise((resolve) => {
-      payload.style.setProperty("--move-duration", `${duration}ms`);
-      payload.classList.add("migrating");
-      payload.style.left = `${x}px`;
-      payload.style.top = `${y}px`;
-      window.setTimeout(resolve, duration);
-    });
-  }
-
-  async function animatePairMeasurementPayloadsToTube(
-    outcomeKey,
-    topColor,
-    bottomColor,
-    topStartPoint,
-    bottomStartPoint,
-    expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    const topPayload = createPairMeasurementPayload(topColor, topStartPoint);
-    const bottomPayload = createPairMeasurementPayload(
-      bottomColor,
-      bottomStartPoint,
-    );
-
-    try {
-      const shellRect = pairShell.getBoundingClientRect();
-      const targetTube = tubeElementsByKey[outcomeKey];
-      const targetRect = targetTube.getBoundingClientRect();
-      const targetPoint = {
-        x: targetRect.left - shellRect.left + targetRect.width / 2,
-        y: targetRect.top - shellRect.top + targetRect.height * 0.22,
-      };
-      const payloadHeight = topPayload.getBoundingClientRect().height;
-      const targetOffset = payloadHeight * 0.8;
-
-      await Promise.all([
-        movePairPayloadToPoint(
-          topPayload,
-          targetPoint.x,
-          targetPoint.y - targetOffset,
-          migrationDuration,
-        ),
-        movePairPayloadToPoint(
-          bottomPayload,
-          targetPoint.x,
-          targetPoint.y + targetOffset,
-          migrationDuration,
-        ),
-      ]);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      topPayload.style.setProperty("--melt-duration", `${meltDuration}ms`);
-      bottomPayload.style.setProperty("--melt-duration", `${meltDuration}ms`);
-      topPayload.classList.add("melting");
-      bottomPayload.classList.add("melting");
-      await wait(meltDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      tubeCountState[outcomeKey] += 1;
-      maybeExpandTubeCapacity();
-      updateTubeFills();
-      return true;
-    } finally {
-      topPayload.remove();
-      bottomPayload.remove();
-    }
-  }
-
-  function settleQubitVisualState(qubit) {
-    qubit.element.classList.remove("migrating");
-    qubit.element.classList.remove("melting");
-    qubit.element.classList.remove("collapse-animating");
-    qubit.element.classList.remove("measurement-pellet");
-    qubit.element.style.opacity = "";
-    qubit.element.style.removeProperty("--move-duration");
-    qubit.element.style.removeProperty("--melt-duration");
-  }
-
-  function wait(duration) {
-    return new Promise((resolve) => window.setTimeout(resolve, duration));
-  }
-
-  function setPairMeasurementPlatformExtended(extended) {
-    pairLens.classList.toggle("platform-extended", extended);
-  }
-
-  function setPairCnotPlatformExtended(extended) {
-    pairCnotBody.classList.toggle("platform-extended", extended);
-  }
-
-  function pairCnotSpringTipX() {
-    const bodyRect = pairCnotBody.getBoundingClientRect();
-    const shellRect = pairShell.getBoundingClientRect();
-    const springStyles = window.getComputedStyle(pairCnotSpring);
-    const springLength = Number.parseFloat(
-      springStyles.getPropertyValue("--spring-length"),
-    );
-    const usableSpringLength = Number.isFinite(springLength)
-      ? springLength
-      : pairCnotSpring.getBoundingClientRect().width;
-    const springOriginX = bodyRect.right - shellRect.left - 4;
-    return springOriginX + usableSpringLength;
-  }
-
-  function nextFrame() {
-    return new Promise((resolve) =>
-      window.requestAnimationFrame(() => resolve()),
-    );
-  }
-
-  function pairTubeOutcomeKey(leftResult, rightResult) {
-    if (leftResult === "b" && rightResult === "b") {
-      return "bb";
-    }
-    if (leftResult === "b" && rightResult === "r") {
-      return "br";
-    }
-    if (leftResult === "r" && rightResult === "b") {
-      return "rb";
-    }
-    return "rr";
-  }
-
-  function setLightningActive(active) {
-    boltA.classList.toggle("active", active);
-    boltB.classList.toggle("active", active);
-  }
-
-  function positionLightning() {
-    const lensCenter = stagePointForElementCenter(pairLens);
-    const qa = stagePointForElementCenter(qubits[0].element);
-    const qb = stagePointForElementCenter(qubits[1].element);
-
-    const layoutBolt = (bolt, start, end) => {
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const length = Math.hypot(dx, dy);
-      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-      bolt.style.left = `${start.x}px`;
-      bolt.style.top = `${start.y}px`;
-      bolt.style.width = `${length}px`;
-      bolt.style.transform = `translateY(-50%) rotate(${angle}deg)`;
-    };
-
-    layoutBolt(boltA, qa, lensCenter);
-    layoutBolt(boltB, qb, lensCenter);
-  }
-
-  function alignPairMeasurementBlockToGateMidpoint() {
-    if (isPairMeasurementManualAlignment(pairShell)) {
-      pairMeasurementBlock.style.transform = "";
-      pairShell.style.paddingBottom = `${
-        basePairShellPaddingBottom + TWO_QUBIT_INNER_BOX_EXTRA_BOTTOM_PX
-      }px`;
-      return;
-    }
-
-    const flexDirection = window.getComputedStyle(pairShell).flexDirection;
-    if (flexDirection === "column") {
-      pairMeasurementBlock.style.transform = "";
-      pairShell.style.paddingBottom = `${
-        basePairShellPaddingBottom + TWO_QUBIT_INNER_BOX_EXTRA_BOTTOM_PX
-      }px`;
-      return;
-    }
-
-    const topGateCenter = stagePointForElementCenter(gates[0].window);
-    const bottomGateCenter = stagePointForElementCenter(gates[1].window);
-    const targetY = (topGateCenter.y + bottomGateCenter.y) / 2;
-    const measurementCenterY =
-      stagePointForElementCenter(pairLens).y +
-      TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
-    const deltaY = targetY - measurementCenterY;
-    pairMeasurementBlock.style.transform = `translateY(${deltaY}px)`;
-    const extraBottom = Math.max(0, deltaY);
-    pairShell.style.paddingBottom = `${
-      basePairShellPaddingBottom +
-      TWO_QUBIT_INNER_BOX_EXTRA_BOTTOM_PX +
-      extraBottom
-    }px`;
-  }
-
-  function alignPairCnotCenterBetweenGates() {
-    pairCnotHost.style.transform = "";
-    const flexDirection = window.getComputedStyle(pairShell).flexDirection;
-    if (flexDirection === "column") {
-      return;
-    }
-    const topGateCenter = stagePointForElementCenter(gates[0].window);
-    const bottomGateCenter = stagePointForElementCenter(gates[1].window);
-    const targetY = (topGateCenter.y + bottomGateCenter.y) / 2;
-    const cnotCenterY = stagePointForElementCenter(pairCnotBody).y;
-    const deltaY = targetY - cnotCenterY;
-    pairCnotHost.style.transform = `translateY(${deltaY}px)`;
-  }
-
-  function syncPairLensWidthToTubeRack() {
-    if (
-      pairLens.dataset.layoutManual === "true" ||
-      pairTubeRack.dataset.layoutManual === "true"
-    ) {
-      return;
-    }
-    pairTubeRack.style.width = "max-content";
-    const rackRect = pairTubeRack.getBoundingClientRect();
-    if (!rackRect.width) {
-      return;
-    }
-    const sharedWidth = Math.round(rackRect.width + 50);
-    pairLens.style.width = `${sharedWidth}px`;
-    pairLens.style.marginLeft = "35px";
-    pairTubeRack.style.width = `${sharedWidth}px`;
-    pairTubeRack.style.marginLeft = "35px";
-  }
-
-  function setGateArrowAtTick(
-    gateIndex,
-    tickIndex,
-    {
-      deferMeasurementClear = false,
-      fromDial = false,
-      allowDuringAuto = false,
-    } = {},
-  ) {
-    if (autoRunInProgress && !fromDial && !allowDuringAuto) {
-      return;
-    }
-    const gate = gates[gateIndex];
-    const normalizedTick = normalizeTickIndex(tickIndex);
-    const changed = normalizedTick !== gate.activeTick;
-    gate.activeTick = normalizedTick;
-    if (!autoRunInProgress) {
-      setRecordedPairGateSetting(gateIndex, normalizedTick);
-    }
-
-    if (!fromDial && gateDials[gateIndex]) {
-      gateDials[gateIndex].setTick(normalizedTick, {
-        deferMeasurementClear,
-        reason: "programmatic",
-      });
-      return;
-    }
-
-    if (changed && !deferMeasurementClear) {
-      clearMeasurementApparatus();
-    }
-
-    const qubit = qubits[gateIndex];
-    if (qubit.docked) {
-      applyGateStateToQubit(qubit, gate.activeTick);
-    }
-  }
-
-  gates.forEach((gate, gateIndex) => {
-    const gateLabel = gateIndex === 0 ? "Top Gate Tick" : "Bottom Gate Tick";
-    const dial = createSingleQubitGateDial({
-      ticksWrap: gate.ticksWrap,
-      arrow: gate.arrow,
-      initialTick: gate.activeTick,
-      tickAriaLabelPrefix: gateLabel,
-      orbitInset: 10,
-      canInteract: () => !autoRunInProgress,
-      onTickChange: (tick, meta) => {
-        setGateArrowAtTick(gateIndex, tick, {
-          deferMeasurementClear: meta.deferMeasurementClear,
-          fromDial: true,
-        });
-      },
-      onTickCommitted: ({ changed }) => {
-        if (changed) {
-          clearMeasurementApparatus();
-        }
-      },
-    });
-    gateDials.push(dial);
-  });
-
-  async function startPairMeasurementSequence(
-    expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    if (measurementInProgress) {
-      return;
-    }
-    if (expectedRunToken !== runToken) {
-      return;
-    }
-    if (!slotOccupants.left || !slotOccupants.right) {
-      return;
-    }
-
-    measurementInProgress = true;
-    qubits.forEach((qubit) => {
-      qubit.dragging = false;
-      qubit.element.classList.remove("dragging");
-    });
-    setPairMeasurementPlatformExtended(false);
-
-    try {
-      const topQubit = slotOccupants.left;
-      const bottomQubit = slotOccupants.right;
-      topQubit.element.classList.add("collapse-animating");
-      bottomQubit.element.classList.add("collapse-animating");
-      const collapseResult = collapseQubitPairFromCnot(topQubit, bottomQubit);
-      const topResult = collapseResult.topResult;
-      const bottomResult = collapseResult.bottomResult;
-      await wait(OBSERVABLE_COLLAPSE_PAUSE_MS);
-      topQubit.element.classList.remove("collapse-animating");
-      bottomQubit.element.classList.remove("collapse-animating");
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      const topPayloadStart = stagePointForElementCenter(topQubit.element);
-      const bottomPayloadStart = stagePointForElementCenter(
-        bottomQubit.element,
-      );
-      const topReturnPoint =
-        validPoint(topQubit.measurementReturnPoint) || topPayloadStart;
-      const bottomReturnPoint =
-        validPoint(bottomQubit.measurementReturnPoint) || bottomPayloadStart;
-
-      setPairMeasurementPlatformExtended(false);
-      await Promise.all([
-        moveQubitToPoint(
-          topQubit,
-          topReturnPoint.x,
-          topReturnPoint.y,
-          GATE_PLATFORM_EXTEND_MS,
-        ),
-        moveQubitToPoint(
-          bottomQubit,
-          bottomReturnPoint.x,
-          bottomReturnPoint.y,
-          GATE_PLATFORM_EXTEND_MS,
-        ),
-      ]);
-      setPairMeasurementPlatformExtended(false);
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      settleQubitVisualState(topQubit);
-      settleQubitVisualState(bottomQubit);
-      setQubitCenter(topQubit, topReturnPoint.x, topReturnPoint.y);
-      setQubitCenter(bottomQubit, bottomReturnPoint.x, bottomReturnPoint.y);
-      topQubit.docked = false;
-      bottomQubit.docked = false;
-      topQubit.element.classList.remove("docked");
-      bottomQubit.element.classList.remove("docked");
-      clearLensSlotForQubit(topQubit);
-      clearLensSlotForQubit(bottomQubit);
-      topQubit.measurementReturnPoint = null;
-      bottomQubit.measurementReturnPoint = null;
-
-      const outcomeKey = pairTubeOutcomeKey(topResult, bottomResult);
-      const payloadsCompleted = await animatePairMeasurementPayloadsToTube(
-        outcomeKey,
-        topResult,
-        bottomResult,
-        topPayloadStart,
-        bottomPayloadStart,
-        expectedRunToken,
-        { migrationDuration, meltDuration },
-      );
-      if (!payloadsCompleted || expectedRunToken !== runToken) {
-        return;
-      }
-    } finally {
-      setPairMeasurementPlatformExtended(false);
-      qubits.forEach((qubit) => {
-        qubit.element.classList.remove("collapse-animating");
-        qubit.element.classList.remove("measurement-pellet");
-      });
-      measurementInProgress = false;
-    }
-  }
-
-  async function runAutomatedPairSingleGateStage(
-    expectedRunToken,
-    { travelDuration, dwellDuration, gateTicks = gates.map((gate) => gate.activeTick) },
-  ) {
-    try {
-      const gateCenters = gates.map((gate) =>
-        stagePointForElementCenter(gate.window),
-      );
-      await Promise.all([
-        moveQubitToPoint(
-          qubits[0],
-          gateCenters[0].x,
-          gateCenters[0].y,
-          travelDuration,
-        ),
-        moveQubitToPoint(
-          qubits[1],
-          gateCenters[1].x,
-          gateCenters[1].y,
-          travelDuration,
-        ),
-      ]);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      qubits.forEach((qubit, idx) => {
-        qubit.docked = true;
-        qubit.element.classList.add("docked");
-      });
-      await wait(dwellDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      qubits.forEach((qubit, idx) => {
-        applyGateStateToQubit(qubit, gateTicks[idx]);
-      });
-      gates.forEach((gate) => gate.wrap.classList.add("platform-extended"));
-      const shellRect = pairShell.getBoundingClientRect();
-      const targets = qubits.map((qubit, idx) => {
-        const pipeRect = gates[idx].window.getBoundingClientRect();
-        const qubitRect = qubit.element.getBoundingClientRect();
-        return {
-          qubit,
-          x: pipeRect.right - shellRect.left + 100 + qubitRect.width / 2,
-          y: gateCenters[idx].y,
-        };
-      });
-
-      await Promise.all(
-        targets.map((target) =>
-          moveQubitToPoint(
-            target.qubit,
-            target.x,
-            target.y,
-            GATE_PLATFORM_EXTEND_MS,
-          ),
-        ),
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      targets.forEach((target) => {
-        target.qubit.docked = false;
-        target.qubit.element.classList.remove("docked");
-        settleQubitVisualState(target.qubit);
-        setQubitCenter(target.qubit, target.x, target.y);
-      });
-      gates.forEach((gate) => gate.wrap.classList.remove("platform-extended"));
-      await wait(GATE_PLATFORM_RETRACT_MS);
-      return expectedRunToken === runToken;
-    } finally {
-      gates.forEach((gate) => gate.wrap.classList.remove("platform-extended"));
-    }
-  }
-
-  async function runAutomatedPairCnotStage(
-    expectedRunToken,
-    { travelDuration, dwellDuration },
-  ) {
-    if (cnotBusy) {
-      return false;
-    }
-    cnotBusy = true;
-    try {
-      const cnotCenters = qubits.map((qubit) =>
-        stagePointForElementCenter(qubit.cnotWindow),
-      );
-      await Promise.all([
-        moveQubitToPoint(
-          qubits[0],
-          cnotCenters[0].x,
-          cnotCenters[0].y,
-          travelDuration,
-        ),
-        moveQubitToPoint(
-          qubits[1],
-          cnotCenters[1].x,
-          cnotCenters[1].y,
-          travelDuration,
-        ),
-      ]);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      qubits.forEach((qubit) => {
-        qubit.inCnotWindow = true;
-      });
-      await wait(dwellDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      annotateCnotOutcomeProbabilitiesForCurrentState();
-      applyCnotGateToQubits();
-      setPairCnotPlatformExtended(true);
-      const springTipXValue = pairCnotSpringTipX();
-      const targets = qubits.map((qubit) => {
-        const slotCenter = stagePointForElementCenter(qubit.cnotWindow);
-        const qubitRect = qubit.element.getBoundingClientRect();
-        return {
-          qubit,
-          x: springTipXValue + 6 + qubitRect.width / 2,
-          y: slotCenter.y,
-        };
-      });
-
-      await Promise.all(
-        targets.map((target) =>
-          moveQubitToPoint(
-            target.qubit,
-            target.x,
-            target.y,
-            GATE_PLATFORM_EXTEND_MS,
-          ),
-        ),
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      targets.forEach((target) => {
-        target.qubit.inCnotWindow = false;
-        settleQubitVisualState(target.qubit);
-        setQubitCenter(target.qubit, target.x, target.y);
-      });
-      setPairCnotPlatformExtended(false);
-      await wait(GATE_PLATFORM_RETRACT_MS);
-      return expectedRunToken === runToken;
-    } finally {
-      setPairCnotPlatformExtended(false);
-      cnotBusy = false;
-    }
-  }
-
-  function mergePairTubeCounts(counts) {
-    Object.keys(tubeCountState).forEach((key) => {
-      tubeCountState[key] += counts[key] || 0;
-    });
-    maybeExpandTubeCapacity();
-    updatePairCapacityText();
-    updateTubeFills();
-  }
-
-  async function replayRecordedPairMeasurementAction(
-    expectedRunToken,
-    {
-      travelDuration = AUTO_TRAVEL_MS,
-      meltDuration = AUTO_MELT_MS,
-      returnPoints = null,
-    } = {},
-  ) {
-    qubits[0].measurementReturnPoint =
-      validPoint(returnPoints?.[0]) ||
-      stagePointForElementCenter(qubits[0].element);
-    qubits[1].measurementReturnPoint =
-      validPoint(returnPoints?.[1]) ||
-      stagePointForElementCenter(qubits[1].element);
-    const leftSlot = getLensSlotCenter("left");
-    const rightSlot = getLensSlotCenter("right");
-    await Promise.all([
-      moveQubitToPoint(qubits[0], leftSlot.x, leftSlot.y, travelDuration),
-      moveQubitToPoint(qubits[1], rightSlot.x, rightSlot.y, travelDuration),
-    ]);
-    if (expectedRunToken !== runToken) {
-      return false;
-    }
-
-    slotOccupants.left = qubits[0];
-    slotOccupants.right = qubits[1];
-    qubits[0].lensSlot = "left";
-    qubits[1].lensSlot = "right";
-    qubits[0].element.dataset.lensSlot = "left";
-    qubits[1].element.dataset.lensSlot = "right";
-    qubits[0].docked = false;
-    qubits[1].docked = false;
-    qubits[0].element.classList.remove("docked");
-    qubits[1].element.classList.remove("docked");
-
-    await startPairMeasurementSequence(expectedRunToken, {
-      migrationDuration: travelDuration,
-      meltDuration,
-    });
-    return expectedRunToken === runToken;
-  }
-
-  async function replayRecordedPairExperimentAnimated(
-    expectedRunToken,
-    experiment,
-    {
-      travelDuration = AUTO_TRAVEL_MS,
-      gatePauseDuration = AUTO_GATE_PAUSE_MS,
-      meltDuration = AUTO_MELT_MS,
-    } = {},
-  ) {
-    const actions = cloneRecordedActions(experiment.actions);
-    if (!actions.length) {
-      return false;
-    }
-
-    qubits.forEach((qubit) => placeQubitAtStart(qubit));
-    const runReturnPoints = qubits.map((qubit) =>
-      stagePointForElementCenter(qubit.element),
-    );
-    applyPairMarginalsFromAmplitudes(experiment.initialAmplitudes);
-    let sawMeasurement = false;
-    for (const action of actions) {
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      if (action.type === "gate") {
-        const gateIndex = Number.isFinite(action.gateIndex)
-          ? action.gateIndex
-          : Number.isFinite(action.qubitIndex)
-            ? action.qubitIndex
-            : 0;
-        const tickIndex = recordedGateTickForAction(
-          { ...action, gateIndex },
-          experiment.gateSettings,
-        );
-        setGateArrowAtTick(gateIndex, tickIndex, {
-          deferMeasurementClear: true,
-          allowDuringAuto: true,
-        });
-        const completed = await runPairGateTransit(
-          qubits[gateIndex],
-          expectedRunToken,
-          {
-            allowDuringAuto: true,
-            gateTick: tickIndex,
-            travelDuration,
-            dwellDuration: gatePauseDuration,
-          },
-        );
-        if (!completed) {
-          return false;
-        }
-      } else if (action.type === "cnot") {
-        const completed = await runAutomatedPairCnotStage(expectedRunToken, {
-          travelDuration,
-          dwellDuration: CNOT_WINDOW_DWELL_MS,
-        });
-        if (!completed) {
-          return false;
-        }
-      } else if (action.type === "measure") {
-        sawMeasurement = true;
-        const completed = await replayRecordedPairMeasurementAction(
-          expectedRunToken,
-          {
-            travelDuration,
-            meltDuration,
-            returnPoints: runReturnPoints,
-          },
-        );
-        if (!completed) {
-          return false;
-        }
-      }
-    }
-
-    if (!sawMeasurement) {
-      return replayRecordedPairMeasurementAction(expectedRunToken, {
-        travelDuration,
-        meltDuration,
-        returnPoints: runReturnPoints,
-      });
-    }
-    return true;
-  }
-
-  async function runAutomatedPairMeasurements(iterations) {
-    if (autoRunInProgress || measurementInProgress || cnotBusy) {
-      return;
-    }
-
-    const useMachineMode = iterations >= 100;
-    const speedFactor = iterations >= 10 ? 2 : 1;
-    const travelDuration = Math.round(AUTO_TRAVEL_MS / speedFactor);
-    const gatePauseDuration = Math.round(AUTO_GATE_PAUSE_MS / speedFactor);
-    const meltDuration = Math.round(AUTO_MELT_MS / speedFactor);
-    const machineDuration =
-      iterations === 100
-        ? MACHINE_DURATION_100_MS
-        : iterations === 1000
-          ? MACHINE_DURATION_1000_MS
-          : null;
-    const recordedPlaybackExperiment = recordedPairPlaybackExperiment();
-    const automationGateTicks = gates.map((gate) =>
-      normalizeTickIndex(gate.activeTick),
-    );
-
-    const thisRunToken = runToken + 1;
-    runToken = thisRunToken;
-    autoRunInProgress = true;
-    pairMeasurementCount.disabled = true;
-    qubits.forEach((qubit) => {
-      qubit.dragging = false;
-      qubit.element.classList.remove("dragging");
-      clearLensSlotForQubit(qubit);
-    });
-
-    try {
-      if (recordedPlaybackExperiment) {
-        if (useMachineMode) {
-          qubits.forEach((qubit) => placeQubitAtStart(qubit));
-          positionLightning();
-          setLightningActive(true);
-
-          const processOne = () => {
-            mergePairTubeCounts(
-              replayRecordedExperiment(1, {
-                actions: recordedPlaybackExperiment.actions,
-                initialAmplitudes: recordedPlaybackExperiment.initialAmplitudes,
-                gateSettings: recordedPlaybackExperiment.gateSettings,
-              }),
-            );
-          };
-
-          let processed = 0;
-          if (machineDuration !== null) {
-            const runStart = performance.now();
-            while (processed < iterations) {
-              if (thisRunToken !== runToken) {
-                break;
-              }
-              const elapsed = performance.now() - runStart;
-              const progress = Math.min(elapsed / machineDuration, 1);
-              const shouldBeProcessed = Math.floor(progress * iterations);
-              if (shouldBeProcessed <= processed) {
-                await nextFrame();
-                continue;
-              }
-              while (processed < shouldBeProcessed && processed < iterations) {
-                processOne();
-                processed += 1;
-              }
-              await nextFrame();
-            }
-          } else {
-            await nextFrame();
-            while (processed < iterations && thisRunToken === runToken) {
-              processOne();
-              processed += 1;
-            }
-          }
-          qubits.forEach((qubit) => placeQubitAtStart(qubit));
-          return;
-        }
-
-        for (let i = 0; i < iterations; i += 1) {
-          if (thisRunToken !== runToken) {
-            break;
-          }
-          const completed = await replayRecordedPairExperimentAnimated(
-            thisRunToken,
-            recordedPlaybackExperiment,
-            {
-              travelDuration,
-              gatePauseDuration,
-              meltDuration,
-            },
-          );
-          if (!completed || thisRunToken !== runToken) {
-            break;
-          }
-        }
-        return;
-      }
-
-      if (useMachineMode) {
-        qubits.forEach((qubit) => placeQubitAtStart(qubit));
-        positionLightning();
-        setLightningActive(true);
-
-        const processOne = () => {
-          qubits.forEach((qubit) => {
-            qubit.blue = 1;
-            qubit.red = 0;
-            qubit.cnotPairToken = null;
-            qubit.cnotOutcomeProbabilities = null;
-            delete qubit.element.dataset.phaseSign;
-            updateQubitColor(qubit);
-          });
-          qubits.forEach((qubit, idx) => {
-            applyGateStateToQubit(qubit, automationGateTicks[idx]);
-          });
-          annotateCnotOutcomeProbabilitiesForCurrentState();
-          applyCnotGateToQubits();
-          const { outcomeKey } = collapseQubitPairFromCnot(
-            qubits[0],
-            qubits[1],
-          );
-          tubeCountState[outcomeKey] += 1;
-          maybeExpandTubeCapacity();
-        };
-
-        let processed = 0;
-        if (machineDuration !== null) {
-          const runStart = performance.now();
-          while (processed < iterations) {
-            if (thisRunToken !== runToken) {
-              break;
-            }
-            const elapsed = performance.now() - runStart;
-            const progress = Math.min(elapsed / machineDuration, 1);
-            const shouldBeProcessed = Math.floor(progress * iterations);
-            if (shouldBeProcessed <= processed) {
-              await nextFrame();
-              continue;
-            }
-            while (processed < shouldBeProcessed && processed < iterations) {
-              processOne();
-              processed += 1;
-            }
-            updateTubeFills();
-            await nextFrame();
-          }
-        } else {
-          await nextFrame();
-          while (processed < iterations && thisRunToken === runToken) {
-            processOne();
-            processed += 1;
-          }
-        }
-        updateTubeFills();
-        qubits.forEach((qubit) => placeQubitAtStart(qubit));
-        return;
-      }
-
-      for (let i = 0; i < iterations; i += 1) {
-        if (thisRunToken !== runToken) {
-          break;
-        }
-
-        qubits.forEach((qubit) => placeQubitAtStart(qubit));
-        const runReturnPoints = qubits.map((qubit) =>
-          stagePointForElementCenter(qubit.element),
-        );
-        const gatesCompleted = await runAutomatedPairSingleGateStage(
-          thisRunToken,
-          {
-            travelDuration,
-            dwellDuration: gatePauseDuration,
-            gateTicks: automationGateTicks,
-          },
-        );
-        if (!gatesCompleted || thisRunToken !== runToken) {
-          break;
-        }
-
-        const cnotCompleted = await runAutomatedPairCnotStage(thisRunToken, {
-          travelDuration,
-          dwellDuration: CNOT_WINDOW_DWELL_MS,
-        });
-        if (!cnotCompleted || thisRunToken !== runToken) {
-          break;
-        }
-
-        qubits[0].measurementReturnPoint = runReturnPoints[0];
-        qubits[1].measurementReturnPoint = runReturnPoints[1];
-        const leftSlot = getLensSlotCenter("left");
-        const rightSlot = getLensSlotCenter("right");
-        await Promise.all([
-          moveQubitToPoint(qubits[0], leftSlot.x, leftSlot.y, travelDuration),
-          moveQubitToPoint(qubits[1], rightSlot.x, rightSlot.y, travelDuration),
-        ]);
-        if (thisRunToken !== runToken) {
-          break;
-        }
-
-        slotOccupants.left = qubits[0];
-        slotOccupants.right = qubits[1];
-        qubits[0].lensSlot = "left";
-        qubits[1].lensSlot = "right";
-        qubits[0].element.dataset.lensSlot = "left";
-        qubits[1].element.dataset.lensSlot = "right";
-        qubits[0].docked = false;
-        qubits[1].docked = false;
-        qubits[0].element.classList.remove("docked");
-        qubits[1].element.classList.remove("docked");
-
-        await startPairMeasurementSequence(thisRunToken, {
-          migrationDuration: travelDuration,
-          meltDuration,
-        });
-      }
-    } finally {
-      setLightningActive(false);
-      autoRunInProgress = false;
-      pairMeasurementCount.disabled = false;
-    }
-  }
-
-  function maybeTriggerManualPairMeasurement() {
-    if (
-      slotOccupants.left &&
-      slotOccupants.right &&
-      !measurementInProgress &&
-      !autoRunInProgress
-    ) {
-      const token = runToken + 1;
-      runToken = token;
-      startPairMeasurementSequence(token);
-    }
-  }
-
-  function beginQubitDrag(qubit, event) {
-    if (handleShiftQubitSelection(event, qubit.element)) {
-      return;
-    }
-    if (
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.gateTransitInProgress
-    ) {
-      return;
-    }
-    if (!isPrimaryMouseButton(event)) {
-      return;
-    }
-    clearGateIngestAnimation(qubit);
-    event.preventDefault();
-    event.stopPropagation();
-    const point = getPointer(event);
-    const qubitRect = qubit.element.getBoundingClientRect();
-    qubit.dragging = true;
-    qubit.element.classList.add("dragging");
-    qubit.docked = false;
-    qubit.element.classList.remove("docked");
-    delete qubit.element.dataset.pairEjected;
-    qubit.dragStartPoint = stagePointForElementCenter(qubit.element);
-    clearLensSlotForQubit(qubit);
-    qubit.dragOffsetX = point.clientX - (qubitRect.left + qubitRect.width / 2);
-    qubit.dragOffsetY = point.clientY - (qubitRect.top + qubitRect.height / 2);
-  }
-
-  function continueQubitDrag(event) {
-    const draggingQubits = qubits.filter((qubit) => qubit.dragging);
-    if (!draggingQubits.length || measurementInProgress || autoRunInProgress) {
-      return;
-    }
-    if (event.touches) {
-      event.preventDefault();
-    }
-    const point = getPointer(event);
-    const shellRect = pairShell.getBoundingClientRect();
-    draggingQubits.forEach((qubit) => {
-      const nextX = point.clientX - shellRect.left - qubit.dragOffsetX;
-      const nextY = point.clientY - shellRect.top - qubit.dragOffsetY;
-      setQubitCenter(qubit, nextX, nextY);
-      if (maybeSnapQubitToMeasurementFunnel(qubit)) {
-        return;
-      }
-      const snappedLens = maybeSnapQubitToLens(qubit);
-      if (!snappedLens) {
-        if (!maybeSnapQubitToGate(qubit)) {
-          preventManualPipeOverlapForPairQubit(qubit);
-        }
-      }
-    });
-  }
-
-  function endQubitDrag() {
-    if (measurementInProgress || autoRunInProgress) {
-      return;
-    }
-    let measurementIngressTriggered = false;
-    qubits.forEach((qubit) => {
-      if (!qubit.dragging) {
-        return;
-      }
-      qubit.dragging = false;
-      qubit.element.classList.remove("dragging");
-      if (maybeSnapQubitToMeasurementFunnel(qubit)) {
-        measurementIngressTriggered = true;
-        return;
-      }
-      if (!maybeSnapQubitToLens(qubit)) {
-        if (!maybeSnapQubitToGate(qubit)) {
-          preventManualPipeOverlapForPairQubit(qubit);
-        }
-      }
-      qubit.dragStartPoint = null;
-    });
-    if (!measurementIngressTriggered) {
-      maybeTriggerManualPairMeasurement();
-    }
-  }
-
-  function beginArrowDrag(gateIndex, event) {
-    gateDials[gateIndex]?.beginDrag(event);
-  }
-
-  function continueArrowDrag(event) {
-    gateDials.forEach((dial) => {
-      dial?.continueDrag(event);
-    });
-  }
-
-  function endArrowDrag() {
-    gateDials.forEach((dial) => {
-      dial?.endDrag();
-    });
-  }
-
-  function handleResize() {
-    const shellRect = pairShell.getBoundingClientRect();
-    if (!shellRect.width || !shellRect.height) {
-      return;
-    }
-
-    gateDials.forEach((dial) => {
-      dial?.layout();
-    });
-    syncPairLensWidthToTubeRack();
-
-    alignPairCnotCenterBetweenGates();
-    alignPairMeasurementBlockToGateMidpoint();
-    positionLightning();
-
-    if (!initialized) {
-      qubits.forEach((qubit) => placeQubitAtStart(qubit));
-      initialized = true;
-      return;
-    }
-
-    qubits.forEach((qubit) => {
-      if (qubit.docked) {
-        maybeSnapQubitToGate(qubit, {
-          allowWindowOverlap: true,
-          runTransit: false,
-        });
-        return;
-      }
-      if (qubit.inCnotWindow) {
-        const center = stagePointForElementCenter(qubit.cnotWindow);
-        setQubitCenter(qubit, center.x, center.y);
-        return;
-      }
-      if (qubit.lensSlot) {
-        const center = getLensSlotCenter(qubit.lensSlot);
-        setQubitCenter(qubit, center.x, center.y);
-        return;
-      }
-      const center = stagePointForElementCenter(qubit.element);
-      setQubitCenter(qubit, center.x, center.y);
-    });
-  }
-
-  function resetPairSimulator() {
-    runToken += 1;
-    autoRunInProgress = false;
-    measurementInProgress = false;
-    cnotBusy = false;
-    pairMeasurementCount.disabled = false;
-    pairMeasurementCount.value = "1";
-    setLightningActive(false);
-    setPairMeasurementPlatformExtended(false);
-    setPairCnotPlatformExtended(false);
-
-    gates.forEach((gate) => {
-      gate.arrow.classList.remove("dragging");
-      gate.wrap.classList.remove("platform-extended");
-    });
-
-    qubits.forEach((qubit) => {
-      qubit.gateTransitInProgress = false;
-      placeQubitAtStart(qubit);
-    });
-
-    setGateArrowAtTick(0, DEFAULT_SINGLE_GATE_TICK_INDEX);
-    setGateArrowAtTick(1, DEFAULT_SINGLE_GATE_TICK_INDEX);
-    clearMeasurementApparatus();
-    clearRecordedPairExperiment();
-  }
-
-  qubitA.addEventListener("mousedown", (event) =>
-    beginQubitDrag(qubits[0], event),
-  );
-  qubitA.addEventListener(
-    "touchstart",
-    (event) => beginQubitDrag(qubits[0], event),
-    { passive: false },
-  );
-  qubitB.addEventListener("mousedown", (event) =>
-    beginQubitDrag(qubits[1], event),
-  );
-  qubitB.addEventListener(
-    "touchstart",
-    (event) => beginQubitDrag(qubits[1], event),
-    { passive: false },
-  );
-
-  pairArrowA.addEventListener("mousedown", (event) => beginArrowDrag(0, event));
-  pairArrowA.addEventListener(
-    "touchstart",
-    (event) => beginArrowDrag(0, event),
-    { passive: false },
-  );
-  pairArrowB.addEventListener("mousedown", (event) => beginArrowDrag(1, event));
-  pairArrowB.addEventListener(
-    "touchstart",
-    (event) => beginArrowDrag(1, event),
-    { passive: false },
-  );
-
-  window.addEventListener("mousemove", (event) => {
-    continueArrowDrag(event);
-    continueQubitDrag(event);
-  });
-  window.addEventListener(
-    "touchmove",
-    (event) => {
-      continueArrowDrag(event);
-      continueQubitDrag(event);
-    },
-    { passive: false },
-  );
-  window.addEventListener("mouseup", () => {
-    endArrowDrag();
-    endQubitDrag();
-  });
-  window.addEventListener("touchend", () => {
-    endArrowDrag();
-    endQubitDrag();
-  });
-  window.addEventListener("touchcancel", () => {
-    endArrowDrag();
-    endQubitDrag();
-  });
-
-  [pairArrowA, pairArrowB].forEach((arrow, gateIndex) => {
-    arrow.addEventListener("keydown", (event) =>
-      gateDials[gateIndex]?.handleKeydown(event),
-    );
-  });
-
-  pairMeasurementCount.addEventListener("mousedown", (event) =>
-    event.stopPropagation(),
-  );
-  pairMeasurementCount.addEventListener("touchstart", (event) =>
-    event.stopPropagation(),
-  );
-  pairMeasurementCount.addEventListener("click", (event) =>
-    event.stopPropagation(),
-  );
-  pairMeasurementCount.addEventListener("change", () => {
-    clearMeasurementApparatus();
-    const iterations = Number(pairMeasurementCount.value) || 1;
-    if (
-      iterations === 1 &&
-      slotOccupants.left &&
-      slotOccupants.right &&
-      !measurementInProgress
-    ) {
-      const token = runToken + 1;
-      runToken = token;
-      startPairMeasurementSequence(token);
-      return;
-    }
-    runAutomatedPairMeasurements(Math.max(1, iterations));
-  });
-
-  pairLens.addEventListener("click", () => {
-    const iterations = Number(pairMeasurementCount.value) || 1;
-    if (
-      iterations === 1 &&
-      slotOccupants.left &&
-      slotOccupants.right &&
-      !measurementInProgress
-    ) {
-      const token = runToken + 1;
-      runToken = token;
-      startPairMeasurementSequence(token);
-      return;
-    }
-    runAutomatedPairMeasurements(Math.max(1, iterations));
-  });
-
-  if (pairResetButton) {
-    pairResetButton.addEventListener("click", () => {
-      resetPairSimulator();
-    });
-  }
-
-  setGateArrowAtTick(0, DEFAULT_SINGLE_GATE_TICK_INDEX);
-  setGateArrowAtTick(1, DEFAULT_SINGLE_GATE_TICK_INDEX);
-  clearMeasurementApparatus();
-  clearRecordedPairExperiment();
-
-  return {
-    handleResize,
-  };
-}
-
-function setupEntanglementGate(root) {
-  mountEntanglementCnotGate(root);
-  const entResetButton = root.querySelector('[data-role="ent-reset"]');
-  const measurementHost = root.querySelector(
-    '[data-role="ent-measurement-host"]',
-  );
-  mountPairMeasurementTool(measurementHost);
-  const shell = root.querySelector('[data-role="ent-shell"]');
-  const preGateStack = root.querySelector(".ent-pre-gates");
-  const pipe = root.querySelector('[data-role="ent-pipe"]');
-  const qubitTop = root.querySelector('[data-role="ent-qubit-top"]');
-  const qubitBottom = root.querySelector('[data-role="ent-qubit-bottom"]');
-  const preFunnelTop = root.querySelector('[data-role="ent-pre-funnel-top"]');
-  const preFunnelBottom = root.querySelector(
-    '[data-role="ent-pre-funnel-bottom"]',
-  );
-  const prePipeTop = root.querySelector('[data-role="ent-pre-pipe-top"]');
-  const prePipeBottom = root.querySelector('[data-role="ent-pre-pipe-bottom"]');
-  const preTicksTop = root.querySelector('[data-role="ent-pre-ticks-top"]');
-  const preTicksBottom = root.querySelector(
-    '[data-role="ent-pre-ticks-bottom"]',
-  );
-  const preArrowTop = root.querySelector('[data-role="ent-pre-arrow-top"]');
-  const preArrowBottom = root.querySelector(
-    '[data-role="ent-pre-arrow-bottom"]',
-  );
-  const preFlangeTop = root.querySelector('[data-role="ent-pre-flange-top"]');
-  const preFlangeBottom = root.querySelector(
-    '[data-role="ent-pre-flange-bottom"]',
-  );
-  const preSpringTop = root.querySelector('[data-role="ent-pre-spring-top"]');
-  const preSpringBottom = root.querySelector(
-    '[data-role="ent-pre-spring-bottom"]',
-  );
-  const funnelTop = root.querySelector('[data-role="ent-funnel-top"]');
-  const funnelBottom = root.querySelector('[data-role="ent-funnel-bottom"]');
-  const windowTop = root.querySelector('[data-role="ent-window-top"]');
-  const windowBottom = root.querySelector('[data-role="ent-window-bottom"]');
-  const cnotPlatform = root.querySelector('[data-role="ent-platform"]');
-  const measurementBlock = measurementHost;
-  const measurementTool = measurementBlock
-    ? measurementBlock.querySelector('[data-role="pair-lens"]')
-    : null;
-  const measurementFunnel = measurementBlock
-    ? measurementBlock.querySelector('[data-role="pair-measurement-funnel"]')
-    : null;
-  const measurementSlotTop = measurementBlock
-    ? measurementBlock.querySelector('[data-role="pair-slot-left"]')
-    : null;
-  const measurementSlotBottom = measurementBlock
-    ? measurementBlock.querySelector('[data-role="pair-slot-right"]')
-    : null;
-  const measurementPlatform = measurementTool
-    ? measurementTool.querySelector(".pair-measurement-platform")
-    : null;
-  const measurementCapacity = measurementBlock
-    ? measurementBlock.querySelector('[data-role="pair-capacity"]')
-    : null;
-  const measurementCount = measurementBlock
-    ? measurementBlock.querySelector('[data-role="pair-measurement-count"]')
-    : null;
-  const measurementColumns = measurementBlock
-    ? Array.from(
-        measurementBlock.querySelectorAll(".pair-tube-column[data-key]"),
-      )
-    : [];
-
-  const measurementTubesByKey = {};
-  const measurementLiquidsByKey = {};
-  const measurementCountsByKey = {};
-  measurementColumns.forEach((column) => {
-    const key = column.dataset.key;
-    if (!key) {
-      return;
-    }
-    measurementTubesByKey[key] = column.querySelector(".pair-tube");
-    measurementLiquidsByKey[key] = column.querySelector(".tube-liquid");
-    measurementCountsByKey[key] = column.querySelector(".tube-count");
-  });
-  const measurementKeys = ["bb", "br", "rb", "rr"];
-  const hasAllMeasurementParts = measurementKeys.every(
-    (key) =>
-      measurementTubesByKey[key] &&
-      measurementLiquidsByKey[key] &&
-      measurementCountsByKey[key],
-  );
-
-  if (
-    !entResetButton ||
-    !measurementHost ||
-    !shell ||
-    !pipe ||
-    !preGateStack ||
-    !qubitTop ||
-    !qubitBottom ||
-    !preFunnelTop ||
-    !preFunnelBottom ||
-    !prePipeTop ||
-    !prePipeBottom ||
-    !preTicksTop ||
-    !preTicksBottom ||
-    !preArrowTop ||
-    !preArrowBottom ||
-    !preFlangeTop ||
-    !preFlangeBottom ||
-    !preSpringTop ||
-    !preSpringBottom ||
-    !funnelTop ||
-    !funnelBottom ||
-    !windowTop ||
-    !windowBottom ||
-    !cnotPlatform ||
-    !measurementBlock ||
-    !measurementTool ||
-    !measurementFunnel ||
-    !measurementSlotTop ||
-    !measurementSlotBottom ||
-    !measurementPlatform ||
-    !measurementCapacity ||
-    !measurementCount ||
-    !hasAllMeasurementParts
-  ) {
-    return null;
-  }
-
-  registerSelectionContainer(shell);
-
-  const qubits = [
-    {
-      key: "top",
-      element: qubitTop,
-      cnotWindow: windowTop,
-      cnotFunnel: funnelTop,
-      preGate: {
-        funnel: preFunnelTop,
-        pipe: prePipeTop,
-        ticksWrap: preTicksTop,
-        arrow: preArrowTop,
-        flange: preFlangeTop,
-        spring: preSpringTop,
-        tickIndex: ENT_TOP_DEFAULT_GATE_TICK_INDEX,
-      },
-      dragging: false,
-      dragOffsetX: 0,
-      dragOffsetY: 0,
-      dragStartPoint: null,
-      measurementReturnPoint: null,
-      inCnotWindow: false,
-      cnotIngesting: false,
-      preTransitInProgress: false,
-      measurementTransitInProgress: false,
-      measurementSlot: null,
-      locked: false,
-      blue: 1,
-      red: 0,
-      cnotPairToken: null,
-      cnotOutcomeProbabilities: null,
-    },
-    {
-      key: "bottom",
-      element: qubitBottom,
-      cnotWindow: windowBottom,
-      cnotFunnel: funnelBottom,
-      preGate: {
-        funnel: preFunnelBottom,
-        pipe: prePipeBottom,
-        ticksWrap: preTicksBottom,
-        arrow: preArrowBottom,
-        flange: preFlangeBottom,
-        spring: preSpringBottom,
-        tickIndex: ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX,
-      },
-      dragging: false,
-      dragOffsetX: 0,
-      dragOffsetY: 0,
-      dragStartPoint: null,
-      measurementReturnPoint: null,
-      inCnotWindow: false,
-      cnotIngesting: false,
-      preTransitInProgress: false,
-      measurementTransitInProgress: false,
-      measurementSlot: null,
-      locked: false,
-      blue: 1,
-      red: 0,
-      cnotPairToken: null,
-      cnotOutcomeProbabilities: null,
-    },
-  ];
-  qubits.forEach(updateQubitColor);
-  qubits.forEach((qubit) => {
-    const label =
-      qubit.key === "top"
-        ? "Entanglement Pre-Gate (Top)"
-        : "Entanglement Pre-Gate (Bottom)";
-    registerGateInspector(qubit.preGate.pipe, () => ({
-      label,
-      matrix: gateMatrixForTick(qubit.preGate.tickIndex),
-      tickIndex: qubit.preGate.tickIndex,
-    }));
-  });
-  registerGateInspector(pipe, () => ({
-    label: "Entanglement CNOT Gate",
-    matrix: [
-      [1, 0, 0, 0],
-      [0, 1, 0, 0],
-      [0, 0, 0, 1],
-      [0, 0, 1, 0],
-    ],
-  }));
-
-  registerQubitInspector(qubits[0].element, () => ({
-    label: "Entanglement Mode (Control / Top Qubit)",
-    blue: qubits[0].blue,
-    red: qubits[0].red,
-  }));
-  registerQubitInspector(qubits[1].element, () => ({
-    label: "Entanglement Mode (Target / Bottom Qubit)",
-    blue: qubits[1].blue,
-    red: qubits[1].red,
-  }));
-
-  const measurementSlotOccupants = {
-    left: null,
-    right: null,
-  };
-  const tubeCountState = {
-    bb: 0,
-    br: 0,
-    rb: 0,
-    rr: 0,
-  };
-
-  function setEntangledAmplitudes(amplitudes) {
-    entangledState.amplitudes = normalizeEntangledAmplitudes(amplitudes);
-    window.entangledState = entangledState;
-  }
-
-  function syncEntangledStateFromCurrentQubits() {
-    setEntangledAmplitudes(
-      entangledAmplitudesFromQubitVectors(
-        normalizedQubitVectorFromProbabilities(qubits[0]),
-        normalizedQubitVectorFromProbabilities(qubits[1]),
-      ),
-    );
-  }
-
-  function updateQubitsFromEntangledState() {
-    const marginals = pairMarginalsFromEntangledState(entangledState);
-    qubits[0].blue = marginals.top.blue;
-    qubits[0].red = marginals.top.red;
-    qubits[1].blue = marginals.bottom.blue;
-    qubits[1].red = marginals.bottom.red;
-    qubits.forEach((qubit) => {
-      updateQubitColor(qubit);
-    });
-  }
-
-  function setRecordedExperimentInitialAmplitudes(amplitudes) {
-    recordedExperimentInitialAmplitudes = normalizeEntangledAmplitudes(
-      deepCopyAmplitudes(amplitudes),
-    );
-    window.recordedExperimentInitialAmplitudes =
-      recordedExperimentInitialAmplitudes;
-  }
-
-  function setRecordedExperimentGateSetting(qubitIndex, tickIndex) {
-    const normalizedTick = normalizeTickIndex(tickIndex);
-    recordedExperimentGateSettings[qubitIndex] = normalizedTick;
-    window.recordedExperimentGateSettings = recordedExperimentGateSettings;
-    recordedExperimentActions.forEach((action) => {
-      if (action.type === "gate" && action.qubitIndex === qubitIndex) {
-        action.tickIndex = normalizedTick;
-      }
-    });
-  }
-
-  function clearRecordedExperiment() {
-    recordedExperimentActions.length = 0;
-    window.recordedExperimentActions = recordedExperimentActions;
-    setRecordedExperimentInitialAmplitudes(entangledState.amplitudes);
-    recordedExperimentComplete = false;
-  }
-
-  function recordExperimentAction(
-    action,
-    beforeAmplitudes = entangledState.amplitudes,
-  ) {
-    if (autoRunInProgress || !action?.type) {
-      return;
-    }
-    if (recordedExperimentActions.length === 0 || recordedExperimentComplete) {
-      recordedExperimentActions.length = 0;
-      setRecordedExperimentInitialAmplitudes(beforeAmplitudes);
-      recordedExperimentComplete = false;
-    }
-    if (action.type === "gate") {
-      const qubitIndex = Number.isFinite(action.qubitIndex)
-        ? action.qubitIndex
-        : 0;
-      const tickIndex = recordedGateTickForAction(
-        { ...action, qubitIndex },
-        recordedExperimentGateSettings,
-      );
-      recordedExperimentActions.push({
-        ...action,
-        qubitIndex,
-        tickIndex,
-      });
-    } else {
-      recordedExperimentActions.push({ ...action });
-    }
-    if (action.type === "measure") {
-      recordedExperimentComplete = true;
-    }
-  }
-
-  let tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-  let initialized = false;
-  let cnotBusy = false;
-  let measurementInProgress = false;
-  let autoRunInProgress = false;
-  let runToken = 0;
-  let recordedExperimentComplete = false;
-  const preGateDials = new Map();
-  syncEntangledStateFromCurrentQubits();
-  setRecordedExperimentInitialAmplitudes(entangledState.amplitudes);
-
-  function stagePointForElementCenter(element) {
-    const shellRect = shell.getBoundingClientRect();
-    const rect = element.getBoundingClientRect();
-    return {
-      x: rect.left - shellRect.left + rect.width / 2,
-      y: rect.top - shellRect.top + rect.height / 2,
-    };
-  }
-
-  function setQubitCenter(qubit, x, y) {
-    const shellRect = shell.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const radius = qubitRect.width / 2;
-    const safeX = Number.isFinite(x) ? x : shellRect.width / 2;
-    const safeY = Number.isFinite(y) ? y : shellRect.height / 2;
-    const clampedX = Math.min(
-      Math.max(safeX, radius),
-      shellRect.width - radius,
-    );
-    const clampedY = Math.min(
-      Math.max(safeY, radius),
-      shellRect.height - radius,
-    );
-    qubit.element.style.left = `${clampedX}px`;
-    qubit.element.style.top = `${clampedY}px`;
-  }
-
-  function captureMeasurementReturnPoint(qubit) {
-    return (
-      validPoint(qubit.dragStartPoint) ||
-      stagePointForElementCenter(qubit.element)
-    );
-  }
-
-  function updateQubitColor(qubit) {
-    qubit.element.style.setProperty(
-      "--qubit-fill",
-      blendBlueRed(qubit.blue, qubit.red),
-    );
-  }
-
-  function wait(duration) {
-    return new Promise((resolve) => window.setTimeout(resolve, duration));
-  }
-
-  function removeStrayEntanglementQubitArtifacts() {
-    shell.querySelectorAll(".qubit").forEach((node) => {
-      if (node !== qubitTop && node !== qubitBottom) {
-        node.remove();
-      }
-    });
-  }
-
-  function settleQubitVisualState(qubit) {
-    qubit.element.classList.remove("migrating");
-    qubit.element.classList.remove("dragging");
-    qubit.element.classList.remove("ent-hidden");
-    qubit.element.classList.remove("ent-appearing");
-    qubit.element.classList.remove("collapse-animating");
-    qubit.element.classList.remove("melting");
-    qubit.element.classList.remove("measurement-pellet");
-    // Ensure any transient 'ejected' markers are cleared to avoid visual ghosts
-    try {
-      delete qubit.element.dataset.pairEjected;
-      delete qubit.element.dataset.phaseSign;
-    } catch (_e) {}
-    qubit.element.style.opacity = "";
-    qubit.element.style.removeProperty("transform");
-    qubit.element.style.removeProperty("--move-duration");
-    qubit.element.style.removeProperty("--melt-duration");
-  }
-
-  function clearMeasurementSlotForQubit(qubit) {
-    if (
-      qubit.measurementSlot &&
-      measurementSlotOccupants[qubit.measurementSlot] === qubit
-    ) {
-      measurementSlotOccupants[qubit.measurementSlot] = null;
-    }
-    qubit.measurementSlot = null;
-  }
-
-  function getMeasurementSlotForQubit(qubit) {
-    return qubit.key === "top" ? "right" : "left";
-  }
-
-  function getMeasurementSlotCenter(slot) {
-    const slotElement =
-      slot === "left" ? measurementSlotTop : measurementSlotBottom;
-    const slotRect = slotElement.getBoundingClientRect();
-    const hasVisibleSlotGeometry =
-      slotRect.width > 4 &&
-      slotRect.height > 4 &&
-      window.getComputedStyle(slotElement).display !== "none";
-    if (hasVisibleSlotGeometry) {
-      const center = stagePointForElementCenter(slotElement);
-      const offset = getPairLensSlotOffsetFromShell(shell, slot);
-      return {
-        x: center.x + offset.x,
-        y: center.y + offset.y,
-      };
-    }
-
-    // Fallback for edited layouts where slot nodes are hidden/collapsed.
-    const lensCenter = stagePointForElementCenter(measurementTool);
-    const lensRect = measurementTool.getBoundingClientRect();
-    const laneOffset = Math.max(20, lensRect.width * 0.12);
-    return {
-      x:
-        lensCenter.x +
-        (slot === "right" ? laneOffset : -laneOffset) +
-        TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_X,
-      y: lensCenter.y + TWO_QUBIT_MEASUREMENT_SLOT_SHIFT_Y,
-    };
-  }
-
-  function placeQubitAtStart(qubit) {
-    const funnelCenter = stagePointForElementCenter(qubit.preGate.funnel);
-    const gateCenter = stagePointForElementCenter(qubit.preGate.pipe);
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const radius = qubitRect.width / 2;
-    const x = Math.max(radius + QUBIT_START_EDGE_GAP, gateCenter.x - 100);
-    settleQubitVisualState(qubit);
-    setQubitCenter(qubit, x, funnelCenter.y);
-    clearMeasurementSlotForQubit(qubit);
-    qubit.dragging = false;
-    qubit.inCnotWindow = false;
-    qubit.cnotIngesting = false;
-    qubit.preTransitInProgress = false;
-    qubit.measurementTransitInProgress = false;
-    qubit.dragStartPoint = null;
-    qubit.measurementReturnPoint = null;
-    qubit.locked = false;
-    qubit.blue = 1;
-    qubit.red = 0;
-    qubit.preGate.flange.classList.remove("extended");
-    pipe.classList.remove("platform-extended");
-    setMeasurementPlatformExtended(false);
-    updateQubitColor(qubit);
-  }
-
-  function resetEntanglementQubits({ syncState = true } = {}) {
-    removeStrayEntanglementQubitArtifacts();
-    measurementSlotOccupants.left = null;
-    measurementSlotOccupants.right = null;
-    qubits.forEach((qubit) => {
-      qubit.dragging = false;
-      qubit.locked = false;
-      qubit.inCnotWindow = false;
-      qubit.cnotIngesting = false;
-      qubit.preTransitInProgress = false;
-      qubit.measurementTransitInProgress = false;
-      qubit.docked = false;
-      qubit.element.classList.remove(
-        "dragging",
-        "docked",
-        "migrating",
-        "ent-hidden",
-        "ent-appearing",
-        "collapse-animating",
-        "melting",
-        "measurement-pellet",
-      );
-      delete qubit.element.dataset.pairEjected;
-      delete qubit.element.dataset.phaseSign;
-      placeQubitAtStart(qubit);
-      qubit.measurementSlot = null;
-    });
-    if (syncState) {
-      syncEntangledStateFromCurrentQubits();
-    }
-  }
-
-  function qubitStartPoint(qubit) {
-    const funnelCenter = stagePointForElementCenter(qubit.preGate.funnel);
-    const gateCenter = stagePointForElementCenter(qubit.preGate.pipe);
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const radius = qubitRect.width / 2;
-    return {
-      x: Math.max(radius + QUBIT_START_EDGE_GAP, gateCenter.x - 100),
-      y: funnelCenter.y,
-    };
-  }
-
-  function moveQubitToPoint(qubit, x, y, duration = AUTO_TRAVEL_MS) {
-    return new Promise((resolve) => {
-      qubit.element.style.setProperty("--move-duration", `${duration}ms`);
-      qubit.element.classList.add("migrating");
-      setQubitCenter(qubit, x, y);
-      window.setTimeout(resolve, duration);
-    });
-  }
-
-  function qubitReachedFunnelMidpoint(qubit, funnelElement) {
-    const funnelRect = funnelElement.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const funnelMidX = (funnelRect.left + funnelRect.right) / 2;
-    const verticalOverlap = Math.max(
-      0,
-      Math.min(qubitRect.bottom, funnelRect.bottom) -
-        Math.max(qubitRect.top, funnelRect.top),
-    );
-
-    return (
-      qubitRect.right >= funnelMidX &&
-      qubitRect.left < funnelRect.right &&
-      verticalOverlap >= qubitRect.height * 0.25
-    );
-  }
-
-  function resolveQubitCircleRectOverlap(qubit, rectElement) {
-    const shellRect = shell.getBoundingClientRect();
-    const pipeRect = rectElement.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const center = stagePointForElementCenter(qubit.element);
-    const resolved = resolveCircleRectOverlap(
-      center.x,
-      center.y,
-      qubitRect.width / 2,
-      {
-        left: pipeRect.left - shellRect.left,
-        right: pipeRect.right - shellRect.left,
-        top: pipeRect.top - shellRect.top,
-        bottom: pipeRect.bottom - shellRect.top,
-      },
-      1,
-    );
-
-    if (!resolved.overlapped) {
-      return false;
-    }
-
-    setQubitCenter(qubit, resolved.x, resolved.y);
-    return true;
-  }
-
-  function preventManualPipeOverlap(qubit) {
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.preTransitInProgress ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    if (resolveQubitCircleRectOverlap(qubit, qubit.preGate.pipe)) {
-      return true;
-    }
-
-    return resolveQubitCircleRectOverlap(qubit, pipe);
-  }
-
-  function allQubitsInCnotWindow() {
-    return qubits.every((qubit) => qubit.inCnotWindow);
-  }
-
-  function pairTubeOutcomeKey(topResult, bottomResult) {
-    if (topResult === "b" && bottomResult === "b") {
-      return "bb";
-    }
-    if (topResult === "b" && bottomResult === "r") {
-      return "br";
-    }
-    if (topResult === "r" && bottomResult === "b") {
-      return "rb";
-    }
-    return "rr";
-  }
-
-  function collapseQubitState(qubit) {
-    const totalWeight = qubit.blue + qubit.red;
-    const blueProbability = totalWeight > 0 ? qubit.blue / totalWeight : 0.5;
-    const blueResult =
-      blueProbability >= 1
-        ? true
-        : blueProbability <= 0
-          ? false
-          : Math.random() < blueProbability;
-    if (blueResult) {
-      qubit.blue = 1;
-      qubit.red = 0;
-      updateQubitColor(qubit);
-      return "b";
-    }
-    qubit.blue = 0;
-    qubit.red = 1;
-    updateQubitColor(qubit);
-    return "r";
-  }
-
-  function normalizedQubitVectorFromProbabilities(qubit) {
-    const total = qubit.blue + qubit.red;
-    const blue = total > 0 ? qubit.blue / total : 0.5;
-    const red = 1 - blue;
-    return [Math.sqrt(clamp(blue, 0, 1)), Math.sqrt(clamp(red, 0, 1))];
-  }
-
-  function cnotOutcomeProbabilitiesForQubitPair(topQubit, bottomQubit) {
-    if (
-      topQubit.cnotPairToken &&
-      topQubit.cnotPairToken === bottomQubit.cnotPairToken &&
-      topQubit.cnotOutcomeProbabilities &&
-      bottomQubit.cnotOutcomeProbabilities
-    ) {
-      return topQubit.cnotOutcomeProbabilities;
-    }
-    return cnotOutcomeProbabilitiesFromQubitVectors(
-      normalizedQubitVectorFromProbabilities(topQubit),
-      normalizedQubitVectorFromProbabilities(bottomQubit),
-    );
-  }
-
-  function collapseQubitPairFromCnot(topQubit, bottomQubit) {
-    const beforeAmplitudes = deepCopyAmplitudes(entangledState.amplitudes);
-    const outcomeKey = samplePairOutcomeFromEntangledState(entangledState);
-    collapsePairStateToOutcome(entangledState, outcomeKey);
-
-    const topBlue = outcomeKey[0] === "b";
-    const bottomBlue = outcomeKey[1] === "b";
-    topQubit.blue = topBlue ? 1 : 0;
-    topQubit.red = topBlue ? 0 : 1;
-    bottomQubit.blue = bottomBlue ? 1 : 0;
-    bottomQubit.red = bottomBlue ? 0 : 1;
-    topQubit.cnotPairToken = null;
-    bottomQubit.cnotPairToken = null;
-    topQubit.cnotOutcomeProbabilities = null;
-    bottomQubit.cnotOutcomeProbabilities = null;
-    updateQubitColor(topQubit);
-    updateQubitColor(bottomQubit);
-    recordExperimentAction({ type: "measure" }, beforeAmplitudes);
-
-    return {
-      outcomeKey,
-      topResult: topBlue ? "b" : "r",
-      bottomResult: bottomBlue ? "b" : "r",
-    };
-  }
-
-  function updateMeasurementCapacityText() {
-    measurementCapacity.textContent = `The testtubes can each hold ${tubeQubitCapacity} qubit pairs.`;
-  }
-
-  function maybeExpandTubeCapacity() {
-    let maxCount = 0;
-    Object.values(tubeCountState).forEach((count) => {
-      if (count > maxCount) {
-        maxCount = count;
-      }
-    });
-    while (maxCount > tubeQubitCapacity) {
-      tubeQubitCapacity *= 2;
-    }
-  }
-
-  function updateTubeFills() {
-    Object.entries(tubeCountState).forEach(([key, count]) => {
-      measurementCountsByKey[key].textContent = String(count);
-      const percent = Math.min((count / tubeQubitCapacity) * 100, 100);
-      measurementLiquidsByKey[key].style.height = `${percent}%`;
-    });
-  }
-
-  function clearMeasurementApparatus() {
-    tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-    Object.keys(tubeCountState).forEach((key) => {
-      tubeCountState[key] = 0;
-    });
-    updateMeasurementCapacityText();
-    updateTubeFills();
-  }
-
-  function setSpringExtended(flangeElement, extended) {
-    flangeElement.classList.toggle("extended", extended);
-  }
-
-  function springTipX(springElement, flangeElement) {
-    const shellRect = shell.getBoundingClientRect();
-    const flangeRect = flangeElement.getBoundingClientRect();
-    const springStyles = window.getComputedStyle(springElement);
-    const springLength = Number.parseFloat(
-      springStyles.getPropertyValue("--spring-length"),
-    );
-    const usableSpringLength = Number.isFinite(springLength)
-      ? springLength
-      : springElement.getBoundingClientRect().width;
-    const springOriginX = flangeRect.left - shellRect.left + 2;
-    return springOriginX + usableSpringLength;
-  }
-
-  function setCnotPlatformExtended(extended) {
-    pipe.classList.toggle("platform-extended", extended);
-  }
-
-  function cnotSpringTipX() {
-    const shellRect = shell.getBoundingClientRect();
-    const pipeRect = pipe.getBoundingClientRect();
-    const springStyles = window.getComputedStyle(cnotPlatform);
-    const springLength = Number.parseFloat(
-      springStyles.getPropertyValue("--spring-length"),
-    );
-    const usableSpringLength = Number.isFinite(springLength)
-      ? springLength
-      : cnotPlatform.getBoundingClientRect().width;
-    const springOriginX = pipeRect.right - shellRect.left - 4;
-    return springOriginX + usableSpringLength;
-  }
-
-  function setMeasurementPlatformExtended(extended) {
-    measurementTool.classList.toggle("platform-extended", extended);
-  }
-
-  function alignMeasurementToolCenterWithCnot() {
-    measurementBlock.style.top = "";
-    const flexDirection = window.getComputedStyle(shell).flexDirection;
-    if (flexDirection === "column") {
-      measurementBlock.style.transform = "";
-      return;
-    }
-    const cnotCenterY = stagePointForElementCenter(pipe).y;
-    const measurementCenterY =
-      stagePointForElementCenter(measurementTool).y +
-      TWO_QUBIT_WIDE_LENS_VISUAL_CENTER_OFFSET_Y;
-    const deltaY = cnotCenterY - measurementCenterY;
-    measurementBlock.style.transform = `translateY(${deltaY}px)`;
-  }
-
-  function alignCnotCenterBetweenPreGates() {
-    const topCenter = stagePointForElementCenter(qubits[0].preGate.pipe).y;
-    const bottomCenter = stagePointForElementCenter(qubits[1].preGate.pipe).y;
-    pipe.style.top = `${(topCenter + bottomCenter) / 2}px`;
-  }
-
-  function alignHorizontalFlow() {
-    measurementBlock.style.left = "";
-    const flexDirection = window.getComputedStyle(shell).flexDirection;
-    if (flexDirection === "column") {
-      pipe.style.left = "";
-      return;
-    }
-    const shellRect = shell.getBoundingClientRect();
-    const stackRect = preGateStack.getBoundingClientRect();
-    const measurementRect = measurementBlock.getBoundingClientRect();
-    const pipeRect = pipe.getBoundingClientRect();
-    const pipeWidth = pipeRect.width || pipe.offsetWidth || 0;
-    if (!pipeWidth || !shellRect.width) {
-      return;
-    }
-
-    const leftBoundary = stackRect.right - shellRect.left;
-    const rightBoundary = measurementRect.left - shellRect.left;
-    if (rightBoundary <= leftBoundary + 40) {
-      return;
-    }
-
-    const midpoint = (leftBoundary + rightBoundary) / 2;
-    const minPipeLeft = leftBoundary + 14;
-    const maxPipeLeft = rightBoundary - pipeWidth - 14;
-    const desiredPipeLeft = clamp(
-      midpoint - pipeWidth / 2,
-      minPipeLeft,
-      maxPipeLeft,
-    );
-    pipe.style.left = `${Math.round(desiredPipeLeft)}px`;
-  }
-
-  function createMeasurementPayload(color, startPoint) {
-    const payload = document.createElement("span");
-    payload.className = "qubit measurement-pellet";
-    payload.setAttribute("aria-hidden", "true");
-    payload.style.left = `${startPoint.x}px`;
-    payload.style.top = `${startPoint.y}px`;
-    payload.style.pointerEvents = "none";
-    payload.style.setProperty(
-      "--qubit-fill",
-      color === "b" ? blendBlueRed(1, 0) : blendBlueRed(0, 1),
-    );
-    shell.appendChild(payload);
-    return payload;
-  }
-
-  function movePayloadToPoint(payload, x, y, duration = AUTO_TRAVEL_MS) {
-    return new Promise((resolve) => {
-      payload.style.setProperty("--move-duration", `${duration}ms`);
-      payload.classList.add("migrating");
-      payload.style.left = `${x}px`;
-      payload.style.top = `${y}px`;
-      window.setTimeout(resolve, duration);
-    });
-  }
-
-  async function animateMeasurementPayloadsToTube(
-    outcomeKey,
-    topColor,
-    bottomColor,
-    topStartPoint,
-    bottomStartPoint,
-    expectedRunToken = runToken,
-    { migrationDuration = AUTO_TRAVEL_MS, meltDuration = AUTO_MELT_MS } = {},
-  ) {
-    const topPayload = createMeasurementPayload(topColor, topStartPoint);
-    const bottomPayload = createMeasurementPayload(
-      bottomColor,
-      bottomStartPoint,
-    );
-
-    try {
-      const shellRect = shell.getBoundingClientRect();
-      const targetTube = measurementTubesByKey[outcomeKey];
-      const targetRect = targetTube.getBoundingClientRect();
-      const targetPoint = {
-        x: targetRect.left - shellRect.left + targetRect.width / 2,
-        y: targetRect.top - shellRect.top + targetRect.height * 0.22,
-      };
-      const payloadHeight = topPayload.getBoundingClientRect().height;
-      const targetOffset = payloadHeight * 0.8;
-
-      await Promise.all([
-        movePayloadToPoint(
-          topPayload,
-          targetPoint.x,
-          targetPoint.y - targetOffset,
-          migrationDuration,
-        ),
-        movePayloadToPoint(
-          bottomPayload,
-          targetPoint.x,
-          targetPoint.y + targetOffset,
-          migrationDuration,
-        ),
-      ]);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      topPayload.style.setProperty("--melt-duration", `${meltDuration}ms`);
-      bottomPayload.style.setProperty("--melt-duration", `${meltDuration}ms`);
-      topPayload.classList.add("melting");
-      bottomPayload.classList.add("melting");
-      await wait(meltDuration);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      tubeCountState[outcomeKey] += 1;
-      maybeExpandTubeCapacity();
-      updateMeasurementCapacityText();
-      updateTubeFills();
-      return true;
-    } finally {
-      topPayload.remove();
-      bottomPayload.remove();
-    }
-  }
-
-  function applyPreGateToQubit(qubit, tickIndex = qubit.preGate.tickIndex) {
-    const beforeAmplitudes = deepCopyAmplitudes(entangledState.amplitudes);
-    const qubitIndex = qubit.key === "top" ? 0 : 1;
-    const appliedTickIndex = normalizeTickIndex(tickIndex);
-    applySingleQubitGateToPair(
-      entangledState,
-      qubitIndex,
-      gateMatrixForTick(appliedTickIndex),
-    );
-    updateQubitsFromEntangledState();
-    recordExperimentAction(
-      {
-        type: "gate",
-        qubitIndex,
-        tickIndex: appliedTickIndex,
-      },
-      beforeAmplitudes,
-    );
-  }
-
-  function applyCnotGateToQubits() {
-    const beforeAmplitudes = deepCopyAmplitudes(entangledState.amplitudes);
-    applyCNOTToPair(entangledState);
-    updateQubitsFromEntangledState();
-    recordExperimentAction({ type: "cnot" }, beforeAmplitudes);
-  }
-
-  function annotateCnotOutcomeProbabilitiesForCurrentState() {
-    const outcomeProbabilities = cnotOutcomeProbabilitiesFromQubitVectors(
-      normalizedQubitVectorFromProbabilities(qubits[0]),
-      normalizedQubitVectorFromProbabilities(qubits[1]),
-    );
-    const pairToken = `${Date.now()}-${Math.random()}`;
-    qubits[0].cnotPairToken = pairToken;
-    qubits[1].cnotPairToken = pairToken;
-    qubits[0].cnotOutcomeProbabilities = outcomeProbabilities;
-    qubits[1].cnotOutcomeProbabilities = outcomeProbabilities;
-  }
-
-  function maybeTriggerManualMeasurement() {
-    if (
-      measurementSlotOccupants.left &&
-      measurementSlotOccupants.right &&
-      !measurementInProgress &&
-      !cnotBusy &&
-      !autoRunInProgress
-    ) {
-      const token = runToken + 1;
-      runToken = token;
-      runMeasurementSequence(token).catch(() => {});
-    }
-  }
-
-  function setPreGateTickIndex(
-    qubit,
-    tickIndex,
-    { deferMeasurementClear = false, fromDial = false } = {},
-  ) {
-    const normalizedTick = normalizeTickIndex(tickIndex);
-    const changed = normalizedTick !== qubit.preGate.tickIndex;
-    qubit.preGate.tickIndex = normalizedTick;
-    if (!autoRunInProgress) {
-      setRecordedExperimentGateSetting(qubit.key === "top" ? 0 : 1, normalizedTick);
-    }
-
-    if (!fromDial) {
-      const dial = preGateDials.get(qubit.key);
-      if (dial) {
-        dial.setTick(normalizedTick, {
-          deferMeasurementClear,
-          reason: "programmatic",
-        });
-        return;
-      }
-    }
-
-    if (changed && !deferMeasurementClear && !autoRunInProgress) {
-      clearMeasurementApparatus();
-    }
-  }
-
-  function beginPreGateArrowDrag(qubit, event) {
-    preGateDials.get(qubit.key)?.beginDrag(event);
-  }
-
-  function continuePreGateArrowDrag(event) {
-    preGateDials.forEach((dial) => {
-      dial?.continueDrag(event);
-    });
-  }
-
-  function endPreGateArrowDrag() {
-    preGateDials.forEach((dial) => {
-      dial?.endDrag();
-    });
-  }
-
-  async function runPreGateTransit(qubit, expectedRunToken = runToken) {
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    qubit.preTransitInProgress = true;
-    qubit.dragging = false;
-    qubit.dragStartPoint = null;
-    qubit.locked = true;
-    qubit.element.classList.remove("dragging");
-
-    try {
-      clearMeasurementSlotForQubit(qubit);
-      const preWindowCenter = stagePointForElementCenter(qubit.preGate.pipe);
-      await moveQubitToPoint(
-        qubit,
-        preWindowCenter.x,
-        preWindowCenter.y,
-        AUTO_TRAVEL_MS,
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      await wait(GATE_TUBE_DWELL_MS);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      applyPreGateToQubit(qubit);
-      setSpringExtended(qubit.preGate.flange, true);
-
-      const qubitRect = qubit.element.getBoundingClientRect();
-      const targetX =
-        springTipX(qubit.preGate.spring, qubit.preGate.flange) +
-        6 +
-        qubitRect.width / 2;
-      const targetY = preWindowCenter.y;
-      await moveQubitToPoint(qubit, targetX, targetY, GATE_PLATFORM_EXTEND_MS);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      settleQubitVisualState(qubit);
-      setQubitCenter(qubit, targetX, targetY);
-
-      setSpringExtended(qubit.preGate.flange, false);
-      await wait(GATE_PLATFORM_RETRACT_MS);
-      return true;
-    } finally {
-      setSpringExtended(qubit.preGate.flange, false);
-      qubit.preTransitInProgress = false;
-      qubit.locked = false;
-    }
-  }
-
-  async function runMeasurementSequence(
-    expectedRunToken = runToken,
-    {
-      migrationDuration = GATE_PLATFORM_EXTEND_MS,
-      meltDuration = AUTO_MELT_MS,
-    } = {},
-  ) {
-    if (measurementInProgress || cnotBusy) {
-      return;
-    }
-    if (!measurementSlotOccupants.left || !measurementSlotOccupants.right) {
-      return;
-    }
-    if (expectedRunToken !== runToken) {
-      return;
-    }
-
-    removeStrayEntanglementQubitArtifacts();
-    measurementInProgress = true;
-    qubits.forEach((qubit) => {
-      qubit.dragging = false;
-      qubit.locked = true;
-      qubit.element.classList.remove("dragging");
-    });
-    setMeasurementPlatformExtended(false);
-
-    try {
-      const leftQubit = measurementSlotOccupants.left;
-      const rightQubit = measurementSlotOccupants.right;
-      const topQubit = leftQubit?.key === "top" ? leftQubit : rightQubit;
-      const bottomQubit = topQubit === leftQubit ? rightQubit : leftQubit;
-      if (!topQubit || !bottomQubit) {
-        return;
-      }
-
-      topQubit.element.classList.add("collapse-animating");
-      bottomQubit.element.classList.add("collapse-animating");
-      await wait(DOUBLE_MEASUREMENT_COLLAPSE_DELAY_MS);
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      const collapseResult = collapseQubitPairFromCnot(topQubit, bottomQubit);
-      const topResult = collapseResult.topResult;
-      const bottomResult = collapseResult.bottomResult;
-      topQubit.element.classList.remove("collapse-animating");
-      bottomQubit.element.classList.remove("collapse-animating");
-
-      await wait(DOUBLE_MEASUREMENT_POST_COLLAPSE_DELAY_MS);
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      const outcomeKey = pairTubeOutcomeKey(topResult, bottomResult);
-      const topPayloadStart = stagePointForElementCenter(topQubit.element);
-      const bottomPayloadStart = stagePointForElementCenter(
-        bottomQubit.element,
-      );
-      settleQubitVisualState(topQubit);
-      settleQubitVisualState(bottomQubit);
-
-      delete topQubit.element.dataset.phaseSign;
-      delete bottomQubit.element.dataset.phaseSign;
-      updateQubitsFromEntangledState();
-
-      const topStart =
-        validPoint(topQubit.measurementReturnPoint) || qubitStartPoint(topQubit);
-      const bottomStart =
-        validPoint(bottomQubit.measurementReturnPoint) ||
-        qubitStartPoint(bottomQubit);
-      topQubit.inCnotWindow = false;
-      bottomQubit.inCnotWindow = false;
-      topQubit.cnotIngesting = false;
-      bottomQubit.cnotIngesting = false;
-      clearMeasurementSlotForQubit(topQubit);
-      clearMeasurementSlotForQubit(bottomQubit);
-
-      await Promise.all([
-        moveQubitToPoint(
-          topQubit,
-          topStart.x,
-          topStart.y,
-          GATE_PLATFORM_EXTEND_MS,
-        ),
-        moveQubitToPoint(
-          bottomQubit,
-          bottomStart.x,
-          bottomStart.y,
-          GATE_PLATFORM_EXTEND_MS,
-        ),
-      ]);
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-      settleQubitVisualState(topQubit);
-      settleQubitVisualState(bottomQubit);
-      setQubitCenter(topQubit, topStart.x, topStart.y);
-      setQubitCenter(bottomQubit, bottomStart.x, bottomStart.y);
-      topQubit.measurementReturnPoint = null;
-      bottomQubit.measurementReturnPoint = null;
-
-      const payloadsCompleted = await animateMeasurementPayloadsToTube(
-        outcomeKey,
-        topResult,
-        bottomResult,
-        topPayloadStart,
-        bottomPayloadStart,
-        expectedRunToken,
-        { migrationDuration, meltDuration },
-      );
-      if (!payloadsCompleted || expectedRunToken !== runToken) {
-        return;
-      }
-
-      settleQubitVisualState(topQubit);
-      settleQubitVisualState(bottomQubit);
-    } finally {
-      removeStrayEntanglementQubitArtifacts();
-      setMeasurementPlatformExtended(false);
-      qubits.forEach((qubit) => {
-        qubit.element.classList.remove("collapse-animating");
-        qubit.element.classList.remove("ent-hidden");
-        qubit.element.classList.remove("ent-appearing");
-        qubit.element.classList.remove("measurement-pellet");
-        qubit.element.style.opacity = "";
-        qubit.element.style.removeProperty("transform");
-        qubit.element.style.removeProperty("--move-duration");
-        qubit.element.style.removeProperty("--melt-duration");
-        delete qubit.element.dataset.pairEjected;
-        delete qubit.element.dataset.phaseSign;
-        qubit.locked = false;
-        if (measurementSlotOccupants.left === qubit) {
-          measurementSlotOccupants.left = null;
-        }
-        if (measurementSlotOccupants.right === qubit) {
-          measurementSlotOccupants.right = null;
-        }
-        qubit.measurementSlot = null;
-      });
-      measurementInProgress = false;
-    }
-  }
-
-  function nextFrame() {
-    return new Promise((resolve) =>
-      window.requestAnimationFrame(() => resolve()),
-    );
-  }
-
-  function mergeTubeCounts(counts) {
-    Object.keys(tubeCountState).forEach((key) => {
-      tubeCountState[key] += counts[key] || 0;
-    });
-    maybeExpandTubeCapacity();
-    updateMeasurementCapacityText();
-    updateTubeFills();
-  }
-
-  async function replayRecordedGateAction(
-    action,
-    expectedRunToken,
-    { travelDuration = AUTO_TRAVEL_MS, gateSettings = recordedExperimentGateSettings } = {},
-  ) {
-    const qubit = qubits[action.qubitIndex === 0 ? 0 : 1];
-    const tickIndex = recordedGateTickForAction(action, gateSettings);
-    setPreGateTickIndex(qubit, tickIndex, {
-      deferMeasurementClear: true,
-    });
-    clearMeasurementSlotForQubit(qubit);
-    qubit.dragging = false;
-    qubit.locked = true;
-    qubit.element.classList.remove("dragging");
-
-    try {
-      const preWindowCenter = stagePointForElementCenter(qubit.preGate.pipe);
-      await moveQubitToPoint(
-        qubit,
-        preWindowCenter.x,
-        preWindowCenter.y,
-        travelDuration,
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      await wait(GATE_TUBE_DWELL_MS);
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      applyPreGateToQubit(qubit, tickIndex);
-      setSpringExtended(qubit.preGate.flange, true);
-      const qubitRect = qubit.element.getBoundingClientRect();
-      const targetX =
-        springTipX(qubit.preGate.spring, qubit.preGate.flange) +
-        6 +
-        qubitRect.width / 2;
-      await moveQubitToPoint(
-        qubit,
-        targetX,
-        preWindowCenter.y,
-        GATE_PLATFORM_EXTEND_MS,
-      );
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-
-      settleQubitVisualState(qubit);
-      setQubitCenter(qubit, targetX, preWindowCenter.y);
-      setSpringExtended(qubit.preGate.flange, false);
-      await wait(GATE_PLATFORM_RETRACT_MS);
-      return expectedRunToken === runToken;
-    } finally {
-      setSpringExtended(qubit.preGate.flange, false);
-      qubit.locked = false;
-      qubit.preTransitInProgress = false;
-    }
-  }
-
-  async function replayRecordedCnotAction(
-    expectedRunToken,
-    { travelDuration = AUTO_TRAVEL_MS, dwellDuration = CNOT_WINDOW_DWELL_MS } = {},
-  ) {
-    const cnotCenters = qubits.map((qubit) =>
-      stagePointForElementCenter(qubit.cnotWindow),
-    );
-    await Promise.all([
-      moveQubitToPoint(
-        qubits[0],
-        cnotCenters[0].x,
-        cnotCenters[0].y,
-        travelDuration,
-      ),
-      moveQubitToPoint(
-        qubits[1],
-        cnotCenters[1].x,
-        cnotCenters[1].y,
-        travelDuration,
-      ),
-    ]);
-    if (expectedRunToken !== runToken) {
-      return false;
-    }
-
-    qubits.forEach((qubit) => {
-      qubit.inCnotWindow = true;
-      qubit.locked = true;
-    });
-    await wait(dwellDuration);
-    if (expectedRunToken !== runToken) {
-      return false;
-    }
-
-    applyCnotGateToQubits();
-    setCnotPlatformExtended(true);
-    const springTipXValue = cnotSpringTipX();
-    const targets = qubits.map((qubit) => {
-      const slotCenter = stagePointForElementCenter(qubit.cnotWindow);
-      const qubitRect = qubit.element.getBoundingClientRect();
-      return {
-        qubit,
-        x: springTipXValue + 6 + qubitRect.width / 2,
-        y: slotCenter.y,
-      };
-    });
-
-    await Promise.all(
-      targets.map((target) =>
-        moveQubitToPoint(
-          target.qubit,
-          target.x,
-          target.y,
-          GATE_PLATFORM_EXTEND_MS,
-        ),
-      ),
-    );
-    if (expectedRunToken !== runToken) {
-      return false;
-    }
-
-    targets.forEach((target) => {
-      settleQubitVisualState(target.qubit);
-      setQubitCenter(target.qubit, target.x, target.y);
-      target.qubit.inCnotWindow = false;
-      target.qubit.cnotIngesting = false;
-      target.qubit.measurementTransitInProgress = false;
-      target.qubit.locked = false;
-    });
-    setCnotPlatformExtended(false);
-    await wait(GATE_PLATFORM_RETRACT_MS);
-    return expectedRunToken === runToken;
-  }
-
-  async function replayRecordedMeasurementAction(
-    expectedRunToken,
-    {
-      travelDuration = AUTO_TRAVEL_MS,
-      meltDuration = AUTO_MELT_MS,
-      returnPoints = null,
-    } = {},
-  ) {
-    qubits[0].measurementReturnPoint =
-      validPoint(returnPoints?.[0]) ||
-      stagePointForElementCenter(qubits[0].element);
-    qubits[1].measurementReturnPoint =
-      validPoint(returnPoints?.[1]) ||
-      stagePointForElementCenter(qubits[1].element);
-    const topSlotName = getMeasurementSlotForQubit(qubits[0]);
-    const bottomSlotName = getMeasurementSlotForQubit(qubits[1]);
-    const topSlot = getMeasurementSlotCenter(topSlotName);
-    const bottomSlot = getMeasurementSlotCenter(bottomSlotName);
-    await Promise.all([
-      moveQubitToPoint(qubits[0], topSlot.x, topSlot.y, travelDuration),
-      moveQubitToPoint(qubits[1], bottomSlot.x, bottomSlot.y, travelDuration),
-    ]);
-    if (expectedRunToken !== runToken) {
-      return false;
-    }
-
-    clearMeasurementSlotForQubit(qubits[0]);
-    clearMeasurementSlotForQubit(qubits[1]);
-    measurementSlotOccupants[topSlotName] = qubits[0];
-    measurementSlotOccupants[bottomSlotName] = qubits[1];
-    qubits[0].measurementSlot = topSlotName;
-    qubits[1].measurementSlot = bottomSlotName;
-    qubits[0].inCnotWindow = false;
-    qubits[1].inCnotWindow = false;
-    qubits[0].cnotIngesting = false;
-    qubits[1].cnotIngesting = false;
-
-    await runMeasurementSequence(expectedRunToken, {
-      migrationDuration: travelDuration,
-      meltDuration,
-    });
-    return expectedRunToken === runToken;
-  }
-
-  async function replayRecordedExperimentAnimated(expectedRunToken, experiment) {
-    const actions = cloneRecordedActions(
-      experiment?.actions || recordedExperimentActions,
-    );
-    const initialAmplitudes =
-      experiment?.initialAmplitudes || recordedExperimentInitialAmplitudes;
-    const gateSettings =
-      experiment?.gateSettings || recordedExperimentGateSettings;
-    if (!actions.length) {
-      return false;
-    }
-
-    resetEntanglementQubits({ syncState: false });
-    const runReturnPoints = qubits.map((qubit) =>
-      stagePointForElementCenter(qubit.element),
-    );
-    setEntangledAmplitudes(initialAmplitudes);
-    updateQubitsFromEntangledState();
-
-    let sawMeasurement = false;
-    for (const action of actions) {
-      if (expectedRunToken !== runToken) {
-        return false;
-      }
-      if (action.type === "gate") {
-        const completed = await replayRecordedGateAction(
-          action,
-          expectedRunToken,
-          { gateSettings },
-        );
-        if (!completed) {
-          return false;
-        }
-      } else if (action.type === "cnot") {
-        const completed = await replayRecordedCnotAction(expectedRunToken);
-        if (!completed) {
-          return false;
-        }
-      } else if (action.type === "measure") {
-        sawMeasurement = true;
-        const completed = await replayRecordedMeasurementAction(
-          expectedRunToken,
-          { returnPoints: runReturnPoints },
-        );
-        if (!completed) {
-          return false;
-        }
-      }
-    }
-
-    if (!sawMeasurement) {
-      return replayRecordedMeasurementAction(expectedRunToken, {
-        returnPoints: runReturnPoints,
-      });
-    }
-    return true;
-  }
-
-  async function runAutomatedEntanglementMeasurements(iterations) {
-    if (autoRunInProgress || measurementInProgress || cnotBusy) {
-      return;
-    }
-
-    if (!recordedExperimentActions.length) {
-      return;
-    }
-
-    const runCount = Math.max(1, iterations);
-    const playbackExperiment = {
-      actions: cloneRecordedActions(recordedExperimentActions),
-      initialAmplitudes: normalizeEntangledAmplitudes(
-        recordedExperimentInitialAmplitudes,
-      ),
-      gateSettings: recordedExperimentGateSettings.slice(),
-    };
-    const thisRunToken = runToken + 1;
-    runToken = thisRunToken;
-    autoRunInProgress = true;
-    measurementCount.disabled = true;
-
-    try {
-      removeStrayEntanglementQubitArtifacts();
-      qubits.forEach((qubit) => {
-        qubit.dragging = false;
-        qubit.element.classList.remove("dragging");
-        clearMeasurementSlotForQubit(qubit);
-      });
-
-      if (runCount < 100) {
-        for (let run = 0; run < runCount; run += 1) {
-          if (thisRunToken !== runToken) {
-            break;
-          }
-          const completed = await replayRecordedExperimentAnimated(
-            thisRunToken,
-            playbackExperiment,
-          );
-          if (!completed) {
-            break;
-          }
-        }
-        return;
-      }
-
-      await nextFrame();
-      mergeTubeCounts(
-        replayRecordedExperiment(runCount, {
-          actions: playbackExperiment.actions,
-          initialAmplitudes: playbackExperiment.initialAmplitudes,
-          gateSettings: playbackExperiment.gateSettings,
-        }),
-      );
-      resetEntanglementQubits({ syncState: false });
-      setEntangledAmplitudes(playbackExperiment.initialAmplitudes);
-      updateQubitsFromEntangledState();
-    } finally {
-      removeStrayEntanglementQubitArtifacts();
-      setCnotPlatformExtended(false);
-      setMeasurementPlatformExtended(false);
-      qubits.forEach((qubit) => {
-        qubit.locked = false;
-        qubit.preTransitInProgress = false;
-        qubit.cnotIngesting = false;
-        qubit.measurementTransitInProgress = false;
-        qubit.element.classList.remove("migrating");
-        qubit.element.classList.remove("ent-hidden");
-        qubit.element.classList.remove("ent-appearing");
-      });
-      autoRunInProgress = false;
-      measurementCount.disabled = false;
-    }
-  }
-
-  function handleEntanglementLensClickRun() {
-    if (autoRunInProgress || measurementInProgress || cnotBusy) {
-      return;
-    }
-    runAutomatedEntanglementMeasurements(1);
-  }
-
-  async function runCnotCycle(expectedRunToken = runToken) {
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      !allQubitsInCnotWindow()
-    ) {
-      return;
-    }
-
-    cnotBusy = true;
-    qubits.forEach((qubit) => {
-      qubit.locked = true;
-    });
-    try {
-      await wait(CNOT_WINDOW_DWELL_MS);
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      annotateCnotOutcomeProbabilitiesForCurrentState();
-      applyCnotGateToQubits();
-      setCnotPlatformExtended(true);
-      const springTipXValue = cnotSpringTipX();
-
-      const targets = qubits.map((qubit) => {
-        const slotCenter = stagePointForElementCenter(qubit.cnotWindow);
-        const qubitRect = qubit.element.getBoundingClientRect();
-        return {
-          qubit,
-          x: springTipXValue + 6 + qubitRect.width / 2,
-          y: slotCenter.y,
-        };
-      });
-
-      await Promise.all(
-        targets.map((target) =>
-          moveQubitToPoint(
-            target.qubit,
-            target.x,
-            target.y,
-            GATE_PLATFORM_EXTEND_MS,
-          ),
-        ),
-      );
-      if (expectedRunToken !== runToken) {
-        return;
-      }
-
-      targets.forEach((target) => {
-        settleQubitVisualState(target.qubit);
-        setQubitCenter(target.qubit, target.x, target.y);
-        target.qubit.inCnotWindow = false;
-        target.qubit.cnotIngesting = false;
-        target.qubit.measurementTransitInProgress = false;
-        target.qubit.locked = false;
-      });
-
-      setCnotPlatformExtended(false);
-      await wait(GATE_PLATFORM_RETRACT_MS);
-    } finally {
-      setCnotPlatformExtended(false);
-      qubits.forEach((qubit) => {
-        qubit.locked = false;
-      });
-      cnotBusy = false;
-    }
-  }
-
-  async function runCnotIngress(qubit, expectedRunToken = runToken) {
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    clearMeasurementSlotForQubit(qubit);
-    qubit.dragStartPoint = null;
-    qubit.cnotIngesting = true;
-    qubit.dragging = false;
-    qubit.locked = true;
-    qubit.element.classList.remove("dragging");
-    qubit.element.classList.add("ent-hidden");
-
-    await wait(160);
-    if (expectedRunToken !== runToken) {
-      qubit.cnotIngesting = false;
-      qubit.locked = false;
-      qubit.element.classList.remove("ent-hidden");
-      return false;
-    }
-
-    const windowCenter = stagePointForElementCenter(qubit.cnotWindow);
-    setQubitCenter(qubit, windowCenter.x, windowCenter.y);
-    qubit.element.classList.remove("ent-hidden");
-    qubit.element.classList.add("ent-appearing");
-    await wait(180);
-    qubit.element.classList.remove("ent-appearing");
-
-    if (expectedRunToken !== runToken) {
-      qubit.cnotIngesting = false;
-      qubit.locked = false;
-      return false;
-    }
-
-    qubit.inCnotWindow = true;
-    qubit.cnotIngesting = false;
-    settleQubitVisualState(qubit);
-
-    if (allQubitsInCnotWindow()) {
-      const token = runToken + 1;
-      runToken = token;
-      runCnotCycle(token).catch(() => {});
-    }
-    return true;
-  }
-
-  async function runMeasurementIngress(qubit, expectedRunToken = runToken) {
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    const chosenSlot = getMeasurementSlotForQubit(qubit);
-    if (
-      measurementSlotOccupants[chosenSlot] &&
-      measurementSlotOccupants[chosenSlot] !== qubit
-    ) {
-      return false;
-    }
-
-    qubit.measurementTransitInProgress = true;
-    qubit.dragging = false;
-    qubit.locked = true;
-    qubit.element.classList.remove("dragging");
-    qubit.inCnotWindow = false;
-    qubit.cnotIngesting = false;
-    qubit.measurementReturnPoint = captureMeasurementReturnPoint(qubit);
-    qubit.dragStartPoint = null;
-    clearMeasurementSlotForQubit(qubit);
-    measurementSlotOccupants[chosenSlot] = qubit;
-    qubit.measurementSlot = chosenSlot;
-
-    const slotCenter = getMeasurementSlotCenter(chosenSlot);
-    await moveQubitToPoint(qubit, slotCenter.x, slotCenter.y, AUTO_TRAVEL_MS);
-    if (expectedRunToken !== runToken || cnotBusy || autoRunInProgress) {
-      clearMeasurementSlotForQubit(qubit);
-      qubit.measurementTransitInProgress = false;
-      qubit.locked = false;
-      settleQubitVisualState(qubit);
-      return false;
-    }
-
-    settleQubitVisualState(qubit);
-    setQubitCenter(qubit, slotCenter.x, slotCenter.y);
-    qubit.measurementTransitInProgress = false;
-    qubit.locked = false;
-    maybeTriggerManualMeasurement();
-    return true;
-  }
-
-  function maybeSnapQubitToPreFunnel(qubit) {
-    if (!qubitReachedFunnelMidpoint(qubit, qubit.preGate.funnel)) {
-      return false;
-    }
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    runPreGateTransit(qubit, runToken).catch(() => {});
-    return true;
-  }
-
-  function maybeSnapQubitToCnotFunnel(qubit) {
-    if (!qubitReachedFunnelMidpoint(qubit, qubit.cnotFunnel)) {
-      return false;
-    }
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    runCnotIngress(qubit, runToken).catch(() => {});
-    return true;
-  }
-
-  function maybeSnapQubitToMeasurementFunnel(qubit) {
-    if (!qubitReachedFunnelMidpoint(qubit, measurementFunnel)) {
-      return false;
-    }
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    runMeasurementIngress(qubit, runToken).catch(() => {});
-    return true;
-  }
-
-  function maybeSnapQubitToMeasurementLens(qubit) {
-    if (
-      measurementInProgress ||
-      cnotBusy ||
-      autoRunInProgress ||
-      qubit.measurementTransitInProgress
-    ) {
-      return false;
-    }
-
-    const lensRect = measurementTool.getBoundingClientRect();
-    const qubitRect = qubit.element.getBoundingClientRect();
-    const qubitCx = qubitRect.left + qubitRect.width / 2;
-    const qubitCy = qubitRect.top + qubitRect.height / 2;
-    if (
-      qubitCx < lensRect.left ||
-      qubitCx > lensRect.right ||
-      qubitCy < lensRect.top ||
-      qubitCy > lensRect.bottom
-    ) {
-      return false;
-    }
-
-    const chosenSlot = getMeasurementSlotForQubit(qubit);
-    if (
-      measurementSlotOccupants[chosenSlot] &&
-      measurementSlotOccupants[chosenSlot] !== qubit
-    ) {
-      return false;
-    }
-
-    clearMeasurementSlotForQubit(qubit);
-    qubit.measurementReturnPoint = captureMeasurementReturnPoint(qubit);
-    qubit.dragStartPoint = null;
-    measurementSlotOccupants[chosenSlot] = qubit;
-    qubit.measurementSlot = chosenSlot;
-    qubit.inCnotWindow = false;
-    qubit.cnotIngesting = false;
-    const slotCenter = getMeasurementSlotCenter(chosenSlot);
-    setQubitCenter(qubit, slotCenter.x, slotCenter.y);
-    settleQubitVisualState(qubit);
-    maybeTriggerManualMeasurement();
-    return true;
-  }
-
-  function beginQubitDrag(qubit, event) {
-    if (handleShiftQubitSelection(event, qubit.element)) {
-      return;
-    }
-    if (
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress ||
-      qubit.preTransitInProgress ||
-      qubit.cnotIngesting ||
-      qubit.inCnotWindow ||
-      qubit.measurementTransitInProgress ||
-      qubit.locked
-    ) {
-      return;
-    }
-    if (!isPrimaryMouseButton(event)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    const point = getPointer(event);
-    const qubitRect = qubit.element.getBoundingClientRect();
-    qubit.dragging = true;
-    qubit.element.classList.add("dragging");
-    qubit.dragStartPoint = stagePointForElementCenter(qubit.element);
-    qubit.dragOffsetX = point.clientX - (qubitRect.left + qubitRect.width / 2);
-    qubit.dragOffsetY = point.clientY - (qubitRect.top + qubitRect.height / 2);
-    clearMeasurementSlotForQubit(qubit);
-  }
-
-  function continueQubitDrag(event) {
-    const draggingQubits = qubits.filter((qubit) => qubit.dragging);
-    if (
-      !draggingQubits.length ||
-      cnotBusy ||
-      measurementInProgress ||
-      autoRunInProgress
-    ) {
-      return;
-    }
-    if (event.touches) {
-      event.preventDefault();
-    }
-
-    const point = getPointer(event);
-    const shellRect = shell.getBoundingClientRect();
-    draggingQubits.forEach((qubit) => {
-      if (qubit.locked) {
-        return;
-      }
-      const nextX = point.clientX - shellRect.left - qubit.dragOffsetX;
-      const nextY = point.clientY - shellRect.top - qubit.dragOffsetY;
-      setQubitCenter(qubit, nextX, nextY);
-      if (maybeSnapQubitToPreFunnel(qubit)) {
-        return;
-      }
-      if (maybeSnapQubitToCnotFunnel(qubit)) {
-        return;
-      }
-      if (maybeSnapQubitToMeasurementFunnel(qubit)) {
-        return;
-      }
-      if (maybeSnapQubitToMeasurementLens(qubit)) {
-        return;
-      }
-      preventManualPipeOverlap(qubit);
-      qubit.dragStartPoint = null;
-    });
-  }
-
-  function endQubitDrag() {
-    if (cnotBusy || measurementInProgress || autoRunInProgress) {
-      return;
-    }
-
-    qubits.forEach((qubit) => {
-      if (!qubit.dragging) {
-        return;
-      }
-      qubit.dragging = false;
-      qubit.element.classList.remove("dragging");
-      if (maybeSnapQubitToPreFunnel(qubit)) {
-        return;
-      }
-      if (maybeSnapQubitToCnotFunnel(qubit)) {
-        return;
-      }
-      if (maybeSnapQubitToMeasurementFunnel(qubit)) {
-        return;
-      }
-      if (maybeSnapQubitToMeasurementLens(qubit)) {
-        return;
-      }
-      preventManualPipeOverlap(qubit);
-    });
-  }
-
-  function handleResize() {
-    const shellRect = shell.getBoundingClientRect();
-    if (!shellRect.width || !shellRect.height) {
-      return;
-    }
-
-    alignCnotCenterBetweenPreGates();
-    alignHorizontalFlow();
-    alignMeasurementToolCenterWithCnot();
-
-    preGateDials.forEach((dial) => {
-      dial?.layout();
-    });
-
-    if (!initialized) {
-      qubits.forEach((qubit) => placeQubitAtStart(qubit));
-      initialized = true;
-      return;
-    }
-
-    qubits.forEach((qubit) => {
-      if (qubit.inCnotWindow) {
-        const center = stagePointForElementCenter(qubit.cnotWindow);
-        setQubitCenter(qubit, center.x, center.y);
-        return;
-      }
-      if (qubit.measurementSlot) {
-        const center = getMeasurementSlotCenter(qubit.measurementSlot);
-        setQubitCenter(qubit, center.x, center.y);
-        return;
-      }
-      const center = stagePointForElementCenter(qubit.element);
-      setQubitCenter(qubit, center.x, center.y);
-    });
-  }
-
-  function resetEntanglementSimulator() {
-    runToken += 1;
-    autoRunInProgress = false;
-    cnotBusy = false;
-    measurementInProgress = false;
-    measurementCount.disabled = false;
-    measurementCount.value = "1";
-    setCnotPlatformExtended(false);
-    setMeasurementPlatformExtended(false);
-    removeStrayEntanglementQubitArtifacts();
-    preGateDials.forEach((dial) => {
-      dial?.endDrag();
-    });
-    qubits.forEach((qubit) => {
-      clearMeasurementSlotForQubit(qubit);
-      qubit.locked = false;
-      qubit.dragging = false;
-      qubit.preTransitInProgress = false;
-      qubit.cnotIngesting = false;
-      qubit.inCnotWindow = false;
-      qubit.measurementTransitInProgress = false;
-      settleQubitVisualState(qubit);
-      placeQubitAtStart(qubit);
-    });
-    syncEntangledStateFromCurrentQubits();
-    clearRecordedExperiment();
-    setPreGateTickIndex(qubits[0], ENT_TOP_DEFAULT_GATE_TICK_INDEX);
-    setPreGateTickIndex(qubits[1], ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX);
-    clearMeasurementApparatus();
-  }
-
-  qubits.forEach((qubit) => {
-    qubit.element.addEventListener("mousedown", (event) =>
-      beginQubitDrag(qubit, event),
-    );
-    qubit.element.addEventListener(
-      "touchstart",
-      (event) => beginQubitDrag(qubit, event),
-      { passive: false },
-    );
-  });
-
-  qubits.forEach((qubit) => {
-    const dial = createSingleQubitGateDial({
-      ticksWrap: qubit.preGate.ticksWrap,
-      arrow: qubit.preGate.arrow,
-      initialTick: qubit.preGate.tickIndex,
-      tickAriaLabelPrefix: `${qubit.key} gate tick`,
-      orbitInset: 10,
-      canInteract: () =>
-        !(autoRunInProgress || cnotBusy || measurementInProgress),
-      onTickChange: (tick, meta) => {
-        setPreGateTickIndex(qubit, tick, {
-          deferMeasurementClear: meta.deferMeasurementClear,
-          fromDial: true,
-        });
-      },
-      onTickCommitted: ({ changed }) => {
-        if (changed) {
-          clearMeasurementApparatus();
-        }
-      },
-    });
-    preGateDials.set(qubit.key, dial);
-    qubit.preGate.arrow.addEventListener("mousedown", (event) =>
-      beginPreGateArrowDrag(qubit, event),
-    );
-    qubit.preGate.arrow.addEventListener(
-      "touchstart",
-      (event) => beginPreGateArrowDrag(qubit, event),
-      { passive: false },
-    );
-    qubit.preGate.arrow.addEventListener("keydown", (event) =>
-      preGateDials.get(qubit.key)?.handleKeydown(event),
-    );
-  });
-  setPreGateTickIndex(qubits[0], ENT_TOP_DEFAULT_GATE_TICK_INDEX);
-  setPreGateTickIndex(qubits[1], ENT_BOTTOM_DEFAULT_GATE_TICK_INDEX);
-  clearMeasurementApparatus();
-
-  measurementCount.addEventListener("mousedown", (event) =>
-    event.stopPropagation(),
-  );
-  measurementCount.addEventListener("touchstart", (event) =>
-    event.stopPropagation(),
-  );
-  measurementCount.addEventListener("click", (event) =>
-    event.stopPropagation(),
-  );
-  measurementCount.addEventListener("change", () => {
-    clearMeasurementApparatus();
-    const iterations = Number(measurementCount.value) || 1;
-    runAutomatedEntanglementMeasurements(Math.max(1, iterations));
-  });
-
-  measurementTool.addEventListener("click", () => {
-    handleEntanglementLensClickRun();
-  });
-
-  entResetButton.addEventListener("click", () => {
-    resetEntanglementSimulator();
-  });
-
-  window.addEventListener("mousemove", (event) => {
-    continuePreGateArrowDrag(event);
-    continueQubitDrag(event);
-  });
-  window.addEventListener(
-    "touchmove",
-    (event) => {
-      continuePreGateArrowDrag(event);
-      continueQubitDrag(event);
-    },
-    { passive: false },
-  );
-  window.addEventListener("mouseup", () => {
-    endPreGateArrowDrag();
-    endQubitDrag();
-  });
-  window.addEventListener("touchend", () => {
-    endPreGateArrowDrag();
-    endQubitDrag();
-  });
-  window.addEventListener("touchcancel", () => {
-    endPreGateArrowDrag();
-    endQubitDrag();
-  });
-
-  return {
-    handleResize,
-  };
-}
-
 playgroundComponentDefaultsCache = readPlaygroundComponentDefaultsPayload();
+playgroundGroupComponentsCache = readPlaygroundGroupComponentsPayload();
 
-const oneQubitRoot = mountOneQubitSimulator();
-const oneQubitSimulator = oneQubitRoot ? setupSimulator(oneQubitRoot) : null;
-const pairRoot = mountTwoQubitPair();
-const twoQubitPairSimulator = pairRoot ? setupTwoQubitPair(pairRoot) : null;
-const entanglementRoot = mountEntanglementGate(entanglementHost);
-const entanglementSimulator = entanglementRoot
-  ? setupEntanglementGate(entanglementRoot)
-  : null;
-const plagroundComposer = setupPlagroundComposer({
-  oneQubitRoot,
-  twoQubitPairRoot: pairRoot,
-  entanglementRoot,
-});
-const simulators = [
-  oneQubitSimulator,
-  twoQubitPairSimulator,
-  entanglementSimulator,
-  plagroundComposer,
-].filter(Boolean);
+const plagroundComposer = setupPlagroundComposer();
+const simulators = [plagroundComposer].filter(Boolean);
 
 refreshLayoutEditTargets();
 if (layoutEditToggle) {
@@ -17669,15 +14949,11 @@ function setActiveTab(tabTarget) {
 }
 
 tabButtons.forEach((button) => registerTabButton(button));
-restoreGeneratedTabs({
-  oneQubitRoot,
-  twoQubitPairRoot: pairRoot,
-  entanglementRoot,
-});
+restoreGeneratedTabs();
 plagroundComposer?.handleGeneratedTabsChanged?.();
 
 window.addEventListener("resize", () => {
   refreshVisibleSimulators();
 });
 
-setActiveTab("one-qubit");
+setActiveTab("plaground");

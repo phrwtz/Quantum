@@ -176,6 +176,40 @@ body.layout-edit-active *::after {
   background: linear-gradient(165deg, #ffffff, #e2eef6);
 }
 
+.generated-tab-btn {
+  cursor: grab;
+}
+
+.generated-tab-btn.tab-dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
+.generated-tab-btn.tab-drop-before,
+.generated-tab-btn.tab-drop-after {
+  position: relative;
+}
+
+.generated-tab-btn.tab-drop-before::before,
+.generated-tab-btn.tab-drop-after::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 4px;
+  border-radius: 999px;
+  background: #ff9e3d;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+.generated-tab-btn.tab-drop-before::before {
+  left: -0.34rem;
+}
+
+.generated-tab-btn.tab-drop-after::after {
+  right: -0.34rem;
+}
+
 .tab-btn.active {
   border-color: #376b8f;
   color: #0f2c43;
@@ -211,164 +245,8 @@ body.layout-edit-active *::after {
   padding: 1.15rem 1.25rem 1.4rem;
 }
 
-.sim-host {
-  width: fit-content;
-  max-width: 100%;
-}
-
-.two-qubit-stack {
-  display: grid;
-  gap: 1.25rem;
-}
-
 .quantum-sim {
   width: fit-content;
-}
-
-#panel-one-qubit .quantum-sim {
-  width: calc(var(--two-mode-inner-width) + 40px);
-  max-width: 100%;
-}
-
-.two-qubit-stack .quantum-sim + .quantum-sim {
-  border-top: 2px solid rgba(120, 145, 164, 0.55);
-  padding-top: 1.1rem;
-}
-
-.two-qubits-panel {
-  width: fit-content;
-  max-width: 100%;
-  margin-inline: 0;
-  padding: 1.05rem 1.08rem 1.2rem;
-}
-
-.two-qubits-panel .two-qubit-stack {
-  border-radius: 1rem;
-  border: 2px solid #9fb3c2;
-  background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.6),
-    inset 0 -4px 7px rgba(15, 43, 66, 0.16);
-  padding: 0.66rem 0.66rem 0.7rem;
-  transform: translateY(100px);
-  gap: 0.95rem;
-}
-
-.two-qubits-panel .two-qubit-stack .quantum-sim + .quantum-sim {
-  border-top: 2px solid rgba(120, 145, 164, 0.48);
-  padding-top: 0.72rem;
-}
-
-.two-qubits-panel .two-qubit-stack .top-controls {
-  display: none;
-}
-
-.two-qubits-panel .pair-sim > .top-controls {
-  display: flex;
-}
-
-.two-qubits-panel .machine-shell {
-  margin-top: 0;
-  padding: 0;
-  gap: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.two-qubits-panel .gate-stage {
-  width: min(100%, 348px);
-}
-
-.two-qubits-panel .window-wrap {
-  left: calc(56% + 66px);
-  width: min(66%, 232px);
-}
-
-.entanglement-panel {
-  width: fit-content;
-  max-width: 100%;
-  padding: 1.1rem 1.15rem 1.2rem;
-  margin-inline: auto;
-}
-
-#panel-entanglement {
-  width: fit-content;
-  max-width: calc(100vw - 1rem);
-}
-
-#panel-entanglement .gate-panel {
-  width: fit-content;
-  max-width: 100%;
-  margin-inline: auto;
-}
-
-.entanglement-versions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-.entanglement-version {
-  border-radius: 0.9rem;
-  border: 2px solid #9fb3c2;
-  background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.6),
-    inset 0 -4px 7px rgba(15, 43, 66, 0.16);
-  padding: 0.7rem 0.8rem 0.85rem;
-}
-
-.entanglement-version h2 {
-  margin: 0 0 0.45rem;
-  font:
-    600 1rem/1 "Aldrich",
-    sans-serif;
-  letter-spacing: 0.02em;
-  color: #15384f;
-}
-
-.entanglement-host {
-  width: fit-content;
-  max-width: 100%;
-  min-height: 620px;
-  border-radius: 0.62rem;
-  border: 1px solid #8ea4b6;
-  background: rgba(245, 251, 255, 0.88);
-  box-shadow: inset 0 1px 2px rgba(20, 48, 73, 0.14);
-  padding: 0.7rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ent-gate-sim {
-  width: 1560px;
-  flex: 0 0 auto;
-  max-width: none;
-  padding-top: 0;
-}
-
-.ent-gate-sim .ent-gate-shell {
-  position: relative;
-  display: grid;
-  grid-template-columns: 520px 372px;
-  grid-template-rows: auto auto;
-  align-items: start;
-  column-gap: 2.2rem;
-  row-gap: 0.8rem;
-  width: max-content;
-  min-height: 560px;
-  padding-right: 0.7rem;
-  user-select: none;
-}
-
-.ent-gate-sim .ent-gate-shell .ent-pre-gates {
-  grid-column: 1;
-  grid-row: 1;
-  margin-right: 0;
 }
 
 .playground-panel {
@@ -379,15 +257,42 @@ body.layout-edit-active *::after {
 }
 
 .playground-toolbar {
-  display: flex;
-  align-items: center;
+  display: grid;
+  align-items: stretch;
   gap: 0.6rem;
-  flex-wrap: wrap;
   margin-bottom: 0.7rem;
   color: #13334c;
   font:
     600 0.9rem/1 "Chakra Petch",
     sans-serif;
+}
+
+.editor-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.editor-document-tools {
+  padding-block: 0.42rem;
+  border-block: 1px solid rgba(67, 103, 128, 0.34);
+}
+
+.editor-document-status {
+  min-width: 142px;
+  color: #0f3855;
+  font:
+    700 0.78rem/1 "Aldrich",
+    sans-serif;
+}
+
+.editor-open-select {
+  min-width: 156px;
+}
+
+.editor-tab-name-input {
+  min-width: 160px;
 }
 
 .playground-component-select {
@@ -720,6 +625,95 @@ body.layout-edit-active
   text-align: center;
 }
 
+.playground-node.playground-text-box {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.55rem;
+  border: 2px solid #6f879a;
+  border-radius: 6px;
+  background: #f8fbff;
+  color: #14324b;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 2px 6px rgba(16, 36, 54, 0.18);
+  font:
+    600 0.9rem "Aldrich",
+    sans-serif;
+  overflow: hidden;
+}
+
+.text-box-editor-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 1.8rem;
+  cursor: move;
+}
+
+.text-box-editor-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #31536d;
+  font:
+    600 0.72rem "Chakra Petch",
+    sans-serif;
+}
+
+.text-box-editor-controls select {
+  height: 1.55rem;
+  border: 1px solid #8ea7ba;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #17344f;
+  font:
+    600 0.72rem "Chakra Petch",
+    sans-serif;
+}
+
+.text-box-body {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  outline: none;
+  cursor: text;
+  user-select: text;
+  line-height: 1.35;
+}
+
+.text-box-body:focus {
+  box-shadow: inset 0 -2px 0 rgba(46, 118, 170, 0.36);
+}
+
+.text-box-action {
+  justify-self: end;
+  min-width: 4.4rem;
+  height: 1.9rem;
+  border: 1px solid #5e7f98;
+  border-radius: 5px;
+  background: #e9f2f8;
+  color: #12314a;
+  font:
+    700 0.76rem "Chakra Petch",
+    sans-serif;
+  cursor: default;
+}
+
+.text-box-action[hidden] {
+  display: none;
+}
+
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .text-box-editor-controls {
+  display: none;
+}
+
 #panel-plaground .playground-node .top-controls,
 #panel-plaground .playground-node .reset-btn {
   display: none;
@@ -746,6 +740,16 @@ body.layout-edit-active #panel-plaground .playground-node * {
   pointer-events: auto;
 }
 
+#panel-plaground .playground-node.playground-text-box .text-box-body,
+.generated-layout-canvas .playground-node.playground-text-box .text-box-body {
+  user-select: text;
+}
+
+#panel-plaground .playground-node.component-group *,
+body.layout-edit-active #panel-plaground .playground-node.component-group * {
+  pointer-events: none;
+}
+
 #panel-plaground .playground-node {
   pointer-events: auto;
 }
@@ -753,9 +757,11 @@ body.layout-edit-active #panel-plaground .playground-node * {
 #panel-plaground .playground-node.qubit,
 #panel-plaground .playground-node.window-wrap.single-qubit-gate,
 #panel-plaground .playground-node.cnot-gate,
-#panel-plaground .playground-node.ent-double-gate,
 #panel-plaground .playground-node.measurement-stage,
-#panel-plaground .playground-node.pair-measurement {
+#panel-plaground .playground-node.pair-measurement,
+#panel-plaground .playground-node.measurement-piece,
+#panel-plaground .playground-node.playground-text-box,
+#panel-plaground .playground-node.component-group {
   position: absolute;
   left: auto;
   top: auto;
@@ -768,14 +774,15 @@ body.layout-edit-active #panel-plaground .playground-node * {
 
 #panel-plaground .playground-node.window-wrap.single-qubit-gate,
 #panel-plaground .playground-node.cnot-gate,
-#panel-plaground .playground-node.ent-double-gate {
+#panel-plaground .playground-node.playground-text-box {
   width: 100%;
   height: 100%;
   max-width: none;
 }
 
 #panel-plaground .playground-node.measurement-stage,
-#panel-plaground .playground-node.pair-measurement {
+#panel-plaground .playground-node.pair-measurement,
+#panel-plaground .playground-node.measurement-piece {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -840,6 +847,149 @@ body.layout-edit-active #panel-plaground .playground-node * {
   display: none !important;
 }
 
+#panel-plaground .playground-node.measurement-piece {
+  place-items: center;
+  align-content: center;
+}
+
+#panel-plaground .playground-node.measurement-piece .measurement-count {
+  width: 78px;
+}
+
+#panel-plaground .playground-node.measurement-piece-measurement-count-menu {
+  padding: 0;
+}
+
+#panel-plaground .playground-node.component-group,
+.generated-layout-canvas .playground-node.component-group {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: block;
+  overflow: visible;
+}
+
+.saved-component-group {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.saved-group-child {
+  position: absolute !important;
+  box-sizing: border-box;
+  transform: none !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.saved-group-child.measurement-piece {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-items: center;
+  margin: 0;
+  padding: 0.25rem;
+}
+
+.saved-group-child.measurement-piece-measurement-count-menu {
+  padding: 0;
+}
+
+.playground-node.component-group > .layout-resize-handle {
+  pointer-events: auto !important;
+}
+
+.playground-node.pair-measurement > .playground-group-frame {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 140;
+  pointer-events: none !important;
+}
+
+body.layout-edit-active
+  #panel-plaground
+  .playground-node.pair-measurement
+  > .playground-group-frame,
+body.layout-edit-active
+  .generated-layout-canvas
+  .playground-node.pair-measurement
+  > .playground-group-frame {
+  display: block;
+}
+
+.playground-node.pair-measurement > .playground-group-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(34, 99, 153, 0.95);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.72),
+    0 2px 5px rgba(13, 37, 57, 0.2);
+  pointer-events: none;
+}
+
+.playground-group-frame-edge,
+.playground-group-frame-corner {
+  position: absolute;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0);
+}
+
+.playground-group-frame-edge {
+  cursor: grab;
+}
+
+.playground-group-frame-edge-top {
+  left: -8px;
+  right: -8px;
+  top: -8px;
+  height: 16px;
+}
+
+.playground-group-frame-edge-right {
+  top: -8px;
+  right: -8px;
+  bottom: -8px;
+  width: 16px;
+}
+
+.playground-group-frame-edge-bottom {
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  height: 16px;
+}
+
+.playground-group-frame-edge-left {
+  top: -8px;
+  bottom: -8px;
+  left: -8px;
+  width: 16px;
+}
+
+.playground-group-frame-corner {
+  right: -10px;
+  bottom: -10px;
+  width: 24px;
+  height: 24px;
+  border-right: 3px solid rgba(34, 99, 153, 0.95);
+  border-bottom: 3px solid rgba(34, 99, 153, 0.95);
+  cursor: nwse-resize;
+}
+
+#panel-plaground .pair-ejection-site,
+.generated-layout-canvas .pair-ejection-site,
+body.layout-edit-active #panel-plaground .pair-ejection-site,
+body.layout-edit-active .generated-layout-canvas .pair-ejection-site,
+.saved-component-group .pair-ejection-site,
+body.layout-edit-active .saved-component-group .pair-ejection-site {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .generated-tab-panel {
   max-width: 100%;
 }
@@ -856,12 +1006,6 @@ body.layout-edit-active .generated-editor-toolbar {
   display: flex;
 }
 
-.generated-experiment-toolbar .playground-tool-btn.active {
-  background: #ba2f3f;
-  border-color: #8f1f2d;
-  color: #fff;
-}
-
 .generated-layout-canvas {
   resize: none;
   overflow: auto;
@@ -872,11 +1016,17 @@ body.layout-edit-active .generated-editor-toolbar {
   user-select: none;
 }
 
+.generated-layout-canvas .playground-node.playground-text-box .text-box-body {
+  user-select: text;
+}
+
 .generated-layout-canvas .playground-node * {
   pointer-events: none;
 }
 
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .ticks,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate .tick,
 .generated-layout-canvas
   .playground-node.window-wrap.single-qubit-gate
@@ -904,6 +1054,11 @@ body.layout-edit-active .generated-layout-canvas .playground-node * {
   pointer-events: auto;
 }
 
+.generated-layout-canvas .playground-node.component-group *,
+body.layout-edit-active .generated-layout-canvas .playground-node.component-group * {
+  pointer-events: none;
+}
+
 .generated-layout-canvas .playground-node {
   pointer-events: auto;
 }
@@ -912,6 +1067,25 @@ body:not(.layout-edit-active)
   .generated-layout-canvas
   .playground-node:not(.playground-qubit-shell) {
   pointer-events: none;
+}
+
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.component-group[data-separated-pair-measurement="true"]
+  .measurement-piece-single-magnifier
+  [data-role="measurement-tool"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.component-group[data-separated-pair-measurement="true"]
+  .measurement-piece-single-magnifier
+  [data-role="measurement-tool"]
+  *,
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.component-group[data-separated-pair-measurement="true"]
+  .measurement-piece-measurement-count-menu
+  [data-role="measurement-count"] {
+  pointer-events: auto;
 }
 
 body.layout-edit-active .generated-layout-canvas .playground-node {
@@ -973,27 +1147,32 @@ body.layout-edit-active
 }
 
 .generated-layout-canvas .playground-node.qubit,
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.cnot-gate,
-.generated-layout-canvas .playground-node.ent-double-gate,
 .generated-layout-canvas .playground-node.measurement-stage,
-.generated-layout-canvas .playground-node.pair-measurement {
+.generated-layout-canvas .playground-node.pair-measurement,
+.generated-layout-canvas .playground-node.measurement-piece,
+.generated-layout-canvas .playground-node.playground-text-box,
+.generated-layout-canvas .playground-node.component-group {
   position: absolute;
   left: auto;
   top: auto;
   transform: none;
 }
 
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.cnot-gate,
-.generated-layout-canvas .playground-node.ent-double-gate {
+.generated-layout-canvas .playground-node.playground-text-box {
   width: 100%;
   height: 100%;
   max-width: none;
 }
 
 .generated-layout-canvas .playground-node.measurement-stage,
-.generated-layout-canvas .playground-node.pair-measurement {
+.generated-layout-canvas .playground-node.pair-measurement,
+.generated-layout-canvas .playground-node.measurement-piece {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -1058,219 +1237,20 @@ body.layout-edit-active
   display: none !important;
 }
 
-.ent-pre-gates {
-  position: relative;
-  flex: 0 0 auto;
-  width: 520px;
-  min-width: 520px;
-  margin-left: 0;
-  margin-right: 220px;
-  display: grid;
-  gap: 0.7rem;
+.generated-layout-canvas .playground-node.measurement-piece {
+  place-items: center;
+  align-content: center;
 }
 
-.ent-pre-stage {
-  position: relative;
-  width: 520px;
-  height: 212px;
-  user-select: none;
+.generated-layout-canvas
+  .playground-node.measurement-piece
+  .measurement-count {
+  width: 78px;
 }
 
-.ent-pre-gate {
-  position: relative;
-  width: 300px;
-  height: 170px;
-  display: grid;
-  grid-template-columns: 64px minmax(220px, 1fr);
-  align-items: center;
-  gap: 0;
-}
-
-.ent-pre-funnel {
-  position: relative;
-  width: 60px;
-  height: 102px;
-  justify-self: end;
-  margin-right: -6px;
-  clip-path: polygon(0 7%, 0 93%, 100% 50%);
-  border-radius: 0.45rem 0 0 0.45rem;
-  border: 2px solid #687888;
-  background:
-    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
-    repeating-linear-gradient(
-      -8deg,
-      rgba(255, 255, 255, 0.34) 0 4px,
-      rgba(255, 255, 255, 0) 4px 11px
-    );
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.52),
-    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
-    0 2px 5px rgba(22, 40, 57, 0.3);
-}
-
-.ent-pre-funnel::after {
-  content: "";
-  position: absolute;
-  right: -9px;
-  top: 50%;
-  width: 14px;
-  height: 74px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid rgba(96, 112, 126, 0.9);
-  background:
-    linear-gradient(180deg, #d7e1ea, #a9b8c6 58%, #8a98a6),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.24) 0 3px,
-      rgba(255, 255, 255, 0) 3px 8px
-    );
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.48),
-    inset 0 -3px 4px rgba(46, 66, 84, 0.26);
-}
-
-.ent-pre-pipe {
-  position: relative;
-  grid-column: 2;
-  width: 100%;
-  height: 102px;
-  border-radius: 999px;
-  border: 3px solid #5f6f7f;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(239, 245, 251, 0.95) 0%,
-      rgba(186, 199, 212, 0.92) 38%,
-      rgba(122, 137, 151, 0.96) 50%,
-      rgba(171, 185, 198, 0.94) 66%,
-      rgba(212, 222, 232, 0.95) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.14) 0 2px,
-      rgba(255, 255, 255, 0) 2px 8px
-    );
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.54),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 3px 7px rgba(16, 35, 52, 0.28);
-}
-
-.ent-pre-window {
-  position: absolute;
-  left: 54%;
-  top: 50%;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  border: 3px solid rgba(53, 80, 102, 0.72);
-  background: radial-gradient(
-    circle at 34% 30%,
-    rgba(255, 255, 255, 0.78),
-    rgba(206, 228, 247, 0.44) 56%,
-    rgba(169, 198, 220, 0.5)
-  );
-  box-shadow:
-    inset 0 8px 16px rgba(255, 255, 255, 0.45),
-    inset 0 -10px 16px rgba(53, 80, 102, 0.24);
-  transform: translate(-50%, -50%);
-}
-
-.ent-pre-controls {
-  display: none;
-}
-
-.ent-pre-ticks {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 96px;
-  height: 96px;
-  transform: translate(-50%, -50%);
-  overflow: visible;
-  z-index: 3;
-}
-
-.ent-pre-ticks .tick {
-  width: 6px;
-  height: 12px;
-}
-
-.ent-pre-arrow-layer {
-  inset: auto;
-  left: 50%;
-  top: 50%;
-  width: 96px;
-  height: 96px;
-  transform: translate(-50%, -50%);
-  z-index: 4;
-  pointer-events: none;
-}
-
-.ent-pre-arrow-layer .arrow-group {
-  pointer-events: auto;
-}
-
-.ent-pre-flange {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  width: 16px;
-  height: 78px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid rgba(84, 99, 113, 0.92);
-  background:
-    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.2) 0 3px,
-      rgba(255, 255, 255, 0) 3px 8px
-    );
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.45),
-    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
-  overflow: visible;
-  pointer-events: none;
-  z-index: 3;
-}
-
-.ent-pre-spring {
-  --spring-height: 38px;
-  --spring-length: 132px;
-  position: absolute;
-  left: -2px;
-  top: 50%;
-  width: var(--spring-length);
-  height: var(--spring-height);
-  transform-origin: left center;
-  border: 0;
-  border-radius: calc(var(--spring-height) / 2);
-  background: radial-gradient(
-    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-    transparent 56%,
-    rgba(154, 170, 186, 0.95) 60%,
-    rgba(52, 67, 83, 0.98) 69%,
-    transparent 75%
-  );
-  background-size: 16px 100%;
-  background-repeat: repeat-x;
-  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
-  opacity: 0;
-  transform: translateY(-50%) scaleX(0.04);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 1000ms;
-  pointer-events: none;
-}
-
-.ent-pre-flange.extended .ent-pre-spring {
-  opacity: 1;
-  transform: translateY(-50%) scaleX(1);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 0ms;
+.generated-layout-canvas
+  .playground-node.measurement-piece-measurement-count-menu {
+  padding: 0;
 }
 
 .cnot-gate {
@@ -1465,13 +1445,9 @@ body.layout-edit-active
 }
 
 body.layout-edit-active .cnot-gate .cnot-input-funnel,
-body.layout-edit-active .cnot-gate .ent-input-funnel,
 body.layout-edit-active .cnot-gate .cnot-body,
-body.layout-edit-active .cnot-gate .ent-pipe,
 body.layout-edit-active .cnot-gate .cnot-porthole,
-body.layout-edit-active .cnot-gate .ent-window,
-body.layout-edit-active .cnot-gate .cnot-output-flange,
-body.layout-edit-active .cnot-gate .ent-output-flange {
+body.layout-edit-active .cnot-gate .cnot-output-flange {
   outline: 2px dashed rgba(30, 117, 187, 0.85);
   outline-offset: 2px;
 }
@@ -1510,6 +1486,14 @@ body.layout-edit-active
 body.layout-edit-active
   .generated-layout-canvas
   .pair-measurement
+  [data-playground-measurement-part],
+body.layout-edit-active
+  #panel-plaground
+  .saved-component-group
+  [data-playground-measurement-part],
+body.layout-edit-active
+  .generated-layout-canvas
+  .saved-component-group
   [data-playground-measurement-part] {
   pointer-events: auto;
 }
@@ -1522,6 +1506,16 @@ body.layout-edit-active
 body.layout-edit-active
   .generated-layout-canvas
   .pair-measurement
+  [data-playground-measurement-part]
+  > .layout-resize-handle,
+body.layout-edit-active
+  #panel-plaground
+  .saved-component-group
+  [data-playground-measurement-part]
+  > .layout-resize-handle,
+body.layout-edit-active
+  .generated-layout-canvas
+  .saved-component-group
   [data-playground-measurement-part]
   > .layout-resize-handle {
   width: 16px;
@@ -1548,114 +1542,6 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   transform: translateY(-50%) scaleX(1);
 }
 
-.ent-gate-sim .ent-gate-shell .ent-measurement-block {
-  position: relative;
-  grid-column: 1 / span 2;
-  grid-row: 2;
-  left: auto;
-  top: auto;
-  width: max-content;
-  min-width: 314px;
-  transform: none;
-  display: grid;
-  justify-items: stretch;
-  row-gap: 0.62rem;
-  margin-left: auto;
-  margin-right: auto;
-  justify-self: center;
-  align-self: flex-start;
-}
-
-.ent-gate-sim .pair-tube-rack {
-  width: max-content;
-  justify-self: center;
-  justify-content: center;
-  gap: 0.34rem;
-}
-
-.ent-qubit {
-  width: 64px;
-  left: -9999px;
-  top: -9999px;
-  z-index: 6;
-}
-
-.ent-qubit.ent-hidden {
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.82);
-  transition:
-    opacity 180ms ease,
-    transform 180ms ease;
-}
-
-.ent-qubit.ent-appearing {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1.04);
-  transition:
-    opacity 180ms ease,
-    transform 180ms ease;
-}
-
-.two-qubits-panel .qubit {
-  width: 64px;
-  left: 36px;
-}
-
-.two-qubits-panel .measurement-stage {
-  display: none;
-}
-
-.two-qubit-pair-host {
-  width: fit-content;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.pair-sim {
-  width: fit-content;
-}
-
-.pair-shell {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 3.5rem;
-  border-radius: 1rem;
-  border: 2px solid #9fb3c2;
-  background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.6),
-    inset 0 -4px 7px rgba(15, 43, 66, 0.16);
-  margin-top: 0.75rem;
-  padding: 0.7rem 0.7rem 3.2rem;
-}
-
-.pair-gate-stack {
-  flex: 0 0 auto;
-  width: 520px;
-  min-width: 520px;
-  margin-left: 0;
-  margin-right: 220px;
-  display: grid;
-  gap: 0.7rem;
-}
-
-.pair-gate-stage {
-  position: relative;
-  width: 520px;
-  height: 212px;
-  user-select: none;
-}
-
-.pair-qubit {
-  width: 64px;
-  left: -9999px;
-  top: -9999px;
-  z-index: 6;
-}
-
 .pair-measurement {
   position: relative;
   flex: 0 0 auto;
@@ -1667,48 +1553,6 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   display: grid;
   justify-items: stretch;
   row-gap: 0.62rem;
-}
-
-.pair-sim .pair-shell {
-  display: grid;
-  grid-template-columns: 520px 372px max-content;
-  grid-template-rows: auto;
-  align-items: start;
-  column-gap: 2.2rem;
-  row-gap: 0.8rem;
-  width: max-content;
-  min-height: 560px;
-  padding-right: calc(0.7rem + 140px);
-}
-
-.pair-sim .pair-gate-stack {
-  grid-column: 1;
-  grid-row: 1;
-  margin-right: 0;
-}
-
-.pair-cnot-host {
-  position: relative;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: center;
-  justify-self: center;
-  width: 372px;
-  z-index: 2;
-}
-
-.pair-sim .pair-cnot-host .cnot-gate {
-  width: 372px;
-  height: 204px;
-}
-
-.pair-sim .pair-measurement {
-  grid-column: 3;
-  grid-row: 1;
-  margin-left: 0;
-  margin-right: 0;
-  justify-self: start;
-  align-self: start;
 }
 
 .pair-capacity {
@@ -1739,13 +1583,6 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   justify-content: space-between;
   align-items: end;
   gap: 0.56rem;
-}
-
-.pair-sim .pair-tube-rack {
-  width: max-content;
-  justify-self: center;
-  justify-content: center;
-  gap: 0.34rem;
 }
 
 .pair-tube-column {
@@ -1965,57 +1802,6 @@ body.layout-edit-active .pair-ejection-site {
     opacity 0ms linear 0ms;
 }
 
-.pair-sim .pair-magnifier,
-.ent-gate-sim .pair-magnifier {
-  max-width: none;
-  height: 214px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.pair-sim .pair-magnifier::before,
-.ent-gate-sim .pair-magnifier::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: url("Wide magnifying glass transparent.png") center / 100% 100%
-    no-repeat;
-  clip-path: inset(0 4px 0 4px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.pair-sim .pair-measurement-funnel,
-.pair-sim .pair-magnifier::after,
-.ent-gate-sim .pair-measurement-funnel,
-.ent-gate-sim .pair-magnifier::after {
-  display: none;
-}
-
-.pair-sim .pair-slot,
-.ent-gate-sim .pair-slot {
-  width: 66px;
-  height: 66px;
-  opacity: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.pair-sim .pair-slot-left,
-.ent-gate-sim .pair-slot-left {
-  left: calc(66% - 50px);
-  top: calc(50% - 50px);
-}
-
-.pair-sim .pair-slot-right,
-.ent-gate-sim .pair-slot-right {
-  left: 34%;
-  top: 50%;
-}
-
 .pair-lightning {
   z-index: 3;
 }
@@ -2203,13 +1989,6 @@ body.layout-edit-active .pair-ejection-site {
   gap: 1.3rem;
 }
 
-#panel-one-qubit .machine-shell {
-  --one-qubit-lower-offset: 100px;
-  width: 100%;
-  gap: 0.7rem;
-  padding-right: 5rem;
-}
-
 .gate-stage {
   position: relative;
   width: min(100%, 520px);
@@ -2225,197 +2004,6 @@ body.layout-edit-active .pair-ejection-site {
   width: min(66%, 260px);
   aspect-ratio: 1 / 1;
   transform: translate(-50%, -50%);
-}
-
-#panel-one-qubit .single-qubit-gate,
-#panel-two-qubits .single-qubit-gate,
-#panel-entanglement .single-qubit-gate,
-#panel-plaground .single-qubit-gate {
-  left: calc(52% + 58px);
-  top: 50%;
-  width: min(86%, 418px);
-  height: 170px;
-  aspect-ratio: auto;
-  display: grid;
-  grid-template-columns: 64px minmax(220px, 1fr);
-  align-items: center;
-  gap: 0;
-}
-
-#panel-one-qubit .single-qubit-gate {
-  top: calc(50% + var(--one-qubit-lower-offset));
-}
-
-#panel-one-qubit .single-qubit-gate .tube-funnel,
-#panel-two-qubits .single-qubit-gate .tube-funnel,
-#panel-entanglement .single-qubit-gate .tube-funnel,
-#panel-plaground .single-qubit-gate .tube-funnel {
-  position: relative;
-  width: 60px;
-  height: 102px;
-  justify-self: end;
-  margin-right: -6px;
-  clip-path: polygon(0 7%, 0 93%, 100% 50%);
-  border-radius: 0.45rem 0 0 0.45rem;
-  border: 2px solid #687888;
-  background:
-    linear-gradient(165deg, #e9eff5 0%, #c2ced9 38%, #9baab7 66%, #7f8e9c 100%),
-    repeating-linear-gradient(
-      -8deg,
-      rgba(255, 255, 255, 0.34) 0 4px,
-      rgba(255, 255, 255, 0) 4px 11px
-    );
-  box-shadow:
-    inset 0 3px 5px rgba(255, 255, 255, 0.52),
-    inset 0 -5px 7px rgba(38, 56, 74, 0.28),
-    0 2px 5px rgba(22, 40, 57, 0.3);
-}
-
-#panel-one-qubit .single-qubit-gate .tube-funnel::after,
-#panel-two-qubits .single-qubit-gate .tube-funnel::after,
-#panel-entanglement .single-qubit-gate .tube-funnel::after,
-#panel-plaground .single-qubit-gate .tube-funnel::after {
-  content: "";
-  position: absolute;
-  right: -9px;
-  top: 50%;
-  width: 14px;
-  height: 74px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid rgba(96, 112, 126, 0.9);
-  background:
-    linear-gradient(180deg, #d7e1ea, #a9b8c6 58%, #8a98a6),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.24) 0 3px,
-      rgba(255, 255, 255, 0) 3px 8px
-    );
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.48),
-    inset 0 -3px 4px rgba(46, 66, 84, 0.26);
-}
-
-#panel-one-qubit .single-qubit-gate .window,
-#panel-two-qubits .single-qubit-gate .window,
-#panel-entanglement .single-qubit-gate .window,
-#panel-plaground .single-qubit-gate .window {
-  position: relative;
-  inset: auto;
-  width: 100%;
-  height: 102px;
-  border-radius: 999px;
-  border: 3px solid #5f6f7f;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(239, 245, 251, 0.95) 0%,
-      rgba(186, 199, 212, 0.92) 38%,
-      rgba(122, 137, 151, 0.96) 50%,
-      rgba(171, 185, 198, 0.94) 66%,
-      rgba(212, 222, 232, 0.95) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.14) 0 2px,
-      rgba(255, 255, 255, 0) 2px 8px
-    );
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.54),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 3px 7px rgba(16, 35, 52, 0.28);
-  overflow: visible;
-}
-
-#panel-one-qubit .single-qubit-gate .tube-core,
-#panel-two-qubits .single-qubit-gate .tube-core,
-#panel-entanglement .single-qubit-gate .tube-core,
-#panel-plaground .single-qubit-gate .tube-core {
-  display: none;
-}
-
-#panel-one-qubit .single-qubit-gate .window::after,
-#panel-two-qubits .single-qubit-gate .window::after,
-#panel-entanglement .single-qubit-gate .window::after,
-#panel-plaground .single-qubit-gate .window::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  width: 16px;
-  height: 78px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  border: 1px solid rgba(84, 99, 113, 0.92);
-  background:
-    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.2) 0 3px,
-      rgba(255, 255, 255, 0) 3px 8px
-    );
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.45),
-    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
-}
-
-#panel-one-qubit .single-qubit-gate .window .ticks,
-#panel-two-qubits .single-qubit-gate .window .ticks,
-#panel-entanglement .single-qubit-gate .window .ticks,
-#panel-plaground .single-qubit-gate .window .ticks {
-  inset: auto;
-  left: 50%;
-  top: 50%;
-  width: 96px;
-  height: 96px;
-  transform: translate(-50%, -50%);
-  overflow: visible;
-  z-index: 3;
-}
-
-#panel-one-qubit .single-qubit-gate .window .tick,
-#panel-two-qubits .single-qubit-gate .window .tick,
-#panel-entanglement .single-qubit-gate .window .tick,
-#panel-plaground .single-qubit-gate .window .tick {
-  width: 6px;
-  height: 12px;
-}
-
-#panel-one-qubit .single-qubit-gate .window .arrow-layer,
-#panel-two-qubits .single-qubit-gate .window .arrow-layer,
-#panel-entanglement .single-qubit-gate .window .arrow-layer,
-#panel-plaground .single-qubit-gate .window .arrow-layer {
-  inset: auto;
-  left: 50%;
-  top: 50%;
-  width: 96px;
-  height: 96px;
-  transform: translate(-50%, -50%);
-  z-index: 4;
-  pointer-events: none;
-}
-
-#panel-one-qubit .single-qubit-gate .window .arrow-group,
-#panel-two-qubits .single-qubit-gate .window .arrow-group,
-#panel-entanglement .single-qubit-gate .window .arrow-group,
-#panel-plaground .single-qubit-gate .window .arrow-group {
-  pointer-events: auto;
-}
-
-#panel-one-qubit .gate-radio-row {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.34rem;
-  padding: 0.16rem 0.24rem;
-  border-radius: 999px;
-  background: transparent;
-  box-shadow: none;
-  z-index: 2;
 }
 
 .gate-radio {
@@ -2457,100 +2045,6 @@ body.layout-edit-active .pair-ejection-site {
     0 0 0 4px rgba(47, 117, 171, 0.42);
 }
 
-#panel-one-qubit .single-qubit-gate .tube-platform-bay,
-#panel-two-qubits .single-qubit-gate .tube-platform-bay,
-#panel-entanglement .single-qubit-gate .tube-platform-bay,
-#panel-plaground .single-qubit-gate .tube-platform-bay {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  width: 22px;
-  height: 42px;
-  transform: translateY(-50%);
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-  pointer-events: none;
-}
-
-#panel-one-qubit .single-qubit-gate .tube-platform-bay::before,
-#panel-two-qubits .single-qubit-gate .tube-platform-bay::before,
-#panel-entanglement .single-qubit-gate .tube-platform-bay::before,
-#panel-plaground .single-qubit-gate .tube-platform-bay::before {
-  content: none;
-}
-
-#panel-one-qubit .single-qubit-gate .tube-platform,
-#panel-two-qubits .single-qubit-gate .tube-platform,
-#panel-entanglement .single-qubit-gate .tube-platform,
-#panel-plaground .single-qubit-gate .tube-platform {
-  --spring-height: 38px;
-  --spring-length: 132px;
-  position: absolute;
-  left: -2px;
-  top: 50%;
-  width: var(--spring-length);
-  height: var(--spring-height);
-  transform-origin: left center;
-  border: 0;
-  border-radius: calc(var(--spring-height) / 2);
-  background: radial-gradient(
-    ellipse 7px calc(var(--spring-height) / 2 - 2px) at 8px 50%,
-    transparent 56%,
-    rgba(154, 170, 186, 0.95) 60%,
-    rgba(52, 67, 83, 0.98) 69%,
-    transparent 75%
-  );
-  background-size: 16px 100%;
-  background-repeat: repeat-x;
-  filter: drop-shadow(0 1px 1px rgba(10, 18, 28, 0.46));
-  opacity: 0;
-  transform: translateY(-50%) scaleX(0.04);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 1000ms;
-}
-
-#panel-one-qubit .single-qubit-gate .tube-platform::after,
-#panel-two-qubits .single-qubit-gate .tube-platform::after,
-#panel-entanglement .single-qubit-gate .tube-platform::after,
-#panel-plaground .single-qubit-gate .tube-platform::after {
-  content: none;
-}
-
-#panel-one-qubit .single-qubit-gate.platform-extended .tube-platform,
-#panel-two-qubits .single-qubit-gate.platform-extended .tube-platform,
-#panel-entanglement .single-qubit-gate.platform-extended .tube-platform,
-#panel-plaground .single-qubit-gate.platform-extended .tube-platform {
-  opacity: 1;
-  transform: translateY(-50%) scaleX(1);
-  transition:
-    transform 1000ms ease-in-out,
-    opacity 0ms linear 0ms;
-}
-
-#panel-one-qubit .tube-drop-zone {
-  position: absolute;
-  right: -20px;
-  top: 50%;
-  width: 1px;
-  height: 1px;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-#panel-one-qubit .single-qubit-gate.gate-busy .window,
-#panel-two-qubits .single-qubit-gate.gate-busy .window,
-#panel-entanglement .single-qubit-gate.gate-busy .window,
-#panel-plaground .single-qubit-gate.gate-busy .window {
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.52),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 0 0 2px rgba(255, 188, 93, 0.48),
-    0 0 12px rgba(255, 195, 109, 0.45);
-}
-
 #panel-plaground .playground-node.window-wrap.single-qubit-gate {
   position: absolute;
   left: auto;
@@ -2560,8 +2054,14 @@ body.layout-edit-active .pair-ejection-site {
   height: 100%;
   max-width: none;
   overflow: visible;
+  aspect-ratio: auto;
+  display: grid;
+  grid-template-columns: 64px minmax(220px, 1fr);
+  align-items: center;
+  gap: 0;
 }
 
+#panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate {
   position: absolute;
   left: auto;
@@ -2578,6 +2078,7 @@ body.layout-edit-active .pair-ejection-site {
   gap: 0;
 }
 
+#panel-plaground .single-qubit-gate .tube-funnel,
 .generated-layout-canvas .single-qubit-gate .tube-funnel {
   position: relative;
   width: 60px;
@@ -2600,6 +2101,7 @@ body.layout-edit-active .pair-ejection-site {
     0 2px 5px rgba(22, 40, 57, 0.3);
 }
 
+#panel-plaground .single-qubit-gate .tube-funnel::after,
 .generated-layout-canvas .single-qubit-gate .tube-funnel::after {
   content: "";
   position: absolute;
@@ -2622,6 +2124,7 @@ body.layout-edit-active .pair-ejection-site {
     inset 0 -3px 4px rgba(46, 66, 84, 0.26);
 }
 
+#panel-plaground .single-qubit-gate .window,
 .generated-layout-canvas .single-qubit-gate .window {
   position: relative;
   inset: auto;
@@ -2650,10 +2153,12 @@ body.layout-edit-active .pair-ejection-site {
   overflow: visible;
 }
 
+#panel-plaground .single-qubit-gate .tube-core,
 .generated-layout-canvas .single-qubit-gate .tube-core {
   display: none;
 }
 
+#panel-plaground .single-qubit-gate .window::after,
 .generated-layout-canvas .single-qubit-gate .window::after {
   content: "";
   position: absolute;
@@ -2676,7 +2181,9 @@ body.layout-edit-active .pair-ejection-site {
     inset 0 -2px 4px rgba(42, 63, 82, 0.24);
 }
 
+#panel-plaground .single-qubit-gate .window .ticks,
 .generated-layout-canvas .single-qubit-gate .window .ticks,
+#panel-plaground .single-qubit-gate .window .arrow-layer,
 .generated-layout-canvas .single-qubit-gate .window .arrow-layer {
   inset: auto;
   left: 50%;
@@ -2687,20 +2194,24 @@ body.layout-edit-active .pair-ejection-site {
   overflow: visible;
 }
 
+#panel-plaground .single-qubit-gate .window .ticks,
 .generated-layout-canvas .single-qubit-gate .window .ticks {
   z-index: 3;
 }
 
+#panel-plaground .single-qubit-gate .window .arrow-layer,
 .generated-layout-canvas .single-qubit-gate .window .arrow-layer {
   z-index: 4;
   pointer-events: none;
 }
 
+#panel-plaground .single-qubit-gate .window .tick,
 .generated-layout-canvas .single-qubit-gate .window .tick {
   width: 6px;
   height: 12px;
 }
 
+#panel-plaground .single-qubit-gate .tube-platform-bay,
 .generated-layout-canvas .single-qubit-gate .tube-platform-bay {
   position: absolute;
   right: 14px;
@@ -2715,11 +2226,14 @@ body.layout-edit-active .pair-ejection-site {
   pointer-events: none;
 }
 
+#panel-plaground .single-qubit-gate .tube-platform-bay::before,
 .generated-layout-canvas .single-qubit-gate .tube-platform-bay::before,
+#panel-plaground .single-qubit-gate .tube-platform::after,
 .generated-layout-canvas .single-qubit-gate .tube-platform::after {
   content: none;
 }
 
+#panel-plaground .single-qubit-gate .tube-platform,
 .generated-layout-canvas .single-qubit-gate .tube-platform {
   --spring-height: 38px;
   --spring-length: 132px;
@@ -2745,6 +2259,7 @@ body.layout-edit-active .pair-ejection-site {
   transform: translateY(-50%) scaleX(0.04);
 }
 
+#panel-plaground .single-qubit-gate.platform-extended .tube-platform,
 .generated-layout-canvas .single-qubit-gate.platform-extended .tube-platform {
   opacity: 1;
   transform: translateY(-50%) scaleX(1);
@@ -2753,6 +2268,7 @@ body.layout-edit-active .pair-ejection-site {
     opacity 0ms linear 0ms;
 }
 
+#panel-plaground .single-qubit-gate.gate-busy .window,
 .generated-layout-canvas .single-qubit-gate.gate-busy .window {
   box-shadow:
     inset 0 8px 10px rgba(255, 255, 255, 0.52),
@@ -2863,13 +2379,6 @@ body.layout-edit-active .pair-ejection-site {
   align-content: start;
   row-gap: 0.52rem;
   padding: 0.35rem 0.45rem 0.2rem;
-}
-
-#panel-one-qubit .measurement-stage {
-  width: max-content;
-  min-width: 290px;
-  margin-left: auto;
-  margin-right: 96px;
 }
 
 .lightning {
@@ -3192,92 +2701,6 @@ body.layout-edit-active .pair-ejection-site {
     min-height: 360px;
   }
 
-  .two-qubits-panel {
-    width: 100%;
-    margin-inline: 0;
-  }
-
-  .entanglement-versions {
-    grid-template-columns: 1fr;
-  }
-
-  .entanglement-host {
-    min-height: 560px;
-    padding: 0.45rem;
-  }
-
-  .ent-gate-sim {
-    width: 1360px;
-  }
-
-  .ent-gate-shell {
-    width: fit-content;
-    min-height: 520px;
-    padding-right: calc(0.45rem + 140px);
-  }
-
-  .ent-pre-gates {
-    left: auto;
-    width: 520px;
-    min-width: 520px;
-    margin-left: 0;
-    margin-right: 220px;
-    gap: 0.7rem;
-  }
-
-  .ent-pre-gate {
-    width: 208px;
-    height: 92px;
-  }
-
-  .ent-pre-funnel {
-    width: 44px;
-    height: 74px;
-  }
-
-  .ent-pre-funnel::after {
-    right: -7px;
-    width: 10px;
-    height: 52px;
-  }
-
-  .ent-pre-pipe {
-    left: 40px;
-    right: 14px;
-    height: 74px;
-  }
-
-  .ent-pre-window {
-    width: 48px;
-    height: 48px;
-  }
-
-  .ent-pre-controls {
-    gap: 0.22rem;
-    padding: 0.12rem 0.16rem;
-  }
-
-  .ent-pre-ticks,
-  .ent-pre-arrow-layer {
-    width: 56px;
-    height: 56px;
-  }
-
-  .ent-pre-ticks .tick {
-    height: 9px;
-  }
-
-  .ent-pre-flange {
-    right: 8px;
-    width: 12px;
-    height: 54px;
-  }
-
-  .ent-pre-spring {
-    --spring-height: 20px;
-    --spring-length: 64px;
-  }
-
   .cnot-gate {
     left: auto;
     top: auto;
@@ -3323,98 +2746,11 @@ body.layout-edit-active .pair-ejection-site {
     --spring-length: 88px;
   }
 
-  .ent-gate-sim .ent-gate-shell .ent-measurement-block {
-    left: auto;
-    width: 314px;
-    margin-left: auto;
-    margin-right: auto;
-    justify-self: center;
-  }
-
-  .ent-qubit {
-    width: 56px;
-  }
-
-  #panel-one-qubit .quantum-sim {
-    width: 100%;
-  }
-
-  #panel-one-qubit .machine-shell {
-    --one-qubit-lower-offset: 100px;
-    padding-right: 0.7rem;
-  }
-
-  .two-qubit-pair-host {
-    width: 100%;
-  }
-
-  .two-qubit-stack {
-    gap: 0.9rem;
-  }
-
-  .two-qubit-stack .quantum-sim + .quantum-sim {
-    padding-top: 0.8rem;
-  }
-
-  .pair-shell {
-    flex-direction: column;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.45rem 0.45rem 2.4rem;
-  }
-
-  .pair-sim .pair-shell {
-    display: grid;
-    grid-template-columns: min(100%, 360px) 300px;
-    grid-template-rows: auto auto;
-    align-items: start;
-    column-gap: 1rem;
-    row-gap: 0.55rem;
-    padding: 0.45rem;
-  }
-
-  .ent-gate-sim .ent-gate-shell {
-    display: grid;
-    grid-template-columns: min(100%, 360px) 300px;
-    grid-template-rows: auto auto;
-    align-items: start;
-    column-gap: 1rem;
-    row-gap: 0.55rem;
-    padding: 0.45rem;
-  }
-
-  .pair-gate-stack {
-    margin-left: 0;
-    margin-right: 0;
-    gap: 0.4rem;
-  }
-
-  .pair-cnot-host {
-    width: 300px;
-  }
-
-  .pair-sim .pair-cnot-host .cnot-gate {
-    width: 300px;
-    height: 178px;
-  }
-
-  .pair-gate-stage {
-    width: min(100%, 360px);
-    height: 184px;
-  }
-
   .pair-measurement {
     width: min(100%, 314px);
     margin-left: 0;
     margin-right: calc(220px - 0.45rem);
     margin-top: 0.1rem;
-  }
-
-  .pair-sim .pair-measurement {
-    grid-column: 1 / span 2;
-    grid-row: 2;
-    margin-right: 0;
-    justify-self: center;
   }
 
   .pair-capacity {
@@ -3423,17 +2759,8 @@ body.layout-edit-active .pair-ejection-site {
     font-size: 14pt;
   }
 
-  .pair-qubit {
-    width: 58px;
-  }
-
   .pair-tube-rack {
     gap: 0.3rem;
-  }
-
-  .pair-sim .pair-tube-rack,
-  .ent-gate-sim .pair-tube-rack {
-    gap: 0.2rem;
   }
 
   .pair-tube-label {
@@ -3454,12 +2781,6 @@ body.layout-edit-active .pair-ejection-site {
     width: 100%;
     max-width: 252px;
     height: 132px;
-  }
-
-  .pair-sim .pair-magnifier,
-  .ent-gate-sim .pair-magnifier {
-    max-width: none;
-    height: 170px;
   }
 
   .pair-measurement-funnel {
@@ -3501,12 +2822,6 @@ body.layout-edit-active .pair-ejection-site {
     top: calc(50% + 42px);
   }
 
-  .pair-sim .pair-slot,
-  .ent-gate-sim .pair-slot {
-    width: 52px;
-    height: 52px;
-  }
-
   .pair-measurement-platform {
     --spring-height: 36px;
     --spring-length: 98px;
@@ -3545,58 +2860,6 @@ body.layout-edit-active .pair-ejection-site {
     left: calc(56% + 40px);
   }
 
-  #panel-one-qubit .single-qubit-gate,
-  #panel-two-qubits .single-qubit-gate,
-  #panel-entanglement .single-qubit-gate,
-  #panel-plaground .single-qubit-gate {
-    left: calc(52% + 44px);
-    width: min(90%, 322px);
-    height: 146px;
-    grid-template-columns: 48px minmax(150px, 1fr);
-    gap: 0;
-  }
-
-  #panel-one-qubit .single-qubit-gate .tube-funnel,
-  #panel-two-qubits .single-qubit-gate .tube-funnel,
-  #panel-entanglement .single-qubit-gate .tube-funnel,
-  #panel-plaground .single-qubit-gate .tube-funnel {
-    width: 44px;
-    height: 80px;
-    margin-right: -5px;
-  }
-
-  #panel-one-qubit .single-qubit-gate .window,
-  #panel-two-qubits .single-qubit-gate .window,
-  #panel-entanglement .single-qubit-gate .window,
-  #panel-plaground .single-qubit-gate .window {
-    height: 84px;
-  }
-
-  #panel-one-qubit .single-qubit-gate .window .ticks,
-  #panel-one-qubit .single-qubit-gate .window .arrow-layer,
-  #panel-two-qubits .single-qubit-gate .window .ticks,
-  #panel-two-qubits .single-qubit-gate .window .arrow-layer,
-  #panel-entanglement .single-qubit-gate .window .ticks,
-  #panel-entanglement .single-qubit-gate .window .arrow-layer,
-  #panel-plaground .single-qubit-gate .window .ticks,
-  #panel-plaground .single-qubit-gate .window .arrow-layer {
-    width: 82px;
-    height: 82px;
-  }
-
-  #panel-one-qubit .single-qubit-gate .window .tick,
-  #panel-two-qubits .single-qubit-gate .window .tick,
-  #panel-entanglement .single-qubit-gate .window .tick,
-  #panel-plaground .single-qubit-gate .window .tick {
-    height: 10px;
-  }
-
-  #panel-one-qubit .gate-radio-row {
-    top: 50%;
-    gap: 0.24rem;
-    padding: 0.12rem 0.18rem;
-  }
-
   .gate-radio {
     width: 20px;
     height: 20px;
@@ -3607,44 +2870,11 @@ body.layout-edit-active .pair-ejection-site {
     height: 12px;
   }
 
-  #panel-one-qubit .single-qubit-gate .tube-platform-bay,
-  #panel-two-qubits .single-qubit-gate .tube-platform-bay,
-  #panel-entanglement .single-qubit-gate .tube-platform-bay,
-  #panel-plaground .single-qubit-gate .tube-platform-bay {
-    right: 9px;
-    width: 18px;
-    height: 30px;
-  }
-
-  #panel-one-qubit .single-qubit-gate .tube-platform,
-  #panel-two-qubits .single-qubit-gate .tube-platform,
-  #panel-entanglement .single-qubit-gate .tube-platform,
-  #panel-plaground .single-qubit-gate .tube-platform {
-    --spring-height: 26px;
-    --spring-length: 116px;
-    left: -2px;
-  }
-
-  #panel-one-qubit .single-qubit-gate .tube-platform::after,
-  #panel-two-qubits .single-qubit-gate .tube-platform::after,
-  #panel-entanglement .single-qubit-gate .tube-platform::after,
-  #panel-plaground .single-qubit-gate .tube-platform::after {
-    content: none;
-  }
-
-  #panel-one-qubit .tube-drop-zone {
-    right: -20px;
-  }
-
   .measurement-stage {
     min-width: 150px;
     width: min(38vw, 176px);
     padding: 0.2rem 0;
     row-gap: 0.36rem;
-  }
-
-  #panel-one-qubit .measurement-stage {
-    margin-right: calc(20px - 0.45rem);
   }
 
   .tube-capacity {
