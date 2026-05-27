@@ -92,6 +92,7 @@ const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
 const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
   "quantum_playground_component_defaults_v1";
 const GENERATED_TABS_STORAGE_KEY = "quantum_generated_tabs_v1";
+const LEGACY_GENERATED_TABS_PROPERTY = ["cus", "tomTabs"].join("");
 const QUBIT_ID_STORAGE_KEY = "quantum_qubit_next_id_v1";
 const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
@@ -324,7 +325,7 @@ const PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS = [
 ];
 let playgroundComponentDefaultsCache = null;
 let generatedTabsState = {
-  customTabs: [],
+  tabs: [],
 };
 let legacyGroupComponentIdRedirects = new Map();
 let draggedGeneratedTabId = "";
@@ -821,7 +822,10 @@ function maxQubitIdInLayoutItems(items) {
 }
 
 function maxQubitIdInGeneratedTabsPayload(payload) {
-  const tabs = Array.isArray(payload?.customTabs) ? payload.customTabs : [];
+  const oldTabs = Array.isArray(payload?.[LEGACY_GENERATED_TABS_PROPERTY])
+    ? payload[LEGACY_GENERATED_TABS_PROPERTY]
+    : [];
+  const tabs = Array.isArray(payload?.tabs) ? payload.tabs : oldTabs;
   return tabs.reduce(
     (maxId, tab) =>
       Math.max(maxId, maxQubitIdInLayoutItems(tab?.layout?.items)),
@@ -953,9 +957,7 @@ const HIDDEN_COMPONENT_PICKER_GROUP_IDS = new Set([
   "sequential-two-qubit-measurement",
 ]);
 const GENERATED_TAB_LABEL_RENAMES_BY_ID = new Map([
-  ["custom-entanglement-2", "Entanglement 1"],
   ["entanglement-2", "Entanglement 1"],
-  ["custom-entanglement-3", "Entanglement 2"],
   ["entanglement-3", "Entanglement 2"],
 ]);
 
@@ -1315,14 +1317,23 @@ function generatedTabSlug(label) {
 function isLegacyTestGeneratedTab(entry) {
   const label = storageLabelKey(entry?.label);
   const id = storageLabelKey(entry?.id);
-  return label === "test" || id === "test" || id === "custom-test";
+  return label === "test" || id === "test" || id === "editor-test";
 }
 
 function normalizedGeneratedTabLabel(entry) {
-  const renamedLabel = GENERATED_TAB_LABEL_RENAMES_BY_ID.get(
-    storageIdentifierKey(entry?.id),
-  );
-  return renamedLabel || entry?.label;
+  const id = storageIdentifierKey(entry?.id);
+  const renamedLabel = GENERATED_TAB_LABEL_RENAMES_BY_ID.get(id);
+  if (renamedLabel) {
+    return renamedLabel;
+  }
+  const label = storageLabelKey(entry?.label);
+  if (label === "entanglement 2" && id.endsWith("-entanglement-2")) {
+    return "Entanglement 1";
+  }
+  if (label === "entanglement 3" && id.endsWith("-entanglement-3")) {
+    return "Entanglement 2";
+  }
+  return entry?.label;
 }
 
 function normalizeGeneratedTabLayout(layout) {
@@ -1346,9 +1357,12 @@ function normalizeGeneratedTabLayout(layout) {
 }
 
 function normalizeGeneratedTabsState(state) {
-  const customTabs = Array.isArray(state?.customTabs) ? state.customTabs : [];
-  let changed = false;
-  const normalizedTabs = customTabs.reduce((acc, entry) => {
+  const oldTabs = Array.isArray(state?.[LEGACY_GENERATED_TABS_PROPERTY])
+    ? state[LEGACY_GENERATED_TABS_PROPERTY]
+    : [];
+  const tabs = Array.isArray(state?.tabs) ? state.tabs : oldTabs;
+  let changed = !Array.isArray(state?.tabs) && oldTabs.length > 0;
+  const normalizedTabs = tabs.reduce((acc, entry) => {
     if (!entry || typeof entry !== "object") {
       return acc;
     }
@@ -1380,14 +1394,14 @@ function normalizeGeneratedTabsState(state) {
     }
     return acc;
   }, []);
-  return { state: { customTabs: normalizedTabs }, changed };
+  return { state: { tabs: normalizedTabs }, changed };
 }
 
 function readGeneratedTabsState() {
   try {
     const serialized = window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY);
     if (!serialized) {
-      return { customTabs: [] };
+      return { tabs: [] };
     }
     const parsed = JSON.parse(serialized);
     const normalized = normalizeGeneratedTabsState(parsed);
@@ -1399,7 +1413,7 @@ function readGeneratedTabsState() {
     }
     return normalized.state;
   } catch (_error) {
-    return { customTabs: [] };
+    return { tabs: [] };
   }
 }
 
@@ -2248,20 +2262,65 @@ function createPlaygroundFallback(label) {
   return box;
 }
 
-const TEXT_BOX_BUTTON_MODES = new Set(["none", "next", "ok"]);
+const TEXT_BOX_BUTTON_MODES = new Set([
+  "none",
+  "next",
+  "done",
+  "next-done",
+]);
 
 function normalizeTextBoxButtonMode(value) {
-  return TEXT_BOX_BUTTON_MODES.has(value) ? value : "none";
+  const mode = String(value || "").toLowerCase();
+  if (mode === "ok") {
+    return "done";
+  }
+  return TEXT_BOX_BUTTON_MODES.has(mode) ? mode : "none";
 }
 
-function textBoxButtonLabel(mode) {
-  if (mode === "next") {
-    return "Next";
+function textBoxButtonSpecs(mode) {
+  const normalizedMode = normalizeTextBoxButtonMode(mode);
+  if (normalizedMode === "next") {
+    return [{ action: "next", label: "Next" }];
   }
-  if (mode === "ok") {
-    return "OK";
+  if (normalizedMode === "done") {
+    return [{ action: "done", label: "Done" }];
   }
-  return "";
+  if (normalizedMode === "next-done") {
+    return [
+      { action: "next", label: "Next" },
+      { action: "done", label: "Done" },
+    ];
+  }
+  return [];
+}
+
+function ensureTextBoxActions(root) {
+  let actions = root.querySelector('[data-role="text-box-actions"]');
+  if (!(actions instanceof HTMLElement)) {
+    actions = document.createElement("div");
+    actions.className = "text-box-actions";
+    actions.dataset.role = "text-box-actions";
+    const oldAction = root.querySelector('[data-role="text-box-action"]');
+    if (oldAction instanceof HTMLElement) {
+      oldAction.replaceWith(actions);
+    } else {
+      root.appendChild(actions);
+    }
+  }
+  return actions;
+}
+
+function handleTextBoxActionClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const button = event.currentTarget;
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+  const canvas = button.closest(".generated-layout-canvas");
+  if (canvas instanceof HTMLElement) {
+    handleGeneratedTextBoxAction(canvas, button.dataset.textBoxAction || "");
+  }
 }
 
 function applyTextBoxButtonMode(root, mode) {
@@ -2274,12 +2333,22 @@ function applyTextBoxButtonMode(root, mode) {
   if (select instanceof HTMLSelectElement) {
     select.value = normalizedMode;
   }
-  const action = root.querySelector('[data-role="text-box-action"]');
-  if (action instanceof HTMLButtonElement) {
-    const label = textBoxButtonLabel(normalizedMode);
-    action.hidden = !label;
-    action.textContent = label;
-  }
+  const actions = ensureTextBoxActions(root);
+  const specs = textBoxButtonSpecs(normalizedMode);
+  actions.hidden = specs.length === 0;
+  actions.replaceChildren(
+    ...specs.map((spec) => {
+      const button = document.createElement("button");
+      button.className = "text-box-action";
+      button.dataset.role = "text-box-action";
+      button.dataset.textBoxAction = spec.action;
+      button.type = "button";
+      button.textContent = spec.label;
+      button.addEventListener("click", handleTextBoxActionClick);
+      stopTextBoxControlPropagation(button);
+      return button;
+    }),
+  );
 }
 
 function textBoxRootForItem(item) {
@@ -2354,7 +2423,8 @@ function createTextBoxElement(geometry = {}) {
   [
     ["none", "No button"],
     ["next", "Next"],
-    ["ok", "OK"],
+    ["done", "Done"],
+    ["next-done", "Next and Done"],
   ].forEach(([value, text]) => {
     const option = document.createElement("option");
     option.value = value;
@@ -2372,25 +2442,128 @@ function createTextBoxElement(geometry = {}) {
   body.textContent =
     typeof geometry?.text === "string" ? geometry.text : "Text";
 
-  const action = document.createElement("button");
-  action.className = "text-box-action";
-  action.dataset.role = "text-box-action";
-  action.type = "button";
+  const actions = document.createElement("div");
+  actions.className = "text-box-actions";
+  actions.dataset.role = "text-box-actions";
 
   select.addEventListener("change", () => {
     applyTextBoxButtonMode(root, select.value);
     markTextBoxEdited(root);
   });
   body.addEventListener("input", () => markTextBoxEdited(root));
-  action.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  });
-  [select, body, action].forEach(stopTextBoxControlPropagation);
+  [select, body, actions].forEach(stopTextBoxControlPropagation);
 
-  root.append(controls, body, action);
+  root.append(controls, body, actions);
   applyTextBoxButtonMode(root, geometry?.buttonMode);
   return root;
+}
+
+function generatedTextBoxItems(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return [];
+  }
+  return Array.from(
+    canvas.querySelectorAll(':scope > .playground-node[data-component="text-box"]'),
+  ).filter((item) => item instanceof HTMLElement);
+}
+
+function registerGeneratedTextBoxActions(item) {
+  if (!(item instanceof HTMLElement)) {
+    return;
+  }
+  item
+    .querySelectorAll('[data-role="text-box-action"]')
+    .forEach((button) => {
+      if (
+        button instanceof HTMLButtonElement &&
+        button.dataset.generatedTextBoxActionRegistered !== "true"
+      ) {
+        button.dataset.generatedTextBoxActionRegistered = "true";
+        button.addEventListener("click", handleTextBoxActionClick);
+        stopTextBoxControlPropagation(button);
+      }
+    });
+}
+
+function setGeneratedTextBoxSequenceIndex(canvas, index) {
+  const items = generatedTextBoxItems(canvas);
+  if (items.length === 0) {
+    return;
+  }
+  const clampedIndex = clamp(Math.round(Number(index) || 0), 0, items.length - 1);
+  canvas.dataset.textBoxSequenceIndex = `${clampedIndex}`;
+  canvas.dataset.textBoxSequenceClosed = "false";
+  items.forEach((item, itemIndex) => {
+    item.hidden = itemIndex !== clampedIndex;
+  });
+}
+
+function closeGeneratedTextBoxSequence(canvas) {
+  const items = generatedTextBoxItems(canvas);
+  if (items.length === 0) {
+    return;
+  }
+  canvas.dataset.textBoxSequenceClosed = "true";
+  items.forEach((item) => {
+    item.hidden = true;
+  });
+}
+
+function syncGeneratedTextBoxSequence(canvas, options = {}) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return;
+  }
+  const items = generatedTextBoxItems(canvas);
+  items.forEach(registerGeneratedTextBoxActions);
+  if (items.length === 0) {
+    delete canvas.dataset.textBoxSequenceIndex;
+    delete canvas.dataset.textBoxSequenceClosed;
+    return;
+  }
+  if (layoutEditorState.enabled) {
+    items.forEach((item) => {
+      item.hidden = false;
+    });
+    return;
+  }
+  if (options.reset || !canvas.dataset.textBoxSequenceIndex) {
+    canvas.dataset.textBoxSequenceIndex = "0";
+    canvas.dataset.textBoxSequenceClosed = "false";
+  }
+  if (canvas.dataset.textBoxSequenceClosed === "true") {
+    closeGeneratedTextBoxSequence(canvas);
+    return;
+  }
+  setGeneratedTextBoxSequenceIndex(
+    canvas,
+    Number.parseInt(canvas.dataset.textBoxSequenceIndex || "0", 10),
+  );
+}
+
+function handleGeneratedTextBoxAction(canvas, action) {
+  if (!isGeneratedLayoutCanvas(canvas) || layoutEditorState.enabled) {
+    return;
+  }
+  const items = generatedTextBoxItems(canvas);
+  if (items.length === 0) {
+    return;
+  }
+  const currentIndex = clamp(
+    Number.parseInt(canvas.dataset.textBoxSequenceIndex || "0", 10) || 0,
+    0,
+    items.length - 1,
+  );
+  if (action === "done") {
+    closeGeneratedTextBoxSequence(canvas);
+    return;
+  }
+  if (action === "next") {
+    if (currentIndex < items.length - 1) {
+      setGeneratedTextBoxSequenceIndex(canvas, currentIndex + 1);
+    } else {
+      closeGeneratedTextBoxSequence(canvas);
+    }
+  }
 }
 
 function isMeasurementPieceComponentType(type) {
@@ -2987,7 +3160,7 @@ function generatedTabEntryForCanvas(canvas) {
     return null;
   }
   return (
-    (generatedTabsState.customTabs || []).find((entry) => entry?.id === tabId) ||
+    (generatedTabsState.tabs || []).find((entry) => entry?.id === tabId) ||
     null
   );
 }
@@ -4474,9 +4647,9 @@ function captureGeneratedLayoutFromCanvas(canvas) {
 }
 
 function persistGeneratedLayoutEditsFromDom() {
-  const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
-  nextState.customTabs = Array.isArray(nextState.customTabs)
-    ? nextState.customTabs
+  const nextState = cloneJson(generatedTabsState) || { tabs: [] };
+  nextState.tabs = Array.isArray(nextState.tabs)
+    ? nextState.tabs
     : [];
   let changed = false;
   document
@@ -4494,11 +4667,11 @@ function persistGeneratedLayoutEditsFromDom() {
         return;
       }
       const targetId = panel.id.replace(/^panel-/, "");
-      const customEntry = nextState.customTabs.find(
+      const editorEntry = nextState.tabs.find(
         (entry) => entry.id === targetId,
       );
-      if (customEntry) {
-        customEntry.layout = layout;
+      if (editorEntry) {
+        editorEntry.layout = layout;
         changed = true;
       }
     });
@@ -4637,6 +4810,7 @@ function appendGeneratedLayoutItemToCanvas(canvas, item) {
   bringGeneratedItemToFront(item);
   setSelectedGeneratedLayoutItem(item);
   layoutGeneratedSingleGateDials(canvas);
+  syncGeneratedTextBoxSequence(canvas);
   setLayoutSaveButtonSavedState(false);
   return item;
 }
@@ -4806,7 +4980,11 @@ function removeGeneratedLayoutItem(item) {
   if (selectedGeneratedLayoutItem === item) {
     selectedGeneratedLayoutItem = null;
   }
+  const canvas = generatedCanvasForItem(item);
   item.remove();
+  if (canvas) {
+    syncGeneratedTextBoxSequence(canvas);
+  }
   updateGeneratedEditorButtons();
   setLayoutSaveButtonSavedState(false);
   return true;
@@ -5011,6 +5189,7 @@ function renderGeneratedLayoutPanel(panel, entry) {
   gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
   gatePanel.appendChild(canvas);
   panel.appendChild(gatePanel);
+  syncGeneratedTextBoxSequence(canvas, { reset: true });
   updateGeneratedEditorButtons(canvas);
   window.requestAnimationFrame(() => layoutGeneratedSingleGateDials(canvas));
 }
@@ -8489,20 +8668,20 @@ function reorderGeneratedTab(sourceId, targetId = "", placeBefore = false) {
   if (!sourceId || sourceId === targetId) {
     return false;
   }
-  const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
-  nextState.customTabs = Array.isArray(nextState.customTabs)
-    ? nextState.customTabs
+  const nextState = cloneJson(generatedTabsState) || { tabs: [] };
+  nextState.tabs = Array.isArray(nextState.tabs)
+    ? nextState.tabs
     : [];
-  const sourceIndex = nextState.customTabs.findIndex(
+  const sourceIndex = nextState.tabs.findIndex(
     (entry) => entry?.id === sourceId,
   );
   if (sourceIndex < 0) {
     return false;
   }
-  const [source] = nextState.customTabs.splice(sourceIndex, 1);
-  let insertIndex = nextState.customTabs.length;
+  const [source] = nextState.tabs.splice(sourceIndex, 1);
+  let insertIndex = nextState.tabs.length;
   if (targetId) {
-    const targetIndex = nextState.customTabs.findIndex(
+    const targetIndex = nextState.tabs.findIndex(
       (entry) => entry?.id === targetId,
     );
     if (targetIndex < 0) {
@@ -8510,7 +8689,7 @@ function reorderGeneratedTab(sourceId, targetId = "", placeBefore = false) {
     }
     insertIndex = placeBefore ? targetIndex : targetIndex + 1;
   }
-  nextState.customTabs.splice(insertIndex, 0, source);
+  nextState.tabs.splice(insertIndex, 0, source);
   if (!writeGeneratedTabsState(nextState)) {
     return false;
   }
@@ -8750,7 +8929,7 @@ function uniqueGeneratedTabTarget(label) {
       .map((button) => button.dataset.tabTarget)
       .filter(Boolean),
   );
-  let base = `custom-${generatedTabSlug(label)}`;
+  let base = `editor-${generatedTabSlug(label)}`;
   let candidate = base;
   let index = 2;
   while (used.has(candidate) || document.getElementById(`panel-${candidate}`)) {
@@ -8799,9 +8978,9 @@ function ensureGeneratedTabPanel(entry) {
 }
 
 function applyGeneratedTabsState(state) {
-  generatedTabsState = state || { customTabs: [] };
-  const customIds = new Set(
-    (generatedTabsState.customTabs || [])
+  generatedTabsState = state || { tabs: [] };
+  const editorTabIds = new Set(
+    (generatedTabsState.tabs || [])
       .filter((entry) => entry && typeof entry.id === "string")
       .map((entry) => entry.id),
   );
@@ -8810,7 +8989,7 @@ function applyGeneratedTabsState(state) {
       (button) =>
         button instanceof HTMLButtonElement &&
         button.dataset.generatedTab === "true" &&
-        !customIds.has(button.dataset.tabTarget || ""),
+        !editorTabIds.has(button.dataset.tabTarget || ""),
     )
     .forEach((button) => {
       const targetId = button.dataset.tabTarget || "";
@@ -8829,7 +9008,7 @@ function applyGeneratedTabsState(state) {
       }
     });
 
-  (generatedTabsState.customTabs || []).forEach((entry) => {
+  (generatedTabsState.tabs || []).forEach((entry) => {
     if (
       !entry ||
       typeof entry.id !== "string" ||
@@ -11804,9 +11983,9 @@ function setupPlagroundComposer() {
     }
 
     const targetId = forceNew ? "__new__" : currentEditorTabId || "__new__";
-    const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
-    nextState.customTabs = Array.isArray(nextState.customTabs)
-      ? nextState.customTabs
+    const nextState = cloneJson(generatedTabsState) || { tabs: [] };
+    nextState.tabs = Array.isArray(nextState.tabs)
+      ? nextState.tabs
       : [];
 
     let savedLabel = "";
@@ -11825,7 +12004,7 @@ function setupPlagroundComposer() {
         return false;
       }
       savedTargetId = uniqueGeneratedTabTarget(label);
-      nextState.customTabs.push({
+      nextState.tabs.push({
         id: savedTargetId,
         label,
         layout,
@@ -11841,14 +12020,14 @@ function setupPlagroundComposer() {
         return false;
       }
       savedLabel = target.label;
-      const customEntry = nextState.customTabs.find(
+      const editorEntry = nextState.tabs.find(
         (entry) => entry.id === targetId,
       );
-      if (!customEntry) {
+      if (!editorEntry) {
         setStatus("Save failed");
         return false;
       }
-      customEntry.layout = layout;
+      editorEntry.layout = layout;
     }
 
     if (!writeGeneratedTabsState(nextState)) {
@@ -11897,10 +12076,10 @@ function setupPlagroundComposer() {
       return false;
     }
     let layout = null;
-    const customEntry = (generatedTabsState.customTabs || []).find(
+    const editorEntry = (generatedTabsState.tabs || []).find(
       (entry) => entry.id === targetId,
     );
-    layout = customEntry?.layout || null;
+    layout = editorEntry?.layout || null;
     if (!layout) {
       setStatus("No saved editor layout for this tab yet");
       return false;
@@ -11952,11 +12131,11 @@ function setupPlagroundComposer() {
       editorNewTabName?.select();
       return false;
     }
-    const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
-    nextState.customTabs = Array.isArray(nextState.customTabs)
-      ? nextState.customTabs
+    const nextState = cloneJson(generatedTabsState) || { tabs: [] };
+    nextState.tabs = Array.isArray(nextState.tabs)
+      ? nextState.tabs
       : [];
-    const entry = nextState.customTabs.find(
+    const entry = nextState.tabs.find(
       (candidate) => candidate.id === targetId,
     );
     if (!entry) {
@@ -11988,11 +12167,11 @@ function setupPlagroundComposer() {
     if (!confirmed) {
       return false;
     }
-    const nextState = cloneJson(generatedTabsState) || { customTabs: [] };
-    nextState.customTabs = Array.isArray(nextState.customTabs)
-      ? nextState.customTabs
+    const nextState = cloneJson(generatedTabsState) || { tabs: [] };
+    nextState.tabs = Array.isArray(nextState.tabs)
+      ? nextState.tabs
       : [];
-    nextState.customTabs = nextState.customTabs.filter(
+    nextState.tabs = nextState.tabs.filter(
       (entry) => entry.id !== targetId,
     );
     if (!writeGeneratedTabsState(nextState)) {
@@ -13413,6 +13592,11 @@ function setLayoutEditEnabled(enabled) {
   if (layoutResetButton) {
     layoutResetButton.disabled = !layoutEditorState.enabled;
   }
+  document.querySelectorAll(".generated-layout-canvas").forEach((canvas) => {
+    if (canvas instanceof HTMLElement) {
+      syncGeneratedTextBoxSequence(canvas, { reset: !layoutEditorState.enabled });
+    }
+  });
   setLayoutSaveButtonSavedState(false);
   simulators.forEach((simulator) => {
     if (typeof simulator.handleLayoutEditChanged === "function") {

@@ -691,7 +691,6 @@ body.layout-edit-active
 }
 
 .text-box-action {
-  justify-self: end;
   min-width: 4.4rem;
   height: 1.9rem;
   border: 1px solid #5e7f98;
@@ -704,6 +703,13 @@ body.layout-edit-active
   cursor: default;
 }
 
+.text-box-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.text-box-actions[hidden],
 .text-box-action[hidden] {
   display: none;
 }
@@ -1067,6 +1073,20 @@ body:not(.layout-edit-active)
   .generated-layout-canvas
   .playground-node:not(.playground-qubit-shell) {
   pointer-events: none;
+}
+
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.playground-text-box,
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.playground-text-box
+  .text-box-actions,
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.playground-text-box
+  .text-box-action {
+  pointer-events: auto;
 }
 
 body:not(.layout-edit-active)

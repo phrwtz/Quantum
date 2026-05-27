@@ -77,7 +77,7 @@ async function rectCenter(locator) {
 
 async function tubeCounts(page) {
   return page.evaluate(() => {
-    const root = document.querySelector("#panel-custom-smoke");
+    const root = document.querySelector("#panel-editor-smoke");
     const blue = Number(
       root?.querySelector('[data-role="tube-blue-count"]')?.textContent?.trim() || 0,
     );
@@ -886,7 +886,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
     const state = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
-    const entry = (state.customTabs || []).find(
+    const entry = (state.tabs || []).find(
       (tab) => tab.label === "Sequential Edit Smoke",
     );
     const groupItem = entry?.layout?.items?.find(
@@ -944,14 +944,14 @@ async function runEditorDocumentWorkflowSmoke(page) {
     localStorage.setItem(
       "quantum_generated_tabs_v1",
       JSON.stringify({
-        customTabs: [
+        tabs: [
           {
-            id: "custom-test",
+            id: "editor-test",
             label: "Test",
             layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
           },
           {
-            id: "custom-keep",
+            id: "editor-keep",
             label: "Keep",
             layout: {
               items: [
@@ -970,12 +970,12 @@ async function runEditorDocumentWorkflowSmoke(page) {
             },
           },
           {
-            id: "custom-entanglement-2",
+            id: "editor-entanglement-2",
             label: "Entanglement 2",
             layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
           },
           {
-            id: "custom-entanglement-3",
+            id: "editor-entanglement-3",
             label: "Entanglement 3",
             layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
           },
@@ -993,7 +993,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     ).groups || [];
     const tabs = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
-    ).customTabs || [];
+    ).tabs || [];
     return {
       groupLabels: groups.map((group) => group.label),
       groupIds: groups.map((group) => group.id),
@@ -1008,7 +1008,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
         (button) => button.textContent.trim(),
       ),
       keepGroupId: tabs
-        .find((tab) => tab.id === "custom-keep")
+        .find((tab) => tab.id === "editor-keep")
         ?.layout?.items?.[0]?.groupComponentId,
     };
   });
@@ -1050,21 +1050,52 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await page.locator("#playgroundComponentSelect").selectOption("text-box");
   await page.mouse.click(canvasBox.x + 340, canvasBox.y + 190);
   await wait(150);
+  await page.locator("#playgroundComponentSelect").selectOption("text-box");
+  await page.mouse.click(canvasBox.x + 170, canvasBox.y + 345);
+  await wait(150);
   await page.evaluate(() => {
-    const textBox = document.querySelector(
+    const textBoxes = Array.from(document.querySelectorAll(
       '#playgroundCanvas > .playground-node[data-component="text-box"]',
-    );
-    const body = textBox?.querySelector('[data-role="text-box-body"]');
-    const select = textBox?.querySelector('[data-role="text-box-button-mode"]');
-    if (body) {
-      body.textContent = "Remember to measure twice.";
-      body.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    if (select) {
-      select.value = "next";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+    ));
+    const setTextBox = (textBox, text, buttonMode) => {
+      const body = textBox?.querySelector('[data-role="text-box-body"]');
+      const select = textBox?.querySelector('[data-role="text-box-button-mode"]');
+      if (body) {
+        body.textContent = text;
+        body.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      if (select) {
+        select.value = buttonMode;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    };
+    setTextBox(textBoxes[0], "Remember to measure twice.", "next");
+    setTextBox(textBoxes[1], "Second text box.", "done");
   });
+
+  const editorTextBoxControls = await page.evaluate(() => {
+    return Array.from(
+      document.querySelectorAll(
+        '#playgroundCanvas > .playground-node[data-component="text-box"]',
+      ),
+    ).map((textBox) => ({
+      text:
+        textBox.querySelector('[data-role="text-box-body"]')?.textContent ||
+        "",
+      buttons: Array.from(
+        textBox.querySelectorAll('[data-role="text-box-action"]'),
+      ).map((button) => button.textContent || ""),
+    }));
+  });
+  if (
+    editorTextBoxControls.length !== 2 ||
+    editorTextBoxControls[0].buttons.join(",") !== "Next" ||
+    editorTextBoxControls[1].buttons.join(",") !== "Done"
+  ) {
+    throw new Error(
+      `Editor text box button controls failed: ${JSON.stringify(editorTextBoxControls)}`,
+    );
+  }
 
   await page.locator("#editorNewTabName").fill("Doc Smoke A");
   await page.locator("#playgroundSaveButton").click();
@@ -1074,15 +1105,18 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const state = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
-    const entry = (state.customTabs || []).find(
+    const entry = (state.tabs || []).find(
       (tab) => tab.label === "Doc Smoke A",
+    );
+    const textBoxes = (entry?.layout?.items || []).filter(
+      (item) => item.type === "text-box",
     );
     return {
       id: entry?.id || "",
       itemCount: entry?.layout?.items?.length || 0,
       qubitId: entry?.layout?.items?.find((item) => item.type === "qubit")
         ?.qubitId,
-      textBox: entry?.layout?.items?.find((item) => item.type === "text-box"),
+      textBoxes,
       tabExists: Boolean(entry?.id && document.querySelector(`#tab-${entry.id}`)),
       status: document.querySelector("#editorDocumentStatus")?.textContent || "",
     };
@@ -1094,14 +1128,77 @@ async function runEditorDocumentWorkflowSmoke(page) {
     throw new Error(`Editor Save did not persist a numeric qubit id: ${JSON.stringify(saved)}`);
   }
   if (
-    saved.textBox?.text !== "Remember to measure twice." ||
-    saved.textBox?.buttonMode !== "next"
+    saved.textBoxes.length !== 2 ||
+    saved.textBoxes[0]?.text !== "Remember to measure twice." ||
+    saved.textBoxes[0]?.buttonMode !== "next" ||
+    saved.textBoxes[1]?.text !== "Second text box." ||
+    saved.textBoxes[1]?.buttonMode !== "done"
   ) {
-    throw new Error(`Editor Save did not persist the text box: ${JSON.stringify(saved)}`);
+    throw new Error(`Editor Save did not persist the text boxes: ${JSON.stringify(saved)}`);
   }
   if (!/Doc Smoke A/.test(saved.status)) {
     throw new Error(`Editor did not mark saved tab as current: ${saved.status}`);
   }
+
+  await page.locator(`#tab-${saved.id}`).click();
+  await wait(250);
+  const visibleTextBoxes = async () =>
+    page.evaluate((tabId) => {
+      const panel = document.getElementById(`panel-${tabId}`);
+      return Array.from(
+        panel?.querySelectorAll('.playground-node[data-component="text-box"]') ||
+          [],
+      )
+        .filter((textBox) => !textBox.hidden)
+        .map((textBox) => ({
+          text:
+            textBox.querySelector('[data-role="text-box-body"]')?.textContent ||
+            "",
+          buttons: Array.from(
+            textBox.querySelectorAll('[data-role="text-box-action"]'),
+          ).map((button) => button.textContent || ""),
+        }));
+    }, saved.id);
+  const firstRuntimeTextBoxes = await visibleTextBoxes();
+  if (
+    firstRuntimeTextBoxes.length !== 1 ||
+    firstRuntimeTextBoxes[0].text !== "Remember to measure twice." ||
+    firstRuntimeTextBoxes[0].buttons.join(",") !== "Next"
+  ) {
+    throw new Error(
+      `Generated tab did not start on the first text box: ${JSON.stringify(firstRuntimeTextBoxes)}`,
+    );
+  }
+  await page
+    .locator(
+      `#panel-${saved.id} [data-role="text-box-action"][data-text-box-action="next"]`,
+    )
+    .click();
+  await wait(100);
+  const secondRuntimeTextBoxes = await visibleTextBoxes();
+  if (
+    secondRuntimeTextBoxes.length !== 1 ||
+    secondRuntimeTextBoxes[0].text !== "Second text box." ||
+    secondRuntimeTextBoxes[0].buttons.join(",") !== "Done"
+  ) {
+    throw new Error(
+      `Generated tab text box Next button failed: ${JSON.stringify(secondRuntimeTextBoxes)}`,
+    );
+  }
+  await page
+    .locator(
+      `#panel-${saved.id} [data-role="text-box-action"][data-text-box-action="done"]`,
+    )
+    .click();
+  await wait(100);
+  const closedRuntimeTextBoxes = await visibleTextBoxes();
+  if (closedRuntimeTextBoxes.length !== 0) {
+    throw new Error(
+      `Generated tab text box Done button failed: ${JSON.stringify(closedRuntimeTextBoxes)}`,
+    );
+  }
+  await page.locator("#tab-plaground").click();
+  await wait(150);
 
   await page.locator("#playgroundSaveButton").click();
   await wait(200);
@@ -1109,7 +1206,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const state = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
-    return (state.customTabs || []).filter((tab) => tab.label === "Doc Smoke A")
+    return (state.tabs || []).filter((tab) => tab.label === "Doc Smoke A")
       .length;
   });
   if (saveSameNameCount !== 1) {
@@ -1166,7 +1263,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const state = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
-    const entry = (state.customTabs || []).find(
+    const entry = (state.tabs || []).find(
       (tab) => tab.label === "Doc Smoke Copy",
     );
     return {
@@ -1200,7 +1297,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const state = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
-    const storedOrder = (state.customTabs || []).map((tab) => tab.id);
+    const storedOrder = (state.tabs || []).map((tab) => tab.id);
     const domOrder = Array.from(
       document.querySelectorAll(".tab-btn[data-generated-tab='true']"),
     ).map((tab) => tab.getAttribute("data-tab-target"));
@@ -1242,7 +1339,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const state = JSON.parse(
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
-    const entry = (state.customTabs || []).find((tab) => tab.id === copyId);
+    const entry = (state.tabs || []).find((tab) => tab.id === copyId);
     return {
       label: entry?.label || "",
       tabText: document.querySelector(`#tab-${copyId}`)?.textContent?.trim() || "",
@@ -1270,7 +1367,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
       localStorage.getItem("quantum_generated_tabs_v1") || "{}",
     );
     return {
-      stillStored: (state.customTabs || []).some((tab) => tab.id === copyId),
+      stillStored: (state.tabs || []).some((tab) => tab.id === copyId),
       stillInDom: Boolean(document.querySelector(`#tab-${copyId}`)),
       editorCount: document.querySelectorAll("#playgroundCanvas > .playground-node")
         .length,
@@ -1605,9 +1702,9 @@ async function runSmokeTest(baseUrl) {
     localStorage.setItem(
       "quantum_generated_tabs_v1",
       JSON.stringify({
-        customTabs: [
+        tabs: [
           {
-            id: "custom-fresh-double",
+            id: "editor-fresh-double",
             label: "Fresh Double",
             layout: {
               items: [
@@ -1666,7 +1763,7 @@ async function runSmokeTest(baseUrl) {
             },
           },
           {
-            id: "custom-replay-double",
+            id: "editor-replay-double",
             label: "Replay Double",
             layout: {
               items: [
@@ -1701,7 +1798,7 @@ async function runSmokeTest(baseUrl) {
             },
           },
           {
-            id: "custom-gate-setting",
+            id: "editor-gate-setting",
             label: "Gate Setting",
             layout: {
               items: [
@@ -1737,7 +1834,7 @@ async function runSmokeTest(baseUrl) {
             },
           },
           {
-            id: "custom-smoke",
+            id: "editor-smoke",
             label: "Smoke",
             layout: {
               items: [
@@ -1777,7 +1874,7 @@ async function runSmokeTest(baseUrl) {
     });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#panel-custom-smoke .generated-experiment-toolbar", {
+    await page.waitForSelector("#panel-editor-smoke .generated-experiment-toolbar", {
       state: "attached",
     });
     const resetCoverage = await page.evaluate(() => {
@@ -1807,10 +1904,10 @@ async function runSmokeTest(baseUrl) {
         `Generated reset button coverage failed: ${JSON.stringify(resetCoverage)}`,
       );
     }
-    await page.locator("#tab-custom-fresh-double").click();
-    await page.waitForSelector("#panel-custom-fresh-double .generated-layout-canvas");
+    await page.locator("#tab-editor-fresh-double").click();
+    await page.waitForSelector("#panel-editor-fresh-double .generated-layout-canvas");
     const freshDoubleStatus = await page
-      .locator("#panel-custom-fresh-double .generated-experiment-status")
+      .locator("#panel-editor-fresh-double .generated-experiment-status")
       .textContent();
     if (!/No experiment recorded/.test(freshDoubleStatus || "")) {
       throw new Error(
@@ -1819,7 +1916,7 @@ async function runSmokeTest(baseUrl) {
     }
     const generatedDefaultSave = await page.evaluate(() => {
       const item = document.querySelector(
-        '#panel-custom-fresh-double [data-component="double-measurement"]',
+        '#panel-editor-fresh-double [data-component="double-measurement"]',
       );
       const lens = item?.querySelector('[data-role="pair-lens"]');
       if (!item || !lens) {
@@ -1848,17 +1945,17 @@ async function runSmokeTest(baseUrl) {
       );
     }
     const freshDoubleMeasure = page.locator(
-      '#panel-custom-fresh-double [data-role="pair-lens"]',
+      '#panel-editor-fresh-double [data-role="pair-lens"]',
     );
     const freshDoubleCount = page.locator(
-      '#panel-custom-fresh-double [data-role="pair-measurement-count"]',
+      '#panel-editor-fresh-double [data-role="pair-measurement-count"]',
     );
     await freshDoubleCount.selectOption("5");
     await wait(500);
     await freshDoubleMeasure.click();
     await wait(500);
     const freshTubeTotal = await page.evaluate(() => {
-      const root = document.querySelector("#panel-custom-fresh-double");
+      const root = document.querySelector("#panel-editor-fresh-double");
       return Array.from(root?.querySelectorAll(".tube-count") || []).reduce(
         (sum, node) => sum + Number(node.textContent?.trim() || 0),
         0,
@@ -1870,10 +1967,10 @@ async function runSmokeTest(baseUrl) {
       );
     }
     const freshTopQubit = page.locator(
-      '#panel-custom-fresh-double [data-generated-item-id="fresh-q-top"]',
+      '#panel-editor-fresh-double [data-generated-item-id="fresh-q-top"]',
     );
     const freshBottomQubit = page.locator(
-      '#panel-custom-fresh-double [data-generated-item-id="fresh-q-bottom"]',
+      '#panel-editor-fresh-double [data-generated-item-id="fresh-q-bottom"]',
     );
     const freshTopStart = await rectCenter(freshTopQubit);
     const freshBottomStart = await rectCenter(freshBottomQubit);
@@ -1909,10 +2006,10 @@ async function runSmokeTest(baseUrl) {
       );
     }
 
-    await page.locator("#tab-custom-replay-double").click();
-    await page.waitForSelector("#panel-custom-replay-double .generated-layout-canvas");
+    await page.locator("#tab-editor-replay-double").click();
+    await page.waitForSelector("#panel-editor-replay-double .generated-layout-canvas");
     const replayInitialStatus = await page
-      .locator("#panel-custom-replay-double .generated-experiment-status")
+      .locator("#panel-editor-replay-double .generated-experiment-status")
       .textContent();
     if (!/No experiment recorded/.test(replayInitialStatus || "")) {
       throw new Error(
@@ -1920,13 +2017,13 @@ async function runSmokeTest(baseUrl) {
       );
     }
     const replayTopQubit = page.locator(
-      '#panel-custom-replay-double [data-generated-item-id="replay-q-top"]',
+      '#panel-editor-replay-double [data-generated-item-id="replay-q-top"]',
     );
     const replayBottomQubit = page.locator(
-      '#panel-custom-replay-double [data-generated-item-id="replay-q-bottom"]',
+      '#panel-editor-replay-double [data-generated-item-id="replay-q-bottom"]',
     );
     const replayMeasure = page.locator(
-      '#panel-custom-replay-double [data-role="pair-lens"]',
+      '#panel-editor-replay-double [data-role="pair-lens"]',
     );
     const replayTopStart = await rectCenter(replayTopQubit);
     const replayBottomStart = await rectCenter(replayBottomQubit);
@@ -1946,7 +2043,7 @@ async function runSmokeTest(baseUrl) {
     await page.mouse.up();
     await wait(3200);
     const replayRecordedStatus = await page
-      .locator("#panel-custom-replay-double .generated-experiment-status")
+      .locator("#panel-editor-replay-double .generated-experiment-status")
       .textContent();
     if (!/Experiment ready/.test(replayRecordedStatus || "")) {
       throw new Error(
@@ -1954,7 +2051,7 @@ async function runSmokeTest(baseUrl) {
       );
     }
     await page
-      .locator('#panel-custom-replay-double [data-role="pair-measurement-count"]')
+      .locator('#panel-editor-replay-double [data-role="pair-measurement-count"]')
       .selectOption("5");
     await wait(16000);
     const replayTopReturned = await rectCenter(replayTopQubit);
@@ -1973,13 +2070,13 @@ async function runSmokeTest(baseUrl) {
       );
     }
 
-    await page.locator("#tab-custom-gate-setting").click();
-    await page.waitForSelector("#panel-custom-gate-setting .generated-layout-canvas");
+    await page.locator("#tab-editor-gate-setting").click();
+    await page.waitForSelector("#panel-editor-gate-setting .generated-layout-canvas");
     const settingQubit = page.locator(
-      '#panel-custom-gate-setting [data-generated-item-id="setting-q"]',
+      '#panel-editor-gate-setting [data-generated-item-id="setting-q"]',
     );
     const settingGateTicksLocator = page.locator(
-      '#panel-custom-gate-setting [data-generated-item-id="setting-gate"] [data-role="ticks"]',
+      '#panel-editor-gate-setting [data-generated-item-id="setting-gate"] [data-role="ticks"]',
     );
     const settingGateTicks = await settingGateTicksLocator.boundingBox();
     if (!settingGateTicks) {
@@ -2016,7 +2113,7 @@ async function runSmokeTest(baseUrl) {
     await wait(4300);
     const settingAfterGate = await rectCenter(settingQubit);
     const settingLensCenter = await rectCenter(
-      page.locator('#panel-custom-gate-setting [data-role="measure-lens"]'),
+      page.locator('#panel-editor-gate-setting [data-role="measure-lens"]'),
     );
     await page.mouse.move(settingAfterGate.x, settingAfterGate.y);
     await page.mouse.down();
@@ -2026,7 +2123,7 @@ async function runSmokeTest(baseUrl) {
     await page.mouse.up();
     await wait(1800);
     const settingRecordedStatus = await page
-      .locator("#panel-custom-gate-setting .generated-experiment-status")
+      .locator("#panel-editor-gate-setting .generated-experiment-status")
       .textContent();
     if (!/Experiment ready/.test(settingRecordedStatus || "")) {
       throw new Error(
@@ -2035,7 +2132,7 @@ async function runSmokeTest(baseUrl) {
     }
     const gateInitialCounts = await waitForSingleTubeTotal(
       page,
-      "panel-custom-gate-setting",
+      "panel-editor-gate-setting",
       1,
     );
     if (gateInitialCounts.blue !== 0 || gateInitialCounts.red !== 1) {
@@ -2045,13 +2142,13 @@ async function runSmokeTest(baseUrl) {
     }
     await page.waitForFunction(() => {
       const status = document.querySelector(
-        "#panel-custom-gate-setting .generated-experiment-status",
+        "#panel-editor-gate-setting .generated-experiment-status",
       )?.textContent || "";
       return !/Running experiment/.test(status);
     });
     const recordedGateSettingActions = await page.evaluate(() => {
       const canvas = document.querySelector(
-        "#panel-custom-gate-setting .generated-layout-canvas",
+        "#panel-editor-gate-setting .generated-layout-canvas",
       );
       return (
         generatedExperimentStateForCanvas(canvas)?.experiment?.actions || []
@@ -2087,7 +2184,7 @@ async function runSmokeTest(baseUrl) {
     await wait(250);
     const gateCountsAfterTick = await singleTubeCountsForPanel(
       page,
-      "panel-custom-gate-setting",
+      "panel-editor-gate-setting",
     );
     if (gateCountsAfterTick.total !== 0) {
       throw new Error(
@@ -2095,11 +2192,11 @@ async function runSmokeTest(baseUrl) {
       );
     }
     await page
-      .locator('#panel-custom-gate-setting [data-role="measurement-count"]')
+      .locator('#panel-editor-gate-setting [data-role="measurement-count"]')
       .selectOption("100");
     const gateUpdatedCounts = await waitForSingleTubeTotal(
       page,
-      "panel-custom-gate-setting",
+      "panel-editor-gate-setting",
       100,
     );
     if (gateUpdatedCounts.blue !== 0 || gateUpdatedCounts.red !== 100) {
@@ -2108,24 +2205,24 @@ async function runSmokeTest(baseUrl) {
       );
     }
 
-    await page.locator("#tab-custom-smoke").click();
-    await page.waitForSelector("#panel-custom-smoke .generated-layout-canvas");
+    await page.locator("#tab-editor-smoke").click();
+    await page.waitForSelector("#panel-editor-smoke .generated-layout-canvas");
 
-    const qubit = page.locator('#panel-custom-smoke [data-component="qubit"]');
+    const qubit = page.locator('#panel-editor-smoke [data-component="qubit"]');
     const measurement = page.locator(
-      '#panel-custom-smoke [data-role="measurement-tool"]',
+      '#panel-editor-smoke [data-role="measurement-tool"]',
     );
     const countSelect = page.locator(
-      '#panel-custom-smoke [data-role="measurement-count"]',
+      '#panel-editor-smoke [data-role="measurement-count"]',
     );
     const recordButtons = await page
-      .locator('#panel-custom-smoke [data-generated-experiment-action="record"]')
+      .locator('#panel-editor-smoke [data-generated-experiment-action="record"]')
       .count();
     if (recordButtons !== 0) {
       throw new Error(`Generated tabs still show a Record button: ${recordButtons}`);
     }
     const smokeInitialStatus = await page
-      .locator("#panel-custom-smoke .generated-experiment-status")
+      .locator("#panel-editor-smoke .generated-experiment-status")
       .textContent();
     if (!/No experiment recorded/.test(smokeInitialStatus || "")) {
       throw new Error(`Smoke tab did not open clean: ${smokeInitialStatus}`);
@@ -2159,7 +2256,7 @@ async function runSmokeTest(baseUrl) {
 
     const qubitCenter = await rectCenter(qubit);
     const lensCenter = await rectCenter(
-      page.locator('#panel-custom-smoke [data-role="measure-lens"]'),
+      page.locator('#panel-editor-smoke [data-role="measure-lens"]'),
     );
     await page.mouse.move(qubitCenter.x, qubitCenter.y);
     await page.mouse.down();
@@ -2175,7 +2272,7 @@ async function runSmokeTest(baseUrl) {
     }
     await wait(300);
     const savedStatus = await page
-      .locator("#panel-custom-smoke .generated-experiment-status")
+      .locator("#panel-editor-smoke .generated-experiment-status")
       .textContent();
     if (!/Experiment ready/.test(savedStatus || "")) {
       throw new Error(`Auto-recorded experiment was not ready: ${savedStatus}`);
@@ -2187,11 +2284,11 @@ async function runSmokeTest(baseUrl) {
     const afterClick = await waitForTotal(page, 10);
 
     await page
-      .locator('#panel-custom-smoke [data-generated-experiment-action="reset"]')
+      .locator('#panel-editor-smoke [data-generated-experiment-action="reset"]')
       .click();
     await wait(300);
     const resetStatus = await page
-      .locator("#panel-custom-smoke .generated-experiment-status")
+      .locator("#panel-editor-smoke .generated-experiment-status")
       .textContent();
     if (!/No experiment recorded/.test(resetStatus || "")) {
       throw new Error(`Generated reset left an experiment recorded: ${resetStatus}`);
@@ -2222,10 +2319,10 @@ async function runSmokeTest(baseUrl) {
     }
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("#tab-custom-smoke").click();
+    await page.locator("#tab-editor-smoke").click();
     await wait(400);
     const reloadedStatus = await page
-      .locator("#panel-custom-smoke .generated-experiment-status")
+      .locator("#panel-editor-smoke .generated-experiment-status")
       .textContent();
     if (!/No experiment recorded/.test(reloadedStatus || "")) {
       throw new Error(`Generated tab should reload without an experiment: ${reloadedStatus}`);
