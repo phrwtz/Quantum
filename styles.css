@@ -65,48 +65,6 @@ body {
   flex-wrap: wrap;
 }
 
-.layout-edit-btn {
-  appearance: none;
-  border: 1px solid #5a7589;
-  border-radius: 0.55rem;
-  min-width: 142px;
-  height: 2.1rem;
-  padding: 0 0.8rem;
-  font:
-    600 0.78rem "Aldrich",
-    sans-serif;
-  letter-spacing: 0.02em;
-  color: #10334a;
-  background: linear-gradient(165deg, #eef8ff, #cde0ee);
-  box-shadow: 0 2px 4px rgba(16, 41, 63, 0.18);
-  cursor: pointer;
-}
-
-.layout-edit-btn:hover {
-  background: linear-gradient(165deg, #f8fcff, #d7e8f3);
-}
-
-.layout-edit-btn.active {
-  border-color: #206c9b;
-  color: #062033;
-  background: linear-gradient(165deg, #ffedca, #ffcf86);
-  box-shadow:
-    0 0 0 2px rgba(255, 188, 93, 0.34),
-    0 2px 4px rgba(16, 41, 63, 0.2);
-}
-
-.layout-edit-btn:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 3px rgba(58, 109, 147, 0.22),
-    0 2px 4px rgba(16, 41, 63, 0.2);
-}
-
-.layout-edit-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 body.layout-edit-active [data-layout-edit-target="true"] {
   outline: 2px dashed rgba(237, 170, 59, 0.9);
   outline-offset: 2px;
@@ -650,6 +608,8 @@ body.layout-edit-active
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
   min-height: 1.8rem;
   cursor: move;
 }
@@ -662,6 +622,23 @@ body.layout-edit-active
   font:
     600 0.72rem "Chakra Petch",
     sans-serif;
+}
+
+.text-box-editor-controls-label {
+  color: #31536d;
+  font:
+    600 0.72rem "Chakra Petch",
+    sans-serif;
+}
+
+.text-box-button-toggle {
+  white-space: nowrap;
+}
+
+.text-box-button-toggle input {
+  width: 0.78rem;
+  height: 0.78rem;
+  margin: 0;
 }
 
 .text-box-editor-controls select {
@@ -1012,9 +989,118 @@ body.layout-edit-active .generated-editor-toolbar {
   display: flex;
 }
 
+.generated-document-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: -0.45rem;
+}
+
 .generated-layout-canvas {
   resize: none;
   overflow: auto;
+}
+
+.doc-editor-tab-panel {
+  width: min(96vw, 1700px);
+}
+
+.doc-editor-panel {
+  width: min(96vw, 1700px);
+  max-width: min(96vw, 1700px);
+  padding: 1rem 1rem 1.2rem;
+}
+
+.doc-editor-toolbar {
+  align-items: start;
+}
+
+.doc-document-tools,
+.doc-scene-tools,
+.doc-size-tools,
+.doc-component-tools,
+.doc-recording-tools {
+  min-width: 0;
+}
+
+.doc-size-input {
+  width: 5.8rem;
+}
+
+.doc-editor-canvas {
+  width: 900px;
+  height: 560px;
+  min-width: 520px;
+  min-height: 420px;
+  max-width: 100%;
+  resize: both;
+}
+
+.doc-editor-canvas .single-qubit-gate .window .ticks {
+  z-index: 5 !important;
+}
+
+.doc-editor-canvas .single-qubit-gate .window .arrow-layer,
+.doc-editor-canvas .single-qubit-gate .window .arrow-group,
+.doc-editor-canvas .single-qubit-gate .window .arrow-group * {
+  pointer-events: auto !important;
+}
+
+.doc-warning {
+  color: #a83616;
+}
+
+.doc-runtime-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(3, 14, 24, 0.66);
+}
+
+.doc-runtime-overlay[hidden] {
+  display: none;
+}
+
+.doc-runtime-shell {
+  width: min(96vw, 1700px);
+  max-height: min(94vh, 1100px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.8rem;
+  border: 2px solid #b0c2d0;
+  border-radius: 1rem;
+  background: linear-gradient(165deg, #ebf4fb, #c7d8e5);
+  box-shadow:
+    0 24px 52px rgba(1, 15, 30, 0.48),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.doc-runtime-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.doc-runtime-header h2 {
+  margin: 0;
+  color: #12364e;
+  font:
+    600 1rem "Aldrich",
+    sans-serif;
+}
+
+.doc-runtime-header .playground-status {
+  flex: 1;
+}
+
+.doc-runtime-canvas {
+  max-width: 100%;
+  max-height: calc(94vh - 5.5rem);
+  resize: none;
 }
 
 .generated-layout-canvas .playground-node,
@@ -1089,6 +1175,22 @@ body:not(.layout-edit-active)
   pointer-events: auto;
 }
 
+.doc-runtime-canvas .playground-node,
+.doc-runtime-canvas .playground-node * {
+  pointer-events: none !important;
+}
+
+.doc-runtime-canvas .playground-node.playground-text-box,
+.doc-runtime-canvas .playground-node.playground-text-box .text-box-body,
+.doc-runtime-canvas .playground-node.playground-text-box .text-box-actions,
+.doc-runtime-canvas .playground-node.playground-text-box .text-box-action {
+  pointer-events: auto !important;
+}
+
+.doc-runtime-canvas .text-box-editor-controls {
+  display: none !important;
+}
+
 body:not(.layout-edit-active)
   .generated-layout-canvas
   .playground-node.component-group[data-separated-pair-measurement="true"]
@@ -1146,6 +1248,11 @@ body.layout-edit-active
 
 .generated-layout-canvas
   .playground-node.playground-qubit-shell.generated-automation-active {
+  z-index: 10000 !important;
+}
+
+.generated-layout-canvas
+  .playground-node.playground-qubit-shell.generated-transit-active {
   z-index: 10000 !important;
 }
 

@@ -25,6 +25,18 @@
           >
             Editor
           </button>
+          <button
+            id="tab-doc-editor"
+            class="tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-doc-editor"
+            data-tab-target="doc-editor"
+            tabindex="-1"
+          >
+            Doc Editor
+          </button>
         </div>
 
         <section
@@ -197,8 +209,220 @@
             ></div>
           </section>
         </section>
+
+        <section
+          id="panel-doc-editor"
+          class="tab-panel doc-editor-tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-doc-editor"
+          hidden
+        >
+          <section class="gate-panel doc-editor-panel">
+            <div class="playground-toolbar doc-editor-toolbar">
+              <div
+                class="editor-toolbar-group doc-document-tools"
+                aria-label="Document editor actions"
+              >
+                <span
+                  id="docEditorStatus"
+                  class="editor-document-status"
+                  aria-live="polite"
+                >
+                  No document selected
+                </span>
+                <label for="docEditorTabSelect">Tab</label>
+                <select
+                  id="docEditorTabSelect"
+                  class="playground-component-select"
+                  aria-label="Document tab"
+                ></select>
+                <button
+                  id="docEditorDeleteButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Delete Doc
+                </button>
+              </div>
+
+              <div
+                class="editor-toolbar-group doc-scene-tools"
+                aria-label="Document scene navigation"
+              >
+                <button
+                  id="docEditorSceneBackButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Back
+                </button>
+                <button
+                  id="docEditorSceneNextButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Next
+                </button>
+                <button
+                  id="docEditorNewSceneButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  New Scene
+                </button>
+                <button
+                  id="docEditorDeleteSceneButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Delete Scene
+                </button>
+                <button
+                  id="docEditorDoneButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Done
+                </button>
+                <span id="docEditorSceneLabel" class="playground-status"></span>
+              </div>
+
+              <div
+                class="editor-toolbar-group doc-size-tools"
+                aria-label="Document scene size"
+              >
+                <label for="docEditorCanvasWidth">Width</label>
+                <input
+                  id="docEditorCanvasWidth"
+                  class="playground-component-select doc-size-input"
+                  type="number"
+                  min="520"
+                  max="2600"
+                  step="10"
+                  value="900"
+                  aria-label="Scene canvas width"
+                />
+                <label for="docEditorCanvasHeight">Height</label>
+                <input
+                  id="docEditorCanvasHeight"
+                  class="playground-component-select doc-size-input"
+                  type="number"
+                  min="420"
+                  max="2200"
+                  step="10"
+                  value="560"
+                  aria-label="Scene canvas height"
+                />
+              </div>
+
+              <div
+                class="editor-toolbar-group doc-component-tools"
+                aria-label="Document component actions"
+              >
+                <label for="docEditorComponentSelect">Component</label>
+                <select
+                  id="docEditorComponentSelect"
+                  class="playground-component-select"
+                  aria-label="Document component picker"
+                ></select>
+                <button
+                  id="docEditorDuplicateButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Duplicate
+                </button>
+                <button
+                  id="docEditorDeleteComponentButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Delete
+                </button>
+              </div>
+
+              <div
+                class="editor-toolbar-group doc-recording-tools"
+                aria-label="Document experiment recording"
+              >
+                <button
+                  id="docEditorStartRecordingButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Start Recording
+                </button>
+                <button
+                  id="docEditorStopRecordingButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Stop Recording
+                </button>
+                <button
+                  id="docEditorPlayRecordingButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Play
+                </button>
+                <span
+                  id="docEditorRecordingStatus"
+                  class="playground-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+            </div>
+            <div
+              id="docEditorCanvas"
+              class="generated-layout-canvas playground-canvas doc-editor-canvas"
+              aria-label="Document scene canvas"
+              data-doc-editor-canvas="true"
+            ></div>
+          </section>
+        </section>
       </div>
     </main>
+
+    <div
+      id="docRuntimeOverlay"
+      class="doc-runtime-overlay"
+      aria-modal="true"
+      role="dialog"
+      aria-labelledby="docRuntimeTitle"
+      hidden
+    >
+      <section class="doc-runtime-shell">
+        <div class="doc-runtime-header">
+          <h2 id="docRuntimeTitle">What's this?</h2>
+          <span id="docRuntimeSceneLabel" class="playground-status"></span>
+          <button
+            id="docRuntimeCloseButton"
+            class="playground-tool-btn"
+            type="button"
+          >
+            Done
+          </button>
+        </div>
+        <div
+          id="docRuntimeCanvas"
+          class="generated-layout-canvas playground-canvas doc-runtime-canvas"
+          aria-label="Document runtime scene"
+          data-doc-runtime-canvas="true"
+        ></div>
+      </section>
+    </div>
 
     <template id="simulatorTemplate">
       <section class="quantum-sim" aria-label="Quantum gate control panel">

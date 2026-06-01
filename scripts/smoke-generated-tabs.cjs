@@ -693,19 +693,19 @@ async function runSequentialMeasurementEditorSmoke(page) {
     writePlaygroundGroupComponentsPayload({
       groups: [
         {
-          id: "sequential-edit-smoke",
-          label: "Sequential two qubit measurement",
+          id: "hyphen-separate-smoke",
+          label: "Separate two-qubit measurement",
           width: 420,
           height: 280,
           items: [
             {
-              type: "measurement-capacity",
-              left: 16,
-              top: 8,
+              type: "double-tube-array",
+              left: 24,
+              top: 58,
               width: 300,
-              height: 38,
+              height: 190,
               z: 1,
-              measurementRole: "capacity",
+              measurementRole: "double-tubes",
             },
             {
               type: "single-magnifier",
@@ -725,14 +725,40 @@ async function runSequentialMeasurementEditorSmoke(page) {
               z: 3,
               measurementRole: "single-magnifier",
             },
+          ],
+        },
+        {
+          id: "sequential-edit-smoke",
+          label: "Sequential two qubit measurement",
+          width: 420,
+          height: 410,
+          items: [
+            {
+              type: "measurement-capacity",
+              left: 16,
+              top: 8,
+              width: 300,
+              height: 38,
+              z: 1,
+              measurementRole: "capacity",
+            },
             {
               type: "double-tube-array",
               left: 24,
-              top: 192,
+              top: 58,
               width: 300,
-              height: 78,
-              z: 4,
+              height: 190,
+              z: 2,
               measurementRole: "double-tubes",
+            },
+            {
+              type: "single-magnifier",
+              left: 99,
+              top: 266,
+              width: 150,
+              height: 120,
+              z: 3,
+              measurementRole: "single-magnifier",
             },
             {
               type: "measurement-count-menu",
@@ -740,8 +766,43 @@ async function runSequentialMeasurementEditorSmoke(page) {
               top: 12,
               width: 68,
               height: 34,
-              z: 5,
+              z: 4,
               measurementRole: "iteration-count",
+            },
+          ],
+        },
+        {
+          id: "structural-pair-smoke",
+          label: "Custom Pair Measurement",
+          width: 420,
+          height: 280,
+          items: [
+            {
+              type: "double-tube-array",
+              left: 24,
+              top: 58,
+              width: 300,
+              height: 190,
+              z: 1,
+              measurementRole: "double-tubes",
+            },
+            {
+              type: "single-magnifier",
+              left: 18,
+              top: 64,
+              width: 150,
+              height: 120,
+              z: 2,
+              measurementRole: "single-magnifier",
+            },
+            {
+              type: "single-magnifier",
+              left: 190,
+              top: 64,
+              width: 150,
+              height: 120,
+              z: 3,
+              measurementRole: "single-magnifier",
             },
           ],
         },
@@ -753,6 +814,51 @@ async function runSequentialMeasurementEditorSmoke(page) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator("#tab-plaground").click();
   await page.waitForSelector("#playgroundCanvas");
+
+  const normalizedLegacySeparate = await page.evaluate(() => {
+    const payload = JSON.parse(
+      localStorage.getItem("quantum_playground_group_components_v1") || "{}",
+    );
+    const group = (payload.groups || []).find(
+      (entry) => entry.id === "hyphen-separate-smoke",
+    );
+    const structuralGroup = (payload.groups || []).find(
+      (entry) => entry.id === "structural-pair-smoke",
+    );
+    const magnifiers = (group?.items || []).filter(
+      (item) => item.type === "single-magnifier",
+    );
+    const structuralMagnifiers = (structuralGroup?.items || []).filter(
+      (item) => item.type === "single-magnifier",
+    );
+    return {
+      label: group?.label || "",
+      width: group?.width || 0,
+      height: group?.height || 0,
+      magnifierCount: magnifiers.length,
+      magnifierLeft: magnifiers[0]?.left,
+      magnifierTop: magnifiers[0]?.top,
+      structuralLabel: structuralGroup?.label || "",
+      structuralMagnifierCount: structuralMagnifiers.length,
+      structuralMagnifierLeft: structuralMagnifiers[0]?.left,
+      structuralMagnifierTop: structuralMagnifiers[0]?.top,
+    };
+  });
+  if (
+    normalizedLegacySeparate.label !== "Sequential two qubit measurement" ||
+    normalizedLegacySeparate.magnifierCount !== 1 ||
+    normalizedLegacySeparate.magnifierLeft !== 99 ||
+    normalizedLegacySeparate.magnifierTop !== 266 ||
+    normalizedLegacySeparate.height < 386 ||
+    normalizedLegacySeparate.structuralLabel !== "Custom Pair Measurement" ||
+    normalizedLegacySeparate.structuralMagnifierCount !== 1 ||
+    normalizedLegacySeparate.structuralMagnifierLeft !== 99 ||
+    normalizedLegacySeparate.structuralMagnifierTop !== 266
+  ) {
+    throw new Error(
+      `Hyphenated separate measurement group was not normalized: ${JSON.stringify(normalizedLegacySeparate)}`,
+    );
+  }
 
   const canvas = page.locator("#playgroundCanvas");
   const select = page.locator("#playgroundComponentSelect");
@@ -774,7 +880,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
   const editableChildCount = await group
     .locator('[data-playground-measurement-part]')
     .count();
-  if (editableChildCount < 5) {
+  if (editableChildCount < 4) {
     throw new Error(
       `Sequential measurement group did not expose editable children: ${editableChildCount}`,
     );
@@ -784,7 +890,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
     .locator(
       '#playgroundCanvas > [data-component="component-group"][data-group-component-id="sequential-edit-smoke"] > .saved-group-child[data-component="single-magnifier"]',
     )
-    .nth(1);
+    .first();
   const magnifierBefore = await editedMagnifier.boundingBox();
   if (!magnifierBefore) {
     throw new Error("Sequential measurement magnifier child missing");
@@ -898,6 +1004,9 @@ async function runSequentialMeasurementEditorSmoke(page) {
     return {
       tabSaved: Boolean(entry),
       childCount: groupItem?.items?.length || 0,
+      magnifierCount: (groupItem?.items || []).filter(
+        (item) => item.type === "single-magnifier",
+      ).length,
       editedMagnifierLeft: editedMagnifierItem?.left,
       editedMagnifierTop: editedMagnifierItem?.top,
       editedMagnifierWidth: editedMagnifierItem?.width,
@@ -906,9 +1015,10 @@ async function runSequentialMeasurementEditorSmoke(page) {
   });
   if (
     !savedSequentialLayout.tabSaved ||
-    savedSequentialLayout.childCount < 5 ||
-    savedSequentialLayout.editedMagnifierLeft < 220 ||
-    savedSequentialLayout.editedMagnifierTop > 55 ||
+    savedSequentialLayout.childCount < 4 ||
+    savedSequentialLayout.magnifierCount !== 1 ||
+    savedSequentialLayout.editedMagnifierLeft < 135 ||
+    savedSequentialLayout.editedMagnifierTop > 255 ||
     savedSequentialLayout.editedMagnifierWidth < 165 ||
     savedSequentialLayout.editedMagnifierHeight < 132
   ) {
@@ -1024,14 +1134,14 @@ async function runEditorDocumentWorkflowSmoke(page) {
     migrated.pickerLabels.includes("separate two qubit measurement") ||
     migrated.pickerValues.includes("group:separate") ||
     migrated.pickerValues.includes("group:separate-two-qubit-measurement") ||
-    migrated.tabLabels.includes("Test") ||
-    migrated.tabButtonLabels.includes("Test") ||
-    !migrated.tabLabels.includes("Entanglement 1") ||
+    !migrated.tabLabels.includes("Test") ||
+    !migrated.tabButtonLabels.includes("Test") ||
     !migrated.tabLabels.includes("Entanglement 2") ||
-    migrated.tabLabels.includes("Entanglement 3") ||
-    !migrated.tabButtonLabels.includes("Entanglement 1") ||
+    !migrated.tabLabels.includes("Entanglement 3") ||
     !migrated.tabButtonLabels.includes("Entanglement 2") ||
-    migrated.tabButtonLabels.includes("Entanglement 3") ||
+    !migrated.tabButtonLabels.includes("Entanglement 3") ||
+    migrated.tabLabels.includes("Entanglement 1") ||
+    migrated.tabButtonLabels.includes("Entanglement 1") ||
     migrated.keepGroupId !== "separate"
   ) {
     throw new Error(
@@ -1140,8 +1250,350 @@ async function runEditorDocumentWorkflowSmoke(page) {
     throw new Error(`Editor did not mark saved tab as current: ${saved.status}`);
   }
 
+  await page.evaluate((tabId) => {
+    localStorage.setItem(
+      "quantum_whats_this_documents_v1",
+      JSON.stringify({
+        documents: [
+          {
+            tabId,
+            title: "Doc Smoke Help",
+            scenes: [
+              {
+                id: "doc-smoke-scene-1",
+                title: "Scene 1",
+                canvasWidth: 640,
+                canvasHeight: 360,
+                items: [
+                  {
+                    id: "doc-smoke-text",
+                    type: "text-box",
+                    left: 48,
+                    top: 42,
+                    width: 300,
+                    height: 130,
+                    text: "First doc scene.",
+                    buttons: ["done"],
+                    buttonMode: "done",
+                  },
+                  {
+                    id: "doc-smoke-gate",
+                    type: "single-gate",
+                    left: 380,
+                    top: 62,
+                    width: 230,
+                    height: 132,
+                    singleGateTick: 0,
+                  },
+                ],
+              },
+              {
+                id: "doc-smoke-scene-2",
+                title: "Scene 2",
+                canvasWidth: 640,
+                canvasHeight: 360,
+                items: [
+                  {
+                    id: "doc-smoke-text-2",
+                    type: "text-box",
+                    left: 48,
+                    top: 42,
+                    width: 300,
+                    height: 130,
+                    text: "Second doc scene.",
+                    buttons: ["done"],
+                    buttonMode: "done",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+  }, saved.id);
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(`#tab-${saved.id}`).click();
   await wait(250);
+  const whatsThisPlacement = await page.evaluate((tabId) => {
+    const panel = document.getElementById(`panel-${tabId}`);
+    const reset = panel?.querySelector(
+      '[data-generated-experiment-action="reset"]',
+    );
+    const whatsThis = panel?.querySelector(
+      '[data-generated-document-action="whats-this"]',
+    );
+    const resetRect = reset?.getBoundingClientRect();
+    const whatsRect = whatsThis?.getBoundingClientRect();
+    return {
+      hasButton: Boolean(whatsThis),
+      belowReset:
+        Boolean(resetRect && whatsRect) && whatsRect.top >= resetRect.bottom,
+      leftAligned:
+        Boolean(resetRect && whatsRect) &&
+        Math.abs(whatsRect.left - resetRect.left) <= 16,
+    };
+  }, saved.id);
+  if (
+    !whatsThisPlacement.hasButton ||
+    !whatsThisPlacement.belowReset ||
+    !whatsThisPlacement.leftAligned
+  ) {
+    throw new Error(
+      `What's this button placement failed: ${JSON.stringify(whatsThisPlacement)}`,
+    );
+  }
+
+  await page
+    .locator(`#panel-${saved.id} [data-generated-document-action="whats-this"]`)
+    .click();
+  await wait(250);
+  const inlineDocState = await page.evaluate((tabId) => {
+    const panel = document.getElementById(`panel-${tabId}`);
+    const canvas = panel?.querySelector(".generated-layout-canvas");
+    return {
+      overlayHidden: document.getElementById("docRuntimeOverlay")?.hidden,
+      docRuntime: canvas?.dataset.docRuntimeCanvas || "",
+      tabId: canvas?.dataset.generatedTabId || "",
+      qubits: panel?.querySelectorAll('[data-component="qubit"]').length || 0,
+      texts: Array.from(
+        panel?.querySelectorAll('[data-component="text-box"]') || [],
+      ).map(
+        (textBox) =>
+          textBox.querySelector('[data-role="text-box-body"]')?.textContent ||
+          "",
+      ),
+    };
+  }, saved.id);
+  if (
+    inlineDocState.overlayHidden !== true ||
+    inlineDocState.docRuntime !== "true" ||
+    inlineDocState.tabId !== saved.id ||
+    inlineDocState.qubits !== 0 ||
+    inlineDocState.texts.join("|") !== "First doc scene."
+  ) {
+    throw new Error(
+      `What's this did not replace the generated tab with the first doc scene: ${JSON.stringify(inlineDocState)}`,
+    );
+  }
+  await page
+    .locator(`#panel-${saved.id} [data-generated-experiment-action="reset"]`)
+    .click();
+  await wait(250);
+  const restoredAfterDoc = await page.evaluate((tabId) => {
+    const panel = document.getElementById(`panel-${tabId}`);
+    const canvas = panel?.querySelector(".generated-layout-canvas");
+    return {
+      docRuntime: canvas?.dataset.docRuntimeCanvas || "",
+      qubits: panel?.querySelectorAll('[data-component="qubit"]').length || 0,
+      textCount: panel?.querySelectorAll('[data-component="text-box"]').length || 0,
+    };
+  }, saved.id);
+  if (
+    restoredAfterDoc.docRuntime ||
+    restoredAfterDoc.qubits !== 1 ||
+    restoredAfterDoc.textCount !== 2
+  ) {
+    throw new Error(
+      `Reset did not restore the generated tab after What's this: ${JSON.stringify(restoredAfterDoc)}`,
+    );
+  }
+
+  await page.locator("#tab-doc-editor").click();
+  await page.locator("#docEditorTabSelect").selectOption(saved.id);
+  await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
+  await page.waitForSelector("#docEditorCanvas [data-component='single-gate']");
+  const dragDocEditorGateArrowToTick = async (targetTick) => {
+    const points = await page.evaluate((tickIndex) => {
+      const gate = document.querySelector(
+        '#docEditorCanvas [data-component="single-gate"]',
+      );
+      const ticks = gate?.querySelector('[data-role="ticks"]');
+      if (!gate || !ticks) {
+        return null;
+      }
+      const rect = ticks.getBoundingClientRect();
+      const activeTick = Array.from(ticks.querySelectorAll(".tick")).findIndex(
+        (tick) => tick.classList.contains("active"),
+      );
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const startRadius = Math.min(rect.width, rect.height) * 0.22;
+      const endRadius = Math.min(rect.width, rect.height) * 0.36;
+      const pointForTick = (tick, radius) => {
+        const angle = ((tick % 12) * 30 * Math.PI) / 180;
+        return {
+          x: centerX + Math.sin(angle) * radius,
+          y: centerY - Math.cos(angle) * radius,
+        };
+      };
+      const start = pointForTick(activeTick >= 0 ? activeTick : 0, startRadius);
+      const end = pointForTick(tickIndex, endRadius);
+      return { start, end };
+    }, targetTick);
+    if (!points) {
+      throw new Error("Missing Doc Editor gate dial points");
+    }
+    await page.mouse.move(points.start.x, points.start.y);
+    await page.mouse.down();
+    await page.mouse.move(points.end.x, points.end.y, { steps: 10 });
+    await page.mouse.up();
+    await wait(250);
+  };
+  const docEditorGateState = () =>
+    page.evaluate(() => {
+      const gate = document.querySelector(
+        '#docEditorCanvas [data-component="single-gate"]',
+      );
+      const ticks = Array.from(gate?.querySelectorAll(".tick") || []);
+      return {
+        left: Number.parseFloat(gate?.style.left || "0"),
+        top: Number.parseFloat(gate?.style.top || "0"),
+        activeTick: ticks.findIndex((tick) => tick.classList.contains("active")),
+      };
+    });
+  const setupGateBefore = await docEditorGateState();
+  await dragDocEditorGateArrowToTick(3);
+  const setupGateAfter = await docEditorGateState();
+  if (
+    setupGateAfter.activeTick !== 3 ||
+    Math.abs(setupGateAfter.left - setupGateBefore.left) > 2 ||
+    Math.abs(setupGateAfter.top - setupGateBefore.top) > 2
+  ) {
+    throw new Error(
+      `Doc Editor gate dial drag moved the gate or missed the tick in setup mode: before=${JSON.stringify(
+        setupGateBefore,
+      )} after=${JSON.stringify(setupGateAfter)}`,
+    );
+  }
+  const persistedSetupGateTick = await page.evaluate((tabId) => {
+    const docs = JSON.parse(
+      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+    ).documents || [];
+    return docs
+      .find((doc) => doc.tabId === tabId)
+      ?.scenes?.[0]?.items?.find((item) => item.id === "doc-smoke-gate")
+      ?.singleGateTick;
+  }, saved.id);
+  if (persistedSetupGateTick !== 3) {
+    throw new Error(
+      `Doc Editor gate tick was not saved in setup mode: ${persistedSetupGateTick}`,
+    );
+  }
+  await page.locator("#docEditorStartRecordingButton").click();
+  await wait(200);
+  const recordingStarted = await page.evaluate(() => ({
+    recording: document
+      .querySelector("#docEditorCanvas")
+      ?.classList.contains("generated-recording-active"),
+    startDisabled: document.querySelector("#docEditorStartRecordingButton")?.disabled,
+    stopDisabled: document.querySelector("#docEditorStopRecordingButton")?.disabled,
+  }));
+  if (
+    !recordingStarted.recording ||
+    recordingStarted.startDisabled !== true ||
+    recordingStarted.stopDisabled !== false
+  ) {
+    throw new Error(
+      `Doc Editor recording did not start for gate dial smoke: ${JSON.stringify(recordingStarted)}`,
+    );
+  }
+  await dragDocEditorGateArrowToTick(6);
+  const recordingGateAfter = await docEditorGateState();
+  if (recordingGateAfter.activeTick !== 6) {
+    throw new Error(
+      `Doc Editor gate dial did not move while recording: ${JSON.stringify(recordingGateAfter)}`,
+    );
+  }
+  await page.locator("#docEditorStopRecordingButton").click();
+  await wait(350);
+  const recordedGateTickState = await page.evaluate((tabId) => {
+    const docs = JSON.parse(
+      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+    ).documents || [];
+    const scene = docs.find((doc) => doc.tabId === tabId)?.scenes?.[0];
+    return {
+      setupTick: scene?.items?.find((item) => item.id === "doc-smoke-gate")
+        ?.singleGateTick,
+      gateSettings: scene?.experiment?.gateSettings || [],
+      actions: scene?.experiment?.actions || [],
+    };
+  }, saved.id);
+  const recordedGateSetting = recordedGateTickState.gateSettings.find(
+    (entry) => entry.itemId === "doc-smoke-gate",
+  );
+  const recordedGateAction = recordedGateTickState.actions.find(
+    (action) =>
+      action.type === "gate-setting" && action.gateId === "doc-smoke-gate",
+  );
+  if (
+    recordedGateTickState.setupTick !== 3 ||
+    recordedGateSetting?.tickIndex !== 3 ||
+    recordedGateAction?.tickIndex !== 6
+  ) {
+    throw new Error(
+      `Doc Editor gate dial recording did not preserve setup and recorded ticks: ${JSON.stringify(recordedGateTickState)}`,
+    );
+  }
+  const docTextBoxBody = page.locator(
+    "#docEditorCanvas [data-component='text-box'] [data-role='text-box-body']",
+  );
+  await docTextBoxBody.click();
+  await wait(100);
+  const deleteEnabledAfterSelect = await page
+    .locator("#docEditorDeleteComponentButton")
+    .evaluate((button) => !button.disabled);
+  if (!deleteEnabledAfterSelect) {
+    throw new Error("Doc Editor text box click did not enable Delete");
+  }
+  const docTextBox = page.locator("#docEditorCanvas [data-component='text-box']");
+  const docTextBoxBeforeDrag = await rectCenter(docTextBox);
+  const docBodyBox = await docTextBoxBody.boundingBox();
+  if (!docBodyBox) {
+    throw new Error("Missing Doc Editor text box body bounds");
+  }
+  await page.mouse.move(
+    docBodyBox.x + docBodyBox.width / 2,
+    docBodyBox.y + docBodyBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    docBodyBox.x + docBodyBox.width / 2 + 76,
+    docBodyBox.y + docBodyBox.height / 2 + 24,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await wait(200);
+  const docTextBoxAfterDrag = await rectCenter(docTextBox);
+  if (
+    docTextBoxAfterDrag.x - docTextBoxBeforeDrag.x < 40 ||
+    docTextBoxAfterDrag.y - docTextBoxBeforeDrag.y < 10
+  ) {
+    throw new Error(
+      `Doc Editor text box did not drag: before=${JSON.stringify(
+        docTextBoxBeforeDrag,
+      )} after=${JSON.stringify(docTextBoxAfterDrag)}`,
+    );
+  }
+  await docTextBoxBody.fill("Edited doc text box.");
+  const docTextEdited = await docTextBoxBody.textContent();
+  if (docTextEdited !== "Edited doc text box.") {
+    throw new Error(`Doc Editor text box edit failed: ${docTextEdited}`);
+  }
+  await docTextBoxBody.click();
+  await page.locator("#docEditorDeleteComponentButton").click();
+  await wait(200);
+  const remainingDocTextBoxes = await page
+    .locator("#docEditorCanvas [data-component='text-box']")
+    .count();
+  if (remainingDocTextBoxes !== 0) {
+    throw new Error(
+      `Doc Editor text box delete failed: remaining=${remainingDocTextBoxes}`,
+    );
+  }
+  await page.locator(`#tab-${saved.id}`).click();
+  await wait(250);
+
   const visibleTextBoxes = async () =>
     page.evaluate((tabId) => {
       const panel = document.getElementById(`panel-${tabId}`);
@@ -1384,8 +1836,672 @@ async function runEditorDocumentWorkflowSmoke(page) {
   }
 }
 
+async function runDocEditorMeasurementRecordingSmoke(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "quantum_generated_tabs_v1",
+      JSON.stringify({
+        tabs: [
+          {
+            id: "doc-measure-recording",
+            label: "Doc Measure Recording",
+            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+          },
+        ],
+      }),
+    );
+    localStorage.setItem(
+      "quantum_whats_this_documents_v1",
+      JSON.stringify({
+        documents: [
+          {
+            tabId: "doc-measure-recording",
+            title: "Measurement Recording",
+            scenes: [
+              {
+                id: "doc-measure-scene",
+                title: "Scene 1",
+                canvasWidth: 760,
+                canvasHeight: 420,
+                items: [
+                  {
+                    id: "doc-measure-q",
+                    type: "qubit",
+                    left: 80,
+                    top: 170,
+                    width: 52,
+                    height: 52,
+                  },
+                  {
+                    id: "doc-measure-stage",
+                    type: "single-measurement",
+                    left: 300,
+                    top: 80,
+                    width: 330,
+                    height: 240,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#tab-doc-editor").click();
+  await page.locator("#docEditorTabSelect").selectOption("doc-measure-recording");
+  await page.waitForSelector("#docEditorCanvas [data-component='qubit']");
+  await page.waitForSelector(
+    "#docEditorCanvas [data-component='single-measurement']",
+  );
+  await page.locator("#docEditorStartRecordingButton").click();
+  await wait(150);
+
+  const qubitCenter = await rectCenter(
+    page.locator("#docEditorCanvas [data-component='qubit']"),
+  );
+  const toolCenter = await rectCenter(
+    page.locator("#docEditorCanvas [data-role='measurement-tool']"),
+  );
+  await page.mouse.move(qubitCenter.x, qubitCenter.y);
+  await page.mouse.down();
+  await page.mouse.move(qubitCenter.x + 90, qubitCenter.y, { steps: 5 });
+  await page.mouse.move(toolCenter.x - 80, toolCenter.y, { steps: 5 });
+  await page.mouse.move(toolCenter.x, toolCenter.y, { steps: 10 });
+  await page.mouse.up();
+
+  const readDocMeasurementState = () =>
+    page.evaluate(() => {
+      const canvas = document.querySelector("#docEditorCanvas");
+      const measurement = canvas?.querySelector(
+        '[data-component="single-measurement"]',
+      );
+      const blue = Number(
+        measurement
+          ?.querySelector('[data-role="tube-blue-count"]')
+          ?.textContent?.trim() || 0,
+      );
+      const red = Number(
+        measurement
+          ?.querySelector('[data-role="tube-red-count"]')
+          ?.textContent?.trim() || 0,
+      );
+      const blueHeight = Number.parseFloat(
+        measurement?.querySelector('[data-role="tube-blue-liquid"]')?.style
+          .height || "0",
+      );
+      const redHeight = Number.parseFloat(
+        measurement?.querySelector('[data-role="tube-red-liquid"]')?.style
+          .height || "0",
+      );
+      return {
+        blue,
+        red,
+        total: blue + red,
+        blueHeight,
+        redHeight,
+        recording: canvas?.classList.contains("generated-recording-active"),
+        status:
+          document.querySelector("#docEditorRecordingStatus")?.textContent ||
+          "",
+        actions:
+          generatedExperimentStateForCanvas(canvas)?.experiment?.actions?.map(
+            (action) => ({
+              type: action.type,
+              iterations: action.iterations,
+            }),
+          ) || [],
+      };
+    });
+
+  const waitForDocMeasurementState = async (predicate, timeout = 12000) => {
+    const deadline = Date.now() + timeout;
+    let latest = null;
+    while (Date.now() < deadline) {
+      latest = await readDocMeasurementState();
+      if (predicate(latest)) {
+        return latest;
+      }
+      await wait(150);
+    }
+    return latest;
+  };
+
+  const state = await waitForDocMeasurementState((latest) => latest.total >= 1);
+
+  if (
+    !state ||
+    state.total !== 1 ||
+    Math.max(state.blueHeight, state.redHeight) <= 0 ||
+    state.recording !== true
+  ) {
+    throw new Error(
+      `Doc Editor UI measurement recording did not update test tubes: ${JSON.stringify(state)}`,
+    );
+  }
+
+  const countSelect = page.locator(
+    "#docEditorCanvas [data-role='measurement-count']",
+  );
+  await countSelect.selectOption("5");
+  await wait(120);
+  await countSelect.selectOption("10000");
+  await page.locator("#docEditorCanvas [data-role='measurement-tool']").click();
+  const queuedState = await waitForDocMeasurementState(
+    (latest) =>
+      latest.total === 20000 &&
+      latest.actions.map((action) => action.type).join(",") ===
+        "single-measure,experiment-count,experiment-count,experiment-repeat",
+    20000,
+  );
+  const queuedIterations = (queuedState?.actions || [])
+    .filter(
+      (action) =>
+        action.type === "experiment-count" ||
+        action.type === "experiment-repeat",
+    )
+    .map((action) => action.iterations)
+    .join(",");
+  if (
+    !queuedState ||
+    queuedState.total !== 20000 ||
+    queuedIterations !== "5,10000,10000" ||
+    queuedState.recording !== true
+  ) {
+    throw new Error(
+      `Doc Editor queued recording controls did not persist the 10000 run: ${JSON.stringify(queuedState)}`,
+    );
+  }
+}
+
+async function runDocEditorTwoQubitPlaybackSmoke(page) {
+  const result = await page.evaluate(async () => {
+    const previousSpeed = generatedExperimentPlaybackSpeed;
+    const previousLayoutEditEnabled = layoutEditorState.enabled;
+    generatedExperimentPlaybackSpeed = 40;
+    const canvas = document.createElement("div");
+    canvas.className =
+      "generated-layout-canvas playground-canvas doc-editor-canvas";
+    canvas.dataset.docEditorCanvas = "true";
+    canvas.dataset.generatedTabId = "doc-two-qubit-playback-smoke";
+    canvas.style.width = "1120px";
+    canvas.style.height = "520px";
+    const q1 = createGeneratedLayoutItemNode("qubit", {
+      id: "duplicated-qubit-id",
+      qubitId: 201,
+      left: 64,
+      top: 90,
+      width: 52,
+      height: 52,
+    });
+    const q2 = createGeneratedLayoutItemNode("qubit", {
+      id: "duplicated-qubit-id",
+      qubitId: 201,
+      left: 64,
+      top: 285,
+      width: 52,
+      height: 52,
+    });
+    const gate1 = createGeneratedLayoutItemNode("single-gate", {
+      id: "doc-two-gate-a",
+      left: 220,
+      top: 50,
+      width: 250,
+      height: 130,
+      singleGateTick: 3,
+    });
+    const gate2 = createGeneratedLayoutItemNode("single-gate", {
+      id: "doc-two-gate-b",
+      left: 220,
+      top: 245,
+      width: 250,
+      height: 130,
+      singleGateTick: 6,
+    });
+    const cnot = createGeneratedLayoutItemNode("cnot-gate", {
+      id: "doc-two-cnot",
+      left: 500,
+      top: 135,
+      width: 240,
+      height: 190,
+      z: 80,
+    });
+    const measurement = createGeneratedLayoutItemNode("double-measurement", {
+      id: "doc-two-measure",
+      left: 760,
+      top: 120,
+      width: 330,
+      height: 250,
+    });
+    canvas.append(q1, q2, gate1, gate2, cnot, measurement);
+    document.body.appendChild(canvas);
+    let result = null;
+    try {
+      prepareGeneratedLayoutCanvas(canvas);
+      layoutGeneratedSingleGateDials(canvas);
+      const idsAfterPrepare = [q1.dataset.generatedItemId, q2.dataset.generatedItemId];
+      const logicalIdsAfterPrepare = [
+        qubitLogicalIdForItem(q1),
+        qubitLogicalIdForItem(q2),
+      ];
+      beginGeneratedExperimentRecording(canvas);
+      await runGeneratedSingleGateTransit(
+        canvas,
+        q1,
+        initializeGeneratedSingleGateItem(gate1),
+      );
+      await runGeneratedSingleGateTransit(
+        canvas,
+        q2,
+        initializeGeneratedSingleGateItem(gate2),
+      );
+      const cnotRuntime = initializeGeneratedCnotItem(cnot);
+      await runGeneratedCnotIngress(canvas, q1, cnotRuntime, "top");
+      const cnotFirstSlotLayer = {
+        active: q1.classList.contains("generated-transit-active"),
+        zIndex: Number.parseInt(getComputedStyle(q1).zIndex, 10),
+        cnotZIndex: Number.parseInt(getComputedStyle(cnot).zIndex, 10),
+      };
+      await runGeneratedCnotIngress(canvas, q2, cnotRuntime, "bottom");
+      const cnotSecondSlotLayer = {
+        topActive: q1.classList.contains("generated-transit-active"),
+        bottomActive: q2.classList.contains("generated-transit-active"),
+        topZIndex: Number.parseInt(getComputedStyle(q1).zIndex, 10),
+        bottomZIndex: Number.parseInt(getComputedStyle(q2).zIndex, 10),
+        cnotZIndex: Number.parseInt(getComputedStyle(cnot).zIndex, 10),
+      };
+      if (cnotRuntime.cyclePromise) {
+        await cnotRuntime.cyclePromise;
+      }
+      const measurementRuntime =
+        initializeGeneratedDoubleMeasurementItem(measurement);
+      await runGeneratedDoubleMeasurementIngress(canvas, q1, measurementRuntime);
+      const firstSlotLayer = {
+        active: q1.classList.contains("generated-transit-active"),
+        zIndex: Number.parseInt(getComputedStyle(q1).zIndex, 10),
+      };
+      await runGeneratedDoubleMeasurementIngress(canvas, q2, measurementRuntime);
+      const secondSlotLayer = {
+        active: q2.classList.contains("generated-transit-active"),
+        zIndex: Number.parseInt(getComputedStyle(q2).zIndex, 10),
+      };
+      if (measurementRuntime.cyclePromise) {
+        await measurementRuntime.cyclePromise;
+      }
+      syncDraftGeneratedExperimentFromRecording(canvas);
+      const state = generatedExperimentStateForCanvas(canvas);
+      const experiment = cloneGeneratedExperiment(state.experiment);
+      const actions = (experiment?.actions || []).map((action) => ({
+        type: action.type,
+        qubitId: action.qubitId || "",
+        qubitLogicalId: action.qubitLogicalId,
+        leftQubitId: action.leftQubitId || "",
+        leftQubitLogicalId: action.leftQubitLogicalId,
+        rightQubitId: action.rightQubitId || "",
+        rightQubitLogicalId: action.rightQubitLogicalId,
+        topQubitId: action.topQubitId || "",
+        topQubitLogicalId: action.topQubitLogicalId,
+        bottomQubitId: action.bottomQubitId || "",
+        bottomQubitLogicalId: action.bottomQubitLogicalId,
+        gateId: action.gateId || "",
+        cnotId: action.cnotId || "",
+      }));
+      finishGeneratedExperimentRecording(canvas);
+      state.experiment = experiment;
+      clearGeneratedMeasurementsForCanvas(canvas);
+      resetGeneratedCanvasToExperimentStart(canvas, experiment);
+      const cnotAction = experiment.actions.find(
+        (action) => action.type === "cnot",
+      );
+      const doubleAction = experiment.actions.find(
+        (action) => action.type === "double-measure",
+      );
+      const directCnotReplay = replayGeneratedRecordedCnotAction(
+        canvas,
+        cnotAction,
+      );
+      const replayCnotLayer = {
+        topActive: q1.classList.contains("generated-transit-active"),
+        bottomActive: q2.classList.contains("generated-transit-active"),
+        topZIndex: Number.parseInt(getComputedStyle(q1).zIndex, 10),
+        bottomZIndex: Number.parseInt(getComputedStyle(q2).zIndex, 10),
+        cnotZIndex: Number.parseInt(getComputedStyle(cnot).zIndex, 10),
+      };
+      const directCnotCompleted = await directCnotReplay;
+      resetGeneratedCanvasToExperimentStart(canvas, experiment);
+      const initialCenters = generatedExperimentInitialCenterMap(experiment);
+      const directDoubleReplay = replayGeneratedRecordedDoubleMeasureAction(
+        canvas,
+        doubleAction,
+        initialCenters,
+      );
+      const replaySlotLayer = {
+        leftActive: q1.classList.contains("generated-transit-active"),
+        rightActive: q2.classList.contains("generated-transit-active"),
+        leftZIndex: Number.parseInt(getComputedStyle(q1).zIndex, 10),
+        rightZIndex: Number.parseInt(getComputedStyle(q2).zIndex, 10),
+      };
+      const directDoubleCompleted = await directDoubleReplay;
+      clearGeneratedMeasurementsForCanvas(canvas);
+      state.experiment = experiment;
+      const replayCompleted = await runGeneratedRecordedExperiment(canvas, 1);
+      const q1Center = generatedCanvasPointForElementCenter(canvas, q1);
+      const q2Center = generatedCanvasPointForElementCenter(canvas, q2);
+      result = {
+        idsAfterPrepare,
+        logicalIdsAfterPrepare,
+        uniqueIds: new Set(idsAfterPrepare).size,
+        uniqueLogicalIds: new Set(logicalIdsAfterPrepare).size,
+        actions,
+        cnotFirstSlotLayer,
+        cnotSecondSlotLayer,
+        replayCnotLayer,
+        directCnotCompleted,
+        firstSlotLayer,
+        secondSlotLayer,
+        replaySlotLayer,
+        directDoubleCompleted,
+        replayCompleted,
+        q1Center,
+        q2Center,
+      };
+    } finally {
+      canvas.remove();
+      generatedExperimentPlaybackSpeed = previousSpeed;
+      if (layoutEditorState.enabled !== previousLayoutEditEnabled) {
+        setLayoutEditEnabled(previousLayoutEditEnabled);
+      }
+    }
+    return result;
+  });
+  const gateActions = result.actions.filter((action) => action.type === "gate");
+  const cnotAction = result.actions.find((action) => action.type === "cnot");
+  const doubleAction = result.actions.find(
+    (action) => action.type === "double-measure",
+  );
+  if (
+    result.uniqueIds !== 2 ||
+    result.uniqueLogicalIds !== 2 ||
+    gateActions.length !== 2 ||
+    !gateActions[0].qubitId ||
+    !gateActions[1].qubitId ||
+    gateActions[0].qubitId === gateActions[1].qubitId ||
+    !gateActions[0].qubitLogicalId ||
+    !gateActions[1].qubitLogicalId ||
+    gateActions[0].qubitLogicalId === gateActions[1].qubitLogicalId ||
+    !cnotAction ||
+    !cnotAction.cnotId ||
+    cnotAction.topQubitId === cnotAction.bottomQubitId ||
+    cnotAction.topQubitLogicalId === cnotAction.bottomQubitLogicalId ||
+    !result.cnotFirstSlotLayer.active ||
+    result.cnotFirstSlotLayer.zIndex < 10000 ||
+    result.cnotFirstSlotLayer.cnotZIndex !== 80 ||
+    !result.cnotSecondSlotLayer.topActive ||
+    !result.cnotSecondSlotLayer.bottomActive ||
+    result.cnotSecondSlotLayer.topZIndex < 10000 ||
+    result.cnotSecondSlotLayer.bottomZIndex < 10000 ||
+    result.cnotSecondSlotLayer.cnotZIndex !== 80 ||
+    !result.replayCnotLayer.topActive ||
+    !result.replayCnotLayer.bottomActive ||
+    result.replayCnotLayer.topZIndex < 10000 ||
+    result.replayCnotLayer.bottomZIndex < 10000 ||
+    result.replayCnotLayer.cnotZIndex !== 80 ||
+    result.directCnotCompleted !== true ||
+    !doubleAction ||
+    doubleAction.leftQubitId === doubleAction.rightQubitId ||
+    doubleAction.leftQubitLogicalId === doubleAction.rightQubitLogicalId ||
+    !doubleAction.topQubitId ||
+    !doubleAction.bottomQubitId ||
+    doubleAction.topQubitId === doubleAction.bottomQubitId ||
+    doubleAction.topQubitLogicalId === doubleAction.bottomQubitLogicalId ||
+    !result.firstSlotLayer.active ||
+    result.firstSlotLayer.zIndex < 10000 ||
+    !result.secondSlotLayer.active ||
+    result.secondSlotLayer.zIndex < 10000 ||
+    !result.replaySlotLayer.leftActive ||
+    !result.replaySlotLayer.rightActive ||
+    result.replaySlotLayer.leftZIndex < 10000 ||
+    result.replaySlotLayer.rightZIndex < 10000 ||
+    result.directDoubleCompleted !== true ||
+    result.replayCompleted !== true ||
+    Math.abs(result.q1Center.y - result.q2Center.y) < 80
+  ) {
+    throw new Error(
+      `Doc Editor two-qubit playback smoke failed: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
+async function runDocEditorTextPersistenceSmoke(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "quantum_generated_tabs_v1",
+      JSON.stringify({
+        tabs: [
+          {
+            id: "doc-text-persist",
+            label: "Doc Text Persist",
+            layout: {
+              items: [
+                {
+                  id: "doc-text-persist-q",
+                  type: "qubit",
+                  left: 80,
+                  top: 170,
+                  width: 52,
+                  height: 52,
+                },
+              ],
+              canvasWidth: 760,
+              canvasHeight: 420,
+            },
+          },
+        ],
+      }),
+    );
+    localStorage.setItem(
+      "quantum_whats_this_documents_v1",
+      JSON.stringify({
+        documents: [
+          {
+            tabId: "doc-text-persist",
+            title: "Text Persistence",
+            scenes: [
+              {
+                id: "doc-text-scene-1",
+                title: "Scene 1",
+                canvasWidth: 760,
+                canvasHeight: 420,
+                items: [
+                  {
+                    id: "doc-text-box-1",
+                    type: "text-box",
+                    left: 80,
+                    top: 90,
+                    width: 300,
+                    height: 140,
+                    text: "Original first scene.",
+                    buttons: ["next"],
+                    buttonMode: "next",
+                  },
+                ],
+              },
+              {
+                id: "doc-text-scene-2",
+                title: "Scene 2",
+                canvasWidth: 760,
+                canvasHeight: 420,
+                experiment: {
+                  version: 1,
+                  recordedAt: Date.now(),
+                  initialQubits: [],
+                  gateSettings: [],
+                  actions: [
+                    {
+                      type: "drag",
+                      qubitId: "missing-qubit",
+                      qubitLogicalId: "missing-logical-qubit",
+                      path: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 1 },
+                      ],
+                    },
+                  ],
+                },
+                items: [
+                  {
+                    id: "doc-text-box-2",
+                    type: "text-box",
+                    left: 90,
+                    top: 100,
+                    width: 320,
+                    height: 150,
+                    text: "Original second scene.",
+                    buttons: ["done"],
+                    buttonMode: "done",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#tab-doc-editor").click();
+  await page.locator("#docEditorTabSelect").selectOption("doc-text-persist");
+  await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
+  const editedFirstSceneText = "Edited first scene.\nSecond line.";
+  await page
+    .locator("#docEditorCanvas [data-role='text-box-body']")
+    .fill("");
+  await page
+    .locator("#docEditorCanvas [data-role='text-box-body']")
+    .type("Edited first scene.");
+  await page.keyboard.press("Enter");
+  await page
+    .locator("#docEditorCanvas [data-role='text-box-body']")
+    .type("Second line.");
+  await wait(120);
+  await page.locator("#docEditorSceneNextButton").click();
+  await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
+  await page.locator("#docEditorCanvasWidth").fill("920");
+  await page.locator("#docEditorCanvasWidth").evaluate((element) => {
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.locator("#docEditorCanvasHeight").fill("540");
+  await page.locator("#docEditorCanvasHeight").evaluate((element) => {
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => {
+    const textBox = document.querySelector(
+      "#docEditorCanvas [data-component='text-box']",
+    );
+    if (!(textBox instanceof HTMLElement)) {
+      throw new Error("Doc Editor text box was not rendered");
+    }
+    textBox.style.left = "240px";
+    textBox.style.top = "180px";
+    textBox.style.width = "430px";
+    textBox.style.height = "190px";
+  });
+  await page
+    .locator("#docEditorCanvas [data-role='text-box-body']")
+    .fill("Edited second scene.");
+  await wait(120);
+  await page.locator("#docEditorDoneButton").click();
+  await wait(250);
+
+  const stored = await page.evaluate(() => {
+    const documents = JSON.parse(
+      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+    ).documents || [];
+    const documentEntry = documents.find(
+      (entry) => entry.tabId === "doc-text-persist",
+    );
+    return {
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      sceneTexts: (documentEntry?.scenes || []).map(
+        (scene) => scene.items?.find((item) => item.type === "text-box")?.text,
+      ),
+      secondSceneCanvas: {
+        width: documentEntry?.scenes?.[1]?.canvasWidth,
+        height: documentEntry?.scenes?.[1]?.canvasHeight,
+      },
+      secondTextBox: documentEntry?.scenes?.[1]?.items?.find(
+        (item) => item.type === "text-box",
+      ),
+    };
+  });
+  if (
+    stored.activeTab !== "doc-text-persist" ||
+    stored.sceneTexts.join("|") !==
+      `${editedFirstSceneText}|Edited second scene.` ||
+    stored.secondSceneCanvas.width !== 920 ||
+    stored.secondSceneCanvas.height !== 540 ||
+    stored.secondTextBox?.left !== 240 ||
+    stored.secondTextBox?.top !== 180 ||
+    stored.secondTextBox?.width !== 430 ||
+    stored.secondTextBox?.height !== 190
+  ) {
+    throw new Error(
+      `Doc Editor Done did not persist edited scene geometry: ${JSON.stringify(stored)}`,
+    );
+  }
+
+  await page
+    .locator(
+      "#panel-doc-text-persist [data-generated-document-action='whats-this']",
+    )
+    .click();
+  await wait(250);
+  const runtimeState = await page.evaluate(() => {
+    const panel = document.getElementById("panel-doc-text-persist");
+    const canvas = panel?.querySelector(".generated-layout-canvas");
+    const currentText =
+      canvas?.querySelector('[data-role="text-box-body"]')?.textContent || "";
+    const nextButton = canvas?.querySelector(
+      '[data-role="text-box-action"][data-text-box-action="next"]',
+    );
+    nextButton?.click();
+    const nextBox = canvas?.querySelector("[data-component='text-box']");
+    const nextText =
+      nextBox?.querySelector('[data-role="text-box-body"]')?.textContent || "";
+    return {
+      texts: [currentText, nextText],
+      canvasWidth: canvas instanceof HTMLElement ? canvas.offsetWidth : 0,
+      canvasHeight: canvas instanceof HTMLElement ? canvas.offsetHeight : 0,
+      secondTextBox:
+        nextBox instanceof HTMLElement
+          ? {
+              left: Math.round(parseFloat(nextBox.style.left) || 0),
+              top: Math.round(parseFloat(nextBox.style.top) || 0),
+              width: Math.round(nextBox.offsetWidth),
+              height: Math.round(nextBox.offsetHeight),
+            }
+          : null,
+    };
+  });
+  if (
+    runtimeState.texts.join("|") !==
+      `${editedFirstSceneText}|Edited second scene.` ||
+    runtimeState.canvasWidth !== 920 ||
+    runtimeState.canvasHeight !== 540 ||
+    runtimeState.secondTextBox?.left !== 240 ||
+    runtimeState.secondTextBox?.top !== 180 ||
+    runtimeState.secondTextBox?.width !== 430 ||
+    runtimeState.secondTextBox?.height !== 190
+  ) {
+    throw new Error(
+      `What's this runtime did not use persisted scene geometry: ${JSON.stringify(runtimeState)}`,
+    );
+  }
+}
+
 async function runEntangledMathSmoke(page) {
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate(async () => {
     const rootHalf = Math.SQRT1_2;
     const pair = {
       amplitudes: entangledAmplitudesFromQubitVectors(
@@ -1451,19 +2567,99 @@ async function runEntangledMathSmoke(page) {
     const lowIdState = ensureGeneratedQubitRuntimeState(lowIdQubit);
     highIdState.vector = [1, 0];
     lowIdState.vector = [0, 1];
-    const idOrderedCollapse = collapseGeneratedQubitPairFromCnot(
+    const argumentOrderedCollapse = collapseGeneratedQubitPairFromCnot(
       highIdQubit,
       lowIdQubit,
     );
     idOrderCanvas.remove();
+    const visualOrderCanvas = document.createElement("div");
+    visualOrderCanvas.className = "generated-layout-canvas playground-canvas";
+    visualOrderCanvas.dataset.docRuntimeCanvas = "true";
+    visualOrderCanvas.dataset.generatedTabId = "visual-order-smoke";
+    visualOrderCanvas.style.width = "760px";
+    visualOrderCanvas.style.height = "360px";
+    const visualTopQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "visual-order-top",
+      left: 70,
+      top: 62,
+      width: 52,
+      height: 52,
+    });
+    const visualBottomQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "visual-order-bottom",
+      left: 70,
+      top: 242,
+      width: 52,
+      height: 52,
+    });
+    const visualOrderMeasurement = createGeneratedLayoutItemNode(
+      "double-measurement",
+      {
+        id: "visual-order-measure",
+        left: 260,
+        top: 54,
+        width: 330,
+        height: 250,
+      },
+    );
+    visualOrderCanvas.append(
+      visualTopQubit,
+      visualBottomQubit,
+      visualOrderMeasurement,
+    );
+    document.body.appendChild(visualOrderCanvas);
+    prepareGeneratedLayoutCanvas(visualOrderCanvas);
+    const visualTopState = ensureGeneratedQubitRuntimeState(visualTopQubit);
+    const visualBottomState = ensureGeneratedQubitRuntimeState(visualBottomQubit);
+    visualTopState.vector = [1, 0];
+    visualBottomState.vector = [0, 1];
+    visualTopState.doubleMeasurementReturnPoint = { x: 96, y: 88 };
+    visualBottomState.doubleMeasurementReturnPoint = { x: 96, y: 268 };
+    const visualOrderRuntime = initializeGeneratedDoubleMeasurementItem(
+      visualOrderMeasurement,
+    );
+    visualOrderRuntime.slotOccupants.left = visualTopQubit;
+    visualOrderRuntime.slotOccupants.right = visualBottomQubit;
+    const visualOrderCycleCompleted = await runGeneratedDoubleMeasurementCycle(
+      visualOrderCanvas,
+      visualOrderRuntime,
+    );
+    const visualOrderCounts = { ...visualOrderRuntime.tubeCounts };
+    visualOrderRuntime.tubeCounts = { bb: 0, br: 0, rb: 0, rr: 0 };
+    updateGeneratedDoubleMeasurementTubeFills(visualOrderRuntime);
+    replayGeneratedRecordedExperimentFast(
+      visualOrderCanvas,
+      {
+        initialQubits: [
+          {
+            itemId: "visual-order-top",
+            vector: [1, 0],
+            center: { x: 96, y: 88 },
+          },
+          {
+            itemId: "visual-order-bottom",
+            vector: [0, 1],
+            center: { x: 96, y: 268 },
+          },
+        ],
+        actions: [
+          {
+            type: "double-measure",
+            measurementId: "visual-order-measure",
+            leftQubitId: "visual-order-top",
+            rightQubitId: "visual-order-bottom",
+          },
+        ],
+      },
+      100,
+    );
+    const visualOrderFastCounts = { ...visualOrderRuntime.tubeCounts };
+    visualOrderCanvas.remove();
     const canvas = document.createElement("div");
     canvas.className = "generated-layout-canvas";
     canvas.dataset.generatedTabId = "separated-smoke";
     canvas.innerHTML = `
       <div class="playground-node component-group saved-component-group" data-component="component-group" data-generated-item-id="sep-measure">
-        <div class="saved-group-child measurement-piece measurement-piece-single-magnifier" data-component="single-magnifier">
-          <div data-role="measurement-tool"><div data-role="measure-lens"></div></div>
-        </div>
         <div class="saved-group-child measurement-piece measurement-piece-single-magnifier" data-component="single-magnifier">
           <div data-role="measurement-tool"><div data-role="measure-lens"></div></div>
         </div>
@@ -1478,6 +2674,63 @@ async function runEntangledMathSmoke(page) {
     const separatedRuntime = initializeGeneratedSeparatedPairMeasurementItem(
       canvas.querySelector('[data-generated-item-id="sep-measure"]'),
     );
+    canvas.style.width = "520px";
+    canvas.style.height = "340px";
+    const separatedItem = canvas.querySelector(
+      '[data-generated-item-id="sep-measure"]',
+    );
+    Object.assign(separatedItem.style, {
+      position: "relative",
+      width: "420px",
+      height: "260px",
+    });
+    Object.assign(separatedRuntime.magnifiers[0].child.style, {
+      position: "absolute",
+      left: "120px",
+      top: "96px",
+      width: "160px",
+      height: "130px",
+    });
+    Object.assign(separatedRuntime.magnifiers[0].measurementTool.style, {
+      display: "block",
+      width: "160px",
+      height: "130px",
+    });
+    const separatedEjectTopQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "sep-eject-top",
+      left: 20,
+      top: 30,
+      width: 52,
+      height: 52,
+    });
+    const separatedEjectBottomQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "sep-eject-bottom",
+      left: 20,
+      top: 210,
+      width: 52,
+      height: 52,
+    });
+    canvas.append(separatedEjectTopQubit, separatedEjectBottomQubit);
+    const separatedEjectionBase =
+      generatedSeparatedPairMeasurementEjectionPoint(
+        canvas,
+        separatedRuntime.magnifiers[0],
+        separatedEjectTopQubit,
+      );
+    const separatedEjectionTop =
+      generatedSeparatedPairMeasurementEjectionPoint(
+        canvas,
+        separatedRuntime.magnifiers[0],
+        separatedEjectTopQubit,
+        0,
+      );
+    const separatedEjectionBottom =
+      generatedSeparatedPairMeasurementEjectionPoint(
+        canvas,
+        separatedRuntime.magnifiers[0],
+        separatedEjectBottomQubit,
+        1,
+      );
     replayGeneratedRecordedExperimentFast(
       canvas,
       {
@@ -1513,6 +2766,11 @@ async function runEntangledMathSmoke(page) {
       100,
     );
     const separatedCounts = { ...separatedRuntime.tubeCounts };
+    const separatedEjectionLanes = {
+      base: separatedEjectionBase,
+      top: separatedEjectionTop,
+      bottom: separatedEjectionBottom,
+    };
     canvas.remove();
     const gateReplayCanvas = document.createElement("div");
     gateReplayCanvas.className = "generated-layout-canvas";
@@ -1592,7 +2850,194 @@ async function runEntangledMathSmoke(page) {
       blue: liveMeasurementRuntime.blueTubeCount,
       red: liveMeasurementRuntime.redTubeCount,
     };
+    liveMeasurementRuntime.blueTubeCount = 0;
+    liveMeasurementRuntime.redTubeCount = 0;
+    setGeneratedGateRuntimeTick(liveGateRuntime, 6);
+    replayGeneratedRecordedExperimentFast(
+      gateReplayCanvas,
+      {
+        gateSettings: [{ itemId: "live-gate", tickIndex: 0 }],
+        initialQubits: [{ itemId: "live-q", vector: [1, 0] }],
+        actions: [
+          {
+            type: "gate",
+            qubitId: "live-q",
+            gateId: "live-gate",
+            tickIndex: 0,
+          },
+          {
+            type: "gate-setting",
+            gateId: "live-gate",
+            tickIndex: 6,
+          },
+          {
+            type: "gate",
+            qubitId: "live-q",
+            gateId: "live-gate",
+            tickIndex: 6,
+          },
+          {
+            type: "single-measure",
+            qubitId: "live-q",
+            measurementId: "live-measure",
+          },
+        ],
+      },
+      100,
+    );
+    const recordedInitialGateResetCounts = {
+      blue: liveMeasurementRuntime.blueTubeCount,
+      red: liveMeasurementRuntime.redTubeCount,
+    };
     gateReplayCanvas.remove();
+    const docRuntimeGateTransitCanvas = document.createElement("div");
+    docRuntimeGateTransitCanvas.className =
+      "generated-layout-canvas playground-canvas doc-runtime-canvas";
+    docRuntimeGateTransitCanvas.dataset.docRuntimeCanvas = "true";
+    docRuntimeGateTransitCanvas.dataset.generatedTabId =
+      "doc-runtime-gate-layer-smoke";
+    docRuntimeGateTransitCanvas.style.width = "720px";
+    docRuntimeGateTransitCanvas.style.height = "280px";
+    const docTransitQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "doc-transit-q",
+      left: 40,
+      top: 100,
+      width: 52,
+      height: 52,
+      z: 1,
+    });
+    const docTransitGate = createGeneratedLayoutItemNode("single-gate", {
+      id: "doc-transit-gate",
+      left: 170,
+      top: 62,
+      width: 320,
+      height: 150,
+      z: 50,
+      singleGateTick: 6,
+    });
+    docRuntimeGateTransitCanvas.append(docTransitQubit, docTransitGate);
+    document.body.appendChild(docRuntimeGateTransitCanvas);
+    prepareGeneratedLayoutCanvas(docRuntimeGateTransitCanvas);
+    layoutGeneratedSingleGateDials(docRuntimeGateTransitCanvas);
+    const docTransitGateRuntime =
+      initializeGeneratedSingleGateItem(docTransitGate);
+    const docTransitPromise = runGeneratedSingleGateTransit(
+      docRuntimeGateTransitCanvas,
+      docTransitQubit,
+      docTransitGateRuntime,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const docRuntimeGateTransitLayerDuring = {
+      active: docTransitQubit.classList.contains("generated-transit-active"),
+      zIndex: Number.parseInt(getComputedStyle(docTransitQubit).zIndex, 10),
+      gateZIndex: Number.parseInt(getComputedStyle(docTransitGate).zIndex, 10),
+    };
+    const docRuntimeGateTransitCompleted = await docTransitPromise;
+    const docRuntimeGateTransitLayerAfter = {
+      active: docTransitQubit.classList.contains("generated-transit-active"),
+      zIndex: Number.parseInt(getComputedStyle(docTransitQubit).zIndex, 10),
+    };
+    docRuntimeGateTransitCanvas.remove();
+    const docRecordingControlCanvas = document.createElement("div");
+    docRecordingControlCanvas.className =
+      "generated-layout-canvas playground-canvas doc-editor-canvas";
+    docRecordingControlCanvas.dataset.docEditorCanvas = "true";
+    docRecordingControlCanvas.dataset.generatedTabId =
+      "doc-recording-control-smoke";
+    docRecordingControlCanvas.style.width = "760px";
+    docRecordingControlCanvas.style.height = "360px";
+    const docControlQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "doc-control-q",
+      left: 72,
+      top: 150,
+      width: 52,
+      height: 52,
+    });
+    const docControlMeasurement = createGeneratedLayoutItemNode(
+      "single-measurement",
+      {
+        id: "doc-control-measure",
+        left: 280,
+        top: 80,
+        width: 320,
+        height: 220,
+      },
+    );
+    docRecordingControlCanvas.append(docControlQubit, docControlMeasurement);
+    document.body.appendChild(docRecordingControlCanvas);
+    prepareGeneratedLayoutCanvas(docRecordingControlCanvas);
+    beginGeneratedExperimentRecording(docRecordingControlCanvas);
+    const docControlMeasurementRuntime =
+      initializeGeneratedSingleMeasurementItem(docControlMeasurement);
+    const docControlLens = generatedLensCircle(docControlMeasurementRuntime);
+    const docControlLensCenter = generatedViewportPointToCanvasPoint(
+      docRecordingControlCanvas,
+      docControlLens.x,
+      docControlLens.y,
+    );
+    setGeneratedQubitCenter(
+      docRecordingControlCanvas,
+      docControlQubit,
+      docControlLensCenter.x,
+      docControlLensCenter.y,
+    );
+    await runGeneratedSingleMeasurementTransit(
+      docRecordingControlCanvas,
+      docControlQubit,
+      docControlMeasurementRuntime,
+    );
+    const docRecordingFirstMeasurementCounts = {
+      blue: docControlMeasurementRuntime.blueTubeCount,
+      red: docControlMeasurementRuntime.redTubeCount,
+      blueText:
+        docControlMeasurement.querySelector('[data-role="tube-blue-count"]')
+          ?.textContent || "",
+      redText:
+        docControlMeasurement.querySelector('[data-role="tube-red-count"]')
+          ?.textContent || "",
+      recording:
+        generatedExperimentStateForCanvas(docRecordingControlCanvas)?.recording,
+    };
+    const waitForDocControlRecordingIdle = async () => {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const state = generatedExperimentStateForCanvas(
+          docRecordingControlCanvas,
+        );
+        if (state?.recording && !state.playing) {
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      throw new Error("Doc recording control replay did not finish");
+    };
+    docControlMeasurementRuntime.measurementCount.value = "5";
+    docControlMeasurementRuntime.measurementCount.dispatchEvent(
+      new Event("change", { bubbles: true }),
+    );
+    await waitForDocControlRecordingIdle();
+    docControlMeasurementRuntime.measurementTool.click();
+    await waitForDocControlRecordingIdle();
+    finishGeneratedExperimentRecording(docRecordingControlCanvas);
+    const docRecordingControlState = generatedExperimentStateForCanvas(
+      docRecordingControlCanvas,
+    );
+    const docRecordingControlResult = {
+      recording: docRecordingControlState.recording,
+      actionTypes: docRecordingControlState.experiment.actions.map(
+        (action) => action.type,
+      ),
+      iterations: docRecordingControlState.experiment.actions
+        .filter(
+          (action) =>
+            action.type === "experiment-count" ||
+            action.type === "experiment-repeat",
+        )
+        .map((action) => action.iterations),
+      blue: docControlMeasurementRuntime.blueTubeCount,
+      red: docControlMeasurementRuntime.redTubeCount,
+      selectedCount: docControlMeasurementRuntime.measurementCount.value,
+    };
+    docRecordingControlCanvas.remove();
     const generatedReplaySpeeds = {
       one: generatedAnimatedReplaySpeedForIterationCount(1),
       five: generatedAnimatedReplaySpeedForIterationCount(5),
@@ -1629,11 +3074,21 @@ async function runEntangledMathSmoke(page) {
       afterTopGate,
       displayAfterTopGate,
       generatedVisualAfterTopGate,
-      idOrderedCollapse,
+      argumentOrderedCollapse,
+      visualOrderCycleCompleted,
+      visualOrderCounts,
+      visualOrderFastCounts,
       bottomAfterTopBlueMeasurement,
       separatedCounts,
+      separatedEjectionLanes,
       liveInitialGateReplayCounts,
       recordedFutureGateReplayCounts,
+      recordedInitialGateResetCounts,
+      docRuntimeGateTransitLayerDuring,
+      docRuntimeGateTransitCompleted,
+      docRuntimeGateTransitLayerAfter,
+      docRecordingFirstMeasurementCounts,
+      docRecordingControlResult,
       generatedReplaySpeeds,
       replayGateTickRules,
     };
@@ -1653,19 +3108,52 @@ async function runEntangledMathSmoke(page) {
     !nearly(result.displayAfterTopGate.bottom[1], 1) ||
     !nearly(result.generatedVisualAfterTopGate.top[0], 1) ||
     !nearly(result.generatedVisualAfterTopGate.bottom[1], 1) ||
-    result.idOrderedCollapse.outcomeKey !== "rb" ||
-    result.idOrderedCollapse.topColor !== "blue" ||
-    result.idOrderedCollapse.bottomColor !== "red" ||
+    result.argumentOrderedCollapse.outcomeKey !== "br" ||
+    result.argumentOrderedCollapse.topColor !== "blue" ||
+    result.argumentOrderedCollapse.bottomColor !== "red" ||
+    result.visualOrderCycleCompleted !== true ||
+    result.visualOrderCounts.br !== 1 ||
+    result.visualOrderCounts.rb !== 0 ||
+    result.visualOrderFastCounts.br !== 100 ||
+    result.visualOrderFastCounts.rb !== 0 ||
     !nearly(result.bottomAfterTopBlueMeasurement[0], 0) ||
     !nearly(result.bottomAfterTopBlueMeasurement[1], 1) ||
-    result.separatedCounts.rb !== 100 ||
+    result.separatedCounts.br !== 100 ||
     result.separatedCounts.bb !== 0 ||
     result.separatedCounts.rr !== 0 ||
-    result.separatedCounts.br !== 0 ||
-    result.liveInitialGateReplayCounts.blue !== 100 ||
-    result.liveInitialGateReplayCounts.red !== 0 ||
+    result.separatedCounts.rb !== 0 ||
+    !(result.separatedEjectionLanes.top.y < result.separatedEjectionLanes.base.y) ||
+    !(
+      result.separatedEjectionLanes.base.y <
+      result.separatedEjectionLanes.bottom.y
+    ) ||
+    Math.abs(
+      result.separatedEjectionLanes.top.x -
+        result.separatedEjectionLanes.bottom.x,
+    ) > 1 ||
+    result.liveInitialGateReplayCounts.blue !== 0 ||
+    result.liveInitialGateReplayCounts.red !== 100 ||
     result.recordedFutureGateReplayCounts.blue !== 0 ||
     result.recordedFutureGateReplayCounts.red !== 100 ||
+    result.recordedInitialGateResetCounts.blue !== 0 ||
+    result.recordedInitialGateResetCounts.red !== 100 ||
+    result.docRuntimeGateTransitLayerDuring.active !== true ||
+    result.docRuntimeGateTransitLayerDuring.zIndex < 10000 ||
+    result.docRuntimeGateTransitLayerDuring.gateZIndex !== 50 ||
+    result.docRuntimeGateTransitCompleted !== true ||
+    result.docRuntimeGateTransitLayerAfter.active !== false ||
+    result.docRecordingFirstMeasurementCounts.blue !== 1 ||
+    result.docRecordingFirstMeasurementCounts.red !== 0 ||
+    result.docRecordingFirstMeasurementCounts.blueText !== "1" ||
+    result.docRecordingFirstMeasurementCounts.redText !== "0" ||
+    result.docRecordingFirstMeasurementCounts.recording !== true ||
+    result.docRecordingControlResult.recording !== false ||
+    result.docRecordingControlResult.actionTypes.join(",") !==
+      "single-measure,experiment-count,experiment-repeat" ||
+    result.docRecordingControlResult.iterations.join(",") !== "5,5" ||
+    result.docRecordingControlResult.blue !== 10 ||
+    result.docRecordingControlResult.red !== 0 ||
+    result.docRecordingControlResult.selectedCount !== "5" ||
     result.generatedReplaySpeeds.one !== 1 ||
     result.generatedReplaySpeeds.five !== 5 ||
     result.generatedReplaySpeeds.ten !== 10 ||
@@ -1697,6 +3185,9 @@ async function runSmokeTest(baseUrl) {
     await runEditorDoubleMeasurementSmoke(page);
     await runSequentialMeasurementEditorSmoke(page);
     await runEditorDocumentWorkflowSmoke(page);
+    await runDocEditorMeasurementRecordingSmoke(page);
+    await runDocEditorTwoQubitPlaybackSmoke(page);
+    await runDocEditorTextPersistenceSmoke(page);
 
   await page.evaluate(() => {
     localStorage.setItem(

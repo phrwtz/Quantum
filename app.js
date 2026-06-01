@@ -35,10 +35,53 @@ const editorNewTabButton = document.getElementById("editorNewTabButton");
 const editorRenameTabButton = document.getElementById("editorRenameTabButton");
 const editorDeleteTabButton = document.getElementById("editorDeleteTabButton");
 const editorDocumentStatus = document.getElementById("editorDocumentStatus");
-const layoutEditToggle = document.getElementById("layoutEditToggle");
-const layoutSaveButton = document.getElementById("layoutSaveButton");
-const layoutResetButton = document.getElementById("layoutResetButton");
 const tabStrip = document.querySelector(".tab-strip");
+const docEditorTabSelect = document.getElementById("docEditorTabSelect");
+const docEditorStatus = document.getElementById("docEditorStatus");
+const docEditorDeleteButton = document.getElementById("docEditorDeleteButton");
+const docEditorSceneBackButton = document.getElementById(
+  "docEditorSceneBackButton",
+);
+const docEditorSceneNextButton = document.getElementById(
+  "docEditorSceneNextButton",
+);
+const docEditorNewSceneButton = document.getElementById(
+  "docEditorNewSceneButton",
+);
+const docEditorDeleteSceneButton = document.getElementById(
+  "docEditorDeleteSceneButton",
+);
+const docEditorDoneButton = document.getElementById("docEditorDoneButton");
+const docEditorSceneLabel = document.getElementById("docEditorSceneLabel");
+const docEditorCanvasWidth = document.getElementById("docEditorCanvasWidth");
+const docEditorCanvasHeight = document.getElementById("docEditorCanvasHeight");
+const docEditorComponentSelect = document.getElementById(
+  "docEditorComponentSelect",
+);
+const docEditorDuplicateButton = document.getElementById(
+  "docEditorDuplicateButton",
+);
+const docEditorDeleteComponentButton = document.getElementById(
+  "docEditorDeleteComponentButton",
+);
+const docEditorStartRecordingButton = document.getElementById(
+  "docEditorStartRecordingButton",
+);
+const docEditorStopRecordingButton = document.getElementById(
+  "docEditorStopRecordingButton",
+);
+const docEditorPlayRecordingButton = document.getElementById(
+  "docEditorPlayRecordingButton",
+);
+const docEditorRecordingStatus = document.getElementById(
+  "docEditorRecordingStatus",
+);
+const docEditorCanvas = document.getElementById("docEditorCanvas");
+const docRuntimeOverlay = document.getElementById("docRuntimeOverlay");
+const docRuntimeTitle = document.getElementById("docRuntimeTitle");
+const docRuntimeSceneLabel = document.getElementById("docRuntimeSceneLabel");
+const docRuntimeCloseButton = document.getElementById("docRuntimeCloseButton");
+const docRuntimeCanvas = document.getElementById("docRuntimeCanvas");
 
 const STEP_DEG = 30;
 const SNAP_OVERLAP_THRESHOLD = 0.9;
@@ -87,7 +130,8 @@ const DEFAULT_GATE_BUTTON_INDEX = Math.floor(
   ONE_QUBIT_BUTTON_BLUE_PROBABILITIES.length / 2,
 );
 const DEFAULT_SINGLE_GATE_TICK_INDEX = 3;
-const LAYOUT_STORAGE_KEY = "quantum_layout_editor_v1";
+const GENERATED_EXPERIMENT_REPEAT_ACTION = "experiment-repeat";
+const GENERATED_EXPERIMENT_COUNT_ACTION = "experiment-count";
 const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
 const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
   "quantum_playground_component_defaults_v1";
@@ -96,6 +140,7 @@ const LEGACY_GENERATED_TABS_PROPERTY = ["cus", "tomTabs"].join("");
 const QUBIT_ID_STORAGE_KEY = "quantum_qubit_next_id_v1";
 const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
+const DOCUMENTS_STORAGE_KEY = "quantum_whats_this_documents_v1";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -327,6 +372,9 @@ let playgroundComponentDefaultsCache = null;
 let generatedTabsState = {
   tabs: [],
 };
+let documentsState = {
+  documents: [],
+};
 let legacyGroupComponentIdRedirects = new Map();
 let draggedGeneratedTabId = "";
 let generatedTabPointerDrag = null;
@@ -342,84 +390,33 @@ let generatedRuntimeDrag = null;
 let generatedItemIdCounter = 0;
 let playgroundGroupComponentsCache = null;
 let generatedExperimentPlaybackSpeed = 1;
-
-const LAYOUT_EDIT_TARGET_SPECS = [
-  {
-    selector: ".qubit",
-    resizable: true,
-    uniform: true,
-    minWidth: 28,
-    minHeight: 28,
-  },
-  {
-    selector: ".window-wrap.single-qubit-gate",
-    resizable: true,
-    minWidth: 180,
-    minHeight: 80,
-  },
-  {
-    selector: ".cnot-gate",
-    resizable: true,
-    minWidth: 180,
-    minHeight: 120,
-  },
-  {
-    selector: ".cnot-input-funnel",
-    resizable: true,
-    minWidth: 24,
-    minHeight: 40,
-  },
-  {
-    selector: ".cnot-porthole",
-    resizable: true,
-    uniform: true,
-    minWidth: 30,
-    minHeight: 30,
-  },
-  {
-    selector: ".cnot-output-flange",
-    resizable: true,
-    minWidth: 10,
-    minHeight: 28,
-  },
-  { selector: ".magnifier", resizable: true, minWidth: 120, minHeight: 90 },
-  {
-    selector: ".pair-magnifier",
-    resizable: true,
-    minWidth: 180,
-    minHeight: 90,
-  },
-  {
-    selector: ".tube, .pair-tube",
-    resizable: true,
-    minWidth: 16,
-    minHeight: 50,
-  },
-  {
-    selector: ".tube-rack, .pair-tube-rack",
-    resizable: true,
-    minWidth: 140,
-    minHeight: 80,
-  },
-  {
-    selector: ".measurement-stage, .pair-measurement",
-    resizable: true,
-    minWidth: 220,
-    minHeight: 120,
-  },
-  {
-    selector:
-      ".tube-capacity, .pair-capacity, .tube-count, .pair-tube-label, .measurement-count",
-    resizable: false,
-  },
-];
+const DOCUMENT_CANVAS_MIN_WIDTH = 520;
+const DOCUMENT_CANVAS_MIN_HEIGHT = 420;
+const DOCUMENT_CANVAS_MAX_WIDTH = 2600;
+const DOCUMENT_CANVAS_MAX_HEIGHT = 2200;
+const DOCUMENT_DEFAULT_CANVAS_WIDTH = 900;
+const DOCUMENT_DEFAULT_CANVAS_HEIGHT = 560;
+let documentEditorState = {
+  tabId: "",
+  document: null,
+  sceneIndex: 0,
+  rendering: false,
+  suppressResizeObserver: false,
+  statusTimer: null,
+  resizeObserver: null,
+};
+let documentRuntimeState = {
+  tabId: "",
+  document: null,
+  sceneIndex: 0,
+  returnTabId: "",
+  playing: false,
+  canvas: null,
+};
 
 const layoutEditorState = {
   enabled: false,
-  activeGesture: null,
-  registeredTargets: new WeakSet(),
 };
-let selectedLayoutTarget = null;
 let selectedGeneratedLayoutItem = null;
 let selectedGeneratedLayoutPart = null;
 
@@ -950,15 +947,16 @@ const LEGACY_SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABELS = new Set([
   "separate two qubit measurement",
   "seperate two qubit measurement",
 ]);
+const SEQUENTIAL_TWO_QUBIT_MEASUREMENT_PHRASES = new Set([
+  "separate",
+  "separate two qubit measurement",
+  "seperate two qubit measurement",
+]);
 const HIDDEN_COMPONENT_PICKER_GROUP_IDS = new Set([
   "separate",
   "separate-two-qubit-measurement",
   "seperate-two-qubit-measurement",
   "sequential-two-qubit-measurement",
-]);
-const GENERATED_TAB_LABEL_RENAMES_BY_ID = new Map([
-  ["entanglement-2", "Entanglement 1"],
-  ["entanglement-3", "Entanglement 2"],
 ]);
 
 function storageLabelKey(value) {
@@ -975,14 +973,265 @@ function storageIdentifierKey(value) {
     .toLowerCase();
 }
 
+function storagePhraseKey(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-z0-9]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 function isLegacySequentialTwoQubitMeasurementGroup(group) {
-  return LEGACY_SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABELS.has(
-    storageLabelKey(group?.label),
+  return (
+    LEGACY_SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABELS.has(
+      storageLabelKey(group?.label),
+    ) ||
+    SEQUENTIAL_TWO_QUBIT_MEASUREMENT_PHRASES.has(storagePhraseKey(group?.label))
+  );
+}
+
+function isSequentialTwoQubitMeasurementGroupDefinition(group) {
+  return (
+    storageLabelKey(group?.label) ===
+      storageLabelKey(SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) ||
+    storagePhraseKey(group?.label) ===
+      storagePhraseKey(SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) ||
+    isLegacySequentialTwoQubitMeasurementGroup(group) ||
+    HIDDEN_COMPONENT_PICKER_GROUP_IDS.has(storageIdentifierKey(group?.id))
   );
 }
 
 function isHiddenComponentPickerGroup(group) {
   return HIDDEN_COMPONENT_PICKER_GROUP_IDS.has(storageIdentifierKey(group?.id));
+}
+
+function isSeparatedPairMeasurementGroupDefinition(group) {
+  if (!group || typeof group !== "object" || !Array.isArray(group.items)) {
+    return false;
+  }
+  return (
+    group.items.some((item) => item?.type === "double-tube-array") &&
+    group.items.some((item) => item?.type === "single-magnifier")
+  );
+}
+
+function roundedLayoutNumber(value) {
+  return Number.parseFloat(Number(value).toFixed(2));
+}
+
+function layoutGeometryBounds(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+  const bounds = items.reduce(
+    (acc, item) => {
+      if (!item || typeof item !== "object") {
+        return acc;
+      }
+      const config = componentConfigForType(item.type, item) || {
+        width: 120,
+        height: 100,
+      };
+      const left = parseLayoutNumeric(item.left, 0);
+      const top = parseLayoutNumeric(item.top, 0);
+      const width = finitePositiveNumber(item.width, config.width);
+      const height = finitePositiveNumber(item.height, config.height);
+      return {
+        left: Math.min(acc.left, left),
+        top: Math.min(acc.top, top),
+        right: Math.max(acc.right, left + width),
+        bottom: Math.max(acc.bottom, top + height),
+      };
+    },
+    {
+      left: Number.POSITIVE_INFINITY,
+      top: Number.POSITIVE_INFINITY,
+      right: Number.NEGATIVE_INFINITY,
+      bottom: Number.NEGATIVE_INFINITY,
+    },
+  );
+  return [bounds.left, bounds.top, bounds.right, bounds.bottom].every(
+    Number.isFinite,
+  )
+    ? bounds
+    : null;
+}
+
+function normalizeSeparatedPairMeasurementGroupGeometry(group, options = {}) {
+  if (!group || typeof group !== "object" || !Array.isArray(group.items)) {
+    return { group, changed: false };
+  }
+  const items = group.items;
+  const doubleTubes = items.find((item) => item?.type === "double-tube-array");
+  const magnifiers = items
+    .map((item, index) =>
+      item?.type === "single-magnifier" ? { item, index } : null,
+    )
+    .filter(Boolean);
+  if (!doubleTubes || magnifiers.length === 0) {
+    return { group, changed: false };
+  }
+
+  const shouldCenterSingle =
+    Boolean(options.centerSingleMagnifier) || magnifiers.length > 1;
+  const sourceMagnifier = magnifiers[0].item;
+  const magnifierConfig =
+    componentConfigForType("single-magnifier", sourceMagnifier) || {
+      width: 160,
+      height: 130,
+    };
+  const tubeConfig = componentConfigForType("double-tube-array", doubleTubes) || {
+    width: 360,
+    height: 245,
+  };
+  const tubeLeft = parseLayoutNumeric(doubleTubes.left, 0);
+  const tubeTop = parseLayoutNumeric(doubleTubes.top, 0);
+  const tubeWidth = finitePositiveNumber(doubleTubes.width, tubeConfig.width);
+  const tubeHeight = finitePositiveNumber(doubleTubes.height, tubeConfig.height);
+  const magnifierWidth = finitePositiveNumber(
+    sourceMagnifier.width,
+    magnifierConfig.width,
+  );
+  const magnifierHeight = finitePositiveNumber(
+    sourceMagnifier.height,
+    magnifierConfig.height,
+  );
+  const centeredLeft = Math.max(
+    0,
+    roundedLayoutNumber(tubeLeft + tubeWidth / 2 - magnifierWidth / 2),
+  );
+  const centeredTop = roundedLayoutNumber(
+    tubeTop + tubeHeight + Math.max(18, Math.round(tubeHeight * 0.08)),
+  );
+  const normalizedMagnifier = {
+    ...sourceMagnifier,
+    width: magnifierWidth,
+    height: magnifierHeight,
+    measurementRole:
+      sourceMagnifier.measurementRole ||
+      measurementPieceRoleForType("single-magnifier"),
+  };
+  if (shouldCenterSingle) {
+    normalizedMagnifier.left = centeredLeft;
+    normalizedMagnifier.top = centeredTop;
+  }
+
+  const firstMagnifierIndex = magnifiers[0].index;
+  const skippedMagnifierIndexes = new Set(
+    magnifiers.slice(1).map((entry) => entry.index),
+  );
+  const nextItems = items
+    .map((item, index) =>
+      index === firstMagnifierIndex ? normalizedMagnifier : item,
+    )
+    .filter((_item, index) => !skippedMagnifierIndexes.has(index));
+
+  const magnifierMoved =
+    shouldCenterSingle &&
+    (Math.abs(parseLayoutNumeric(sourceMagnifier.left, 0) - centeredLeft) >
+      0.5 ||
+      Math.abs(parseLayoutNumeric(sourceMagnifier.top, 0) - centeredTop) > 0.5);
+  let changed =
+    magnifiers.length > 1 ||
+    magnifierMoved ||
+    finitePositiveNumber(sourceMagnifier.width, magnifierWidth) !==
+      magnifierWidth ||
+    finitePositiveNumber(sourceMagnifier.height, magnifierHeight) !==
+      magnifierHeight ||
+    !sourceMagnifier.measurementRole;
+
+  let nextGroup = changed ? { ...group, items: nextItems } : group;
+  const bounds = layoutGeometryBounds(nextItems);
+  if (bounds) {
+    const neededWidth = Math.max(1, Math.ceil(bounds.right));
+    const neededHeight = Math.max(1, Math.ceil(bounds.bottom));
+    const currentWidth = finitePositiveNumber(nextGroup.width, neededWidth);
+    const currentHeight = finitePositiveNumber(nextGroup.height, neededHeight);
+    if (neededWidth > currentWidth || neededHeight > currentHeight) {
+      nextGroup = {
+        ...nextGroup,
+        width: Math.max(currentWidth, neededWidth),
+        height: Math.max(currentHeight, neededHeight),
+      };
+      changed = true;
+    }
+  }
+
+  return { group: nextGroup, changed };
+}
+
+function normalizeSeparatedPairMeasurementLayoutItem(item) {
+  if (
+    !item ||
+    typeof item !== "object" ||
+    item.type !== PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE ||
+    !Array.isArray(item.items)
+  ) {
+    return { item, changed: false };
+  }
+  const groupDefinition = playgroundGroupComponentById(item.groupComponentId);
+  const normalized = normalizeSeparatedPairMeasurementGroupGeometry(
+    {
+      ...(groupDefinition || {}),
+      id: item.groupComponentId || groupDefinition?.id,
+      label: groupDefinition?.label,
+      width: finitePositiveNumber(
+        item.itemsWidth,
+        finitePositiveNumber(item.width, groupDefinition?.width || 320),
+      ),
+      height: finitePositiveNumber(
+        item.itemsHeight,
+        finitePositiveNumber(item.height, groupDefinition?.height || 240),
+      ),
+      items: item.items,
+    },
+    { centerSingleMagnifier: false },
+  );
+  if (!normalized.changed) {
+    return { item, changed: false };
+  }
+  const nextItem = {
+    ...item,
+    items: normalized.group.items,
+    itemsWidth: normalized.group.width,
+    itemsHeight: normalized.group.height,
+    width: Math.max(
+      finitePositiveNumber(item.width, normalized.group.width),
+      normalized.group.width,
+    ),
+    height: Math.max(
+      finitePositiveNumber(item.height, normalized.group.height),
+      normalized.group.height,
+    ),
+  };
+  return { item: nextItem, changed: true };
+}
+
+function normalizeSeparatedPairMeasurementLayoutItems(items) {
+  if (!Array.isArray(items)) {
+    return { items: [], changed: false };
+  }
+  let changed = false;
+  const normalizedItems = items.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    let nextItem = item;
+    if (Array.isArray(nextItem.items)) {
+      const nested = normalizeSeparatedPairMeasurementLayoutItems(nextItem.items);
+      if (nested.changed) {
+        nextItem = { ...nextItem, items: nested.items };
+        changed = true;
+      }
+    }
+    const normalized = normalizeSeparatedPairMeasurementLayoutItem(nextItem);
+    if (normalized.changed) {
+      changed = true;
+      return normalized.item;
+    }
+    return nextItem;
+  });
+  return { items: normalizedItems, changed };
 }
 
 function remapGroupComponentReferencesInItems(items, redirectMap) {
@@ -1047,10 +1296,21 @@ function normalizePlaygroundGroupComponentsPayload(payload) {
       changed = true;
       return acc;
     }
-    const nextGroup = { ...group };
+    let nextGroup = { ...group };
     if (isLegacy && nextGroup.label !== SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) {
       nextGroup.label = SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL;
       changed = true;
+    }
+    if (
+      isSequentialTwoQubitMeasurementGroupDefinition(nextGroup) ||
+      isSeparatedPairMeasurementGroupDefinition(nextGroup)
+    ) {
+      const normalized = normalizeSeparatedPairMeasurementGroupGeometry(
+        nextGroup,
+        { centerSingleMagnifier: true },
+      );
+      nextGroup = normalized.group;
+      changed = normalized.changed || changed;
     }
     acc.push(nextGroup);
     return acc;
@@ -1201,6 +1461,7 @@ function populateComponentPicker(select) {
 
 function refreshAllComponentPickers() {
   populateComponentPicker(playgroundComponentSelect);
+  populateComponentPicker(docEditorComponentSelect);
   document
     .querySelectorAll('[data-generated-editor-role="component-select"]')
     .forEach((select) => populateComponentPicker(select));
@@ -1237,7 +1498,8 @@ function normalizeSavedGroupLayoutItems(items) {
     }
   });
   if (looseGroups.size === 0) {
-    return items;
+    const separated = normalizeSeparatedPairMeasurementLayoutItems(items);
+    return separated.changed ? separated.items : items;
   }
   const consumed = new Set();
   const wrappersByFirstIndex = new Map();
@@ -1283,7 +1545,7 @@ function normalizeSavedGroupLayoutItems(items) {
       groupComponentId: entry.groupComponentId,
     });
   });
-  return items.reduce((acc, item, index) => {
+  const groupedItems = items.reduce((acc, item, index) => {
     if (wrappersByFirstIndex.has(index)) {
       acc.push(wrappersByFirstIndex.get(index));
     }
@@ -1292,6 +1554,7 @@ function normalizeSavedGroupLayoutItems(items) {
     }
     return acc;
   }, []);
+  return normalizeSeparatedPairMeasurementLayoutItems(groupedItems).items;
 }
 
 function validPoint(point) {
@@ -1314,28 +1577,6 @@ function generatedTabSlug(label) {
   return slug || "tab";
 }
 
-function isLegacyTestGeneratedTab(entry) {
-  const label = storageLabelKey(entry?.label);
-  const id = storageLabelKey(entry?.id);
-  return label === "test" || id === "test" || id === "editor-test";
-}
-
-function normalizedGeneratedTabLabel(entry) {
-  const id = storageIdentifierKey(entry?.id);
-  const renamedLabel = GENERATED_TAB_LABEL_RENAMES_BY_ID.get(id);
-  if (renamedLabel) {
-    return renamedLabel;
-  }
-  const label = storageLabelKey(entry?.label);
-  if (label === "entanglement 2" && id.endsWith("-entanglement-2")) {
-    return "Entanglement 1";
-  }
-  if (label === "entanglement 3" && id.endsWith("-entanglement-3")) {
-    return "Entanglement 2";
-  }
-  return entry?.label;
-}
-
 function normalizeGeneratedTabLayout(layout) {
   if (!layout || typeof layout !== "object") {
     return { layout, changed: false };
@@ -1344,13 +1585,14 @@ function normalizeGeneratedTabLayout(layout) {
     layout.items,
     legacyGroupComponentIdRedirects,
   );
-  if (!remapped.changed) {
+  const separated = normalizeSeparatedPairMeasurementLayoutItems(remapped.items);
+  if (!remapped.changed && !separated.changed) {
     return { layout, changed: false };
   }
   return {
     layout: {
       ...layout,
-      items: remapped.items,
+      items: separated.items,
     },
     changed: true,
   };
@@ -1366,24 +1608,11 @@ function normalizeGeneratedTabsState(state) {
     if (!entry || typeof entry !== "object") {
       return acc;
     }
-    if (isLegacyTestGeneratedTab(entry)) {
-      changed = true;
-      return acc;
-    }
     const normalizedLayout = normalizeGeneratedTabLayout(entry.layout);
     changed = normalizedLayout.changed || changed;
     let normalizedEntry = normalizedLayout.changed
       ? { ...entry, layout: normalizedLayout.layout }
       : entry;
-    const nextLabel = normalizedGeneratedTabLabel(normalizedEntry);
-    if (
-      typeof nextLabel === "string" &&
-      typeof normalizedEntry.label === "string" &&
-      nextLabel !== normalizedEntry.label
-    ) {
-      normalizedEntry = { ...normalizedEntry, label: nextLabel };
-      changed = true;
-    }
     if (Object.prototype.hasOwnProperty.call(normalizedEntry, "experiment")) {
       const cleanEntry = { ...normalizedEntry };
       delete cleanEntry.experiment;
@@ -1428,6 +1657,157 @@ function writeGeneratedTabsState(state) {
   } catch (_error) {
     return false;
   }
+}
+
+function createDocumentScene(overrides = {}) {
+  const id =
+    typeof overrides.id === "string" && overrides.id
+      ? overrides.id
+      : `scene-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`;
+  return {
+    id,
+    title:
+      typeof overrides.title === "string" && overrides.title
+        ? overrides.title
+        : "Scene",
+    items: Array.isArray(overrides.items)
+      ? normalizeSavedGroupLayoutItems(overrides.items)
+      : [],
+    canvasWidth: clamp(
+      parseLayoutNumeric(overrides.canvasWidth, 900),
+      520,
+      2600,
+    ),
+    canvasHeight: clamp(
+      parseLayoutNumeric(overrides.canvasHeight, 560),
+      420,
+      2200,
+    ),
+    experiment: cloneGeneratedExperiment(overrides.experiment),
+    savedAt: Number.isFinite(overrides.savedAt)
+      ? overrides.savedAt
+      : Date.now(),
+  };
+}
+
+function normalizeDocument(documentEntry) {
+  if (!documentEntry || typeof documentEntry !== "object") {
+    return null;
+  }
+  const tabId = storageIdentifierKey(documentEntry.tabId);
+  if (!tabId) {
+    return null;
+  }
+  const scenes = Array.isArray(documentEntry.scenes)
+    ? documentEntry.scenes.map(createDocumentScene).filter(Boolean)
+    : [];
+  return {
+    version: 1,
+    tabId,
+    title:
+      typeof documentEntry.title === "string" && documentEntry.title
+        ? documentEntry.title
+        : "What's this?",
+    scenes: scenes.length > 0 ? scenes : [createDocumentScene()],
+    updatedAt: Number.isFinite(documentEntry.updatedAt)
+      ? documentEntry.updatedAt
+      : Date.now(),
+  };
+}
+
+function normalizeDocumentsState(state) {
+  const rawDocuments = Array.isArray(state?.documents)
+    ? state.documents
+    : Array.isArray(state)
+      ? state
+      : [];
+  const byTab = new Map();
+  rawDocuments.forEach((entry) => {
+    const normalized = normalizeDocument(entry);
+    if (normalized) {
+      byTab.set(normalized.tabId, normalized);
+    }
+  });
+  return { documents: Array.from(byTab.values()) };
+}
+
+function readDocumentsState() {
+  try {
+    const serialized = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
+    if (!serialized) {
+      return { documents: [] };
+    }
+    return normalizeDocumentsState(JSON.parse(serialized));
+  } catch (_error) {
+    return { documents: [] };
+  }
+}
+
+function writeDocumentsState(state) {
+  try {
+    const normalized = normalizeDocumentsState(state);
+    window.localStorage.setItem(
+      DOCUMENTS_STORAGE_KEY,
+      JSON.stringify(normalized),
+    );
+    documentsState = normalized;
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function documentForTabId(tabId) {
+  const normalizedTabId = storageIdentifierKey(tabId);
+  if (!normalizedTabId) {
+    return null;
+  }
+  return (
+    (documentsState.documents || []).find(
+      (entry) => entry?.tabId === normalizedTabId,
+    ) || null
+  );
+}
+
+function upsertDocument(documentEntry) {
+  const normalized = normalizeDocument(documentEntry);
+  if (!normalized) {
+    return false;
+  }
+  const nextDocuments = (documentsState.documents || []).filter(
+    (entry) => entry.tabId !== normalized.tabId,
+  );
+  return writeDocumentsState({
+    documents: [...nextDocuments, { ...normalized, updatedAt: Date.now() }],
+  });
+}
+
+function deleteDocumentForTabId(tabId) {
+  const normalizedTabId = storageIdentifierKey(tabId);
+  if (!normalizedTabId) {
+    return false;
+  }
+  return writeDocumentsState({
+    documents: (documentsState.documents || []).filter(
+      (entry) => entry.tabId !== normalizedTabId,
+    ),
+  });
+}
+
+function sceneHasRecordedExperiment(scene) {
+  return Boolean(
+    scene?.experiment &&
+      Array.isArray(scene.experiment.actions) &&
+      scene.experiment.actions.length > 0,
+  );
+}
+
+function sceneHasExperimentCandidate(scene) {
+  return (Array.isArray(scene?.items) ? scene.items : []).some(
+    (item) => item?.type && item.type !== "text-box",
+  );
 }
 
 function savedPlaygroundMeasurementParts(measurementLayout) {
@@ -1769,14 +2149,6 @@ function persistVisiblePlaygroundComponentDefaultsFromDom() {
   return savedAny;
 }
 
-function hasManualLayoutEdits(element) {
-  return (
-    element instanceof HTMLElement &&
-    (element.dataset.layoutManual === "true" ||
-      Boolean(element.querySelector('[data-layout-manual="true"]')))
-  );
-}
-
 function persistGeneratedComponentDefaultsFromElement(item) {
   if (!isGeneratedLayoutItem(item)) {
     return false;
@@ -1811,32 +2183,6 @@ function persistGeneratedComponentDefaultsFromElement(item) {
     item,
     geometryExtras,
   );
-}
-
-function persistVisibleGeneratedComponentDefaultsFromDom() {
-  let savedAny = false;
-  document
-    .querySelectorAll('[data-generated-layout-panel="true"]')
-    .forEach((panel) => {
-      if (!(panel instanceof HTMLElement) || panel.hidden) {
-        return;
-      }
-      const canvas = panel.querySelector(".generated-layout-canvas");
-      if (!isGeneratedLayoutCanvas(canvas)) {
-        return;
-      }
-      prepareGeneratedLayoutCanvas(canvas);
-      canvas
-        .querySelectorAll(":scope > .playground-node")
-        .forEach((item) => {
-          if (!(item instanceof HTMLElement) || !hasManualLayoutEdits(item)) {
-            return;
-          }
-          savedAny =
-            persistGeneratedComponentDefaultsFromElement(item) || savedAny;
-        });
-    });
-  return savedAny;
 }
 
 function normalizeCnotGateElement(root) {
@@ -2221,6 +2567,7 @@ function sanitizePlaygroundComponentNode(root, options = {}) {
     "collapse-animating",
     "measurement-pellet",
     "qubit-selected",
+    "generated-transit-active",
   ];
   const all = [root, ...root.querySelectorAll("*")];
   all.forEach((node) => {
@@ -2262,7 +2609,16 @@ function createPlaygroundFallback(label) {
   return box;
 }
 
-const TEXT_BOX_BUTTON_MODES = new Set([
+const TEXT_BOX_BUTTON_ACTIONS = [
+  { action: "back", label: "Back" },
+  { action: "next", label: "Next" },
+  { action: "show", label: "Show me" },
+  { action: "done", label: "Done" },
+];
+const TEXT_BOX_BUTTON_ACTION_SET = new Set(
+  TEXT_BOX_BUTTON_ACTIONS.map((spec) => spec.action),
+);
+const LEGACY_TEXT_BOX_BUTTON_MODES = new Set([
   "none",
   "next",
   "done",
@@ -2274,24 +2630,79 @@ function normalizeTextBoxButtonMode(value) {
   if (mode === "ok") {
     return "done";
   }
-  return TEXT_BOX_BUTTON_MODES.has(mode) ? mode : "none";
+  return LEGACY_TEXT_BOX_BUTTON_MODES.has(mode) ? mode : "none";
 }
 
-function textBoxButtonSpecs(mode) {
+function textBoxButtonsFromLegacyMode(mode) {
   const normalizedMode = normalizeTextBoxButtonMode(mode);
   if (normalizedMode === "next") {
-    return [{ action: "next", label: "Next" }];
+    return ["next"];
   }
   if (normalizedMode === "done") {
-    return [{ action: "done", label: "Done" }];
+    return ["done"];
   }
   if (normalizedMode === "next-done") {
-    return [
-      { action: "next", label: "Next" },
-      { action: "done", label: "Done" },
-    ];
+    return ["next", "done"];
   }
   return [];
+}
+
+function legacyTextBoxModeFromButtons(buttons) {
+  const normalizedButtons = normalizeTextBoxButtons(buttons);
+  const key = normalizedButtons.join(",");
+  if (!key) {
+    return "none";
+  }
+  if (key === "next") {
+    return "next";
+  }
+  if (key === "done") {
+    return "done";
+  }
+  if (key === "next,done") {
+    return "next-done";
+  }
+  return "custom";
+}
+
+function normalizeTextBoxButtons(value, fallbackMode = "none") {
+  let rawButtons = [];
+  if (Array.isArray(value)) {
+    rawButtons = value;
+  } else if (typeof value === "string" && value.trim()) {
+    const trimmed = value.trim();
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        rawButtons = parsed;
+      }
+    } catch (_error) {
+      rawButtons = trimmed.includes(",")
+        ? trimmed.split(",")
+        : textBoxButtonsFromLegacyMode(trimmed);
+    }
+    if (rawButtons.length === 0 && TEXT_BOX_BUTTON_ACTION_SET.has(trimmed)) {
+      rawButtons = [trimmed];
+    }
+  }
+  if (rawButtons.length === 0 && fallbackMode) {
+    rawButtons = textBoxButtonsFromLegacyMode(fallbackMode);
+  }
+  const selected = new Set();
+  rawButtons.forEach((button) => {
+    const action = String(button || "").trim().toLowerCase();
+    if (TEXT_BOX_BUTTON_ACTION_SET.has(action)) {
+      selected.add(action);
+    }
+  });
+  return TEXT_BOX_BUTTON_ACTIONS.map((spec) => spec.action).filter((action) =>
+    selected.has(action),
+  );
+}
+
+function textBoxButtonSpecs(buttonsOrMode) {
+  const buttons = normalizeTextBoxButtons(buttonsOrMode, buttonsOrMode);
+  return TEXT_BOX_BUTTON_ACTIONS.filter((spec) => buttons.includes(spec.action));
 }
 
 function ensureTextBoxActions(root) {
@@ -2319,22 +2730,72 @@ function handleTextBoxActionClick(event) {
   }
   const canvas = button.closest(".generated-layout-canvas");
   if (canvas instanceof HTMLElement) {
+    if (
+      canvas.dataset.docRuntimeCanvas === "true" ||
+      canvas.dataset.docEditorCanvas === "true"
+    ) {
+      handleDocumentTextBoxAction(canvas, button.dataset.textBoxAction || "");
+      return;
+    }
     handleGeneratedTextBoxAction(canvas, button.dataset.textBoxAction || "");
   }
 }
 
-function applyTextBoxButtonMode(root, mode) {
+function syncTextBoxButtonControls(root, buttons) {
   if (!(root instanceof HTMLElement)) {
     return;
   }
-  const normalizedMode = normalizeTextBoxButtonMode(mode);
-  root.dataset.textBoxButton = normalizedMode;
+  const selected = new Set(normalizeTextBoxButtons(buttons));
+  root
+    .querySelectorAll('[data-role="text-box-button-toggle"]')
+    .forEach((input) => {
+      if (input instanceof HTMLInputElement) {
+        input.checked = selected.has(input.value);
+      }
+    });
   const select = root.querySelector('[data-role="text-box-button-mode"]');
   if (select instanceof HTMLSelectElement) {
-    select.value = normalizedMode;
+    select.value = legacyTextBoxModeFromButtons(buttons);
   }
+}
+
+function selectedTextBoxButtonsFromControls(root, source = null) {
+  if (!(root instanceof HTMLElement)) {
+    return [];
+  }
+  const select = root.querySelector('[data-role="text-box-button-mode"]');
+  if (
+    source instanceof HTMLSelectElement &&
+    source.dataset.role === "text-box-button-mode"
+  ) {
+    return textBoxButtonsFromLegacyMode(source.value);
+  }
+  const allToggles = Array.from(
+    root.querySelectorAll('[data-role="text-box-button-toggle"]'),
+  ).filter((input) => input instanceof HTMLInputElement);
+  if (allToggles.length > 0) {
+    return normalizeTextBoxButtons(
+      allToggles
+        .filter((input) => input.checked)
+        .map((input) => input.value),
+    );
+  }
+  if (select instanceof HTMLSelectElement) {
+    return textBoxButtonsFromLegacyMode(select.value);
+  }
+  return [];
+}
+
+function applyTextBoxButtons(root, buttons) {
+  if (!(root instanceof HTMLElement)) {
+    return;
+  }
+  const normalizedButtons = normalizeTextBoxButtons(buttons);
+  root.dataset.textBoxButtons = normalizedButtons.join(",");
+  root.dataset.textBoxButton = legacyTextBoxModeFromButtons(normalizedButtons);
+  syncTextBoxButtonControls(root, normalizedButtons);
   const actions = ensureTextBoxActions(root);
-  const specs = textBoxButtonSpecs(normalizedMode);
+  const specs = textBoxButtonSpecs(normalizedButtons);
   actions.hidden = specs.length === 0;
   actions.replaceChildren(
     ...specs.map((spec) => {
@@ -2351,6 +2812,10 @@ function applyTextBoxButtonMode(root, mode) {
   );
 }
 
+function applyTextBoxButtonMode(root, mode) {
+  applyTextBoxButtons(root, textBoxButtonsFromLegacyMode(mode));
+}
+
 function textBoxRootForItem(item) {
   if (!(item instanceof HTMLElement)) {
     return null;
@@ -2362,19 +2827,29 @@ function textBoxRootForItem(item) {
   return root instanceof HTMLElement ? root : null;
 }
 
+function textBoxPlainTextFromBody(body) {
+  if (!(body instanceof HTMLElement)) {
+    return "";
+  }
+  const renderedText =
+    typeof body.innerText === "string" ? body.innerText : body.textContent || "";
+  return renderedText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 function captureTextBoxSnapshot(item) {
   const root = textBoxRootForItem(item);
   if (!root) {
     return null;
   }
   const body = root.querySelector('[data-role="text-box-body"]');
-  const select = root.querySelector('[data-role="text-box-button-mode"]');
+  const buttons = normalizeTextBoxButtons(
+    root.dataset.textBoxButtons,
+    root.dataset.textBoxButton,
+  );
   return {
-    text: body instanceof HTMLElement ? body.textContent || "" : "",
-    buttonMode: normalizeTextBoxButtonMode(
-      root.dataset.textBoxButton ||
-        (select instanceof HTMLSelectElement ? select.value : "none"),
-    ),
+    text: textBoxPlainTextFromBody(body),
+    buttons,
+    buttonMode: legacyTextBoxModeFromButtons(buttons),
   };
 }
 
@@ -2387,15 +2862,17 @@ function applyTextBoxSnapshotToElement(item, geometry = {}) {
   if (body instanceof HTMLElement && typeof geometry?.text === "string") {
     body.textContent = geometry.text;
   }
-  applyTextBoxButtonMode(root, geometry?.buttonMode);
+  applyTextBoxButtons(root, geometry?.buttons || geometry?.buttonMode);
 }
 
 function markTextBoxEdited(root) {
   if (!(root instanceof HTMLElement)) {
     return;
   }
-  if (root.closest(".generated-layout-canvas")) {
-    setLayoutSaveButtonSavedState(false);
+  const canvas = root.closest(".generated-layout-canvas");
+  if (isDocumentEditorCanvas(canvas)) {
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
   }
 }
 
@@ -2415,24 +2892,37 @@ function createTextBoxElement(geometry = {}) {
   controls.className = "text-box-editor-controls";
   controls.dataset.role = "text-box-controls";
 
-  const label = document.createElement("label");
-  label.textContent = "Button";
+  const controlsLabel = document.createElement("span");
+  controlsLabel.className = "text-box-editor-controls-label";
+  controlsLabel.textContent = "Buttons";
+  controls.appendChild(controlsLabel);
 
-  const select = document.createElement("select");
-  select.dataset.role = "text-box-button-mode";
+  TEXT_BOX_BUTTON_ACTIONS.forEach((spec) => {
+    const label = document.createElement("label");
+    label.className = "text-box-button-toggle";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = spec.action;
+    input.dataset.role = "text-box-button-toggle";
+    label.append(input, document.createTextNode(spec.label));
+    controls.appendChild(label);
+  });
+  const legacySelect = document.createElement("select");
+  legacySelect.dataset.role = "text-box-button-mode";
+  legacySelect.hidden = true;
   [
     ["none", "No button"],
     ["next", "Next"],
     ["done", "Done"],
     ["next-done", "Next and Done"],
+    ["custom", "Custom"],
   ].forEach(([value, text]) => {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text;
-    select.appendChild(option);
+    legacySelect.appendChild(option);
   });
-  label.appendChild(select);
-  controls.appendChild(label);
+  controls.appendChild(legacySelect);
 
   const body = document.createElement("div");
   body.className = "text-box-body";
@@ -2446,15 +2936,18 @@ function createTextBoxElement(geometry = {}) {
   actions.className = "text-box-actions";
   actions.dataset.role = "text-box-actions";
 
-  select.addEventListener("change", () => {
-    applyTextBoxButtonMode(root, select.value);
+  controls.addEventListener("change", (event) => {
+    applyTextBoxButtons(
+      root,
+      selectedTextBoxButtonsFromControls(root, event.target),
+    );
     markTextBoxEdited(root);
   });
   body.addEventListener("input", () => markTextBoxEdited(root));
-  [select, body, actions].forEach(stopTextBoxControlPropagation);
+  [controls, actions].forEach(stopTextBoxControlPropagation);
 
   root.append(controls, body, actions);
-  applyTextBoxButtonMode(root, geometry?.buttonMode);
+  applyTextBoxButtons(root, geometry?.buttons || geometry?.buttonMode);
   return root;
 }
 
@@ -2648,7 +3141,7 @@ function isSeparatedPairMeasurementGroupElement(item) {
   ).length;
   const requiredTubeKeys = ["bb", "br", "rb", "rr"];
   return (
-    magnifierCount >= 2 &&
+    magnifierCount >= 1 &&
     requiredTubeKeys.every((key) =>
       item.querySelector(`.pair-tube-column[data-key="${key}"]`),
     )
@@ -3017,6 +3510,18 @@ function isGeneratedLayoutCanvas(element) {
   );
 }
 
+function isDocumentEditorCanvas(element) {
+  return (
+    element instanceof HTMLElement && element.dataset.docEditorCanvas === "true"
+  );
+}
+
+function isDocumentRuntimeCanvas(element) {
+  return (
+    element instanceof HTMLElement && element.dataset.docRuntimeCanvas === "true"
+  );
+}
+
 function isGeneratedLayoutItem(element) {
   return (
     element instanceof HTMLElement &&
@@ -3099,6 +3604,75 @@ function ensureGeneratedItemId(item, preferredType = "item") {
   return item.dataset.generatedItemId;
 }
 
+function stripGeneratedRuntimeIdsFromLayoutGeometry(geometry) {
+  if (!geometry || typeof geometry !== "object") {
+    return geometry;
+  }
+  delete geometry.id;
+  delete geometry.measurementGroupId;
+  if (geometry.type === "qubit") {
+    delete geometry.qubitId;
+  }
+  if (Array.isArray(geometry.items)) {
+    geometry.items.forEach((item) =>
+      stripGeneratedRuntimeIdsFromLayoutGeometry(item),
+    );
+  }
+  if (Array.isArray(geometry.layout?.items)) {
+    geometry.layout.items.forEach((item) =>
+      stripGeneratedRuntimeIdsFromLayoutGeometry(item),
+    );
+  }
+  return geometry;
+}
+
+function ensureUniqueGeneratedLayoutItemIds(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return false;
+  }
+  const seen = new Set();
+  let changed = false;
+  canvas
+    .querySelectorAll(":scope > .playground-node")
+    .forEach((item) => {
+      if (!(item instanceof HTMLElement)) {
+        return;
+      }
+      const itemId = ensureGeneratedItemId(item);
+      if (!seen.has(itemId)) {
+        seen.add(itemId);
+        return;
+      }
+      const nextId = createGeneratedItemId(item.dataset.component || "item");
+      item.dataset.generatedItemId = nextId;
+      seen.add(nextId);
+      changed = true;
+    });
+  return changed;
+}
+
+function ensureUniqueGeneratedLayoutQubitIds(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return false;
+  }
+  const seen = new Set();
+  let changed = false;
+  generatedItemsOfType(canvas, "qubit").forEach((item) => {
+    const qubitId = ensureQubitLogicalId(item);
+    if (!qubitId || !seen.has(qubitId)) {
+      if (qubitId) {
+        seen.add(qubitId);
+      }
+      return;
+    }
+    const nextId = reserveNextQubitId();
+    item.dataset.qubitId = String(nextId);
+    seen.add(nextId);
+    changed = true;
+  });
+  return changed;
+}
+
 function generatedItemById(canvas, itemId) {
   if (!isGeneratedLayoutCanvas(canvas) || !itemId) {
     return null;
@@ -3109,6 +3683,22 @@ function generatedItemById(canvas, itemId) {
       : String(itemId).replace(/"/g, '\\"');
   const item = canvas.querySelector(`[data-generated-item-id="${escapedId}"]`);
   return item instanceof HTMLElement ? item : null;
+}
+
+function generatedQubitItemForRecordedAction(canvas, itemId, logicalQubitId) {
+  const item = generatedItemById(canvas, itemId);
+  if (isGeneratedQubitItem(item)) {
+    return item;
+  }
+  const normalizedLogicalId = normalizeQubitId(logicalQubitId);
+  if (!normalizedLogicalId) {
+    return null;
+  }
+  return (
+    generatedItemsOfType(canvas, "qubit").find(
+      (candidate) => qubitLogicalIdForItem(candidate) === normalizedLogicalId,
+    ) || null
+  );
 }
 
 function generatedItemsByIds(canvas, itemIds) {
@@ -3141,6 +3731,9 @@ function generatedExperimentStateForCanvas(canvas) {
       startedAt: 0,
       initialQubits: [],
       gateSettings: [],
+      suppressActionRecording: false,
+      controlActionQueue: [],
+      controlActionReplayRunning: false,
     };
     generatedExperimentStates.set(canvas, state);
   }
@@ -3177,6 +3770,9 @@ function clearGeneratedExperimentStateForCanvas(canvas) {
   state.startedAt = 0;
   state.initialQubits = [];
   state.gateSettings = [];
+  state.suppressActionRecording = false;
+  state.controlActionQueue = [];
+  state.controlActionReplayRunning = false;
   canvas.classList.remove("generated-recording-active");
   updateGeneratedExperimentToolbar(canvas);
 }
@@ -3211,6 +3807,9 @@ function resetGeneratedTabForCanvas(canvas) {
   if (!entry || !(panel instanceof HTMLElement)) {
     return false;
   }
+  if (documentRuntimeState.canvas === canvas) {
+    resetDocumentRuntimeState();
+  }
   clearGeneratedTransientStateForCanvas(canvas);
   renderGeneratedLayoutPanel(panel, entry);
   pruneGeneratedRuntimeState();
@@ -3218,7 +3817,15 @@ function resetGeneratedTabForCanvas(canvas) {
 }
 
 function generatedCanvasAllowsRuntime(canvas) {
-  return !layoutEditorState.enabled || isGeneratedExperimentRecording(canvas);
+  return (
+    !layoutEditorState.enabled ||
+    isGeneratedExperimentRecording(canvas) ||
+    isDocumentRuntimeCanvas(canvas)
+  );
+}
+
+function generatedCanvasAllowsGateDialInteraction(canvas) {
+  return generatedCanvasAllowsRuntime(canvas) || isDocumentEditorCanvas(canvas);
 }
 
 function generatedItemCenterSnapshot(canvas, item) {
@@ -3284,13 +3891,42 @@ function updateGeneratedExperimentToolbar(canvas) {
 
 function recordGeneratedExperimentAction(canvas, action) {
   const state = generatedExperimentStateForCanvas(canvas);
-  if (!state?.recording || !action?.type) {
+  if (
+    !state?.recording ||
+    !action?.type ||
+    (state.suppressActionRecording &&
+      !isGeneratedExperimentControlAction(action))
+  ) {
     return;
   }
   state.actions.push({
     ...action,
     t: Math.round(performance.now() - state.startedAt),
   });
+}
+
+function currentGeneratedRecordingExperiment(canvas) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state) {
+    return null;
+  }
+  return {
+    version: 1,
+    recordedAt: Date.now(),
+    initialQubits: state.initialQubits,
+    gateSettings: state.gateSettings.map((entry) => ({ ...entry })),
+    actions: cloneRecordedActions(state.actions),
+  };
+}
+
+function syncDraftGeneratedExperimentFromRecording(canvas) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state?.recording) {
+    return null;
+  }
+  state.experiment = currentGeneratedRecordingExperiment(canvas);
+  updateGeneratedExperimentToolbar(canvas);
+  return state.experiment;
 }
 
 function recordGeneratedGateSettingAction(canvas, gateItem, tickIndex) {
@@ -3341,6 +3977,7 @@ function commitGeneratedDragRecord(gesture) {
   recordGeneratedExperimentAction(gesture.canvas, {
     type: "drag",
     qubitId: ensureGeneratedItemId(gesture.item, "qubit"),
+    qubitLogicalId: qubitLogicalIdForItem(gesture.item),
     path: gesture.recordingPath.map((point) => ({ ...point })),
   });
   gesture.recordingPath = null;
@@ -3363,6 +4000,9 @@ function beginGeneratedExperimentRecording(canvas) {
   state.initialQubits = captureGeneratedInitialQubits(canvas);
   state.gateSettings = captureGeneratedGateSettings(canvas);
   state.experiment = null;
+  state.suppressActionRecording = false;
+  state.controlActionQueue = [];
+  state.controlActionReplayRunning = false;
   canvas.classList.add("generated-recording-active");
   updateGeneratedExperimentToolbar(canvas);
   return true;
@@ -3403,19 +4043,20 @@ function finishGeneratedExperimentRecording(canvas) {
   }
   state.recording = false;
   canvas.classList.remove("generated-recording-active");
-  state.experiment = {
-    version: 1,
-    recordedAt: Date.now(),
-    initialQubits: state.initialQubits,
-    gateSettings: state.gateSettings.map((entry) => ({ ...entry })),
-    actions: cloneRecordedActions(state.actions),
-  };
+  state.experiment = currentGeneratedRecordingExperiment(canvas);
   updateGeneratedExperimentToolbar(canvas);
 }
 
 function finishGeneratedExperimentRecordingAfterMeasurement(canvas) {
   if (isGeneratedExperimentRecording(canvas)) {
+    if (isDocumentEditorCanvas(canvas)) {
+      syncDraftGeneratedExperimentFromRecording(canvas);
+      refreshGeneratedMeasurementFillsForCanvas(canvas);
+      updateDocEditorButtons();
+      return;
+    }
     finishGeneratedExperimentRecording(canvas);
+    handleDocumentExperimentAutoFinished(canvas);
   }
 }
 
@@ -3470,6 +4111,7 @@ function clearSelectedGeneratedLayoutItem() {
   clearSelectedGeneratedLayoutPart();
   selectedGeneratedLayoutItem = null;
   updateGeneratedEditorButtons();
+  updateDocEditorButtons();
 }
 
 function setSelectedGeneratedLayoutItem(item, part = null) {
@@ -3500,6 +4142,7 @@ function setSelectedGeneratedLayoutItem(item, part = null) {
     selectedGeneratedLayoutPart.classList.add("layout-edit-selected");
   }
   updateGeneratedEditorButtons(generatedCanvasForItem(item));
+  updateDocEditorButtons();
 }
 
 function getGeneratedQubitCore(item) {
@@ -3855,6 +4498,8 @@ function prepareGeneratedLayoutCanvas(canvas) {
       initializeGeneratedLayoutItemRuntime(item);
     }
   });
+  ensureUniqueGeneratedLayoutItemIds(canvas);
+  ensureUniqueGeneratedLayoutQubitIds(canvas);
 }
 
 function alignGeneratedGateSpring(runtime) {
@@ -3921,7 +4566,9 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
     initialTick: activeTick,
     tickAriaLabelPrefix: "Tick",
     orbitInset: 10,
-    canInteract: () => !layoutEditorState.enabled && !runtime.busy,
+    canInteract: () =>
+      generatedCanvasAllowsGateDialInteraction(generatedCanvasForItem(item)) &&
+      !runtime.busy,
     onTickChange: (tick, meta = {}) => {
       runtime.activeTick = normalizeTickIndex(tick);
       const canvas = generatedCanvasForItem(item);
@@ -3929,6 +4576,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
         clearGeneratedMeasurementsForCanvas(canvas);
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
+        handleGeneratedGateSettingChanged(canvas);
       }
     },
     onTickCommitted: ({ changed }) => {
@@ -3937,20 +4585,27 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
         clearGeneratedMeasurementsForCanvas(canvas);
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
+        handleGeneratedGateSettingChanged(canvas);
       }
     },
   });
   runtime.activeTick = runtime.dial?.getTick() ?? runtime.activeTick;
   runtime.dial?.layout();
   alignGeneratedGateSpring(runtime);
-  gateArrow.addEventListener("mousedown", (event) =>
-    runtime.dial?.beginDrag(event),
-  );
+  const gateArrowLayer = gateArrow.closest(".arrow-layer");
+  const beginDialDrag = (event) => runtime.dial?.beginDrag(event);
+  gateArrow.addEventListener("mousedown", beginDialDrag);
   gateArrow.addEventListener(
     "touchstart",
-    (event) => runtime.dial?.beginDrag(event),
+    beginDialDrag,
     { passive: false },
   );
+  if (gateArrowLayer instanceof Element && gateArrowLayer !== gateArrow) {
+    gateArrowLayer.addEventListener("mousedown", beginDialDrag);
+    gateArrowLayer.addEventListener("touchstart", beginDialDrag, {
+      passive: false,
+    });
+  }
   gateArrow.addEventListener("keydown", (event) =>
     runtime.dial?.handleKeydown(event),
   );
@@ -4024,14 +4679,27 @@ function initializeGeneratedSingleMeasurementItem(item) {
       if (!canvas) {
         return;
       }
+      const iterations = Math.max(
+        1,
+        Number(runtime.measurementCount.value) || 1,
+      );
+      if (
+        recordGeneratedExperimentControlAction(
+          canvas,
+          generatedControlActionForMeasurement(
+            GENERATED_EXPERIMENT_COUNT_ACTION,
+            item,
+            iterations,
+          ),
+        )
+      ) {
+        return;
+      }
       runtime.tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
       runtime.blueTubeCount = 0;
       runtime.redTubeCount = 0;
       updateGeneratedMeasurementTubeFills(runtime);
-      runGeneratedRecordedExperiment(
-        canvas,
-        Math.max(1, Number(runtime.measurementCount.value) || 1),
-      ).catch(() => {});
+      runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
     });
   }
   measurementTool.addEventListener("click", (event) => {
@@ -4047,10 +4715,23 @@ function initializeGeneratedSingleMeasurementItem(item) {
       return;
     }
     event.stopPropagation();
-    runGeneratedRecordedExperiment(
-      canvas,
-      Math.max(1, Number(runtime.measurementCount?.value) || 1),
-    ).catch(() => {});
+    const iterations = Math.max(
+      1,
+      Number(runtime.measurementCount?.value) || 1,
+    );
+    if (
+      recordGeneratedExperimentControlAction(
+        canvas,
+        generatedControlActionForMeasurement(
+          GENERATED_EXPERIMENT_REPEAT_ACTION,
+          item,
+          iterations,
+        ),
+      )
+    ) {
+      return;
+    }
+    runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
   });
   generatedSingleMeasurementRuntimes.set(item, runtime);
   return runtime;
@@ -4132,10 +4813,7 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
     return existing;
   }
 
-  const magnifiers = generatedSeparatedPairMeasurementMagnifiers(item).slice(
-    0,
-    2,
-  );
+  const magnifiers = generatedSeparatedPairMeasurementMagnifiers(item);
   const capacity = item.querySelector('[data-role="pair-capacity"]');
   const measurementCount = item.querySelector(
     '.saved-group-child[data-component="measurement-count-menu"] [data-role="measurement-count"], [data-role="pair-measurement-count"]',
@@ -4143,7 +4821,7 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
   const columns = Array.from(
     item.querySelectorAll(".pair-tube-column[data-key]"),
   );
-  if (magnifiers.length < 2) {
+  if (magnifiers.length < 1) {
     return null;
   }
 
@@ -4201,7 +4879,9 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
   };
   updateGeneratedDoubleMeasurementTubeFills(runtime);
 
-  const runRecordedExperimentFromControl = () => {
+  const runRecordedExperimentFromControl = (
+    type = GENERATED_EXPERIMENT_REPEAT_ACTION,
+  ) => {
     if (layoutEditorState.enabled) {
       return;
     }
@@ -4217,6 +4897,14 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
       1,
       Number(runtime.measurementCount?.value) || 1,
     );
+    if (
+      recordGeneratedExperimentControlAction(
+        canvas,
+        generatedControlActionForMeasurement(type, item, iterations),
+      )
+    ) {
+      return;
+    }
     runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
   };
 
@@ -4235,8 +4923,20 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
       if (!canvas) {
         return;
       }
+      if (
+        recordGeneratedExperimentControlAction(
+          canvas,
+          generatedControlActionForMeasurement(
+            GENERATED_EXPERIMENT_COUNT_ACTION,
+            item,
+            Math.max(1, Number(runtime.measurementCount.value) || 1),
+          ),
+        )
+      ) {
+        return;
+      }
       clearGeneratedSeparatedPairMeasurementApparatus(runtime);
-      runRecordedExperimentFromControl();
+      runRecordedExperimentFromControl(GENERATED_EXPERIMENT_COUNT_ACTION);
     });
   }
   magnifiers.forEach(({ measurementTool }) => {
@@ -4288,6 +4988,223 @@ function clearGeneratedMeasurementsForCanvas(canvas) {
       );
     },
   );
+}
+
+function refreshGeneratedMeasurementFillsForCanvas(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return;
+  }
+  generatedItemsOfType(canvas, "single-measurement").forEach((item) => {
+    const runtime = initializeGeneratedSingleMeasurementItem(item);
+    if (runtime) {
+      updateGeneratedMeasurementTubeFills(runtime);
+    }
+  });
+  generatedItemsOfType(canvas, "double-measurement").forEach((item) => {
+    const runtime = initializeGeneratedDoubleMeasurementItem(item);
+    if (runtime) {
+      updateGeneratedDoubleMeasurementTubeFills(runtime);
+    }
+  });
+  generatedItemsOfType(canvas, PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE).forEach(
+    (item) => {
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(item);
+      if (runtime) {
+        updateGeneratedDoubleMeasurementTubeFills(runtime);
+      }
+    },
+  );
+}
+
+function isGeneratedExperimentControlAction(action) {
+  return (
+    action?.type === GENERATED_EXPERIMENT_REPEAT_ACTION ||
+    action?.type === GENERATED_EXPERIMENT_COUNT_ACTION
+  );
+}
+
+function generatedExperimentReplayIterations(action) {
+  return Math.max(1, Number(action?.iterations) || 1);
+}
+
+function generatedExperimentLowLevelActions(actions) {
+  return (Array.isArray(actions) ? actions : []).filter(
+    (action) => action?.type && !isGeneratedExperimentControlAction(action),
+  );
+}
+
+function generatedExperimentBaseForControlAction(experiment, actionIndex) {
+  const actions = Array.isArray(experiment?.actions)
+    ? experiment.actions
+    : [];
+  const prefix =
+    Number.isFinite(actionIndex) && actionIndex >= 0
+      ? actions.slice(0, actionIndex)
+      : actions;
+  return {
+    ...experiment,
+    actions: generatedExperimentLowLevelActions(prefix),
+  };
+}
+
+function generatedExperimentHasControlActions(experiment) {
+  return (Array.isArray(experiment?.actions) ? experiment.actions : []).some(
+    isGeneratedExperimentControlAction,
+  );
+}
+
+function setRecordedMeasurementIterationCount(canvas, action) {
+  const iterations = generatedExperimentReplayIterations(action);
+  const measurementItem = generatedItemById(canvas, action?.measurementId);
+  const select = measurementItem?.querySelector?.(
+    '[data-role="measurement-count"], [data-role="pair-measurement-count"]',
+  );
+  if (select instanceof HTMLSelectElement) {
+    const value = `${iterations}`;
+    if (Array.from(select.options).some((option) => option.value === value)) {
+      select.value = value;
+    }
+  }
+}
+
+function clearRecordedMeasurementForControlAction(canvas, action) {
+  const measurementItem = generatedItemById(canvas, action?.measurementId);
+  if (!(measurementItem instanceof HTMLElement)) {
+    clearGeneratedMeasurementsForCanvas(canvas);
+    return;
+  }
+  const type = measurementItem.dataset.component;
+  if (type === "single-measurement") {
+    clearGeneratedMeasurementApparatus(
+      initializeGeneratedSingleMeasurementItem(measurementItem),
+    );
+    return;
+  }
+  if (type === "double-measurement") {
+    clearGeneratedDoubleMeasurementApparatus(
+      initializeGeneratedDoubleMeasurementItem(measurementItem),
+    );
+    return;
+  }
+  if (isGeneratedSeparatedPairMeasurementItem(measurementItem)) {
+    clearGeneratedSeparatedPairMeasurementApparatus(
+      initializeGeneratedSeparatedPairMeasurementItem(measurementItem),
+    );
+    return;
+  }
+  clearGeneratedMeasurementsForCanvas(canvas);
+}
+
+function generatedControlActionForMeasurement(
+  type,
+  measurementItem,
+  iterations,
+) {
+  if (!(measurementItem instanceof HTMLElement)) {
+    return null;
+  }
+  return {
+    type,
+    measurementId: ensureGeneratedItemId(
+      measurementItem,
+      measurementItem.dataset.component || "measurement",
+    ),
+    iterations: generatedExperimentReplayIterations({ iterations }),
+  };
+}
+
+function recordGeneratedExperimentControlAction(canvas, action) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (
+    !state?.recording ||
+    !isDocumentEditorCanvas(canvas) ||
+    !isGeneratedExperimentControlAction(action)
+  ) {
+    return false;
+  }
+  syncDraftGeneratedExperimentFromRecording(canvas);
+  const actionIndex = state.actions.length;
+  const baseExperiment = generatedExperimentBaseForControlAction(
+    state.experiment,
+    actionIndex,
+  );
+  if (
+    !Array.isArray(baseExperiment.actions) ||
+    baseExperiment.actions.length === 0
+  ) {
+    return false;
+  }
+  recordGeneratedExperimentAction(canvas, action);
+  syncDraftGeneratedExperimentFromRecording(canvas);
+  const playbackExperiment = cloneGeneratedExperiment(state.experiment);
+  queueGeneratedExperimentControlReplay(
+    canvas,
+    playbackExperiment,
+    action,
+    actionIndex,
+  );
+  return true;
+}
+
+function queueGeneratedExperimentControlReplay(
+  canvas,
+  experiment,
+  action,
+  actionIndex,
+) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state) {
+    return false;
+  }
+  if (!Array.isArray(state.controlActionQueue)) {
+    state.controlActionQueue = [];
+  }
+  state.controlActionQueue.push({
+    experiment: cloneGeneratedExperiment(experiment),
+    action: { ...action },
+    actionIndex,
+  });
+  drainGeneratedExperimentControlReplayQueue(canvas).catch(() => {});
+  return true;
+}
+
+async function drainGeneratedExperimentControlReplayQueue(canvas) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state || state.controlActionReplayRunning) {
+    return false;
+  }
+  state.controlActionReplayRunning = true;
+  state.playing = true;
+  state.suppressActionRecording = true;
+  updateGeneratedExperimentToolbar(canvas);
+  updateDocEditorButtons();
+  try {
+    while (state.controlActionQueue.length > 0) {
+      const queued = state.controlActionQueue.shift();
+      await replayGeneratedRecordedExperimentControlAction(
+        canvas,
+        queued.experiment,
+        queued.action,
+        queued.actionIndex,
+      );
+    }
+  } finally {
+    state.suppressActionRecording = false;
+    state.playing = false;
+    state.controlActionReplayRunning = false;
+    if (state.recording) {
+      canvas.classList.add("generated-recording-active");
+      syncDraftGeneratedExperimentFromRecording(canvas);
+    } else {
+      canvas.classList.remove("generated-recording-active");
+    }
+    updateGeneratedExperimentToolbar(canvas);
+    updateDocEditorButtons();
+    if (state.controlActionQueue.length > 0) {
+      drainGeneratedExperimentControlReplayQueue(canvas).catch(() => {});
+    }
+  }
+  return true;
 }
 
 function initializeGeneratedDoubleMeasurementItem(item) {
@@ -4398,11 +5315,23 @@ function initializeGeneratedDoubleMeasurementItem(item) {
       if (!canvas) {
         return;
       }
-      clearGeneratedDoubleMeasurementApparatus(runtime);
       const iterations = Math.max(
         1,
         Number(runtime.measurementCount.value) || 1,
       );
+      if (
+        recordGeneratedExperimentControlAction(
+          canvas,
+          generatedControlActionForMeasurement(
+            GENERATED_EXPERIMENT_COUNT_ACTION,
+            item,
+            iterations,
+          ),
+        )
+      ) {
+        return;
+      }
+      clearGeneratedDoubleMeasurementApparatus(runtime);
       const state = generatedExperimentStateForCanvas(canvas);
       if (state?.experiment) {
         runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
@@ -4424,6 +5353,18 @@ function initializeGeneratedDoubleMeasurementItem(item) {
     );
     const state = generatedExperimentStateForCanvas(canvas);
     if (state?.experiment) {
+      if (
+        recordGeneratedExperimentControlAction(
+          canvas,
+          generatedControlActionForMeasurement(
+            GENERATED_EXPERIMENT_REPEAT_ACTION,
+            item,
+            iterations,
+          ),
+        )
+      ) {
+        return;
+      }
       runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
     }
   });
@@ -4646,45 +5587,6 @@ function captureGeneratedLayoutFromCanvas(canvas) {
   };
 }
 
-function persistGeneratedLayoutEditsFromDom() {
-  const nextState = cloneJson(generatedTabsState) || { tabs: [] };
-  nextState.tabs = Array.isArray(nextState.tabs)
-    ? nextState.tabs
-    : [];
-  let changed = false;
-  document
-    .querySelectorAll('[data-generated-layout-panel="true"]')
-    .forEach((panel) => {
-      if (!(panel instanceof HTMLElement)) {
-        return;
-      }
-      if (panel.hidden) {
-        return;
-      }
-      const canvas = panel.querySelector(".generated-layout-canvas");
-      const layout = captureGeneratedLayoutFromCanvas(canvas);
-      if (!layout) {
-        return;
-      }
-      const targetId = panel.id.replace(/^panel-/, "");
-      const editorEntry = nextState.tabs.find(
-        (entry) => entry.id === targetId,
-      );
-      if (editorEntry) {
-        editorEntry.layout = layout;
-        changed = true;
-      }
-    });
-  if (!changed) {
-    return true;
-  }
-  if (!writeGeneratedTabsState(nextState)) {
-    return false;
-  }
-  generatedTabsState = nextState;
-  return true;
-}
-
 function createGeneratedLayoutItemNode(type, geometry = {}) {
   const hasSavedGeometry =
     geometry &&
@@ -4726,6 +5628,10 @@ function createGeneratedLayoutItemNode(type, geometry = {}) {
   }
   if (typeof geometry.measurementGroupId === "string") {
     item.dataset.measurementGroupId = geometry.measurementGroupId;
+  } else if (type === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE) {
+    item.dataset.measurementGroupId = `${geometry.groupComponentId || "group"}-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
   }
   if (typeof geometry.groupComponentId === "string") {
     item.dataset.groupComponentId = geometry.groupComponentId;
@@ -4811,7 +5717,6 @@ function appendGeneratedLayoutItemToCanvas(canvas, item) {
   setSelectedGeneratedLayoutItem(item);
   layoutGeneratedSingleGateDials(canvas);
   syncGeneratedTextBoxSequence(canvas);
-  setLayoutSaveButtonSavedState(false);
   return item;
 }
 
@@ -4924,7 +5829,7 @@ function duplicateSelectedGeneratedLayoutItem() {
     return false;
   }
   const geometry = serializeGeneratedLayoutItem(selectedGeneratedLayoutItem);
-  stripQubitIdsFromLayoutGeometry(geometry);
+  stripGeneratedRuntimeIdsFromLayoutGeometry(geometry);
   geometry.left += PLAYGROUND_GRID_SIZE;
   geometry.top += PLAYGROUND_GRID_SIZE;
   const item = createGeneratedLayoutItemNode(geometry.type, geometry);
@@ -4937,6 +5842,10 @@ function duplicateSelectedGeneratedLayoutItem() {
   );
   item.style.left = `${Math.round(clamped.left)}px`;
   item.style.top = `${Math.round(clamped.top)}px`;
+  if (isDocumentEditorCanvas(canvas)) {
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
+  }
   return true;
 }
 
@@ -4944,6 +5853,7 @@ function removeGeneratedLayoutItem(item) {
   if (!(item instanceof HTMLElement) || !isGeneratedLayoutItem(item)) {
     return false;
   }
+  const canvas = generatedCanvasForItem(item);
   if (isGeneratedQubitItem(item)) {
     Array.from(generatedCnotRuntimes.values()).forEach((runtime) => {
       if (runtime.slotOccupants.top === item) {
@@ -4980,13 +5890,44 @@ function removeGeneratedLayoutItem(item) {
   if (selectedGeneratedLayoutItem === item) {
     selectedGeneratedLayoutItem = null;
   }
-  const canvas = generatedCanvasForItem(item);
   item.remove();
   if (canvas) {
     syncGeneratedTextBoxSequence(canvas);
   }
   updateGeneratedEditorButtons();
-  setLayoutSaveButtonSavedState(false);
+  if (isDocumentEditorCanvas(canvas)) {
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
+  }
+  return true;
+}
+
+function removeSelectedGeneratedLayoutPart() {
+  if (
+    !layoutEditorState.enabled ||
+    !(selectedGeneratedLayoutItem instanceof HTMLElement) ||
+    !(selectedGeneratedLayoutPart instanceof HTMLElement) ||
+    !selectedGeneratedLayoutItem.contains(selectedGeneratedLayoutPart) ||
+    selectedGeneratedLayoutPart.parentElement !== selectedGeneratedLayoutItem ||
+    !selectedGeneratedLayoutPart.classList.contains("saved-group-child")
+  ) {
+    return false;
+  }
+  const canvas = generatedCanvasForItem(selectedGeneratedLayoutItem);
+  const owner = selectedGeneratedLayoutItem;
+  selectedGeneratedLayoutPart.remove();
+  clearSelectedGeneratedLayoutPart();
+  generatedSeparatedPairMeasurementRuntimes.delete(owner);
+  prepareGeneratedLayoutItem(owner);
+  setSelectedGeneratedLayoutItem(owner);
+  if (canvas) {
+    syncGeneratedTextBoxSequence(canvas);
+  }
+  if (isDocumentEditorCanvas(canvas)) {
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
+  }
+  updateGeneratedEditorButtons(canvas);
   return true;
 }
 
@@ -4996,6 +5937,9 @@ function removeSelectedGeneratedLayoutItem() {
     !(selectedGeneratedLayoutItem instanceof HTMLElement)
   ) {
     return false;
+  }
+  if (removeSelectedGeneratedLayoutPart()) {
+    return true;
   }
   return removeGeneratedLayoutItem(selectedGeneratedLayoutItem);
 }
@@ -5130,6 +6074,66 @@ function createGeneratedExperimentToolbar(canvas) {
   return toolbar;
 }
 
+function createGeneratedDocumentToolbar(entry, canvas) {
+  if (!entry?.id || !documentForTabId(entry.id)) {
+    return null;
+  }
+  const toolbar = document.createElement("div");
+  toolbar.className = "playground-toolbar generated-document-toolbar";
+  const button = document.createElement("button");
+  button.className = "playground-tool-btn";
+  button.type = "button";
+  button.dataset.generatedDocumentAction = "whats-this";
+  button.textContent = "What's this?";
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openDocumentRuntime(entry.id, { canvas, inline: true });
+  });
+  toolbar.appendChild(button);
+  return toolbar;
+}
+
+function refreshGeneratedDocumentToolbarForEntry(entry) {
+  if (!entry?.id) {
+    return false;
+  }
+  const panel = document.getElementById(`panel-${entry.id}`);
+  if (!(panel instanceof HTMLElement)) {
+    return false;
+  }
+  const gatePanel = panel.querySelector(".generated-tab-panel");
+  if (!(gatePanel instanceof HTMLElement)) {
+    return false;
+  }
+  gatePanel
+    .querySelectorAll(":scope > .generated-document-toolbar")
+    .forEach((toolbar) => toolbar.remove());
+  const canvas = gatePanel.querySelector(":scope > .generated-layout-canvas");
+  const toolbar = createGeneratedDocumentToolbar(entry, canvas);
+  if (!toolbar) {
+    return false;
+  }
+  const experimentToolbar = gatePanel.querySelector(
+    ":scope > .generated-experiment-toolbar",
+  );
+  gatePanel.insertBefore(
+    toolbar,
+    experimentToolbar?.nextSibling || canvas || null,
+  );
+  return true;
+}
+
+function refreshGeneratedDocumentToolbarForTabId(tabId) {
+  const entry = (generatedTabsState.tabs || []).find(
+    (candidate) => candidate?.id === tabId,
+  );
+  return refreshGeneratedDocumentToolbarForEntry(entry);
+}
+
+function refreshGeneratedDocumentToolbars() {
+  (generatedTabsState.tabs || []).forEach(refreshGeneratedDocumentToolbarForEntry);
+}
+
 function playgroundLayoutCanvasDimensions(layout) {
   const items = normalizeSavedGroupLayoutItems(layout?.items);
   const bounds = items.reduce(
@@ -5181,6 +6185,10 @@ function renderGeneratedLayoutPanel(panel, entry) {
     canvas.appendChild(createGeneratedLayoutItemNode(type, geometry));
   });
   prepareGeneratedLayoutCanvas(canvas);
+  canvas.addEventListener("mousedown", beginGeneratedGateDialGestureFromEvent);
+  canvas.addEventListener("touchstart", beginGeneratedGateDialGestureFromEvent, {
+    passive: false,
+  });
   canvas.addEventListener("mousedown", beginGeneratedLayoutEditGesture);
   canvas.addEventListener("touchstart", beginGeneratedLayoutEditGesture, {
     passive: false,
@@ -5189,9 +6197,864 @@ function renderGeneratedLayoutPanel(panel, entry) {
   gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
   gatePanel.appendChild(canvas);
   panel.appendChild(gatePanel);
+  refreshGeneratedDocumentToolbarForEntry(entry);
   syncGeneratedTextBoxSequence(canvas, { reset: true });
   updateGeneratedEditorButtons(canvas);
   window.requestAnimationFrame(() => layoutGeneratedSingleGateDials(canvas));
+}
+
+function activeDocumentEditorScene() {
+  const documentEntry = documentEditorState.document;
+  if (!documentEntry || !Array.isArray(documentEntry.scenes)) {
+    return null;
+  }
+  return documentEntry.scenes[documentEditorState.sceneIndex] || null;
+}
+
+function activeDocumentEditorTarget() {
+  return collectPlaygroundSaveTargets().find(
+    (target) => target.id === documentEditorState.tabId,
+  );
+}
+
+function isDocumentEditorTabActive() {
+  const activeButton = document.querySelector(".tab-btn.active");
+  return activeButton?.dataset?.tabTarget === "doc-editor";
+}
+
+function setDocumentEditorMessage(text, options = {}) {
+  const target =
+    options.target === "status" ? docEditorStatus : docEditorRecordingStatus;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  target.textContent = text;
+  target.classList.toggle("doc-warning", Boolean(options.warning));
+  if (documentEditorState.statusTimer !== null) {
+    window.clearTimeout(documentEditorState.statusTimer);
+    documentEditorState.statusTimer = null;
+  }
+  if (!text || options.sticky) {
+    return;
+  }
+  documentEditorState.statusTimer = window.setTimeout(() => {
+    if (target.textContent === text) {
+      target.textContent = "";
+      target.classList.remove("doc-warning");
+    }
+    documentEditorState.statusTimer = null;
+  }, 2200);
+}
+
+function clampDocumentCanvasWidth(value) {
+  return Math.round(
+    clamp(
+      parseLayoutNumeric(value, DOCUMENT_DEFAULT_CANVAS_WIDTH),
+      DOCUMENT_CANVAS_MIN_WIDTH,
+      DOCUMENT_CANVAS_MAX_WIDTH,
+    ),
+  );
+}
+
+function clampDocumentCanvasHeight(value) {
+  return Math.round(
+    clamp(
+      parseLayoutNumeric(value, DOCUMENT_DEFAULT_CANVAS_HEIGHT),
+      DOCUMENT_CANVAS_MIN_HEIGHT,
+      DOCUMENT_CANVAS_MAX_HEIGHT,
+    ),
+  );
+}
+
+function documentEditorCanvasLogicalWidth() {
+  if (!(docEditorCanvas instanceof HTMLElement)) {
+    return DOCUMENT_DEFAULT_CANVAS_WIDTH;
+  }
+  const inlineWidth = parseLayoutNumeric(docEditorCanvas.style.width, NaN);
+  return clampDocumentCanvasWidth(
+    Number.isFinite(inlineWidth) ? inlineWidth : docEditorCanvas.offsetWidth,
+  );
+}
+
+function documentEditorCanvasLogicalHeight() {
+  if (!(docEditorCanvas instanceof HTMLElement)) {
+    return DOCUMENT_DEFAULT_CANVAS_HEIGHT;
+  }
+  const inlineHeight = parseLayoutNumeric(docEditorCanvas.style.height, NaN);
+  return clampDocumentCanvasHeight(
+    Number.isFinite(inlineHeight) ? inlineHeight : docEditorCanvas.offsetHeight,
+  );
+}
+
+function setDocumentCanvasSize(width, height, options = {}) {
+  const scene = activeDocumentEditorScene();
+  if (!scene || !(docEditorCanvas instanceof HTMLElement)) {
+    return false;
+  }
+  const nextWidth = clampDocumentCanvasWidth(width);
+  const nextHeight = clampDocumentCanvasHeight(height);
+  scene.canvasWidth = nextWidth;
+  scene.canvasHeight = nextHeight;
+  documentEditorState.suppressResizeObserver = true;
+  docEditorCanvas.style.width = `${nextWidth}px`;
+  docEditorCanvas.style.height = `${nextHeight}px`;
+  if (docEditorCanvasWidth instanceof HTMLInputElement) {
+    docEditorCanvasWidth.value = `${nextWidth}`;
+  }
+  if (docEditorCanvasHeight instanceof HTMLInputElement) {
+    docEditorCanvasHeight.value = `${nextHeight}`;
+  }
+  window.requestAnimationFrame(() => {
+    documentEditorState.suppressResizeObserver = false;
+  });
+  if (options.persist !== false) {
+    persistDocumentEditorDocument();
+  }
+  return true;
+}
+
+function syncDocumentCanvasSizeFromDom() {
+  if (
+    documentEditorState.rendering ||
+    documentEditorState.suppressResizeObserver ||
+    !(docEditorCanvas instanceof HTMLElement)
+  ) {
+    return;
+  }
+  const scene = activeDocumentEditorScene();
+  if (!scene) {
+    return;
+  }
+  const width = documentEditorCanvasLogicalWidth();
+  const height = documentEditorCanvasLogicalHeight();
+  if (width !== scene.canvasWidth || height !== scene.canvasHeight) {
+    setDocumentCanvasSize(width, height);
+  }
+}
+
+function persistDocumentEditorDocument() {
+  if (!documentEditorState.document) {
+    return false;
+  }
+  const saved = upsertDocument(documentEditorState.document);
+  if (saved) {
+    applyGeneratedTabsState(generatedTabsState);
+    refreshGeneratedDocumentToolbars();
+    plagroundComposer?.handleGeneratedTabsChanged?.();
+  }
+  return saved;
+}
+
+function saveCurrentDocumentEditorScene(options = {}) {
+  if (
+    !documentEditorState.document ||
+    !(docEditorCanvas instanceof HTMLElement) ||
+    documentEditorState.rendering
+  ) {
+    return false;
+  }
+  const scene = activeDocumentEditorScene();
+  if (!scene) {
+    return false;
+  }
+  const experimentState = generatedExperimentStateForCanvas(docEditorCanvas);
+  if (experimentState?.recording || experimentState?.playing) {
+    return false;
+  }
+  const layout = captureGeneratedLayoutFromCanvas(docEditorCanvas);
+  if (layout) {
+    scene.items = normalizeSavedGroupLayoutItems(layout.items);
+    scene.canvasWidth = documentEditorCanvasLogicalWidth();
+    scene.canvasHeight = documentEditorCanvasLogicalHeight();
+    scene.savedAt = Date.now();
+  }
+  documentEditorState.document.updatedAt = Date.now();
+  return options.persist === false ? true : persistDocumentEditorDocument();
+}
+
+function handleGeneratedGateSettingChanged(canvas) {
+  if (!isDocumentEditorCanvas(canvas)) {
+    return;
+  }
+  const experimentState = generatedExperimentStateForCanvas(canvas);
+  if (experimentState?.recording || experimentState?.playing) {
+    updateDocEditorButtons();
+    return;
+  }
+  saveCurrentDocumentEditorScene();
+  updateDocEditorButtons();
+}
+
+function currentDocumentEditorCanvasHasNonTextComponent() {
+  if (!(docEditorCanvas instanceof HTMLElement)) {
+    return false;
+  }
+  return Array.from(
+    docEditorCanvas.querySelectorAll(":scope > .playground-node"),
+  ).some((item) => item instanceof HTMLElement && item.dataset.component !== "text-box");
+}
+
+function updateDocEditorButtons() {
+  const hasDocument = Boolean(documentEditorState.document);
+  const scene = activeDocumentEditorScene();
+  const sceneCount = documentEditorState.document?.scenes?.length || 0;
+  const experimentState =
+    docEditorCanvas instanceof HTMLElement
+      ? generatedExperimentStateForCanvas(docEditorCanvas)
+      : null;
+  const recording = Boolean(experimentState?.recording);
+  const playing = Boolean(experimentState?.playing);
+  const selectedOnDocCanvas =
+    selectedGeneratedLayoutItem instanceof HTMLElement &&
+    selectedGeneratedLayoutItem.isConnected &&
+    selectedGeneratedLayoutItem.parentElement === docEditorCanvas;
+  if (docEditorDeleteButton instanceof HTMLButtonElement) {
+    docEditorDeleteButton.disabled = !hasDocument || recording || playing;
+  }
+  if (docEditorSceneBackButton instanceof HTMLButtonElement) {
+    docEditorSceneBackButton.disabled =
+      !hasDocument || recording || playing || documentEditorState.sceneIndex <= 0;
+  }
+  if (docEditorSceneNextButton instanceof HTMLButtonElement) {
+    docEditorSceneNextButton.disabled =
+      !hasDocument ||
+      recording ||
+      playing ||
+      documentEditorState.sceneIndex >= sceneCount - 1;
+  }
+  if (docEditorNewSceneButton instanceof HTMLButtonElement) {
+    docEditorNewSceneButton.disabled = !hasDocument || recording || playing;
+  }
+  if (docEditorDeleteSceneButton instanceof HTMLButtonElement) {
+    docEditorDeleteSceneButton.disabled =
+      !hasDocument || sceneCount <= 1 || recording || playing;
+  }
+  if (docEditorDoneButton instanceof HTMLButtonElement) {
+    docEditorDoneButton.disabled = !hasDocument || recording || playing;
+  }
+  if (docEditorDuplicateButton instanceof HTMLButtonElement) {
+    docEditorDuplicateButton.disabled =
+      !selectedOnDocCanvas || !layoutEditorState.enabled || recording || playing;
+  }
+  if (docEditorDeleteComponentButton instanceof HTMLButtonElement) {
+    docEditorDeleteComponentButton.disabled =
+      !selectedOnDocCanvas || !layoutEditorState.enabled || recording || playing;
+  }
+  const canRecord =
+    hasDocument &&
+    Boolean(scene) &&
+    currentDocumentEditorCanvasHasNonTextComponent();
+  if (docEditorStartRecordingButton instanceof HTMLButtonElement) {
+    docEditorStartRecordingButton.disabled = !canRecord || recording || playing;
+  }
+  if (docEditorStopRecordingButton instanceof HTMLButtonElement) {
+    docEditorStopRecordingButton.disabled = !recording;
+  }
+  if (docEditorPlayRecordingButton instanceof HTMLButtonElement) {
+    docEditorPlayRecordingButton.disabled =
+      !sceneHasRecordedExperiment(scene) || recording || playing;
+  }
+  const target = activeDocumentEditorTarget();
+  if (docEditorStatus instanceof HTMLElement) {
+    docEditorStatus.textContent = hasDocument
+      ? `Editing doc for ${target?.label || documentEditorState.tabId}`
+      : "No document selected";
+  }
+  if (docEditorSceneLabel instanceof HTMLElement) {
+    docEditorSceneLabel.textContent =
+      hasDocument && scene
+        ? `Scene ${documentEditorState.sceneIndex + 1} of ${sceneCount}`
+        : "";
+  }
+  if (docEditorCanvas instanceof HTMLElement) {
+    docEditorCanvas.classList.remove("doc-scene-recording-locked");
+    docEditorCanvas.style.resize = "both";
+  }
+  if (!recording && !playing && docEditorRecordingStatus instanceof HTMLElement) {
+    docEditorRecordingStatus.textContent = sceneHasRecordedExperiment(scene)
+      ? "Recording ready"
+      : canRecord
+        ? "No recording yet"
+        : "Add a non-text component to record";
+    docEditorRecordingStatus.classList.remove("doc-warning");
+  }
+}
+
+function renderDocumentEditorScene() {
+  if (
+    !(docEditorCanvas instanceof HTMLElement) ||
+    !documentEditorState.document
+  ) {
+    return false;
+  }
+  const scene = activeDocumentEditorScene();
+  if (!scene) {
+    return false;
+  }
+  documentEditorState.rendering = true;
+  clearSelectedGeneratedLayoutItem();
+  if (generatedRuntimeDrag?.canvas === docEditorCanvas) {
+    generatedRuntimeDrag.item?.classList.remove("dragging");
+    generatedRuntimeDrag = null;
+  }
+  docEditorCanvas.replaceChildren();
+  docEditorCanvas.dataset.generatedTabId = `doc-editor-${documentEditorState.tabId}-${scene.id}`;
+  setDocumentCanvasSize(scene.canvasWidth, scene.canvasHeight, {
+    persist: false,
+  });
+  normalizeSavedGroupLayoutItems(scene.items).forEach((geometry) => {
+    const type = typeof geometry?.type === "string" ? geometry.type : "text-box";
+    docEditorCanvas.appendChild(createGeneratedLayoutItemNode(type, geometry));
+  });
+  prepareGeneratedLayoutCanvas(docEditorCanvas);
+  const experimentState = generatedExperimentStateForCanvas(docEditorCanvas);
+  if (experimentState) {
+    experimentState.recording = false;
+    experimentState.playing = false;
+    experimentState.actions = [];
+    experimentState.experiment = cloneGeneratedExperiment(scene.experiment);
+    experimentState.status = docEditorRecordingStatus;
+  }
+  layoutGeneratedSingleGateDials(docEditorCanvas);
+  documentEditorState.rendering = false;
+  updateDocEditorButtons();
+  return true;
+}
+
+function refreshDocumentEditorTabSelect(preferredTabId = "") {
+  if (!(docEditorTabSelect instanceof HTMLSelectElement)) {
+    return;
+  }
+  const targets = collectPlaygroundSaveTargets();
+  const prior =
+    preferredTabId || docEditorTabSelect.value || documentEditorState.tabId;
+  docEditorTabSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent =
+    targets.length > 0 ? "Choose tab..." : "No saved tabs yet";
+  docEditorTabSelect.appendChild(placeholder);
+  targets.forEach((target) => {
+    const option = document.createElement("option");
+    option.value = target.id;
+    option.textContent = target.label;
+    docEditorTabSelect.appendChild(option);
+  });
+  const valid = targets.some((target) => target.id === prior);
+  docEditorTabSelect.value = valid ? prior : "";
+}
+
+function openDocumentEditorForTab(tabId) {
+  const target = collectPlaygroundSaveTargets().find(
+    (entry) => entry.id === tabId,
+  );
+  if (!target) {
+    documentEditorState.tabId = "";
+    documentEditorState.document = null;
+    documentEditorState.sceneIndex = 0;
+    docEditorCanvas?.replaceChildren();
+    updateDocEditorButtons();
+    return false;
+  }
+  saveCurrentDocumentEditorScene();
+  const existing = documentForTabId(tabId);
+  const documentEntry = normalizeDocument(
+    existing || {
+      tabId,
+      title: "What's this?",
+      scenes: [createDocumentScene()],
+    },
+  );
+  documentEditorState.tabId = tabId;
+  documentEditorState.document = cloneJson(documentEntry) || documentEntry;
+  documentEditorState.sceneIndex = 0;
+  refreshDocumentEditorTabSelect(tabId);
+  persistDocumentEditorDocument();
+  renderDocumentEditorScene();
+  return true;
+}
+
+function moveDocumentEditorScene(delta) {
+  if (!documentEditorState.document) {
+    return false;
+  }
+  saveCurrentDocumentEditorScene();
+  const scenes = documentEditorState.document.scenes || [];
+  const nextIndex = clamp(
+    documentEditorState.sceneIndex + delta,
+    0,
+    Math.max(0, scenes.length - 1),
+  );
+  if (nextIndex === documentEditorState.sceneIndex) {
+    return false;
+  }
+  documentEditorState.sceneIndex = nextIndex;
+  renderDocumentEditorScene();
+  return true;
+}
+
+function addDocumentEditorScene() {
+  if (!documentEditorState.document) {
+    return false;
+  }
+  saveCurrentDocumentEditorScene();
+  documentEditorState.document.scenes.push(createDocumentScene());
+  documentEditorState.sceneIndex = documentEditorState.document.scenes.length - 1;
+  persistDocumentEditorDocument();
+  renderDocumentEditorScene();
+  return true;
+}
+
+function deleteDocumentEditorScene() {
+  if (
+    !documentEditorState.document ||
+    documentEditorState.document.scenes.length <= 1
+  ) {
+    return false;
+  }
+  const confirmed = window.confirm("Delete this scene?");
+  if (!confirmed) {
+    return false;
+  }
+  documentEditorState.document.scenes.splice(documentEditorState.sceneIndex, 1);
+  documentEditorState.sceneIndex = clamp(
+    documentEditorState.sceneIndex,
+    0,
+    documentEditorState.document.scenes.length - 1,
+  );
+  persistDocumentEditorDocument();
+  renderDocumentEditorScene();
+  return true;
+}
+
+function deleteCurrentDocumentEditorDocument() {
+  if (!documentEditorState.tabId) {
+    return false;
+  }
+  const target = activeDocumentEditorTarget();
+  const confirmed = window.confirm(
+    `Delete the document for "${target?.label || documentEditorState.tabId}"?`,
+  );
+  if (!confirmed) {
+    return false;
+  }
+  deleteDocumentForTabId(documentEditorState.tabId);
+  documentEditorState.tabId = "";
+  documentEditorState.document = null;
+  documentEditorState.sceneIndex = 0;
+  docEditorCanvas?.replaceChildren();
+  refreshDocumentEditorTabSelect("");
+  applyGeneratedTabsState(generatedTabsState);
+  updateDocEditorButtons();
+  return true;
+}
+
+function documentEditorDone() {
+  saveCurrentDocumentEditorScene({ persist: false });
+  if (documentEditorState.document) {
+    documentEditorState.document.updatedAt = Date.now();
+    persistDocumentEditorDocument();
+  }
+  const targetId = documentEditorState.tabId || "plaground";
+  refreshGeneratedDocumentToolbarForTabId(targetId);
+  setActiveTab(targetId);
+}
+
+function finishDocumentEditorRecording() {
+  if (!(docEditorCanvas instanceof HTMLElement)) {
+    return false;
+  }
+  const scene = activeDocumentEditorScene();
+  if (!scene) {
+    return false;
+  }
+  finishGeneratedExperimentRecording(docEditorCanvas);
+  const state = generatedExperimentStateForCanvas(docEditorCanvas);
+  if (!state?.experiment) {
+    updateDocEditorButtons();
+    return false;
+  }
+  scene.experiment = cloneGeneratedExperiment(state.experiment);
+  documentEditorState.document.updatedAt = Date.now();
+  persistDocumentEditorDocument();
+  if (isDocumentEditorTabActive()) {
+    setLayoutEditEnabled(true);
+  }
+  renderDocumentEditorScene();
+  return true;
+}
+
+function handleDocumentExperimentAutoFinished(canvas) {
+  if (canvas !== docEditorCanvas || !documentEditorState.document) {
+    return;
+  }
+  finishDocumentEditorRecording();
+}
+
+async function playDocumentEditorRecording() {
+  if (!(docEditorCanvas instanceof HTMLElement)) {
+    return false;
+  }
+  const scene = activeDocumentEditorScene();
+  if (!sceneHasRecordedExperiment(scene)) {
+    return false;
+  }
+  saveCurrentDocumentEditorScene();
+  const state = generatedExperimentStateForCanvas(docEditorCanvas);
+  state.experiment = cloneGeneratedExperiment(scene.experiment);
+  setLayoutEditEnabled(false);
+  updateDocEditorButtons();
+  try {
+    await runGeneratedRecordedExperiment(docEditorCanvas, 1);
+  } finally {
+    if (isDocumentEditorTabActive()) {
+      setLayoutEditEnabled(true);
+    }
+    renderDocumentEditorScene();
+  }
+  return true;
+}
+
+function setupDocumentEditor() {
+  if (!(docEditorCanvas instanceof HTMLElement)) {
+    return null;
+  }
+  if (docEditorComponentSelect instanceof HTMLSelectElement) {
+    populateComponentPicker(docEditorComponentSelect);
+  }
+  refreshDocumentEditorTabSelect();
+  docEditorCanvas.addEventListener(
+    "mousedown",
+    beginGeneratedGateDialGestureFromEvent,
+  );
+  docEditorCanvas.addEventListener("mousedown", beginGeneratedLayoutEditGesture);
+  docEditorCanvas.addEventListener(
+    "touchstart",
+    beginGeneratedGateDialGestureFromEvent,
+    { passive: false },
+  );
+  docEditorCanvas.addEventListener("touchstart", beginGeneratedLayoutEditGesture, {
+    passive: false,
+  });
+  docEditorCanvas.addEventListener("click", (event) => {
+    if (!layoutEditorState.enabled || event.target !== docEditorCanvas) {
+      return;
+    }
+    const selectedType =
+      docEditorComponentSelect instanceof HTMLSelectElement
+        ? docEditorComponentSelect.value
+        : "";
+    if (!selectedType) {
+      clearSelectedGeneratedLayoutItem();
+      updateDocEditorButtons();
+      return;
+    }
+    const item = addGeneratedComponentAtPoint(
+      docEditorCanvas,
+      selectedType,
+      event.clientX,
+      event.clientY,
+    );
+    if (item && docEditorComponentSelect instanceof HTMLSelectElement) {
+      docEditorComponentSelect.value = "";
+    }
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
+  });
+  docEditorCanvas.addEventListener("input", () => {
+    saveCurrentDocumentEditorScene();
+  });
+  docEditorCanvas.addEventListener("change", () => {
+    saveCurrentDocumentEditorScene();
+  });
+  if (typeof ResizeObserver === "function") {
+    documentEditorState.resizeObserver = new ResizeObserver(() => {
+      syncDocumentCanvasSizeFromDom();
+    });
+    documentEditorState.resizeObserver.observe(docEditorCanvas);
+  }
+  if (docEditorTabSelect instanceof HTMLSelectElement) {
+    docEditorTabSelect.addEventListener("change", () => {
+      openDocumentEditorForTab(docEditorTabSelect.value);
+    });
+  }
+  docEditorSceneBackButton?.addEventListener("click", () => {
+    moveDocumentEditorScene(-1);
+  });
+  docEditorSceneNextButton?.addEventListener("click", () => {
+    moveDocumentEditorScene(1);
+  });
+  docEditorNewSceneButton?.addEventListener("click", () => {
+    addDocumentEditorScene();
+  });
+  docEditorDeleteSceneButton?.addEventListener("click", () => {
+    deleteDocumentEditorScene();
+  });
+  docEditorDoneButton?.addEventListener("click", () => {
+    documentEditorDone();
+  });
+  docEditorDeleteButton?.addEventListener("click", () => {
+    deleteCurrentDocumentEditorDocument();
+  });
+  docEditorDuplicateButton?.addEventListener("click", () => {
+    if (duplicateSelectedGeneratedLayoutItem()) {
+      saveCurrentDocumentEditorScene();
+      updateDocEditorButtons();
+    }
+  });
+  docEditorDeleteComponentButton?.addEventListener("click", () => {
+    if (removeSelectedGeneratedLayoutItem()) {
+      saveCurrentDocumentEditorScene();
+      updateDocEditorButtons();
+    }
+  });
+  docEditorCanvasWidth?.addEventListener("change", () => {
+    setDocumentCanvasSize(docEditorCanvasWidth.value, docEditorCanvasHeight?.value, {
+      fromUser: true,
+    });
+  });
+  docEditorCanvasHeight?.addEventListener("change", () => {
+    setDocumentCanvasSize(docEditorCanvasWidth?.value, docEditorCanvasHeight.value, {
+      fromUser: true,
+    });
+  });
+  docEditorStartRecordingButton?.addEventListener("click", () => {
+    if (!currentDocumentEditorCanvasHasNonTextComponent()) {
+      updateDocEditorButtons();
+      return;
+    }
+    saveCurrentDocumentEditorScene();
+    const scene = activeDocumentEditorScene();
+    if (scene) {
+      scene.experiment = null;
+    }
+    beginGeneratedExperimentRecording(docEditorCanvas);
+    setDocumentEditorMessage("Recording", { sticky: true });
+    updateDocEditorButtons();
+  });
+  docEditorStopRecordingButton?.addEventListener("click", () => {
+    finishDocumentEditorRecording();
+  });
+  docEditorPlayRecordingButton?.addEventListener("click", () => {
+    playDocumentEditorRecording().catch(() => {
+      setDocumentEditorMessage("Playback failed", { warning: true });
+      if (isDocumentEditorTabActive()) {
+        setLayoutEditEnabled(true);
+      }
+      updateDocEditorButtons();
+    });
+  });
+  return {
+    handleGeneratedTabsChanged: () => {
+      refreshDocumentEditorTabSelect(documentEditorState.tabId);
+      updateDocEditorButtons();
+    },
+    handleLayoutEditChanged: () => {
+      updateDocEditorButtons();
+    },
+    handleResize: () => {
+      layoutGeneratedSingleGateDials(docEditorCanvas);
+    },
+  };
+}
+
+function resetDocumentRuntimeState() {
+  documentRuntimeState = {
+    tabId: "",
+    document: null,
+    sceneIndex: 0,
+    returnTabId: "",
+    playing: false,
+    canvas: null,
+  };
+}
+
+function activeDocumentRuntimeCanvas() {
+  const canvas = documentRuntimeState.canvas;
+  if (canvas instanceof HTMLElement && canvas.isConnected) {
+    return canvas;
+  }
+  return docRuntimeCanvas instanceof HTMLElement ? docRuntimeCanvas : null;
+}
+
+function renderDocumentRuntimeScene() {
+  const runtimeCanvas = activeDocumentRuntimeCanvas();
+  if (
+    !(runtimeCanvas instanceof HTMLElement) ||
+    !documentRuntimeState.document
+  ) {
+    return false;
+  }
+  const scene =
+    documentRuntimeState.document.scenes[documentRuntimeState.sceneIndex] ||
+    documentRuntimeState.document.scenes[0];
+  if (!scene) {
+    return false;
+  }
+  const inlineRuntime = runtimeCanvas !== docRuntimeCanvas;
+  runtimeCanvas.replaceChildren();
+  runtimeCanvas.classList.add("doc-runtime-canvas");
+  runtimeCanvas.dataset.docRuntimeCanvas = "true";
+  runtimeCanvas.dataset.docRuntimeTabId = documentRuntimeState.tabId;
+  runtimeCanvas.dataset.generatedTabId = inlineRuntime
+    ? documentRuntimeState.tabId
+    : `doc-runtime-${documentRuntimeState.tabId}-${scene.id}`;
+  runtimeCanvas.setAttribute(
+    "aria-label",
+    `${documentRuntimeState.document.title || "What's this?"} scene`,
+  );
+  runtimeCanvas.style.width = `${clampDocumentCanvasWidth(scene.canvasWidth)}px`;
+  runtimeCanvas.style.height = `${clampDocumentCanvasHeight(scene.canvasHeight)}px`;
+  normalizeSavedGroupLayoutItems(scene.items).forEach((geometry) => {
+    const type = typeof geometry?.type === "string" ? geometry.type : "text-box";
+    runtimeCanvas.appendChild(createGeneratedLayoutItemNode(type, geometry));
+  });
+  prepareGeneratedLayoutCanvas(runtimeCanvas);
+  const state = generatedExperimentStateForCanvas(runtimeCanvas);
+  if (state) {
+    state.recording = false;
+    state.playing = false;
+    state.experiment = cloneGeneratedExperiment(scene.experiment);
+  }
+  if (docRuntimeTitle instanceof HTMLElement) {
+    const target = collectPlaygroundSaveTargets().find(
+      (entry) => entry.id === documentRuntimeState.tabId,
+    );
+    docRuntimeTitle.textContent = target?.label || "What's this?";
+  }
+  if (docRuntimeSceneLabel instanceof HTMLElement) {
+    docRuntimeSceneLabel.textContent = `Scene ${
+      documentRuntimeState.sceneIndex + 1
+    } of ${documentRuntimeState.document.scenes.length}`;
+  }
+  layoutGeneratedSingleGateDials(runtimeCanvas);
+  return true;
+}
+
+function openDocumentRuntime(tabId, options = {}) {
+  const documentEntry = documentForTabId(tabId);
+  const inline = Boolean(options.inline);
+  const runtimeCanvas =
+    options.canvas instanceof HTMLElement ? options.canvas : docRuntimeCanvas;
+  if (
+    !documentEntry ||
+    !(runtimeCanvas instanceof HTMLElement) ||
+    (!inline && !(docRuntimeOverlay instanceof HTMLElement))
+  ) {
+    return false;
+  }
+  const activeButton = document.querySelector(".tab-btn.active");
+  if (inline) {
+    clearGeneratedTransientStateForCanvas(runtimeCanvas);
+  }
+  documentRuntimeState = {
+    tabId,
+    document: cloneJson(documentEntry) || documentEntry,
+    sceneIndex: 0,
+    returnTabId: activeButton?.dataset?.tabTarget || tabId,
+    playing: false,
+    canvas: runtimeCanvas,
+  };
+  if (!inline) {
+    docRuntimeOverlay.hidden = false;
+  }
+  renderDocumentRuntimeScene();
+  return true;
+}
+
+function closeDocumentRuntime() {
+  const runtimeCanvas = activeDocumentRuntimeCanvas();
+  const inlineCanvas =
+    runtimeCanvas instanceof HTMLElement && runtimeCanvas !== docRuntimeCanvas
+      ? runtimeCanvas
+      : null;
+  if (docRuntimeOverlay instanceof HTMLElement) {
+    docRuntimeOverlay.hidden = true;
+  }
+  if (!inlineCanvas && docRuntimeCanvas instanceof HTMLElement) {
+    docRuntimeCanvas.replaceChildren();
+    delete docRuntimeCanvas.dataset.docRuntimeTabId;
+  }
+  resetDocumentRuntimeState();
+  if (inlineCanvas) {
+    resetGeneratedTabForCanvas(inlineCanvas);
+  }
+  pruneGeneratedRuntimeState();
+}
+
+function moveDocumentRuntimeScene(delta) {
+  if (!documentRuntimeState.document || documentRuntimeState.playing) {
+    return false;
+  }
+  const nextIndex = clamp(
+    documentRuntimeState.sceneIndex + delta,
+    0,
+    documentRuntimeState.document.scenes.length - 1,
+  );
+  if (nextIndex === documentRuntimeState.sceneIndex) {
+    return false;
+  }
+  documentRuntimeState.sceneIndex = nextIndex;
+  renderDocumentRuntimeScene();
+  return true;
+}
+
+async function playDocumentRuntimeSceneExperiment() {
+  const runtimeCanvas = activeDocumentRuntimeCanvas();
+  if (
+    !(runtimeCanvas instanceof HTMLElement) ||
+    !documentRuntimeState.document ||
+    documentRuntimeState.playing
+  ) {
+    return false;
+  }
+  const scene =
+    documentRuntimeState.document.scenes[documentRuntimeState.sceneIndex];
+  if (!sceneHasRecordedExperiment(scene)) {
+    return false;
+  }
+  documentRuntimeState.playing = true;
+  const state = generatedExperimentStateForCanvas(runtimeCanvas);
+  state.experiment = cloneGeneratedExperiment(scene.experiment);
+  try {
+    await runGeneratedRecordedExperiment(runtimeCanvas, 1);
+  } finally {
+    documentRuntimeState.playing = false;
+    renderDocumentRuntimeScene();
+  }
+  return true;
+}
+
+function handleDocumentTextBoxAction(canvas, action) {
+  if (!(canvas instanceof HTMLElement)) {
+    return;
+  }
+  if (canvas.dataset.docEditorCanvas === "true") {
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
+    if (action === "show") {
+      playDocumentEditorRecording().catch(() => {});
+    }
+    return;
+  }
+  if (canvas.dataset.docRuntimeCanvas !== "true") {
+    return;
+  }
+  if (action === "done") {
+    closeDocumentRuntime();
+    return;
+  }
+  if (action === "back") {
+    moveDocumentRuntimeScene(-1);
+    return;
+  }
+  if (action === "next") {
+    moveDocumentRuntimeScene(1);
+    return;
+  }
+  if (action === "show") {
+    playDocumentRuntimeSceneExperiment().catch(() => {});
+  }
 }
 
 function generatedLayoutPointer(event) {
@@ -5292,6 +7155,7 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
 
   qubitState.transiting = true;
   gateRuntime.busy = true;
+  qubitItem.classList.add("generated-transit-active");
   gateRuntime.item.classList.add("gate-busy");
   gateRuntime.item.classList.remove("platform-extended");
   if (generatedRuntimeDrag?.item === qubitItem) {
@@ -5331,6 +7195,7 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     recordGeneratedExperimentAction(canvas, {
       type: "gate",
       qubitId: ensureGeneratedItemId(qubitItem, "qubit"),
+      qubitLogicalId: qubitLogicalIdForItem(qubitItem),
       gateId: ensureGeneratedItemId(gateRuntime.item, "single-gate"),
       tickIndex,
     });
@@ -5388,6 +7253,7 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     return true;
   } finally {
     settleGeneratedQubitVisualState(qubitItem);
+    qubitItem.classList.remove("generated-transit-active");
     gateRuntime.item.classList.remove("gate-busy");
     gateRuntime.item.classList.remove("platform-extended");
     qubitState.transiting = false;
@@ -5423,9 +7289,11 @@ function releaseGeneratedQubitFromCnotSlots(qubitItem) {
   Array.from(generatedCnotRuntimes.values()).forEach((runtime) => {
     if (runtime.slotOccupants.top === qubitItem) {
       runtime.slotOccupants.top = null;
+      qubitItem.classList.remove("generated-transit-active");
     }
     if (runtime.slotOccupants.bottom === qubitItem) {
       runtime.slotOccupants.bottom = null;
+      qubitItem.classList.remove("generated-transit-active");
     }
   });
 }
@@ -5513,6 +7381,8 @@ async function runGeneratedCnotCycle(canvas, runtime) {
   runtime.busy = true;
   topState.transiting = true;
   bottomState.transiting = true;
+  topQubit.classList.add("generated-transit-active");
+  bottomQubit.classList.add("generated-transit-active");
   runtime.item.classList.add("gate-busy");
   runtime.body.classList.remove("platform-extended");
   runtime.cyclePromise = (async () => {
@@ -5617,6 +7487,8 @@ async function runGeneratedCnotCycle(canvas, runtime) {
       runtime.slotOccupants.bottom = null;
       runtime.body.classList.remove("platform-extended");
       runtime.item.classList.remove("gate-busy");
+      topQubit.classList.remove("generated-transit-active");
+      bottomQubit.classList.remove("generated-transit-active");
       runtime.busy = false;
       topState.transiting = false;
       bottomState.transiting = false;
@@ -5652,6 +7524,7 @@ async function runGeneratedCnotIngress(canvas, qubitItem, runtime, slot) {
 
   qubitState.transiting = true;
   runtime.slotOccupants[slotKey] = qubitItem;
+  qubitItem.classList.add("generated-transit-active");
   if (generatedRuntimeDrag?.item === qubitItem) {
     commitGeneratedDragRecord(generatedRuntimeDrag);
     qubitItem.classList.remove("dragging");
@@ -5671,6 +7544,9 @@ async function runGeneratedCnotIngress(canvas, qubitItem, runtime, slot) {
     settleGeneratedQubitVisualState(qubitItem);
     setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
   } finally {
+    if (runtime.slotOccupants[slotKey] !== qubitItem) {
+      qubitItem.classList.remove("generated-transit-active");
+    }
     qubitState.transiting = false;
   }
 
@@ -5917,6 +7793,7 @@ async function runGeneratedSingleMeasurementTransit(
     recordGeneratedExperimentAction(canvas, {
       type: "single-measure",
       qubitId: ensureGeneratedItemId(qubitItem, "qubit"),
+      qubitLogicalId: qubitLogicalIdForItem(qubitItem),
       measurementId: ensureGeneratedItemId(runtime.item, "single-measurement"),
     });
     const collapsedColor = collapseGeneratedQubitState(qubitItem);
@@ -6102,6 +7979,59 @@ function generatedDoubleMeasurementSlotCenter(canvas, runtime, slot) {
   };
 }
 
+function generatedDoubleMeasurementSourcePoint(canvas, qubitItem, qubitState) {
+  if (validPoint(qubitState?.doubleMeasurementReturnPoint)) {
+    return qubitState.doubleMeasurementReturnPoint;
+  }
+  return generatedCanvasPointForElementCenter(canvas, qubitItem);
+}
+
+function generatedDoubleMeasurementOrderedQubits(
+  canvas,
+  leftQubit,
+  rightQubit,
+  leftState,
+  rightState,
+) {
+  if (
+    leftState?.cnotSourceSlot === "top" &&
+    rightState?.cnotSourceSlot === "bottom"
+  ) {
+    return { topQubit: leftQubit, bottomQubit: rightQubit };
+  }
+  if (
+    rightState?.cnotSourceSlot === "top" &&
+    leftState?.cnotSourceSlot === "bottom"
+  ) {
+    return { topQubit: rightQubit, bottomQubit: leftQubit };
+  }
+  if (
+    leftState?.pairQubitIndex === 0 &&
+    rightState?.pairQubitIndex === 1
+  ) {
+    return { topQubit: leftQubit, bottomQubit: rightQubit };
+  }
+  if (
+    rightState?.pairQubitIndex === 0 &&
+    leftState?.pairQubitIndex === 1
+  ) {
+    return { topQubit: rightQubit, bottomQubit: leftQubit };
+  }
+  const leftPoint = generatedDoubleMeasurementSourcePoint(
+    canvas,
+    leftQubit,
+    leftState,
+  );
+  const rightPoint = generatedDoubleMeasurementSourcePoint(
+    canvas,
+    rightQubit,
+    rightState,
+  );
+  return leftPoint.y <= rightPoint.y
+    ? { topQubit: leftQubit, bottomQubit: rightQubit }
+    : { topQubit: rightQubit, bottomQubit: leftQubit };
+}
+
 function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
   const topState = ensureGeneratedQubitRuntimeState(topQubitItem);
   const bottomState = ensureGeneratedQubitRuntimeState(bottomQubitItem);
@@ -6131,11 +8061,6 @@ function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
   }
   const topBlue = argumentOutcomeKey[0] === "b";
   const bottomBlue = argumentOutcomeKey[1] === "b";
-  const outcomeKey = orderedOutcomeKeyForQubitItems(
-    argumentOutcomeKey,
-    topQubitItem,
-    bottomQubitItem,
-  );
   topState.vector = topBlue ? [1, 0] : [0, 1];
   bottomState.vector = bottomBlue ? [1, 0] : [0, 1];
   topState.pairState = null;
@@ -6151,7 +8076,7 @@ function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
   applyGeneratedQubitVectorVisualState(topQubitItem);
   applyGeneratedQubitVectorVisualState(bottomQubitItem);
   return {
-    outcomeKey,
+    outcomeKey: argumentOutcomeKey,
     topColor: topBlue ? "blue" : "red",
     bottomColor: bottomBlue ? "blue" : "red",
   };
@@ -6180,6 +8105,8 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
   runtime.busy = true;
   leftState.transiting = true;
   rightState.transiting = true;
+  leftQubit.classList.add("generated-transit-active");
+  rightQubit.classList.add("generated-transit-active");
   runtime.measurementTool.classList.remove("platform-extended");
   runtime.cyclePromise = (async () => {
     try {
@@ -6196,6 +8123,13 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
 
       leftQubit.classList.add("collapse-animating");
       rightQubit.classList.add("collapse-animating");
+      const orderedQubits = generatedDoubleMeasurementOrderedQubits(
+        canvas,
+        leftQubit,
+        rightQubit,
+        leftState,
+        rightState,
+      );
       recordGeneratedExperimentAction(canvas, {
         type: "double-measure",
         measurementId: ensureGeneratedItemId(runtime.item, "double-measurement"),
@@ -6203,10 +8137,17 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
         rightQubitId: ensureGeneratedItemId(rightQubit, "qubit"),
         leftQubitLogicalId: ensureQubitLogicalId(leftQubit),
         rightQubitLogicalId: ensureQubitLogicalId(rightQubit),
+        topQubitId: ensureGeneratedItemId(orderedQubits.topQubit, "qubit"),
+        bottomQubitId: ensureGeneratedItemId(
+          orderedQubits.bottomQubit,
+          "qubit",
+        ),
+        topQubitLogicalId: ensureQubitLogicalId(orderedQubits.topQubit),
+        bottomQubitLogicalId: ensureQubitLogicalId(orderedQubits.bottomQubit),
       });
       const collapseResult = collapseGeneratedQubitPairFromCnot(
-        rightQubit,
-        leftQubit,
+        orderedQubits.topQubit,
+        orderedQubits.bottomQubit,
       );
       leftQubit.classList.remove("collapse-animating");
       rightQubit.classList.remove("collapse-animating");
@@ -6264,6 +8205,8 @@ async function runGeneratedDoubleMeasurementCycle(canvas, runtime) {
       runtime.slotOccupants.right = null;
       leftState.doubleMeasurementReturnPoint = null;
       rightState.doubleMeasurementReturnPoint = null;
+      leftQubit.classList.remove("generated-transit-active");
+      rightQubit.classList.remove("generated-transit-active");
       runtime.busy = false;
       leftState.transiting = false;
       rightState.transiting = false;
@@ -6311,6 +8254,7 @@ async function runGeneratedDoubleMeasurementIngress(
         : null,
     ) || generatedCanvasPointForElementCenter(canvas, qubitItem);
   qubitState.transiting = true;
+  qubitItem.classList.add("generated-transit-active");
   runtime.slotOccupants[slot] = qubitItem;
   if (generatedRuntimeDrag?.item === qubitItem) {
     commitGeneratedDragRecord(generatedRuntimeDrag);
@@ -6331,6 +8275,9 @@ async function runGeneratedDoubleMeasurementIngress(
     setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
   } finally {
     qubitState.transiting = false;
+    if (runtime.slotOccupants[slot] !== qubitItem) {
+      qubitItem.classList.remove("generated-transit-active");
+    }
   }
 
   if (
@@ -6422,7 +8369,8 @@ function generatedSeparatedPairMeasurementTargetForQubit(
     return (
       runtime.magnifiers.find(
         (magnifier) => magnifier.index === Number(magnifierIndex),
-      ) || null
+      ) ||
+      (runtime.magnifiers.length === 1 ? runtime.magnifiers[0] : null)
     );
   }
   let bestMagnifier = null;
@@ -6538,21 +8486,6 @@ function generatedSeparatedPairOrderIndexForQubit(
   qubitItem,
   qubitState,
 ) {
-  const logicalQubitId = qubitLogicalIdForItem(qubitItem);
-  const partnerInfo = generatedPairPartnerInfoForQubit(
-    canvas,
-    qubitItem,
-    qubitState,
-  );
-  const partnerLogicalQubitId = normalizeQubitId(partnerInfo?.logicalQubitId);
-  if (
-    logicalQubitId &&
-    partnerLogicalQubitId &&
-    logicalQubitId !== partnerLogicalQubitId
-  ) {
-    return logicalQubitId < partnerLogicalQubitId ? 0 : 1;
-  }
-
   if (Number.isFinite(qubitState?.pairQubitIndex)) {
     return qubitState.pairQubitIndex === 0 ? 0 : 1;
   }
@@ -6567,31 +8500,8 @@ function generatedSeparatedPairOrderIndexForQubit(
   const expectedFromPending = runtime.pendingMeasurements.find(
     (entry) => entry.partnerId === qubitId,
   );
-  const expectedLogicalId = normalizeQubitId(
-    expectedFromPending?.logicalQubitId,
-  );
-  if (
-    logicalQubitId &&
-    expectedLogicalId &&
-    logicalQubitId !== expectedLogicalId
-  ) {
-    return logicalQubitId < expectedLogicalId ? 0 : 1;
-  }
   if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
     return expectedFromPending.partnerOrderIndex === 0 ? 0 : 1;
-  }
-
-  const pendingLogicalId = normalizeQubitId(
-    runtime.pendingMeasurements.find((entry) =>
-      normalizeQubitId(entry.logicalQubitId),
-    )?.logicalQubitId,
-  );
-  if (
-    logicalQubitId &&
-    pendingLogicalId &&
-    logicalQubitId !== pendingLogicalId
-  ) {
-    return logicalQubitId < pendingLogicalId ? 0 : 1;
   }
 
   const sortedQubits = sortGeneratedItemsTopToBottom(
@@ -6630,18 +8540,6 @@ function storeGeneratedSeparatedPairMeasurementPending(runtime, entry) {
 
 function generatedSeparatedPairMeasurementOutcomeEntries(runtime) {
   const entries = runtime.pendingMeasurements.slice(0, 2);
-  const logicalIds = entries
-    .map((entry) => normalizeQubitId(entry.logicalQubitId))
-    .filter(Boolean);
-  if (logicalIds.length === entries.length && new Set(logicalIds).size > 1) {
-    return entries
-      .slice()
-      .sort(
-        (a, b) =>
-          normalizeQubitId(a.logicalQubitId) -
-          normalizeQubitId(b.logicalQubitId),
-      );
-  }
   const top = entries.find((entry) => entry.orderIndex === 0);
   const bottom = entries.find((entry) => entry.orderIndex === 1);
   if (top && bottom && top !== bottom) {
@@ -6650,18 +8548,10 @@ function generatedSeparatedPairMeasurementOutcomeEntries(runtime) {
   return entries
     .slice()
     .sort(
-      (a, b) => {
-        const aLogicalId = normalizeQubitId(a.logicalQubitId);
-        const bLogicalId = normalizeQubitId(b.logicalQubitId);
-        if (aLogicalId && bLogicalId && aLogicalId !== bLogicalId) {
-          return aLogicalId - bLogicalId;
-        }
-        return (
-          (Number.isFinite(a.orderIndex) ? a.orderIndex : 2) -
+      (a, b) =>
+        (Number.isFinite(a.orderIndex) ? a.orderIndex : 2) -
           (Number.isFinite(b.orderIndex) ? b.orderIndex : 2) ||
-          a.sequence - b.sequence
-        );
-      },
+        a.sequence - b.sequence,
     );
 }
 
@@ -6760,13 +8650,21 @@ function generatedSeparatedPairMeasurementEjectionPoint(
   canvas,
   magnifier,
   qubitItem,
+  orderIndex = null,
 ) {
   const toolRect = magnifier.measurementTool.getBoundingClientRect();
   const qubitRect = qubitItem.getBoundingClientRect();
+  const laneOffset = Number.isFinite(orderIndex)
+    ? Math.max(32, qubitRect.height * 0.72)
+    : 0;
+  const centerY =
+    toolRect.top +
+    toolRect.height / 2 +
+    (orderIndex === 0 ? -laneOffset : orderIndex === 1 ? laneOffset : 0);
   const candidate = generatedViewportPointToCanvasPoint(
     canvas,
     toolRect.right + Math.max(28, qubitRect.width * 0.7),
-    toolRect.top + toolRect.height / 2,
+    centerY,
   );
   const radius = Math.max(1, qubitRect.width / 2);
   return {
@@ -6867,6 +8765,7 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       canvas,
       target,
       qubitItem,
+      orderIndex,
     );
     await moveGeneratedQubitToPoint(
       canvas,
@@ -7410,9 +9309,13 @@ function generatedExperimentGateTickMap(experiment) {
 }
 
 function generatedCurrentGateTickMap(canvas, experiment) {
+  const recordedTicks = generatedExperimentGateTickMap(experiment);
+  if (recordedTicks.size > 0) {
+    return recordedTicks;
+  }
   const ticks = new Map();
   if (!isGeneratedLayoutCanvas(canvas)) {
-    return generatedExperimentGateTickMap(experiment);
+    return recordedTicks;
   }
   generatedItemsOfType(canvas, "single-gate").forEach((item) => {
     const runtime = initializeGeneratedSingleGateItem(item, {
@@ -7509,12 +9412,18 @@ function releaseGeneratedRuntimeSlotsForCanvas(canvas) {
   pruneGeneratedRuntimeState();
   Array.from(generatedCnotRuntimes.values()).forEach((runtime) => {
     if (generatedCanvasForItem(runtime.item) === canvas) {
+      runtime.slotOccupants.top?.classList?.remove("generated-transit-active");
+      runtime.slotOccupants.bottom?.classList?.remove(
+        "generated-transit-active",
+      );
       runtime.slotOccupants.top = null;
       runtime.slotOccupants.bottom = null;
     }
   });
   Array.from(generatedDoubleMeasurementRuntimes.values()).forEach((runtime) => {
     if (generatedCanvasForItem(runtime.item) === canvas) {
+      runtime.slotOccupants.left?.classList?.remove("generated-transit-active");
+      runtime.slotOccupants.right?.classList?.remove("generated-transit-active");
       runtime.slotOccupants.left = null;
       runtime.slotOccupants.right = null;
     }
@@ -7559,7 +9468,11 @@ function applyGeneratedRecordedGateSettingAction(canvas, action, gateTicks) {
 }
 
 async function replayGeneratedRecordedDragAction(canvas, action) {
-  const qubitItem = generatedItemById(canvas, action.qubitId);
+  const qubitItem = generatedQubitItemForRecordedAction(
+    canvas,
+    action.qubitId,
+    action.qubitLogicalId,
+  );
   if (!qubitItem || !Array.isArray(action.path) || action.path.length < 2) {
     return true;
   }
@@ -7583,8 +9496,16 @@ async function replayGeneratedRecordedCnotAction(canvas, action) {
   const runtime = initializeGeneratedCnotItem(
     generatedItemById(canvas, action.cnotId),
   );
-  const topQubit = generatedItemById(canvas, action.topQubitId);
-  const bottomQubit = generatedItemById(canvas, action.bottomQubitId);
+  const topQubit = generatedQubitItemForRecordedAction(
+    canvas,
+    action.topQubitId,
+    action.topQubitLogicalId,
+  );
+  const bottomQubit = generatedQubitItemForRecordedAction(
+    canvas,
+    action.bottomQubitId,
+    action.bottomQubitLogicalId,
+  );
   if (!runtime || !topQubit || !bottomQubit) {
     return false;
   }
@@ -7611,8 +9532,16 @@ async function replayGeneratedRecordedDoubleMeasureAction(
   const runtime = initializeGeneratedDoubleMeasurementItem(
     generatedItemById(canvas, action.measurementId),
   );
-  const leftQubit = generatedItemById(canvas, action.leftQubitId);
-  const rightQubit = generatedItemById(canvas, action.rightQubitId);
+  const leftQubit = generatedQubitItemForRecordedAction(
+    canvas,
+    action.leftQubitId,
+    action.leftQubitLogicalId,
+  );
+  const rightQubit = generatedQubitItemForRecordedAction(
+    canvas,
+    action.rightQubitId,
+    action.rightQubitLogicalId,
+  );
   if (!runtime || !leftQubit || !rightQubit) {
     return false;
   }
@@ -7621,27 +9550,44 @@ async function replayGeneratedRecordedDoubleMeasureAction(
   if (!leftState || !rightState) {
     return false;
   }
-  leftState.doubleMeasurementReturnPoint =
-    validPoint(initialCenters.get(action.leftQubitId)) ||
-    generatedCanvasPointForElementCenter(canvas, leftQubit);
-  rightState.doubleMeasurementReturnPoint =
-    validPoint(initialCenters.get(action.rightQubitId)) ||
-    generatedCanvasPointForElementCenter(canvas, rightQubit);
-  runtime.slotOccupants.left = leftQubit;
-  runtime.slotOccupants.right = rightQubit;
-  const leftCenter = generatedDoubleMeasurementSlotCenter(canvas, runtime, "left");
-  const rightCenter = generatedDoubleMeasurementSlotCenter(
-    canvas,
-    runtime,
-    "right",
-  );
-  await Promise.all([
-    moveGeneratedQubitToPoint(canvas, leftQubit, leftCenter.x, leftCenter.y),
-    moveGeneratedQubitToPoint(canvas, rightQubit, rightCenter.x, rightCenter.y),
-  ]);
-  settleGeneratedQubitVisualState(leftQubit);
-  settleGeneratedQubitVisualState(rightQubit);
-  return Boolean(await runGeneratedDoubleMeasurementCycle(canvas, runtime));
+  leftQubit.classList.add("generated-transit-active");
+  rightQubit.classList.add("generated-transit-active");
+  let cycleStarted = false;
+  try {
+    leftState.doubleMeasurementReturnPoint =
+      validPoint(initialCenters.get(action.leftQubitId)) ||
+      generatedCanvasPointForElementCenter(canvas, leftQubit);
+    rightState.doubleMeasurementReturnPoint =
+      validPoint(initialCenters.get(action.rightQubitId)) ||
+      generatedCanvasPointForElementCenter(canvas, rightQubit);
+    runtime.slotOccupants.left = leftQubit;
+    runtime.slotOccupants.right = rightQubit;
+    const leftCenter = generatedDoubleMeasurementSlotCenter(
+      canvas,
+      runtime,
+      "left",
+    );
+    const rightCenter = generatedDoubleMeasurementSlotCenter(
+      canvas,
+      runtime,
+      "right",
+    );
+    await Promise.all([
+      moveGeneratedQubitToPoint(canvas, leftQubit, leftCenter.x, leftCenter.y),
+      moveGeneratedQubitToPoint(canvas, rightQubit, rightCenter.x, rightCenter.y),
+    ]);
+    settleGeneratedQubitVisualState(leftQubit);
+    settleGeneratedQubitVisualState(rightQubit);
+    cycleStarted = true;
+    return Boolean(await runGeneratedDoubleMeasurementCycle(canvas, runtime));
+  } finally {
+    if (!cycleStarted || runtime.slotOccupants.left !== leftQubit) {
+      leftQubit.classList.remove("generated-transit-active");
+    }
+    if (!cycleStarted || runtime.slotOccupants.right !== rightQubit) {
+      rightQubit.classList.remove("generated-transit-active");
+    }
+  }
 }
 
 async function replayGeneratedRecordedSeparatedPairMeasureAction(
@@ -7657,7 +9603,11 @@ async function replayGeneratedRecordedSeparatedPairMeasureAction(
   }
   const runtime =
     initializeGeneratedSeparatedPairMeasurementItem(measurementItem);
-  const qubitItem = generatedItemById(canvas, action.qubitId);
+  const qubitItem = generatedQubitItemForRecordedAction(
+    canvas,
+    action.qubitId,
+    action.logicalQubitId,
+  );
   if (!runtime || !qubitItem) {
     return false;
   }
@@ -7668,6 +9618,78 @@ async function replayGeneratedRecordedSeparatedPairMeasureAction(
       runtime,
       action.magnifierIndex,
     ),
+  );
+}
+
+async function replayGeneratedRecordedExperimentAnimatedIterations(
+  canvas,
+  experiment,
+  iterations,
+  initialGateTicks = null,
+) {
+  const count = Math.max(1, Number(iterations) || 1);
+  const previousPlaybackSpeed = generatedExperimentPlaybackSpeed;
+  generatedExperimentPlaybackSpeed =
+    generatedAnimatedReplaySpeedForIterationCount(count);
+  try {
+    for (let run = 0; run < count; run += 1) {
+      const completed = await replayGeneratedRecordedExperimentAnimated(
+        canvas,
+        experiment,
+        initialGateTicks,
+      );
+      if (!completed) {
+        return false;
+      }
+    }
+  } finally {
+    generatedExperimentPlaybackSpeed = previousPlaybackSpeed;
+  }
+  return true;
+}
+
+async function replayGeneratedRecordedExperimentControlAction(
+  canvas,
+  experiment,
+  action,
+  actionIndex,
+) {
+  if (!isGeneratedExperimentControlAction(action)) {
+    return false;
+  }
+  const iterations = generatedExperimentReplayIterations(action);
+  if (action.type === GENERATED_EXPERIMENT_COUNT_ACTION) {
+    setRecordedMeasurementIterationCount(canvas, action);
+    clearRecordedMeasurementForControlAction(canvas, action);
+  }
+  const baseExperiment = generatedExperimentBaseForControlAction(
+    experiment,
+    actionIndex,
+  );
+  if (
+    !Array.isArray(baseExperiment.actions) ||
+    baseExperiment.actions.length === 0
+  ) {
+    return false;
+  }
+  const baseGateTicks = generatedCurrentGateTickMap(canvas, baseExperiment);
+  if (iterations >= 100) {
+    replayGeneratedRecordedExperimentFast(
+      canvas,
+      baseExperiment,
+      iterations,
+      baseGateTicks,
+    );
+    resetGeneratedCanvasToExperimentStart(canvas, baseExperiment, {
+      gateTicks: baseGateTicks,
+    });
+    return true;
+  }
+  return replayGeneratedRecordedExperimentAnimatedIterations(
+    canvas,
+    baseExperiment,
+    iterations,
+    baseGateTicks,
   );
 }
 
@@ -7682,7 +9704,9 @@ async function replayGeneratedRecordedExperimentAnimated(
       : generatedCurrentGateTickMap(canvas, experiment);
   resetGeneratedCanvasToExperimentStart(canvas, experiment, { gateTicks });
   const initialCenters = generatedExperimentInitialCenterMap(experiment);
-  for (const action of experiment.actions || []) {
+  const actions = experiment.actions || [];
+  for (let actionIndex = 0; actionIndex < actions.length; actionIndex += 1) {
+    const action = actions[actionIndex];
     if (action.type === "drag") {
       await replayGeneratedRecordedDragAction(canvas, action);
     } else if (action.type === "gate-setting") {
@@ -7690,7 +9714,11 @@ async function replayGeneratedRecordedExperimentAnimated(
         return false;
       }
     } else if (action.type === "gate") {
-      const qubitItem = generatedItemById(canvas, action.qubitId);
+      const qubitItem = generatedQubitItemForRecordedAction(
+        canvas,
+        action.qubitId,
+        action.qubitLogicalId,
+      );
       const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
       const gateRuntime = initializeGeneratedSingleGateItem(
         generatedItemById(canvas, action.gateId),
@@ -7714,7 +9742,11 @@ async function replayGeneratedRecordedExperimentAnimated(
         return false;
       }
     } else if (action.type === "single-measure") {
-      const qubitItem = generatedItemById(canvas, action.qubitId);
+      const qubitItem = generatedQubitItemForRecordedAction(
+        canvas,
+        action.qubitId,
+        action.qubitLogicalId,
+      );
       const runtime = initializeGeneratedSingleMeasurementItem(
         generatedItemById(canvas, action.measurementId),
       );
@@ -7737,6 +9769,16 @@ async function replayGeneratedRecordedExperimentAnimated(
         canvas,
         action,
         initialCenters,
+      );
+      if (!completed) {
+        return false;
+      }
+    } else if (isGeneratedExperimentControlAction(action)) {
+      const completed = await replayGeneratedRecordedExperimentControlAction(
+        canvas,
+        experiment,
+        action,
+        actionIndex,
       );
       if (!completed) {
         return false;
@@ -7788,18 +9830,6 @@ function generatedSeparatedPairRuntimeForFastAction(canvas, action) {
 }
 
 function orderedFastSeparatedPairEntries(entries) {
-  const logicalIds = entries
-    .map((entry) => normalizeQubitId(entry.logicalQubitId))
-    .filter(Boolean);
-  if (logicalIds.length === entries.length && new Set(logicalIds).size > 1) {
-    return entries
-      .slice()
-      .sort(
-        (a, b) =>
-          normalizeQubitId(a.logicalQubitId) -
-          normalizeQubitId(b.logicalQubitId),
-      );
-  }
   const top = entries.find((entry) => entry.orderIndex === 0);
   const bottom = entries.find((entry) => entry.orderIndex === 1);
   if (top && bottom && top !== bottom) {
@@ -7815,6 +9845,36 @@ function orderedFastSeparatedPairEntries(entries) {
     );
 }
 
+function generatedRecordedDoubleMeasureOrder(action, initialCenters = new Map()) {
+  if (action?.topQubitId && action?.bottomQubitId) {
+    return {
+      topQubitId: action.topQubitId,
+      topQubitLogicalId: action.topQubitLogicalId,
+      bottomQubitId: action.bottomQubitId,
+      bottomQubitLogicalId: action.bottomQubitLogicalId,
+    };
+  }
+  const leftPoint = initialCenters.get(action?.leftQubitId);
+  const rightPoint = initialCenters.get(action?.rightQubitId);
+  const leftIsTop =
+    validPoint(leftPoint) && validPoint(rightPoint)
+      ? leftPoint.y <= rightPoint.y
+      : true;
+  return leftIsTop
+    ? {
+        topQubitId: action?.leftQubitId,
+        topQubitLogicalId: action?.leftQubitLogicalId,
+        bottomQubitId: action?.rightQubitId,
+        bottomQubitLogicalId: action?.rightQubitLogicalId,
+      }
+    : {
+        topQubitId: action?.rightQubitId,
+        topQubitLogicalId: action?.rightQubitLogicalId,
+        bottomQubitId: action?.leftQubitId,
+        bottomQubitLogicalId: action?.leftQubitLogicalId,
+      };
+}
+
 function replayGeneratedRecordedExperimentFast(
   canvas,
   experiment,
@@ -7826,6 +9886,7 @@ function replayGeneratedRecordedExperimentFast(
     initialGateTicks instanceof Map
       ? new Map(initialGateTicks)
       : generatedCurrentGateTickMap(canvas, experiment);
+  const initialCenters = generatedExperimentInitialCenterMap(experiment);
   const logicalQubitIds = generatedExperimentQubitLogicalIdMap(experiment);
   for (let run = 0; run < iterations; run += 1) {
     const vectors = generatedExperimentInitialVectorMap(experiment);
@@ -7947,14 +10008,7 @@ function replayGeneratedRecordedExperimentFast(
             qubitIndex === 0
               ? pairState.bottomLogicalId
               : pairState.topLogicalId;
-          orderIndex =
-            logicalQubitId &&
-            partnerLogicalQubitId &&
-            logicalQubitId !== partnerLogicalQubitId
-              ? logicalQubitId < partnerLogicalQubitId
-                ? 0
-                : 1
-              : qubitIndex;
+          orderIndex = qubitIndex;
           partnerOrderIndex = qubitIndex === 0 ? 1 : 0;
           color = sampleSingleQubitOutcomeFromPairState(
             pairState.state,
@@ -7984,23 +10038,7 @@ function replayGeneratedRecordedExperimentFast(
           const expectedFromPending = pending.find(
             (entry) => entry.partnerId === action.qubitId,
           );
-          const expectedLogicalId = normalizeQubitId(
-            expectedFromPending?.logicalQubitId,
-          );
-          const pendingLogicalId = normalizeQubitId(pending[0]?.logicalQubitId);
-          if (
-            logicalQubitId &&
-            expectedLogicalId &&
-            logicalQubitId !== expectedLogicalId
-          ) {
-            orderIndex = logicalQubitId < expectedLogicalId ? 0 : 1;
-          } else if (
-            logicalQubitId &&
-            pendingLogicalId &&
-            logicalQubitId !== pendingLogicalId
-          ) {
-            orderIndex = logicalQubitId < pendingLogicalId ? 0 : 1;
-          } else if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
+          if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
             orderIndex =
               expectedFromPending.partnerOrderIndex === 0 ? 0 : 1;
           } else if (
@@ -8047,6 +10085,10 @@ function replayGeneratedRecordedExperimentFast(
         if (!runtime) {
           return;
         }
+        const qubitOrder = generatedRecordedDoubleMeasureOrder(
+          action,
+          initialCenters,
+        );
         const stateOrderOutcome = pairState
           ? samplePairOutcomeFromEntangledState(pairState.state)
           : null;
@@ -8055,31 +10097,24 @@ function replayGeneratedRecordedExperimentFast(
               stateOrderOutcome,
               pairState.topId,
               pairState.bottomId,
-              action.rightQubitId,
-              action.leftQubitId,
+              qubitOrder.topQubitId,
+              qubitOrder.bottomQubitId,
             )
           : samplePairOutcomeFromEntangledState({
               amplitudes: entangledAmplitudesFromQubitVectors(
-                vectors.get(action.rightQubitId) || [1, 0],
-                vectors.get(action.leftQubitId) || [1, 0],
+                vectors.get(qubitOrder.topQubitId) || [1, 0],
+                vectors.get(qubitOrder.bottomQubitId) || [1, 0],
               ),
             });
-        const outcome = orderedOutcomeKeyForQubitIds(
-          argumentOutcome,
-          normalizeQubitId(action.rightQubitLogicalId) ||
-            logicalQubitIds.get(action.rightQubitId),
-          normalizeQubitId(action.leftQubitLogicalId) ||
-            logicalQubitIds.get(action.leftQubitId),
-        );
-        runtime.tubeCounts[outcome] += 1;
+        runtime.tubeCounts[argumentOutcome] += 1;
         maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
         measurementRuntimesToUpdate.add(runtime);
         vectors.set(
-          action.rightQubitId,
+          qubitOrder.topQubitId,
           argumentOutcome[0] === "b" ? [1, 0] : [0, 1],
         );
         vectors.set(
-          action.leftQubitId,
+          qubitOrder.bottomQubitId,
           argumentOutcome[1] === "b" ? [1, 0] : [0, 1],
         );
         pairState = null;
@@ -8111,10 +10146,11 @@ async function runGeneratedRecordedExperiment(canvas, iterations) {
   }
   const count = Math.max(1, Number(iterations) || 1);
   const initialGateTicks = generatedCurrentGateTickMap(canvas, experiment);
+  const hasControlActions = generatedExperimentHasControlActions(experiment);
   state.playing = true;
   updateGeneratedExperimentToolbar(canvas);
   try {
-    if (count >= 100) {
+    if (count >= 100 && !hasControlActions) {
       replayGeneratedRecordedExperimentFast(
         canvas,
         experiment,
@@ -8126,24 +10162,12 @@ async function runGeneratedRecordedExperiment(canvas, iterations) {
       });
       return true;
     }
-    const previousPlaybackSpeed = generatedExperimentPlaybackSpeed;
-    generatedExperimentPlaybackSpeed =
-      generatedAnimatedReplaySpeedForIterationCount(count);
-    try {
-      for (let run = 0; run < count; run += 1) {
-        const completed = await replayGeneratedRecordedExperimentAnimated(
-          canvas,
-          experiment,
-          initialGateTicks,
-        );
-        if (!completed) {
-          return false;
-        }
-      }
-    } finally {
-      generatedExperimentPlaybackSpeed = previousPlaybackSpeed;
-    }
-    return true;
+    return replayGeneratedRecordedExperimentAnimatedIterations(
+      canvas,
+      experiment,
+      count,
+      initialGateTicks,
+    );
   } finally {
     state.playing = false;
     updateGeneratedExperimentToolbar(canvas);
@@ -8304,7 +10328,7 @@ function continueGeneratedGateDialDrag(event) {
   pruneGeneratedRuntimeState();
   Array.from(generatedSingleGateRuntimes.values()).forEach((runtime) => {
     const canvas = generatedCanvasForItem(runtime.item);
-    if (!generatedCanvasAllowsRuntime(canvas)) {
+    if (!generatedCanvasAllowsGateDialInteraction(canvas)) {
       return;
     }
     runtime.dial?.continueDrag(event);
@@ -8316,6 +10340,74 @@ function endGeneratedGateDialDrag() {
   Array.from(generatedSingleGateRuntimes.values()).forEach((runtime) => {
     runtime.dial?.endDrag();
   });
+}
+
+function pointerInsideElementBounds(element, point, padding = 0) {
+  if (!(element instanceof Element) || !point) {
+    return false;
+  }
+  const rect = element.getBoundingClientRect();
+  return (
+    point.clientX >= rect.left - padding &&
+    point.clientX <= rect.right + padding &&
+    point.clientY >= rect.top - padding &&
+    point.clientY <= rect.bottom + padding
+  );
+}
+
+function pointerInsideGeneratedGateDial(item, point) {
+  if (
+    !(item instanceof HTMLElement) ||
+    item.dataset.component !== "single-gate"
+  ) {
+    return false;
+  }
+  const arrowLayer = item.querySelector(".arrow-layer");
+  const ticksWrap = item.querySelector('[data-role="ticks"]');
+  return (
+    pointerInsideElementBounds(arrowLayer, point, 2) ||
+    pointerInsideElementBounds(ticksWrap, point, 2)
+  );
+}
+
+function generatedSingleGateItemForDialEvent(canvas, origin, point) {
+  const originItem =
+    origin instanceof Element ? origin.closest(".playground-node") : null;
+  if (
+    originItem instanceof HTMLElement &&
+    originItem.parentElement === canvas &&
+    originItem.dataset.component === "single-gate" &&
+    pointerInsideGeneratedGateDial(originItem, point)
+  ) {
+    return originItem;
+  }
+  return (
+    generatedItemsOfType(canvas, "single-gate").find((item) =>
+      pointerInsideGeneratedGateDial(item, point),
+    ) || null
+  );
+}
+
+function beginGeneratedGateDialGestureFromEvent(event) {
+  if (!isPrimaryMouseButton(event)) {
+    return;
+  }
+  const canvas = generatedLayoutCanvasForEvent(event);
+  const point = generatedLayoutPointer(event);
+  if (!canvas || !point || !generatedCanvasAllowsGateDialInteraction(canvas)) {
+    return;
+  }
+  const item = generatedSingleGateItemForDialEvent(canvas, event.target, point);
+  if (!item) {
+    return;
+  }
+  if (layoutEditorState.enabled) {
+    setSelectedGeneratedLayoutItem(item);
+  }
+  const runtime = initializeGeneratedSingleGateItem(item, {
+    singleGateTick: generatedSingleGateRuntimes.get(item)?.activeTick,
+  });
+  runtime?.dial?.beginDrag(event);
 }
 
 function beginGeneratedLayoutEditGesture(event) {
@@ -8333,6 +10425,23 @@ function beginGeneratedLayoutEditGesture(event) {
     return;
   }
   const originItem = origin.closest(".playground-node");
+  const gateDialControl = origin.closest(
+    '[data-role="gate-arrow"], .arrow-layer, .tick',
+  );
+  if (
+    originItem instanceof HTMLElement &&
+    originItem.parentElement === canvas &&
+    originItem.dataset.component === "single-gate" &&
+    (gateDialControl instanceof Element ||
+      pointerInsideGeneratedGateDial(originItem, point))
+  ) {
+    setSelectedGeneratedLayoutItem(originItem);
+    const runtime = initializeGeneratedSingleGateItem(originItem, {
+      singleGateTick: generatedSingleGateRuntimes.get(originItem)?.activeTick,
+    });
+    runtime?.dial?.beginDrag(event);
+    return;
+  }
   if (
     originItem instanceof HTMLElement &&
     originItem.parentElement === canvas &&
@@ -8421,6 +10530,10 @@ function beginGeneratedLayoutEditGesture(event) {
     }
   }
   setSelectedGeneratedLayoutItem(targetItem);
+  const textBoxBodyEditTarget = Boolean(
+    targetItem.dataset.component === "text-box" &&
+      origin.closest('[data-role="text-box-body"]'),
+  );
   const itemRect = targetItem.getBoundingClientRect();
   const isResizeHandle =
     origin.closest(".layout-resize-handle") ||
@@ -8443,6 +10556,10 @@ function beginGeneratedLayoutEditGesture(event) {
       mode === "item-resize" ? captureCnotGeometryBaseline(targetItem) : null,
   };
   targetItem.classList.add(mode === "item-resize" ? "resizing" : "dragging");
+  if (textBoxBodyEditTarget && mode === "item-move") {
+    event.stopPropagation();
+    return;
+  }
   event.preventDefault();
   event.stopPropagation();
 }
@@ -8527,8 +10644,7 @@ function continueGeneratedLayoutEditGesture(event) {
     gesture.item.style.top = `${Math.round(clamped.top)}px`;
     setLayoutManualEdited(gesture.item, true);
   }
-  setLayoutSaveButtonSavedState(false);
-  if (event.touches) {
+  if (event.touches || gesture.item?.dataset?.component === "text-box") {
     event.preventDefault();
   }
 }
@@ -8538,6 +10654,7 @@ function endGeneratedLayoutEditGesture() {
   if (!gesture) {
     return;
   }
+  const canvas = gesture.canvas;
   if (gesture.part) {
     gesture.part.classList.remove("layout-edit-dragging");
   }
@@ -8545,6 +10662,10 @@ function endGeneratedLayoutEditGesture() {
     gesture.item.classList.remove("dragging", "resizing");
   }
   generatedLayoutGesture = null;
+  if (isDocumentEditorCanvas(canvas)) {
+    saveCurrentDocumentEditorScene();
+    updateDocEditorButtons();
+  }
 }
 
 function orderedTabButtons() {
@@ -8561,7 +10682,7 @@ function syncTabButtonsFromDom() {
 }
 
 function generatedTabInsertionPoint() {
-  return layoutEditToggle instanceof HTMLElement ? layoutEditToggle : null;
+  return null;
 }
 
 function clearGeneratedTabDragClasses() {
@@ -9914,14 +12035,20 @@ function setupPlagroundComposer() {
     runtime.dial?.layout();
     alignPlaygroundGateSpring(runtime);
 
-    gateArrow.addEventListener("mousedown", (event) =>
-      runtime.dial?.beginDrag(event),
-    );
+    const gateArrowLayer = gateArrow.closest(".arrow-layer");
+    const beginDialDrag = (event) => runtime.dial?.beginDrag(event);
+    gateArrow.addEventListener("mousedown", beginDialDrag);
     gateArrow.addEventListener(
       "touchstart",
-      (event) => runtime.dial?.beginDrag(event),
+      beginDialDrag,
       { passive: false },
     );
+    if (gateArrowLayer instanceof Element && gateArrowLayer !== gateArrow) {
+      gateArrowLayer.addEventListener("mousedown", beginDialDrag);
+      gateArrowLayer.addEventListener("touchstart", beginDialDrag, {
+        passive: false,
+      });
+    }
     gateArrow.addEventListener("keydown", (event) =>
       runtime.dial?.handleKeydown(event),
     );
@@ -10922,6 +13049,56 @@ function setupPlagroundComposer() {
     };
   };
 
+  const playgroundDoubleMeasurementSourcePoint = (qubitItem, qubitState) => {
+    if (validPoint(qubitState?.doubleMeasurementReturnPoint)) {
+      return qubitState.doubleMeasurementReturnPoint;
+    }
+    return canvasPointForElementCenter(qubitItem);
+  };
+
+  const playgroundDoubleMeasurementOrderedQubits = (
+    leftQubit,
+    rightQubit,
+    leftState,
+    rightState,
+  ) => {
+    if (
+      leftState?.cnotSourceSlot === "top" &&
+      rightState?.cnotSourceSlot === "bottom"
+    ) {
+      return { topQubit: leftQubit, bottomQubit: rightQubit };
+    }
+    if (
+      rightState?.cnotSourceSlot === "top" &&
+      leftState?.cnotSourceSlot === "bottom"
+    ) {
+      return { topQubit: rightQubit, bottomQubit: leftQubit };
+    }
+    if (
+      leftState?.pairQubitIndex === 0 &&
+      rightState?.pairQubitIndex === 1
+    ) {
+      return { topQubit: leftQubit, bottomQubit: rightQubit };
+    }
+    if (
+      rightState?.pairQubitIndex === 0 &&
+      leftState?.pairQubitIndex === 1
+    ) {
+      return { topQubit: rightQubit, bottomQubit: leftQubit };
+    }
+    const leftPoint = playgroundDoubleMeasurementSourcePoint(
+      leftQubit,
+      leftState,
+    );
+    const rightPoint = playgroundDoubleMeasurementSourcePoint(
+      rightQubit,
+      rightState,
+    );
+    return leftPoint.y <= rightPoint.y
+      ? { topQubit: leftQubit, bottomQubit: rightQubit }
+      : { topQubit: rightQubit, bottomQubit: leftQubit };
+  };
+
   const collapsePlaygroundQubitPairFromCnot = (
     topQubitItem,
     bottomQubitItem,
@@ -10954,11 +13131,6 @@ function setupPlagroundComposer() {
     }
     const topBlue = argumentOutcomeKey[0] === "b";
     const bottomBlue = argumentOutcomeKey[1] === "b";
-    const outcomeKey = orderedOutcomeKeyForQubitItems(
-      argumentOutcomeKey,
-      topQubitItem,
-      bottomQubitItem,
-    );
     topState.vector = topBlue ? [1, 0] : [0, 1];
     bottomState.vector = bottomBlue ? [1, 0] : [0, 1];
     topState.pairState = null;
@@ -10974,7 +13146,7 @@ function setupPlagroundComposer() {
     applyPlaygroundQubitVectorVisualState(topQubitItem);
     applyPlaygroundQubitVectorVisualState(bottomQubitItem);
     return {
-      outcomeKey,
+      outcomeKey: argumentOutcomeKey,
       topColor: topBlue ? "blue" : "red",
       bottomColor: bottomBlue ? "blue" : "red",
     };
@@ -11019,9 +13191,15 @@ function setupPlagroundComposer() {
 
         leftQubit.classList.add("collapse-animating");
         rightQubit.classList.add("collapse-animating");
-        const collapseResult = collapsePlaygroundQubitPairFromCnot(
-          rightQubit,
+        const orderedQubits = playgroundDoubleMeasurementOrderedQubits(
           leftQubit,
+          rightQubit,
+          leftState,
+          rightState,
+        );
+        const collapseResult = collapsePlaygroundQubitPairFromCnot(
+          orderedQubits.topQubit,
+          orderedQubits.bottomQubit,
         );
         leftQubit.classList.remove("collapse-animating");
         rightQubit.classList.remove("collapse-animating");
@@ -11458,7 +13636,6 @@ function setupPlagroundComposer() {
       }
       setLayoutManualEdited(cnotPartGesture.part, true);
       setLayoutManualEdited(cnotPartGesture.item, true);
-      setLayoutSaveButtonSavedState(false);
       event.preventDefault();
       return;
     }
@@ -11502,7 +13679,6 @@ function setupPlagroundComposer() {
       }
       setLayoutManualEdited(measurementPartGesture.part, true);
       setLayoutManualEdited(measurementPartGesture.item, true);
-      setLayoutSaveButtonSavedState(false);
       event.preventDefault();
       return;
     }
@@ -11558,7 +13734,6 @@ function setupPlagroundComposer() {
           height,
         );
         setLayoutManualEdited(resizeState.item, true);
-        setLayoutSaveButtonSavedState(false);
         return;
       }
       const clampedSize = clampItemSize(resizeState.item, width, height);
@@ -11571,7 +13746,6 @@ function setupPlagroundComposer() {
         clampedSize.height,
       );
       setLayoutManualEdited(resizeState.item, true);
-      setLayoutSaveButtonSavedState(false);
       return;
     }
     if (!dragState) {
@@ -11600,7 +13774,6 @@ function setupPlagroundComposer() {
     dragState.item.style.top = `${Math.round(clamped.top)}px`;
     if (layoutEditorState.enabled) {
       setLayoutManualEdited(dragState.item, true);
-      setLayoutSaveButtonSavedState(false);
     } else if (isPlaygroundQubitItem(dragState.item)) {
       if (maybeSnapPlaygroundQubitToSingleGate(dragState.item)) {
         return;
@@ -11789,7 +13962,6 @@ function setupPlagroundComposer() {
     ensurePlaygroundSingleMeasurementRuntime(item);
     ensurePlaygroundDoubleMeasurementRuntime(item);
     ensurePlaygroundCnotRuntime(item);
-    refreshLayoutEditTargets();
     preparePlaygroundCnotParts(item);
     preparePlaygroundMeasurementParts(item);
   };
@@ -12178,6 +14350,7 @@ function setupPlagroundComposer() {
       setStatus("Delete failed");
       return false;
     }
+    deleteDocumentForTabId(targetId);
     if (
       document
         .querySelector(".tab-btn.active")
@@ -12241,7 +14414,29 @@ function setupPlagroundComposer() {
     return true;
   };
 
+  const deleteSelectedComponentPart = () => {
+    const owner = selectedComponentItem();
+    if (
+      !(owner instanceof HTMLElement) ||
+      !(selectedComponentPart instanceof HTMLElement) ||
+      !owner.contains(selectedComponentPart) ||
+      selectedComponentPart.parentElement !== owner ||
+      !selectedComponentPart.classList.contains("saved-group-child")
+    ) {
+      return false;
+    }
+    selectedComponentPart.remove();
+    clearSelectedComponentPart();
+    preparePlaygroundMeasurementParts(owner);
+    setSelectedItem(owner);
+    setStatus("Deleted subcomponent");
+    return true;
+  };
+
   const deleteSelected = () => {
+    if (deleteSelectedComponentPart()) {
+      return true;
+    }
     const doomedItems = selectedComponentItems();
     if (doomedItems.length === 0) {
       return false;
@@ -13002,6 +15197,10 @@ function hasMeaningfulLayoutDelta(tx, ty, width, height) {
   );
 }
 
+function isLayoutTargetDeleted(element) {
+  return element?.dataset?.layoutDeleted === "true";
+}
+
 function setLayoutManualEdited(element, edited) {
   if (!(element instanceof HTMLElement)) {
     return;
@@ -13013,175 +15212,27 @@ function setLayoutManualEdited(element, edited) {
   }
 }
 
-function bakeLayoutTranslateIntoBasePosition(element) {
-  const tx = parseLayoutNumeric(element.dataset.layoutTx, 0);
-  const ty = parseLayoutNumeric(element.dataset.layoutTy, 0);
-  if (Math.abs(tx) < 0.01 && Math.abs(ty) < 0.01) {
-    return;
-  }
-
-  const computed = window.getComputedStyle(element);
-  const positioned = ["absolute", "relative", "fixed", "sticky"].includes(
-    computed.position,
-  );
-  if (!positioned) {
-    return;
-  }
-
-  const currentLeft = parseLayoutNumeric(computed.left, Number.NaN);
-  const currentTop = parseLayoutNumeric(computed.top, Number.NaN);
-  if (!Number.isFinite(currentLeft) || !Number.isFinite(currentTop)) {
-    return;
-  }
-
-  element.style.left = `${Number.parseFloat((currentLeft + tx).toFixed(2))}px`;
-  element.style.top = `${Number.parseFloat((currentTop + ty).toFixed(2))}px`;
-  setLayoutTargetTranslate(element, 0, 0);
-}
-
-function layoutKeySegment(element) {
-  if (element.id) {
-    return `#${element.id}`;
-  }
-  const tag = element.tagName.toLowerCase();
-  const role = element.getAttribute("data-role");
-  const classTokens = Array.from(element.classList)
-    .filter((token) => !token.startsWith("layout-"))
-    .slice(0, 2)
-    .join(".");
-  let index = 0;
-  if (element.parentElement) {
-    const sameTagSiblings = Array.from(element.parentElement.children).filter(
-      (child) => child.tagName === element.tagName,
-    );
-    index = sameTagSiblings.indexOf(element);
-  }
-  const identity = role
-    ? `[role=${role}]`
-    : classTokens
-      ? `[class=${classTokens}]`
-      : "";
-  return `${tag}${identity}:nth${index}`;
-}
-
-function deriveLayoutKey(element) {
-  if (element.dataset.layoutKey) {
-    return element.dataset.layoutKey;
-  }
-
-  const segments = [];
-  let cursor = element;
-  while (cursor && cursor !== document.body) {
-    segments.unshift(layoutKeySegment(cursor));
-    if (cursor.id) {
-      break;
-    }
-    cursor = cursor.parentElement;
-  }
-
-  const key = segments.join("/");
-  element.dataset.layoutKey = key;
-  return key;
-}
-
-function slotOffsetDatasetKeys(slot) {
-  if (slot === "left") {
-    return { x: "layoutPairLensLeftDx", y: "layoutPairLensLeftDy" };
-  }
-  return { x: "layoutPairLensRightDx", y: "layoutPairLensRightDy" };
-}
-
-function collectLayoutTargets() {
-  return Array.from(
-    document.querySelectorAll('[data-layout-edit-target="true"]'),
-  );
-}
-
-function isLayoutTargetDeleted(element) {
-  return element?.dataset?.layoutDeleted === "true";
-}
-
-function isLayoutTargetProtectedFromDeletion(element) {
-  if (!(element instanceof HTMLElement)) {
-    return false;
-  }
-  return false;
-}
-
-function isLayoutTargetPinnedToDefaultGeometry(element) {
-  if (!(element instanceof HTMLElement)) {
-    return false;
-  }
-  return false;
-}
-
 function setLayoutTargetDeleted(element, deleted) {
   if (!(element instanceof HTMLElement)) {
-    return;
-  }
-  if (deleted && isLayoutTargetProtectedFromDeletion(element)) {
-    delete element.dataset.layoutDeleted;
-    element.style.display = "";
     return;
   }
   if (deleted) {
     element.dataset.layoutDeleted = "true";
     element.style.display = "none";
-    if (selectedLayoutTarget === element) {
-      selectedLayoutTarget.classList.remove("layout-edit-selected");
-      selectedLayoutTarget = null;
-    }
     return;
   }
   delete element.dataset.layoutDeleted;
   element.style.display = "";
 }
 
-function clearSelectedLayoutTarget() {
-  if (selectedLayoutTarget) {
-    selectedLayoutTarget.classList.remove("layout-edit-selected");
-  }
-  selectedLayoutTarget = null;
-}
-
-function setSelectedLayoutTarget(element) {
-  if (!(element instanceof HTMLElement) || isLayoutTargetDeleted(element)) {
-    clearSelectedLayoutTarget();
+function ensureLayoutResizeHandle(element) {
+  if (element.querySelector(":scope > .layout-resize-handle")) {
     return;
   }
-  if (selectedLayoutTarget === element) {
-    return;
-  }
-  if (selectedLayoutTarget) {
-    selectedLayoutTarget.classList.remove("layout-edit-selected");
-  }
-  selectedLayoutTarget = element;
-  selectedLayoutTarget.classList.add("layout-edit-selected");
-}
-
-function selectedLayoutTargetKeySet() {
-  const deleted = new Set();
-  collectLayoutTargets().forEach((element) => {
-    if (
-      isLayoutTargetDeleted(element) &&
-      !isLayoutTargetProtectedFromDeletion(element)
-    ) {
-      deleted.add(deriveLayoutKey(element));
-    }
-  });
-  return deleted;
-}
-
-function removeSelectedLayoutTargetFromLayout() {
-  if (!layoutEditorState.enabled || !selectedLayoutTarget) {
-    return false;
-  }
-  if (isLayoutTargetProtectedFromDeletion(selectedLayoutTarget)) {
-    return false;
-  }
-  setLayoutTargetDeleted(selectedLayoutTarget, true);
-  setLayoutSaveButtonSavedState(false);
-  return true;
+  const handle = document.createElement("span");
+  handle.className = "layout-resize-handle";
+  handle.setAttribute("aria-hidden", "true");
+  element.appendChild(handle);
 }
 
 function keyboardEventIsTextEditing(event) {
@@ -13194,15 +15245,6 @@ function keyboardEventIsTextEditing(event) {
   }
   const tag = target.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-}
-
-function isPlaygroundQubitLayoutTarget(element) {
-  return (
-    element instanceof HTMLElement &&
-    element.dataset.component === "qubit" &&
-    element.classList.contains("playground-node") &&
-    Boolean(element.closest("#panel-plaground"))
-  );
 }
 
 function pointerNearResizeCorner(element, pointer, inset = 20) {
@@ -13244,426 +15286,32 @@ function layoutItemBehindPoint(canvas, frontItem, pointer) {
   return null;
 }
 
-function readSavedLayoutPayload() {
-  try {
-    const serialized = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
-    if (!serialized) {
-      return null;
-    }
-    const parsed = JSON.parse(serialized);
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function shouldPersistGenericLayoutTarget(element) {
-  if (!(element instanceof HTMLElement)) {
-    return false;
-  }
-  if (isLayoutTargetPinnedToDefaultGeometry(element)) {
-    return false;
-  }
-  if (element.closest(".generated-layout-canvas")) {
-    return false;
-  }
-  return true;
-}
-
-function saveLayoutEdits() {
-  const generatedLayoutsSaved = persistGeneratedLayoutEditsFromDom();
-  persistVisibleGeneratedComponentDefaultsFromDom();
-  persistVisiblePlaygroundComponentDefaultsFromDom();
-  const payload = {};
-  collectLayoutTargets().forEach((element) => {
-    if (isLayoutTargetDeleted(element)) {
-      return;
-    }
-    if (!shouldPersistGenericLayoutTarget(element)) {
-      return;
-    }
-    const key = deriveLayoutKey(element);
-    payload[key] = {
-      tx: parseLayoutNumeric(element.dataset.layoutTx, 0),
-      ty: parseLayoutNumeric(element.dataset.layoutTy, 0),
-      width: element.style.width || "",
-      height: element.style.height || "",
-    };
-  });
-  const deletedTargetKeys = [...selectedLayoutTargetKeySet()];
-  if (deletedTargetKeys.length > 0) {
-    payload.__deletedLayoutTargets = deletedTargetKeys;
-  }
-  try {
-    window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload));
-    return generatedLayoutsSaved;
-  } catch (_error) {
-    // Ignore storage failures (quota/private mode/etc.) and keep editing functional.
-    return false;
-  }
-}
-
-function applySavedLayoutEdits() {
-  let serialized = null;
-  try {
-    serialized = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
-  } catch (_error) {
-    serialized = null;
-  }
-  if (!serialized) {
-    return;
-  }
-
-  let payload = null;
-  try {
-    payload = JSON.parse(serialized);
-  } catch (_error) {
-    return;
-  }
-  if (!payload || typeof payload !== "object") {
-    return;
-  }
-  const deletedKeys = new Set(
-    Array.isArray(payload.__deletedLayoutTargets)
-      ? payload.__deletedLayoutTargets
-      : [],
-  );
-
-  collectLayoutTargets().forEach((element) => {
-    setLayoutTargetDeleted(element, false);
-    const key = deriveLayoutKey(element);
-    const saved = payload[key];
-    if (!saved || isLayoutTargetPinnedToDefaultGeometry(element)) {
-      setLayoutTargetTranslate(element, 0, 0);
-      if (element.dataset.layoutResizable === "true") {
-        element.style.width = "";
-        element.style.height = "";
-      }
-      setLayoutManualEdited(element, false);
-      return;
-    }
-    const tx = parseLayoutNumeric(saved.tx, 0);
-    const ty = parseLayoutNumeric(saved.ty, 0);
-    setLayoutTargetTranslate(element, tx, ty);
-    const savedWidth = typeof saved.width === "string" ? saved.width : "";
-    const savedHeight = typeof saved.height === "string" ? saved.height : "";
-    if (typeof saved.width === "string") {
-      element.style.width = saved.width;
-    }
-    if (typeof saved.height === "string") {
-      element.style.height = saved.height;
-    }
-    setLayoutManualEdited(
-      element,
-      hasMeaningfulLayoutDelta(tx, ty, savedWidth, savedHeight),
-    );
-  });
-  collectLayoutTargets().forEach((element) => {
-    const key = deriveLayoutKey(element);
-    setLayoutTargetDeleted(element, deletedKeys.has(key));
-  });
-  clearSelectedLayoutTarget();
-
-}
-
-function resetLayoutEditsToDefault() {
-  collectLayoutTargets().forEach((element) => {
-    setLayoutTargetTranslate(element, 0, 0);
-    setLayoutTargetDeleted(element, false);
-    if (element.dataset.layoutResizable === "true") {
-      element.style.width = "";
-      element.style.height = "";
-    }
-    setLayoutManualEdited(element, false);
-  });
-  try {
-    window.localStorage.removeItem(LAYOUT_STORAGE_KEY);
-  } catch (_error) {
-    // Ignore storage failures.
-  }
-  clearSelectedLayoutTarget();
-}
-
-function setLayoutSaveButtonSavedState(saved) {
-  if (!layoutSaveButton) {
-    return;
-  }
-  layoutSaveButton.textContent = saved ? "Layout Saved" : "Save Layout";
-}
-
-function ensureLayoutResizeHandle(element) {
-  if (element.querySelector(":scope > .layout-resize-handle")) {
-    return;
-  }
-  const handle = document.createElement("span");
-  handle.className = "layout-resize-handle";
-  handle.setAttribute("aria-hidden", "true");
-  element.appendChild(handle);
-}
-
-function beginLayoutGesture(element, event) {
-  if (!layoutEditorState.enabled) {
-    return;
-  }
-  if (event.button !== undefined && event.button !== 0) {
-    return;
-  }
-
-  const isResizeHandle =
-    event.target instanceof Element &&
-    event.target.closest(".layout-resize-handle");
-  const canResize = element.dataset.layoutResizable === "true";
-  const pointer = getPointer(event);
-  if (!pointer) {
-    return;
-  }
-  const cornerResizeQubit =
-    !isResizeHandle &&
-    canResize &&
-    isPlaygroundQubitLayoutTarget(element) &&
-    pointerNearResizeCorner(element, pointer, 34);
-
-  const initialTranslate = layoutTargetTranslate(element);
-  const rect = element.getBoundingClientRect();
-  setSelectedLayoutTarget(element);
-  layoutEditorState.activeGesture = {
-    element,
-    mode:
-      (isResizeHandle || cornerResizeQubit) && canResize ? "resize" : "move",
-    startX: pointer.clientX,
-    startY: pointer.clientY,
-    startTx: initialTranslate.x,
-    startTy: initialTranslate.y,
-    startWidth: rect.width,
-    startHeight: rect.height,
-    uniformResize: element.dataset.layoutUniformResize === "true",
-    minWidth: parseLayoutNumeric(element.dataset.layoutMinWidth, 24),
-    minHeight: parseLayoutNumeric(element.dataset.layoutMinHeight, 24),
-    cnotBaseline:
-      isResizeHandle && canResize ? captureCnotGeometryBaseline(element) : null,
-  };
-
-  element.classList.add("layout-edit-dragging");
-  event.preventDefault();
-  event.stopPropagation();
-}
-
-function continueLayoutGesture(event) {
-  const gesture = layoutEditorState.activeGesture;
-  if (!layoutEditorState.enabled || !gesture) {
-    return;
-  }
-  const pointer = getPointer(event);
-  if (!pointer) {
-    return;
-  }
-
-  const dx = pointer.clientX - gesture.startX;
-  const dy = pointer.clientY - gesture.startY;
-
-  if (gesture.mode === "resize") {
-    let nextWidth = Math.max(gesture.minWidth, gesture.startWidth + dx);
-    let nextHeight = Math.max(gesture.minHeight, gesture.startHeight + dy);
-    if (gesture.uniformResize) {
-      const uniformSize = Math.max(
-        nextWidth,
-        nextHeight,
-        gesture.minWidth,
-        gesture.minHeight,
-      );
-      nextWidth = uniformSize;
-      nextHeight = uniformSize;
-    }
-    gesture.element.style.width = `${Math.round(nextWidth)}px`;
-    gesture.element.style.height = `${Math.round(nextHeight)}px`;
-    applyCnotGeometryScale(
-      gesture.element,
-      gesture.cnotBaseline,
-      nextWidth,
-      nextHeight,
-    );
-    setLayoutManualEdited(gesture.element, true);
-  } else {
-    setLayoutTargetTranslate(
-      gesture.element,
-      gesture.startTx + dx,
-      gesture.startTy + dy,
-    );
-    setLayoutManualEdited(gesture.element, true);
-  }
-
-  setLayoutSaveButtonSavedState(false);
-
-  event.preventDefault();
-}
-
-function endLayoutGesture() {
-  const gesture = layoutEditorState.activeGesture;
-  if (!gesture) {
-    return;
-  }
-  gesture.element.classList.remove("layout-edit-dragging");
-  layoutEditorState.activeGesture = null;
-}
-
-function registerLayoutEditTarget(element, spec) {
-  if (!(element instanceof HTMLElement)) {
-    return;
-  }
-  if (element.classList.contains("playground-qubit-core")) {
-    return;
-  }
-  if (element.closest(".saved-component-group")) {
-    return;
-  }
-  if (layoutEditorState.registeredTargets.has(element)) {
-    return;
-  }
-
-  layoutEditorState.registeredTargets.add(element);
-  element.dataset.layoutEditTarget = "true";
-  element.dataset.layoutResizable = spec.resizable ? "true" : "false";
-  element.dataset.layoutUniformResize = spec.uniform ? "true" : "false";
-  element.dataset.layoutMinWidth = `${spec.minWidth || 24}`;
-  element.dataset.layoutMinHeight = `${spec.minHeight || 24}`;
-  deriveLayoutKey(element);
-  if (!element.style.translate) {
-    setLayoutTargetTranslate(element, 0, 0);
-  }
-
-  if (window.getComputedStyle(element).position === "static") {
-    element.style.position = "relative";
-  }
-
-  if (spec.resizable) {
-    ensureLayoutResizeHandle(element);
-  }
-}
-
-function refreshLayoutEditTargets() {
-  LAYOUT_EDIT_TARGET_SPECS.forEach((spec) => {
-    const elements = Array.from(document.querySelectorAll(spec.selector));
-    elements.forEach((element) => registerLayoutEditTarget(element, spec));
-  });
-}
-
 function setLayoutEditEnabled(enabled) {
-  const wasEnabled = layoutEditorState.enabled;
   layoutEditorState.enabled = Boolean(enabled);
   document.body.classList.toggle(
     "layout-edit-active",
     layoutEditorState.enabled,
   );
-  if (layoutEditToggle) {
-    layoutEditToggle.classList.toggle("active", layoutEditorState.enabled);
-    layoutEditToggle.setAttribute(
-      "aria-pressed",
-      layoutEditorState.enabled ? "true" : "false",
-    );
-    layoutEditToggle.textContent = layoutEditorState.enabled
-      ? "Layout Edit: On"
-      : "Layout Edit: Off";
-  }
   if (!layoutEditorState.enabled) {
-    endLayoutGesture();
     endGeneratedLayoutEditGesture();
-    clearSelectedLayoutTarget();
     clearSelectedGeneratedLayoutItem();
-    if (wasEnabled) {
-      collectLayoutTargets().forEach((element) => {
-        if (
-          element.closest("#panel-plaground") ||
-          element.closest(".generated-layout-canvas")
-        ) {
-          return;
-        }
-        bakeLayoutTranslateIntoBasePosition(element);
-      });
-      refreshVisibleSimulators();
-    }
   } else {
     endGeneratedRuntimeGesture();
     endGeneratedGateDialDrag();
     updateGeneratedEditorButtons();
-  }
-  if (layoutSaveButton) {
-    layoutSaveButton.disabled = !layoutEditorState.enabled;
-  }
-  if (layoutResetButton) {
-    layoutResetButton.disabled = !layoutEditorState.enabled;
   }
   document.querySelectorAll(".generated-layout-canvas").forEach((canvas) => {
     if (canvas instanceof HTMLElement) {
       syncGeneratedTextBoxSequence(canvas, { reset: !layoutEditorState.enabled });
     }
   });
-  setLayoutSaveButtonSavedState(false);
-  simulators.forEach((simulator) => {
-    if (typeof simulator.handleLayoutEditChanged === "function") {
-      simulator.handleLayoutEditChanged(layoutEditorState.enabled);
+  editorComposers.forEach((composer) => {
+    if (typeof composer.handleLayoutEditChanged === "function") {
+      composer.handleLayoutEditChanged(layoutEditorState.enabled);
     }
   });
 }
 
-function findLayoutEditTargetFromEvent(event) {
-  const origin = event.target;
-  if (!(origin instanceof Element)) {
-    return null;
-  }
-  const rawTarget = origin.closest('[data-layout-edit-target="true"]');
-  if (!rawTarget) {
-    return null;
-  }
-  if (rawTarget.closest("#panel-plaground")) {
-    // Playground has its own drag/resize model; avoid mixed handlers.
-    return null;
-  }
-  if (rawTarget.closest(".generated-layout-canvas")) {
-    // Generated tabs use the same component editor model as Playground.
-    return null;
-  }
-
-  const pairMeasurementGroup = rawTarget.closest(".pair-measurement");
-  if (pairMeasurementGroup && pairMeasurementGroup instanceof HTMLElement) {
-    // Default behavior: allow editing children (magnifier, rack, labels, etc.)
-    // so they can be moved relative to one another.
-    // Hold Shift while dragging to move the whole measurement block as one unit.
-    if (event.shiftKey || rawTarget === pairMeasurementGroup) {
-      return pairMeasurementGroup;
-    }
-  }
-
-  return rawTarget;
-}
-
-function captureLayoutEditStart(event) {
-  if (!layoutEditorState.enabled) {
-    return;
-  }
-  const target = findLayoutEditTargetFromEvent(event);
-  if (!target) {
-    clearSelectedLayoutTarget();
-    return;
-  }
-  beginLayoutGesture(target, event);
-  event.stopImmediatePropagation();
-}
-
-function captureLayoutEditClick(event) {
-  if (!layoutEditorState.enabled) {
-    return;
-  }
-  const target = findLayoutEditTargetFromEvent(event);
-  if (!target) {
-    clearSelectedLayoutTarget();
-    return;
-  }
-  setSelectedLayoutTarget(target);
-  event.preventDefault();
-  event.stopImmediatePropagation();
-}
-
-window.addEventListener("mousemove", continueLayoutGesture, { passive: false });
 window.addEventListener("mousemove", continueGeneratedLayoutEditGesture, {
   passive: false,
 });
@@ -13673,41 +15321,30 @@ window.addEventListener("mousemove", continueGeneratedRuntimeGesture, {
 window.addEventListener("mousemove", continueGeneratedGateDialDrag, {
   passive: false,
 });
-window.addEventListener("mousedown", captureLayoutEditStart, true);
 window.addEventListener(
   "touchmove",
   (event) => {
-    continueLayoutGesture(event);
     continueGeneratedLayoutEditGesture(event);
     continueGeneratedRuntimeGesture(event);
     continueGeneratedGateDialDrag(event);
   },
   { passive: false },
 );
-window.addEventListener(
-  "touchstart",
-  (event) => captureLayoutEditStart(event),
-  { capture: true, passive: false },
-);
 window.addEventListener("mouseup", () => {
-  endLayoutGesture();
   endGeneratedLayoutEditGesture();
   endGeneratedRuntimeGesture();
   endGeneratedGateDialDrag();
 });
 window.addEventListener("touchend", () => {
-  endLayoutGesture();
   endGeneratedLayoutEditGesture();
   endGeneratedRuntimeGesture();
   endGeneratedGateDialDrag();
 });
 window.addEventListener("touchcancel", () => {
-  endLayoutGesture();
   endGeneratedLayoutEditGesture();
   endGeneratedRuntimeGesture();
   endGeneratedGateDialDrag();
 });
-window.addEventListener("click", captureLayoutEditClick, true);
 window.addEventListener("keydown", (event) => {
   if (!layoutEditorState.enabled || keyboardEventIsTextEditing(event)) {
     return;
@@ -13719,10 +15356,6 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
     return;
-  }
-  if (removeSelectedLayoutTargetFromLayout()) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
   }
 });
 
@@ -14170,23 +15803,6 @@ function swapPairOutcomeKey(outcomeKey) {
   return `${outcomeKey[1]}${outcomeKey[0]}`;
 }
 
-function orderedOutcomeKeyForQubitIds(outcomeKey, firstQubitId, secondQubitId) {
-  const firstId = normalizeQubitId(firstQubitId);
-  const secondId = normalizeQubitId(secondQubitId);
-  if (firstId && secondId && secondId < firstId) {
-    return swapPairOutcomeKey(outcomeKey);
-  }
-  return outcomeKey;
-}
-
-function orderedOutcomeKeyForQubitItems(outcomeKey, firstItem, secondItem) {
-  return orderedOutcomeKeyForQubitIds(
-    outcomeKey,
-    qubitLogicalIdForItem(firstItem),
-    qubitLogicalIdForItem(secondItem),
-  );
-}
-
 function outcomeKeyForPairStatesInArgumentOrder(
   outcomeKey,
   firstState,
@@ -14219,24 +15835,6 @@ function outcomeKeyForPairIdsInArgumentOrder(
     }
   }
   return outcomeKey;
-}
-
-function orderedOutcomeKeyForPairMembers(
-  outcomeKey,
-  firstState,
-  secondState,
-  firstItem = null,
-  secondItem = null,
-) {
-  return orderedOutcomeKeyForQubitItems(
-    outcomeKeyForPairStatesInArgumentOrder(
-      outcomeKey,
-      firstState,
-      secondState,
-    ),
-    firstItem,
-    secondItem,
-  );
 }
 
 function runtimeStatesSharePairState(firstState, secondState) {
@@ -15062,44 +16660,28 @@ function registerQubitInspector(element, getState) {
 
 playgroundComponentDefaultsCache = readPlaygroundComponentDefaultsPayload();
 playgroundGroupComponentsCache = readPlaygroundGroupComponentsPayload();
+documentsState = readDocumentsState();
 
 const plagroundComposer = setupPlagroundComposer();
-const simulators = [plagroundComposer].filter(Boolean);
+const documentEditorComposer = setupDocumentEditor();
+const editorComposers = [plagroundComposer, documentEditorComposer].filter(
+  Boolean,
+);
 
-refreshLayoutEditTargets();
-if (layoutEditToggle) {
-  layoutEditToggle.addEventListener("click", () => {
-    setLayoutEditEnabled(!layoutEditorState.enabled);
-  });
-}
-if (layoutSaveButton) {
-  layoutSaveButton.addEventListener("click", () => {
-    const saved = saveLayoutEdits();
-    setLayoutSaveButtonSavedState(saved);
-  });
-}
-if (layoutResetButton) {
-  layoutResetButton.addEventListener("click", () => {
-    resetLayoutEditsToDefault();
-    setLayoutSaveButtonSavedState(false);
-    refreshVisibleSimulators();
-  });
-}
 setLayoutEditEnabled(false);
-applySavedLayoutEdits();
 
-function refreshVisibleSimulators() {
-  simulators.forEach((simulator) => {
-    simulator.handleResize();
+function refreshVisibleEditors() {
+  editorComposers.forEach((composer) => {
+    composer.handleResize();
   });
   layoutGeneratedSingleGateDials(document);
 }
 
-function refreshVisibleSimulatorsAfterTabSwitch() {
+function refreshVisibleEditorsAfterTabSwitch() {
   window.requestAnimationFrame(() => {
-    refreshVisibleSimulators();
+    refreshVisibleEditors();
     window.requestAnimationFrame(() => {
-      refreshVisibleSimulators();
+      refreshVisibleEditors();
     });
   });
 }
@@ -15107,6 +16689,12 @@ function refreshVisibleSimulatorsAfterTabSwitch() {
 function setActiveTab(tabTarget) {
   if (!tabButtons.length || !tabPanels.length) {
     return;
+  }
+
+  const previousActiveTarget =
+    document.querySelector(".tab-btn.active")?.dataset?.tabTarget || "";
+  if (previousActiveTarget === "doc-editor" && tabTarget !== "doc-editor") {
+    saveCurrentDocumentEditorScene();
   }
 
   clearQubitSelection();
@@ -15128,16 +16716,36 @@ function setActiveTab(tabTarget) {
     }
   });
 
-  setLayoutEditEnabled(tabTarget === "plaground");
-  refreshVisibleSimulatorsAfterTabSwitch();
+  setLayoutEditEnabled(tabTarget === "plaground" || tabTarget === "doc-editor");
+  if (tabTarget === "doc-editor") {
+    const targets = collectPlaygroundSaveTargets();
+    const targetIds = new Set(targets.map((target) => target.id));
+    const preferredTabId = targetIds.has(previousActiveTarget)
+      ? previousActiveTarget
+      : targetIds.has(documentEditorState.tabId)
+        ? documentEditorState.tabId
+        : targets.length === 1
+          ? targets[0].id
+          : "";
+    if (preferredTabId) {
+      openDocumentEditorForTab(preferredTabId);
+    } else {
+      refreshDocumentEditorTabSelect("");
+      updateDocEditorButtons();
+    }
+  } else {
+    refreshGeneratedDocumentToolbarForTabId(tabTarget);
+  }
+  refreshVisibleEditorsAfterTabSwitch();
 }
 
 tabButtons.forEach((button) => registerTabButton(button));
 restoreGeneratedTabs();
 plagroundComposer?.handleGeneratedTabsChanged?.();
+documentEditorComposer?.handleGeneratedTabsChanged?.();
 
 window.addEventListener("resize", () => {
-  refreshVisibleSimulators();
+  refreshVisibleEditors();
 });
 
 setActiveTab("plaground");
