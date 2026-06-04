@@ -151,6 +151,7 @@ const GITHUB_PAGES_TAB_IDS = [
   "entanglement-2",
 ];
 const IS_GITHUB_PAGES_BUILD =
+  window.location.hostname.endsWith(".github.io") ||
   document.documentElement?.dataset?.quantumTarget === "github-pages" ||
   new URLSearchParams(window.location.search).get("quantumTarget") ===
     "github-pages";

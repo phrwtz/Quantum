@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quantum Gate Console</title>
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        if (
+          window.location.hostname.endsWith(".github.io") ||
+          params.get("quantumTarget") === "github-pages"
+        ) {
+          document.documentElement.dataset.quantumTarget = "github-pages";
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
