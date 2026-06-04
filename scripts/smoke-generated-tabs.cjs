@@ -2731,7 +2731,7 @@ async function runInitialWhatsThisSeedSmoke(page) {
     };
   });
   if (
-    seeded.seedVersion !== "qubit-lab-scripts-v1" ||
+    seeded.seedVersion !== "qubit-lab-scripts-v2" ||
     seeded.tabIds.length !== 3 ||
     !seeded.tabIds.includes("seed-one-qubit") ||
     !seeded.tabIds.includes("seed-two-qubits") ||
@@ -2744,7 +2744,7 @@ async function runInitialWhatsThisSeedSmoke(page) {
     !seeded.buttons.two ||
     !seeded.buttons.entanglement2 ||
     seeded.buttons.entanglement3 ||
-    !seeded.firstText.includes("People often say a qubit") ||
+    !seeded.firstText.includes("People often talk about qubits") ||
     seeded.oldEntanglementDocument ||
     seeded.entanglementTitle !== "Entanglement" ||
     seeded.showScenes.length < 4 ||
@@ -2789,7 +2789,7 @@ async function runInitialWhatsThisSeedSmoke(page) {
   if (
     runtime.docRuntime !== "true" ||
     runtime.tabId !== "seed-one-qubit" ||
-    !runtime.firstText.includes("People often say a qubit") ||
+    !runtime.firstText.includes("People often talk about qubits") ||
     !runtime.secondText.includes("The blue circle is a qubit") ||
     !runtime.hasShow ||
     runtime.sceneLabel !== "Scene 2 of 5"

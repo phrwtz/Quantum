@@ -142,7 +142,7 @@ const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
 const DOCUMENTS_STORAGE_KEY = "quantum_whats_this_documents_v1";
 const DOCUMENTS_SEED_STORAGE_KEY = "quantum_whats_this_documents_seed_v1";
-const INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION = "qubit-lab-scripts-v1";
+const INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION = "qubit-lab-scripts-v2";
 const GITHUB_PAGES_TAB_IDS = [
   "introduction",
   "one-qubit",
@@ -1755,6 +1755,9 @@ function normalizeDocumentsState(state) {
 }
 
 function readDocumentsState() {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return { documents: [] };
+  }
   try {
     const serialized = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
     if (!serialized) {
@@ -1767,6 +1770,10 @@ function readDocumentsState() {
 }
 
 function writeDocumentsState(state) {
+  if (IS_GITHUB_PAGES_BUILD) {
+    documentsState = normalizeDocumentsState(state);
+    return true;
+  }
   try {
     const normalized = normalizeDocumentsState(state);
     window.localStorage.setItem(
@@ -1952,15 +1959,9 @@ function createPagesIntroductionLayout() {
     [
       seededTextBoxItem(
         "pages-introduction-text-1",
-        "Welcome to Qubit Lab. This version is set up for exploring the lessons, with the authoring tools tucked away.",
+        "Welcome to Qubit Lab, a place where you can experiment with qubits, flipping them, measuring them and entangling them. You can even teleport the state of a qubit from one computer to another, all with no knowledge of quantum mechanics and no pesky math to deal with!",
         [],
-        { left: 42, top: 34, width: 430, height: 168 },
-      ),
-      seededTextBoxItem(
-        "pages-introduction-text-2",
-        "Use the tabs above to try one qubit, two qubits, and entanglement experiments. The reset controls bring each tab back to its starting point.",
-        ["done"],
-        { left: 42, top: 34, width: 430, height: 178 },
+        { left: 42, top: 34, width: 486, height: 214 },
       ),
       seededPagesQubitItem("pages-intro-q-top", 94, 314, 901),
       seededPagesQubitItem("pages-intro-q-bottom", 94, 420, 902),
@@ -2072,9 +2073,9 @@ function createOneQubitWhatsThisDocument(tabId) {
   const setupItems = [
     seededTextBoxItem(
       "one-qubit-setup-text",
-      "People often say a qubit is like a bit that can be zero and one at once. That shortcut is more confusing than helpful. In Qubit Lab we use colors instead: blue and red.",
+      "People often talk about qubits as though they are like bits except that somehow they can be zero and one all at once. That analogy is incomplete and misleading. Coins have two states, heads and tails, and qubits also have two states. In Qubit Lab we use two colors: blue and red.",
       ["next", "done"],
-      { height: 188 },
+      { height: 246 },
     ),
     seededQubitItem("one-qubit-setup-q", 82, 334, 101),
     seededSingleGateItem("one-qubit-setup-gate", 226, 292),
@@ -2083,9 +2084,9 @@ function createOneQubitWhatsThisDocument(tabId) {
   const gateItems = [
     seededTextBoxItem(
       "one-qubit-gate-text",
-      "The blue circle is a qubit. The tank-like object is a flipper: it acts on the qubit and changes its state. Click Show me to run the qubit through the flipper.",
+      "The blue circle is a qubit in the blue state. The funny looking tank-like object is a flipper. In analogy to flipping a coin, it acts on a qubit to change its state. Click Show me to run the qubit through the flipper.",
       ["back", "show", "next", "done"],
-      { height: 198 },
+      { height: 236 },
     ),
     seededQubitItem("one-qubit-gate-q", 92, 338, 102),
     seededSingleGateItem("one-qubit-gate", 260, 292),
@@ -2093,9 +2094,9 @@ function createOneQubitWhatsThisDocument(tabId) {
   const measureItems = [
     seededTextBoxItem(
       "one-qubit-measure-text",
-      "After the flipper the qubit is a purplish mix. The magnifying glass measures it, and a measurement always comes out blue or red.",
+      "After the flipper, the qubit changes to a purplish color, something in between blue and red. The magnifying glass is a tool for measuring the state of a qubit. When you measure a qubit, it always comes out either red or blue.",
       ["back", "show", "next", "done"],
-      { height: 188 },
+      { height: 236 },
     ),
     seededQubitItem("one-qubit-measure-q", 82, 334, 103),
     seededSingleGateItem("one-qubit-measure-gate", 226, 292),
@@ -2104,9 +2105,9 @@ function createOneQubitWhatsThisDocument(tabId) {
   const repeatItems = [
     seededTextBoxItem(
       "one-qubit-repeat-text",
-      "Qubit Lab lets you repeat the same experiment. Small counts replay the movie; large counts run quickly while the test tubes keep score. A flipper set to 3 lands about half blue and half red.",
+      "Qubit Lab lets you repeat the same experiment as many times as you like. Small counts replay the movie, but large counts run as fast as possible while the thermometers keep track of the outcomes. With the flipper set to 3, about half the measurements come out blue and half red.",
       ["back", "next", "done"],
-      { height: 208 },
+      { height: 256 },
     ),
     seededQubitItem("one-qubit-repeat-q", 82, 334, 104),
     seededSingleGateItem("one-qubit-repeat-gate", 226, 292),
@@ -2181,9 +2182,9 @@ function createOneQubitWhatsThisDocument(tabId) {
         items: [
           seededTextBoxItem(
             "one-qubit-explore-text",
-            "The flipper has a clock hand you can drag. What happens if you choose a different setting? What happens if you send the qubit through the flipper twice or three times before measuring it?",
+            "So far qubits look a lot like coins. One difference is the clock hand on the flipper. You can drag it to a different time. What do you think will happen? What happens if you send the qubit through the flipper twice or three times before measuring it?",
             ["back", "done"],
-            { height: 198 },
+            { height: 246 },
           ),
           seededQubitItem("one-qubit-explore-q", 92, 338, 105),
           seededSingleGateItem("one-qubit-explore-gate", 260, 292),
@@ -2200,9 +2201,9 @@ function createTwoQubitsWhatsThisDocument(tabId) {
   const setupItems = [
     seededTextBoxItem(
       "two-qubits-setup-text",
-      "Now there are two qubits, two flippers, and a magnifier that measures the pair. Both flippers start at 3. What do you predict will happen?",
+      "Now we have two qubits, two flippers, and a different kind of magnifying glass that measures two qubits at once. Both flippers are set to 3. What do you think will happen when the qubits are flipped and then measured?",
       ["next", "done"],
-      { height: 178 },
+      { height: 236 },
     ),
     seededQubitItem("two-qubits-setup-q-top", 78, 284, 201),
     seededQubitItem("two-qubits-setup-q-bottom", 78, 396, 202),
@@ -2213,9 +2214,9 @@ function createTwoQubitsWhatsThisDocument(tabId) {
   const runItems = [
     seededTextBoxItem(
       "two-qubits-run-text",
-      "A single run gives one of four possible outcomes. The signs on mixed-color qubits do not matter here, but they will matter in richer experiments.",
+      "You may notice that qubits can come out with a plus or minus sign when they are not purely red or blue. For the moment there is no difference between those states, but for more complicated situations those signs matter. A single run gives one of four possible outcomes.",
       ["back", "show", "next", "done"],
-      { height: 188 },
+      { height: 256 },
     ),
     seededQubitItem("two-qubits-run-q-top", 78, 284, 203),
     seededQubitItem("two-qubits-run-q-bottom", 78, 396, 204),
@@ -2280,9 +2281,9 @@ function createTwoQubitsWhatsThisDocument(tabId) {
         items: [
           seededTextBoxItem(
             "two-qubits-repeat-text",
-            "Five runs are usually not enough to see the pattern. Try larger counts and watch the four test tubes fill in. Does the distribution match your prediction?",
+            "One run is not enough to know what is going on. Try five runs, then try ten thousand. Before you run the larger count, make a prediction. Do the four thermometers fill in the way you expected?",
             ["back", "next", "done"],
-            { height: 188 },
+            { height: 226 },
           ),
           seededQubitItem("two-qubits-repeat-q-top", 78, 284, 205),
           seededQubitItem("two-qubits-repeat-q-bottom", 78, 396, 206),
@@ -2300,9 +2301,9 @@ function createTwoQubitsWhatsThisDocument(tabId) {
         items: [
           seededTextBoxItem(
             "two-qubits-explore-text",
-            "What changes if you move one flipper clock but not the other? What if you use matching settings? This tab is built for trying those questions quickly.",
+            "What do you think would happen if you changed the clocks on the two flippers? Try changing one clock but not the other, then try matching settings and compare the results.",
             ["back", "done"],
-            { height: 188 },
+            { height: 206 },
           ),
           seededQubitItem("two-qubits-explore-q-top", 78, 284, 207),
           seededQubitItem("two-qubits-explore-q-bottom", 78, 396, 208),
@@ -2321,9 +2322,9 @@ function createEntanglementWhatsThisDocument(tabId) {
   const pureItems = [
     seededTextBoxItem(
       "entanglement-pure-text",
-      "The fat tank is a C-NOT gate: a controlled flipper. If the top qubit is blue, the bottom qubit is unchanged. If the top qubit is red, the bottom qubit flips.",
+      "Flipping individual qubits and then measuring the pair did not add much, but now it gets interesting. The funny looking fat tank is a C-NOT gate. Think of it as a controlled flipper: if the top qubit is blue, the bottom qubit is unchanged; if the top qubit is red, the bottom qubit switches from blue to red.",
       ["next", "done"],
-      { height: 198 },
+      { height: 286 },
     ),
     seededQubitItem("entanglement-pure-q-top", 88, 282, 301),
     seededQubitItem("entanglement-pure-q-bottom", 88, 398, 302),
@@ -2333,9 +2334,9 @@ function createEntanglementWhatsThisDocument(tabId) {
   const redControlItems = [
     seededTextBoxItem(
       "entanglement-red-control-text",
-      "Here the top control qubit starts red and the bottom target starts blue. Click Show me to see the target flip, then both qubits go into the pair magnifier.",
+      "The C-NOT takes two qubits. Here the top control qubit starts red and the bottom target starts blue. Click Show me to see the target flip, then both qubits go into the magnifier because we are measuring the pair.",
       ["back", "show", "next", "done"],
-      { height: 208 },
+      { height: 246 },
     ),
     seededQubitItem("entanglement-red-q-top", 88, 282, 303, 58, [0, 1]),
     seededQubitItem("entanglement-red-q-bottom", 88, 398, 304),
@@ -2345,9 +2346,9 @@ function createEntanglementWhatsThisDocument(tabId) {
   const mixedTargetItems = [
     seededTextBoxItem(
       "entanglement-target-text",
-      "Now keep the control qubit red and make the target a fifty-fifty mixture. The C-NOT swaps blue and red in the target, so the overall counts still look balanced.",
+      "So far both qubits have been in pure states: they were either red or blue. What happens if we make the bottom target qubit a purple mixture? Since the red control qubit flips blue to red and red to blue, a fifty-fifty target still looks balanced after many runs.",
       ["back", "show", "next", "done"],
-      { height: 208 },
+      { height: 276 },
     ),
     seededQubitItem("entanglement-target-q-top", 88, 282, 305, 58, [0, 1]),
     seededQubitItem(
@@ -2442,9 +2443,9 @@ function createEntanglementWhatsThisDocument(tabId) {
         items: [
           seededTextBoxItem(
             "entanglement-control-text",
-            "The interesting case is a mixed control qubit. What happens if the qubit deciding whether to flip is itself a mixture? Try equal parts red and blue, then run the experiment many times.",
+            "What happens if you keep the control qubit red but change the target qubit to some other combination of colors? Finally, what do you think happens if the control qubit itself is a mixture, say equal parts red and blue?",
             ["back", "done"],
-            { height: 208 },
+            { height: 246 },
           ),
           seededQubitItem(
             "entanglement-control-q-top",
@@ -2481,6 +2482,9 @@ const INITIAL_WHATS_THIS_DOCUMENT_SEEDS = [
 ];
 
 function readDocumentsSeedVersion() {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return "";
+  }
   try {
     return window.localStorage.getItem(DOCUMENTS_SEED_STORAGE_KEY) || "";
   } catch (_error) {

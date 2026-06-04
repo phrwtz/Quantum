@@ -73,6 +73,39 @@ async function runSmoke(baseUrl) {
         errors.push(message.text());
       }
     });
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "quantum_whats_this_documents_seed_v1",
+        "qubit-lab-scripts-v1",
+      );
+      localStorage.setItem(
+        "quantum_whats_this_documents_v1",
+        JSON.stringify({
+          documents: [
+            {
+              version: 1,
+              tabId: "one-qubit",
+              title: "Old One Qubit",
+              scenes: [
+                {
+                  id: "old-scene",
+                  title: "Old scene",
+                  canvasWidth: 900,
+                  canvasHeight: 560,
+                  items: [
+                    {
+                      id: "old-text",
+                      type: "text-box",
+                      text: "People often say a qubit is like a bit.",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    });
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("#tab-introduction");
 
@@ -107,6 +140,14 @@ async function runSmoke(baseUrl) {
         introductionNextButtons: document.querySelectorAll(
           '#panel-introduction [data-role="text-box-action"][data-text-box-action="next"]',
         ).length,
+        introductionText:
+          document
+            .querySelector("#panel-introduction [data-role='text-box-body']")
+            ?.textContent?.trim() || "",
+        oneQubitDocFirstText:
+          documentForTabId("one-qubit")
+            ?.scenes?.[0]?.items?.find((item) => item.type === "text-box")
+            ?.text || "",
         documentToolbarTargets: documentTabs.filter((tabId) =>
           document.querySelector(
             `#panel-${tabId} [data-generated-document-action="whats-this"]`,
@@ -133,6 +174,8 @@ async function runSmoke(baseUrl) {
       result.editorToolbars !== 0 ||
       result.generatedPanels !== 5 ||
       result.introductionNextButtons !== 0 ||
+      !result.introductionText.includes("no pesky math") ||
+      !result.oneQubitDocFirstText.includes("People often talk about qubits") ||
       result.documentToolbarTargets.length !== 4
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
