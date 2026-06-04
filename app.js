@@ -143,6 +143,17 @@ const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
 const DOCUMENTS_STORAGE_KEY = "quantum_whats_this_documents_v1";
 const DOCUMENTS_SEED_STORAGE_KEY = "quantum_whats_this_documents_seed_v1";
 const INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION = "qubit-lab-scripts-v1";
+const GITHUB_PAGES_TAB_IDS = [
+  "introduction",
+  "one-qubit",
+  "two-qubits",
+  "entanglement-1",
+  "entanglement-2",
+];
+const IS_GITHUB_PAGES_BUILD =
+  document.documentElement?.dataset?.quantumTarget === "github-pages" ||
+  new URLSearchParams(window.location.search).get("quantumTarget") ===
+    "github-pages";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -1629,6 +1640,10 @@ function normalizeGeneratedTabsState(state) {
 }
 
 function readGeneratedTabsState() {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return normalizeGeneratedTabsState(createGithubPagesGeneratedTabsState())
+      .state;
+  }
   try {
     const serialized = window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY);
     if (!serialized) {
@@ -1649,6 +1664,9 @@ function readGeneratedTabsState() {
 }
 
 function writeGeneratedTabsState(state) {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return true;
+  }
   try {
     const normalized = normalizeGeneratedTabsState(state);
     window.localStorage.setItem(
@@ -1901,6 +1919,150 @@ function seededExperiment(items, actions) {
     actions: actions.map((action, index) => ({
       ...action,
       t: Number.isFinite(action.t) ? action.t : (index + 1) * 800,
+    })),
+  };
+}
+
+function seededPagesQubitItem(
+  id,
+  left,
+  top,
+  qubitId,
+  size = 58,
+  vector = [1, 0],
+) {
+  return {
+    ...seededQubitItem(id, left, top, qubitId, size, vector),
+    vector,
+  };
+}
+
+function seededPagesLayout(items, canvasWidth, canvasHeight) {
+  return {
+    items,
+    canvasWidth,
+    canvasHeight,
+    gridSnap: true,
+  };
+}
+
+function createPagesIntroductionLayout() {
+  return seededPagesLayout(
+    [
+      seededTextBoxItem(
+        "pages-introduction-text-1",
+        "Welcome to Qubit Lab. This version is set up for exploring the lessons, with the authoring tools tucked away.",
+        ["next"],
+        { left: 42, top: 34, width: 430, height: 168 },
+      ),
+      seededTextBoxItem(
+        "pages-introduction-text-2",
+        "Use the tabs above to try one qubit, two qubits, and entanglement experiments. The reset controls bring each tab back to its starting point.",
+        ["done"],
+        { left: 42, top: 34, width: 430, height: 178 },
+      ),
+      seededPagesQubitItem("pages-intro-q-top", 94, 314, 901),
+      seededPagesQubitItem("pages-intro-q-bottom", 94, 420, 902),
+      seededSingleGateItem("pages-intro-gate", 246, 338, 320, 160),
+      seededCnotItem("pages-intro-cnot", 604, 304, 330, 210),
+    ],
+    1010,
+    560,
+  );
+}
+
+function createPagesOneQubitLayout() {
+  return seededPagesLayout(
+    [
+      seededPagesQubitItem("pages-one-q", 80, 286, 911),
+      seededSingleGateItem("pages-one-gate", 232, 236, 340, 170),
+      seededSingleMeasurementItem("pages-one-measure", 660, 102, 380, 350),
+    ],
+    1080,
+    560,
+  );
+}
+
+function createPagesTwoQubitsLayout() {
+  return seededPagesLayout(
+    [
+      seededPagesQubitItem("pages-two-q-top", 78, 224, 921),
+      seededPagesQubitItem("pages-two-q-bottom", 78, 356, 922),
+      seededSingleGateItem("pages-two-gate-top", 224, 168, 320, 150),
+      seededSingleGateItem("pages-two-gate-bottom", 224, 308, 320, 150),
+      seededDoubleMeasurementItem("pages-two-measure", 640, 112, 440, 390),
+    ],
+    1120,
+    610,
+  );
+}
+
+function createPagesEntanglementOneLayout() {
+  return seededPagesLayout(
+    [
+      seededPagesQubitItem("pages-ent-one-q-top", 86, 240, 931, 58, [0, 1]),
+      seededPagesQubitItem("pages-ent-one-q-bottom", 86, 376, 932),
+      seededCnotItem("pages-ent-one-cnot", 282, 242, 360, 220),
+      seededDoubleMeasurementItem("pages-ent-one-measure", 720, 112, 440, 390),
+    ],
+    1200,
+    620,
+  );
+}
+
+function createPagesEntanglementTwoLayout() {
+  return seededPagesLayout(
+    [
+      seededPagesQubitItem(
+        "pages-ent-two-q-top",
+        86,
+        240,
+        941,
+        58,
+        [Math.SQRT1_2, Math.SQRT1_2],
+      ),
+      seededPagesQubitItem("pages-ent-two-q-bottom", 86, 376, 942),
+      seededCnotItem("pages-ent-two-cnot", 282, 242, 360, 220),
+      seededDoubleMeasurementItem("pages-ent-two-measure", 720, 112, 440, 390),
+    ],
+    1200,
+    620,
+  );
+}
+
+function createGithubPagesGeneratedTabsState() {
+  const definitions = [
+    {
+      id: "introduction",
+      label: "Introduction",
+      createLayout: createPagesIntroductionLayout,
+    },
+    {
+      id: "one-qubit",
+      label: "One qubit",
+      createLayout: createPagesOneQubitLayout,
+    },
+    {
+      id: "two-qubits",
+      label: "Two qubits",
+      createLayout: createPagesTwoQubitsLayout,
+    },
+    {
+      id: "entanglement-1",
+      label: "Entanglement 1",
+      createLayout: createPagesEntanglementOneLayout,
+    },
+    {
+      id: "entanglement-2",
+      label: "Entanglement 2",
+      createLayout: createPagesEntanglementTwoLayout,
+    },
+  ];
+  return {
+    tabs: definitions.map((definition) => ({
+      id: definition.id,
+      label: definition.label,
+      layout: definition.createLayout(),
     })),
   };
 }
@@ -4764,13 +4926,17 @@ function updateGeneratedExperimentToolbar(canvas) {
     return;
   }
   if (state.status instanceof HTMLElement) {
-    state.status.textContent = state.playing
+    const statusText = state.playing
       ? "Running experiment"
       : state.recording
         ? "Recording"
         : state.experiment
           ? "Experiment ready"
           : "No experiment recorded";
+    state.status.textContent =
+      IS_GITHUB_PAGES_BUILD && statusText === "No experiment recorded"
+        ? ""
+        : statusText;
   }
 }
 
@@ -5105,7 +5271,7 @@ function ensureGeneratedQubitRuntimeState(item) {
   let state = generatedQubitRuntimes.get(item);
   if (!state) {
     state = {
-      vector: [1, 0],
+      vector: generatedInitialVectorForQubitItem(item),
       transiting: false,
       pairState: null,
       pairQubitIndex: null,
@@ -5118,6 +5284,18 @@ function ensureGeneratedQubitRuntimeState(item) {
   }
   applyGeneratedQubitVectorVisualState(item);
   return state;
+}
+
+function generatedInitialVectorForQubitItem(item) {
+  try {
+    const parsed = JSON.parse(item?.dataset?.initialVector || "null");
+    if (Array.isArray(parsed)) {
+      return normalizeVector2(parsed);
+    }
+  } catch (_error) {
+    // Fall back to blue when a saved layout has a malformed vector.
+  }
+  return [1, 0];
 }
 
 function clearGeneratedQubitPairState(qubitItem) {
@@ -6464,6 +6642,15 @@ function serializeGeneratedLayoutItem(item) {
     if (qubitId) {
       serialized.qubitId = qubitId;
     }
+    if (item.dataset.initialVector) {
+      try {
+        serialized.vector = normalizeVector2(
+          JSON.parse(item.dataset.initialVector),
+        );
+      } catch (_error) {
+        delete serialized.vector;
+      }
+    }
   }
   if (item.dataset.component === "text-box") {
     Object.assign(serialized, captureTextBoxSnapshot(item));
@@ -6549,6 +6736,11 @@ function createGeneratedLayoutItemNode(type, geometry = {}) {
   item.dataset.component = type;
   if (type === "qubit") {
     ensureQubitLogicalId(item, geometry.qubitId);
+    if (Array.isArray(geometry.vector)) {
+      item.dataset.initialVector = JSON.stringify(
+        normalizeVector2(geometry.vector),
+      );
+    }
   }
   if (typeof geometry.measurementGroupId === "string") {
     item.dataset.measurementGroupId = geometry.measurementGroupId;
@@ -6872,6 +7064,9 @@ function removeSelectedGeneratedLayoutItem() {
 }
 
 function createGeneratedEditorToolbar(entry, canvas) {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return null;
+  }
   const toolbar = document.createElement("div");
   toolbar.className = "playground-toolbar generated-editor-toolbar";
   toolbar.dataset.generatedEditorToolbar = "true";
@@ -7120,7 +7315,10 @@ function renderGeneratedLayoutPanel(panel, entry) {
   canvas.addEventListener("touchstart", beginGeneratedLayoutEditGesture, {
     passive: false,
   });
-  gatePanel.appendChild(createGeneratedEditorToolbar(entry, canvas));
+  const editorToolbar = createGeneratedEditorToolbar(entry, canvas);
+  if (editorToolbar) {
+    gatePanel.appendChild(editorToolbar);
+  }
   gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
   gatePanel.appendChild(canvas);
   panel.appendChild(gatePanel);
@@ -9962,7 +10160,7 @@ function resetGeneratedQubitForAutomatedRun(canvas, qubitItem, startPoint) {
   if (!state) {
     return;
   }
-  state.vector = [1, 0];
+  state.vector = generatedInitialVectorForQubitItem(qubitItem);
   state.transiting = false;
   state.cnotSourceSlot = null;
   state.cnotPairToken = null;
@@ -12291,6 +12489,7 @@ function beginGeneratedTabPointerDrag(button, event) {
 
 function setupGeneratedTabDrag(button) {
   if (
+    IS_GITHUB_PAGES_BUILD ||
     !(button instanceof HTMLButtonElement) ||
     button.dataset.generatedTab !== "true" ||
     button.dataset.tabDragRegistered === "true"
@@ -18054,8 +18253,10 @@ playgroundComponentDefaultsCache = readPlaygroundComponentDefaultsPayload();
 playgroundGroupComponentsCache = readPlaygroundGroupComponentsPayload();
 documentsState = readDocumentsState();
 
-const plagroundComposer = setupPlagroundComposer();
-const documentEditorComposer = setupDocumentEditor();
+const plagroundComposer = IS_GITHUB_PAGES_BUILD ? null : setupPlagroundComposer();
+const documentEditorComposer = IS_GITHUB_PAGES_BUILD
+  ? null
+  : setupDocumentEditor();
 const editorComposers = [plagroundComposer, documentEditorComposer].filter(
   Boolean,
 );
@@ -18131,6 +18332,35 @@ function setActiveTab(tabTarget) {
   refreshVisibleEditorsAfterTabSwitch();
 }
 
+function removeAuthoringTabsForGithubPages() {
+  if (!IS_GITHUB_PAGES_BUILD) {
+    return;
+  }
+  document.body.classList.add("github-pages-build");
+  ["plaground", "doc-editor"].forEach((tabTarget) => {
+    const button = document.querySelector(
+      `.tab-btn[data-tab-target="${tabTarget}"]`,
+    );
+    if (button instanceof HTMLButtonElement) {
+      const buttonIndex = tabButtons.indexOf(button);
+      if (buttonIndex >= 0) {
+        tabButtons.splice(buttonIndex, 1);
+      }
+      button.remove();
+    }
+    const panel = document.getElementById(`panel-${tabTarget}`);
+    if (panel instanceof HTMLElement) {
+      const panelIndex = tabPanels.indexOf(panel);
+      if (panelIndex >= 0) {
+        tabPanels.splice(panelIndex, 1);
+      }
+      panel.remove();
+    }
+  });
+  syncTabButtonsFromDom();
+}
+
+removeAuthoringTabsForGithubPages();
 tabButtons.forEach((button) => registerTabButton(button));
 restoreGeneratedTabs();
 if (seedInitialWhatsThisDocuments()) {
@@ -18143,4 +18373,4 @@ window.addEventListener("resize", () => {
   refreshVisibleEditors();
 });
 
-setActiveTab("plaground");
+setActiveTab(IS_GITHUB_PAGES_BUILD ? GITHUB_PAGES_TAB_IDS[0] : "plaground");

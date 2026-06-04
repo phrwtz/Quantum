@@ -184,6 +184,14 @@ body.layout-edit-active *::after {
     0 2px 4px rgba(16, 41, 63, 0.2);
 }
 
+html[data-quantum-target="github-pages"] #tab-plaground,
+html[data-quantum-target="github-pages"] #tab-doc-editor,
+html[data-quantum-target="github-pages"] #panel-plaground,
+html[data-quantum-target="github-pages"] #panel-doc-editor,
+html[data-quantum-target="github-pages"] .generated-editor-toolbar {
+  display: none;
+}
+
 .tab-panel {
   width: fit-content;
   max-width: 100%;
