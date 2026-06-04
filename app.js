@@ -141,6 +141,8 @@ const QUBIT_ID_STORAGE_KEY = "quantum_qubit_next_id_v1";
 const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
 const DOCUMENTS_STORAGE_KEY = "quantum_whats_this_documents_v1";
+const DOCUMENTS_SEED_STORAGE_KEY = "quantum_whats_this_documents_seed_v1";
+const INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION = "qubit-lab-scripts-v1";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -1759,6 +1761,642 @@ function writeDocumentsState(state) {
   }
 }
 
+function seededTextBoxItem(id, text, buttons, geometry = {}) {
+  const normalizedButtons = Array.isArray(buttons) ? buttons : [];
+  const buttonKey = normalizedButtons.join(",");
+  const buttonMode =
+    buttonKey === "next"
+      ? "next"
+      : buttonKey === "done"
+        ? "done"
+        : buttonKey === "next,done"
+          ? "next-done"
+          : "custom";
+  return {
+    id,
+    type: "text-box",
+    left: Number.isFinite(geometry.left) ? geometry.left : 36,
+    top: Number.isFinite(geometry.top) ? geometry.top : 30,
+    width: Number.isFinite(geometry.width) ? geometry.width : 388,
+    height: Number.isFinite(geometry.height) ? geometry.height : 178,
+    z: Number.isFinite(geometry.z) ? geometry.z : 20,
+    text,
+    buttons: normalizedButtons,
+    buttonMode,
+  };
+}
+
+function seededQubitItem(id, left, top, qubitId, size = 58, vector = [1, 0]) {
+  const item = {
+    id,
+    type: "qubit",
+    left,
+    top,
+    width: size,
+    height: size,
+    qubitId,
+  };
+  Object.defineProperty(item, "__seedVector", {
+    value: vector,
+    enumerable: false,
+  });
+  return item;
+}
+
+function seededSingleGateItem(
+  id,
+  left,
+  top,
+  width = 320,
+  height = 160,
+  singleGateTick = DEFAULT_SINGLE_GATE_TICK_INDEX,
+) {
+  return {
+    id,
+    type: "single-gate",
+    left,
+    top,
+    width,
+    height,
+    singleGateTick,
+  };
+}
+
+function seededSingleMeasurementItem(
+  id,
+  left,
+  top,
+  width = 360,
+  height = 330,
+) {
+  return {
+    id,
+    type: "single-measurement",
+    left,
+    top,
+    width,
+    height,
+  };
+}
+
+function seededDoubleMeasurementItem(
+  id,
+  left,
+  top,
+  width = 430,
+  height = 380,
+) {
+  return {
+    id,
+    type: "double-measurement",
+    left,
+    top,
+    width,
+    height,
+  };
+}
+
+function seededCnotItem(id, left, top, width = 360, height = 220) {
+  return {
+    id,
+    type: "cnot-gate",
+    left,
+    top,
+    width,
+    height,
+  };
+}
+
+function seededQubitCenter(item) {
+  return {
+    x: parseLayoutNumeric(item.left, 0) + parseLayoutNumeric(item.width, 0) / 2,
+    y: parseLayoutNumeric(item.top, 0) + parseLayoutNumeric(item.height, 0) / 2,
+  };
+}
+
+function seededInitialQubit(item) {
+  return {
+    itemId: item.id,
+    logicalQubitId: item.qubitId,
+    center: seededQubitCenter(item),
+    vector: Array.isArray(item.__seedVector) ? item.__seedVector : [1, 0],
+  };
+}
+
+function seededExperiment(items, actions) {
+  return {
+    version: 1,
+    recordedAt: 0,
+    initialQubits: items
+      .filter((item) => item?.type === "qubit")
+      .map(seededInitialQubit),
+    gateSettings: items
+      .filter((item) => item?.type === "single-gate")
+      .map((item) => ({
+        itemId: item.id,
+        tickIndex: Number.isFinite(item.singleGateTick)
+          ? item.singleGateTick
+          : DEFAULT_SINGLE_GATE_TICK_INDEX,
+      })),
+    actions: actions.map((action, index) => ({
+      ...action,
+      t: Number.isFinite(action.t) ? action.t : (index + 1) * 800,
+    })),
+  };
+}
+
+function createOneQubitWhatsThisDocument(tabId) {
+  const setupItems = [
+    seededTextBoxItem(
+      "one-qubit-setup-text",
+      "People often say a qubit is like a bit that can be zero and one at once. That shortcut is more confusing than helpful. In Qubit Lab we use colors instead: blue and red.",
+      ["next", "done"],
+      { height: 188 },
+    ),
+    seededQubitItem("one-qubit-setup-q", 82, 334, 101),
+    seededSingleGateItem("one-qubit-setup-gate", 226, 292),
+    seededSingleMeasurementItem("one-qubit-setup-measure", 586, 142),
+  ];
+  const gateItems = [
+    seededTextBoxItem(
+      "one-qubit-gate-text",
+      "The blue circle is a qubit. The tank-like object is a flipper: it acts on the qubit and changes its state. Click Show me to run the qubit through the flipper.",
+      ["back", "show", "next", "done"],
+      { height: 198 },
+    ),
+    seededQubitItem("one-qubit-gate-q", 92, 338, 102),
+    seededSingleGateItem("one-qubit-gate", 260, 292),
+  ];
+  const measureItems = [
+    seededTextBoxItem(
+      "one-qubit-measure-text",
+      "After the flipper the qubit is a purplish mix. The magnifying glass measures it, and a measurement always comes out blue or red.",
+      ["back", "show", "next", "done"],
+      { height: 188 },
+    ),
+    seededQubitItem("one-qubit-measure-q", 82, 334, 103),
+    seededSingleGateItem("one-qubit-measure-gate", 226, 292),
+    seededSingleMeasurementItem("one-qubit-measure-tool", 586, 142),
+  ];
+  const repeatItems = [
+    seededTextBoxItem(
+      "one-qubit-repeat-text",
+      "Qubit Lab lets you repeat the same experiment. Small counts replay the movie; large counts run quickly while the test tubes keep score. A flipper set to 3 lands about half blue and half red.",
+      ["back", "next", "done"],
+      { height: 208 },
+    ),
+    seededQubitItem("one-qubit-repeat-q", 82, 334, 104),
+    seededSingleGateItem("one-qubit-repeat-gate", 226, 292),
+    seededSingleMeasurementItem("one-qubit-repeat-tool", 586, 142),
+  ];
+  return {
+    version: 1,
+    tabId,
+    title: "One Qubit",
+    scenes: [
+      {
+        id: "one-qubit-intro",
+        title: "Qubits use colors",
+        canvasWidth: 980,
+        canvasHeight: 560,
+        items: setupItems,
+        savedAt: 0,
+      },
+      {
+        id: "one-qubit-flipper",
+        title: "The flipper",
+        canvasWidth: 980,
+        canvasHeight: 560,
+        items: gateItems,
+        experiment: seededExperiment(gateItems, [
+          {
+            type: "gate",
+            qubitId: "one-qubit-gate-q",
+            qubitLogicalId: 102,
+            gateId: "one-qubit-gate",
+            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
+          },
+        ]),
+        savedAt: 0,
+      },
+      {
+        id: "one-qubit-measurement",
+        title: "Measurement",
+        canvasWidth: 980,
+        canvasHeight: 560,
+        items: measureItems,
+        experiment: seededExperiment(measureItems, [
+          {
+            type: "gate",
+            qubitId: "one-qubit-measure-q",
+            qubitLogicalId: 103,
+            gateId: "one-qubit-measure-gate",
+            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
+          },
+          {
+            type: "single-measure",
+            qubitId: "one-qubit-measure-q",
+            qubitLogicalId: 103,
+            measurementId: "one-qubit-measure-tool",
+          },
+        ]),
+        savedAt: 0,
+      },
+      {
+        id: "one-qubit-repeat",
+        title: "Repeat the experiment",
+        canvasWidth: 980,
+        canvasHeight: 560,
+        items: repeatItems,
+        savedAt: 0,
+      },
+      {
+        id: "one-qubit-explore",
+        title: "Try changing it",
+        canvasWidth: 980,
+        canvasHeight: 560,
+        items: [
+          seededTextBoxItem(
+            "one-qubit-explore-text",
+            "The flipper has a clock hand you can drag. What happens if you choose a different setting? What happens if you send the qubit through the flipper twice or three times before measuring it?",
+            ["back", "done"],
+            { height: 198 },
+          ),
+          seededQubitItem("one-qubit-explore-q", 92, 338, 105),
+          seededSingleGateItem("one-qubit-explore-gate", 260, 292),
+          seededSingleMeasurementItem("one-qubit-explore-tool", 586, 142),
+        ],
+        savedAt: 0,
+      },
+    ],
+    updatedAt: 0,
+  };
+}
+
+function createTwoQubitsWhatsThisDocument(tabId) {
+  const setupItems = [
+    seededTextBoxItem(
+      "two-qubits-setup-text",
+      "Now there are two qubits, two flippers, and a magnifier that measures the pair. Both flippers start at 3. What do you predict will happen?",
+      ["next", "done"],
+      { height: 178 },
+    ),
+    seededQubitItem("two-qubits-setup-q-top", 78, 284, 201),
+    seededQubitItem("two-qubits-setup-q-bottom", 78, 396, 202),
+    seededSingleGateItem("two-qubits-setup-gate-top", 214, 230, 300, 145),
+    seededSingleGateItem("two-qubits-setup-gate-bottom", 214, 342, 300, 145),
+    seededDoubleMeasurementItem("two-qubits-setup-measure", 572, 150),
+  ];
+  const runItems = [
+    seededTextBoxItem(
+      "two-qubits-run-text",
+      "A single run gives one of four possible outcomes. The signs on mixed-color qubits do not matter here, but they will matter in richer experiments.",
+      ["back", "show", "next", "done"],
+      { height: 188 },
+    ),
+    seededQubitItem("two-qubits-run-q-top", 78, 284, 203),
+    seededQubitItem("two-qubits-run-q-bottom", 78, 396, 204),
+    seededSingleGateItem("two-qubits-run-gate-top", 214, 230, 300, 145),
+    seededSingleGateItem("two-qubits-run-gate-bottom", 214, 342, 300, 145),
+    seededDoubleMeasurementItem("two-qubits-run-measure", 572, 150),
+  ];
+  return {
+    version: 1,
+    tabId,
+    title: "Two Qubits",
+    scenes: [
+      {
+        id: "two-qubits-setup",
+        title: "Two flippers",
+        canvasWidth: 1040,
+        canvasHeight: 610,
+        items: setupItems,
+        savedAt: 0,
+      },
+      {
+        id: "two-qubits-first-run",
+        title: "One run",
+        canvasWidth: 1040,
+        canvasHeight: 610,
+        items: runItems,
+        experiment: seededExperiment(runItems, [
+          {
+            type: "gate",
+            qubitId: "two-qubits-run-q-top",
+            qubitLogicalId: 203,
+            gateId: "two-qubits-run-gate-top",
+            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
+          },
+          {
+            type: "gate",
+            qubitId: "two-qubits-run-q-bottom",
+            qubitLogicalId: 204,
+            gateId: "two-qubits-run-gate-bottom",
+            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
+          },
+          {
+            type: "double-measure",
+            measurementId: "two-qubits-run-measure",
+            leftQubitId: "two-qubits-run-q-top",
+            rightQubitId: "two-qubits-run-q-bottom",
+            leftQubitLogicalId: 203,
+            rightQubitLogicalId: 204,
+            topQubitId: "two-qubits-run-q-top",
+            bottomQubitId: "two-qubits-run-q-bottom",
+            topQubitLogicalId: 203,
+            bottomQubitLogicalId: 204,
+          },
+        ]),
+        savedAt: 0,
+      },
+      {
+        id: "two-qubits-repeat",
+        title: "Repeat it",
+        canvasWidth: 1040,
+        canvasHeight: 610,
+        items: [
+          seededTextBoxItem(
+            "two-qubits-repeat-text",
+            "Five runs are usually not enough to see the pattern. Try larger counts and watch the four test tubes fill in. Does the distribution match your prediction?",
+            ["back", "next", "done"],
+            { height: 188 },
+          ),
+          seededQubitItem("two-qubits-repeat-q-top", 78, 284, 205),
+          seededQubitItem("two-qubits-repeat-q-bottom", 78, 396, 206),
+          seededSingleGateItem("two-qubits-repeat-gate-top", 214, 230, 300, 145),
+          seededSingleGateItem("two-qubits-repeat-gate-bottom", 214, 342, 300, 145),
+          seededDoubleMeasurementItem("two-qubits-repeat-measure", 572, 150),
+        ],
+        savedAt: 0,
+      },
+      {
+        id: "two-qubits-explore",
+        title: "Try changing it",
+        canvasWidth: 1040,
+        canvasHeight: 610,
+        items: [
+          seededTextBoxItem(
+            "two-qubits-explore-text",
+            "What changes if you move one flipper clock but not the other? What if you use matching settings? This tab is built for trying those questions quickly.",
+            ["back", "done"],
+            { height: 188 },
+          ),
+          seededQubitItem("two-qubits-explore-q-top", 78, 284, 207),
+          seededQubitItem("two-qubits-explore-q-bottom", 78, 396, 208),
+          seededSingleGateItem("two-qubits-explore-gate-top", 214, 230, 300, 145),
+          seededSingleGateItem("two-qubits-explore-gate-bottom", 214, 342, 300, 145),
+          seededDoubleMeasurementItem("two-qubits-explore-measure", 572, 150),
+        ],
+        savedAt: 0,
+      },
+    ],
+    updatedAt: 0,
+  };
+}
+
+function createEntanglementWhatsThisDocument(tabId) {
+  const pureItems = [
+    seededTextBoxItem(
+      "entanglement-pure-text",
+      "The fat tank is a C-NOT gate: a controlled flipper. If the top qubit is blue, the bottom qubit is unchanged. If the top qubit is red, the bottom qubit flips.",
+      ["next", "done"],
+      { height: 198 },
+    ),
+    seededQubitItem("entanglement-pure-q-top", 88, 282, 301),
+    seededQubitItem("entanglement-pure-q-bottom", 88, 398, 302),
+    seededCnotItem("entanglement-pure-cnot", 292, 278),
+    seededDoubleMeasurementItem("entanglement-pure-measure", 676, 148),
+  ];
+  const redControlItems = [
+    seededTextBoxItem(
+      "entanglement-red-control-text",
+      "Here the top control qubit starts red and the bottom target starts blue. Click Show me to see the target flip, then both qubits go into the pair magnifier.",
+      ["back", "show", "next", "done"],
+      { height: 208 },
+    ),
+    seededQubitItem("entanglement-red-q-top", 88, 282, 303, 58, [0, 1]),
+    seededQubitItem("entanglement-red-q-bottom", 88, 398, 304),
+    seededCnotItem("entanglement-red-cnot", 292, 278),
+    seededDoubleMeasurementItem("entanglement-red-measure", 676, 148),
+  ];
+  const mixedTargetItems = [
+    seededTextBoxItem(
+      "entanglement-target-text",
+      "Now keep the control qubit red and make the target a fifty-fifty mixture. The C-NOT swaps blue and red in the target, so the overall counts still look balanced.",
+      ["back", "show", "next", "done"],
+      { height: 208 },
+    ),
+    seededQubitItem("entanglement-target-q-top", 88, 282, 305, 58, [0, 1]),
+    seededQubitItem(
+      "entanglement-target-q-bottom",
+      88,
+      398,
+      306,
+      58,
+      [Math.SQRT1_2, Math.SQRT1_2],
+    ),
+    seededCnotItem("entanglement-target-cnot", 292, 278),
+    seededDoubleMeasurementItem("entanglement-target-measure", 676, 148),
+  ];
+  return {
+    version: 1,
+    tabId,
+    title: "Entanglement",
+    scenes: [
+      {
+        id: "entanglement-cnot",
+        title: "The controlled flipper",
+        canvasWidth: 1120,
+        canvasHeight: 620,
+        items: pureItems,
+        savedAt: 0,
+      },
+      {
+        id: "entanglement-red-control",
+        title: "Pure-state control",
+        canvasWidth: 1120,
+        canvasHeight: 620,
+        items: redControlItems,
+        experiment: seededExperiment(redControlItems, [
+          {
+            type: "cnot",
+            cnotId: "entanglement-red-cnot",
+            topQubitId: "entanglement-red-q-top",
+            bottomQubitId: "entanglement-red-q-bottom",
+            topQubitLogicalId: 303,
+            bottomQubitLogicalId: 304,
+          },
+          {
+            type: "double-measure",
+            measurementId: "entanglement-red-measure",
+            leftQubitId: "entanglement-red-q-top",
+            rightQubitId: "entanglement-red-q-bottom",
+            leftQubitLogicalId: 303,
+            rightQubitLogicalId: 304,
+            topQubitId: "entanglement-red-q-top",
+            bottomQubitId: "entanglement-red-q-bottom",
+            topQubitLogicalId: 303,
+            bottomQubitLogicalId: 304,
+          },
+        ]),
+        savedAt: 0,
+      },
+      {
+        id: "entanglement-mixed-target",
+        title: "A mixed target",
+        canvasWidth: 1120,
+        canvasHeight: 620,
+        items: mixedTargetItems,
+        experiment: seededExperiment(mixedTargetItems, [
+          {
+            type: "cnot",
+            cnotId: "entanglement-target-cnot",
+            topQubitId: "entanglement-target-q-top",
+            bottomQubitId: "entanglement-target-q-bottom",
+            topQubitLogicalId: 305,
+            bottomQubitLogicalId: 306,
+          },
+          {
+            type: "double-measure",
+            measurementId: "entanglement-target-measure",
+            leftQubitId: "entanglement-target-q-top",
+            rightQubitId: "entanglement-target-q-bottom",
+            leftQubitLogicalId: 305,
+            rightQubitLogicalId: 306,
+            topQubitId: "entanglement-target-q-top",
+            bottomQubitId: "entanglement-target-q-bottom",
+            topQubitLogicalId: 305,
+            bottomQubitLogicalId: 306,
+          },
+        ]),
+        savedAt: 0,
+      },
+      {
+        id: "entanglement-mixed-control",
+        title: "The interesting question",
+        canvasWidth: 1120,
+        canvasHeight: 620,
+        items: [
+          seededTextBoxItem(
+            "entanglement-control-text",
+            "The interesting case is a mixed control qubit. What happens if the qubit deciding whether to flip is itself a mixture? Try equal parts red and blue, then run the experiment many times.",
+            ["back", "done"],
+            { height: 208 },
+          ),
+          seededQubitItem(
+            "entanglement-control-q-top",
+            88,
+            282,
+            307,
+            58,
+            [Math.SQRT1_2, Math.SQRT1_2],
+          ),
+          seededQubitItem("entanglement-control-q-bottom", 88, 398, 308),
+          seededCnotItem("entanglement-control-cnot", 292, 278),
+          seededDoubleMeasurementItem("entanglement-control-measure", 676, 148),
+        ],
+        savedAt: 0,
+      },
+    ],
+    updatedAt: 0,
+  };
+}
+
+const INITIAL_WHATS_THIS_DOCUMENT_SEEDS = [
+  {
+    labelKeys: ["one qubit"],
+    createDocument: createOneQubitWhatsThisDocument,
+  },
+  {
+    labelKeys: ["two qubits"],
+    createDocument: createTwoQubitsWhatsThisDocument,
+  },
+  {
+    labelKeys: ["entanglement 2", "entanglement 1"],
+    createDocument: createEntanglementWhatsThisDocument,
+  },
+];
+
+function readDocumentsSeedVersion() {
+  try {
+    return window.localStorage.getItem(DOCUMENTS_SEED_STORAGE_KEY) || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function writeDocumentsSeedVersion() {
+  try {
+    window.localStorage.setItem(
+      DOCUMENTS_SEED_STORAGE_KEY,
+      INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION,
+    );
+  } catch (_error) {
+    // Seeding still succeeds if the version marker cannot be persisted.
+  }
+}
+
+function initialWhatsThisSeedForTab(entry) {
+  const labelKey = storageLabelKey(entry?.label);
+  return (
+    INITIAL_WHATS_THIS_DOCUMENT_SEEDS.find((seed) =>
+      seed.labelKeys.includes(labelKey),
+    ) || null
+  );
+}
+
+function seedInitialWhatsThisDocuments() {
+  if (
+    readDocumentsSeedVersion() === INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION
+  ) {
+    return false;
+  }
+  const existingDocuments = Array.isArray(documentsState.documents)
+    ? documentsState.documents
+    : [];
+  const existingTabIds = new Set(
+    existingDocuments
+      .map((entry) => storageIdentifierKey(entry?.tabId))
+      .filter(Boolean),
+  );
+  const seededDocuments = [];
+  let matchedSeedableTab = false;
+  (generatedTabsState.tabs || []).forEach((entry) => {
+    const tabId = storageIdentifierKey(entry?.id);
+    if (!tabId) {
+      return;
+    }
+    const seed = initialWhatsThisSeedForTab(entry);
+    if (!seed) {
+      return;
+    }
+    matchedSeedableTab = true;
+    if (existingTabIds.has(tabId)) {
+      return;
+    }
+    const documentEntry = normalizeDocument(seed.createDocument(tabId));
+    if (documentEntry) {
+      seededDocuments.push(documentEntry);
+      existingTabIds.add(tabId);
+    }
+  });
+
+  if (seededDocuments.length === 0) {
+    if (matchedSeedableTab) {
+      writeDocumentsSeedVersion();
+    }
+    return false;
+  }
+
+  const written = writeDocumentsState({
+    documents: [...existingDocuments, ...seededDocuments],
+  });
+  if (written) {
+    writeDocumentsSeedVersion();
+  }
+  return written;
+}
+
 function documentForTabId(tabId) {
   const normalizedTabId = storageIdentifierKey(tabId);
   if (!normalizedTabId) {
@@ -1936,6 +2574,225 @@ function applyDoubleMeasurementLayoutSnapshot(
     PLAYGROUND_DOUBLE_MEASUREMENT_PART_SPECS,
     options,
   );
+}
+
+function parseMeasurementCountText(element) {
+  return Math.max(0, Number.parseInt(element?.textContent || "0", 10) || 0);
+}
+
+function setMeasurementCountText(element, value) {
+  if (element instanceof HTMLElement) {
+    element.textContent = `${Math.max(0, Math.round(Number(value) || 0))}`;
+  }
+}
+
+function savedMeasurementCapacity(value, fallback = INITIAL_TUBE_QUBIT_CAPACITY) {
+  return Math.max(
+    fallback,
+    Math.round(finitePositiveNumber(value, fallback)),
+  );
+}
+
+function measurementSelectValue(select) {
+  if (!(select instanceof HTMLSelectElement)) {
+    return null;
+  }
+  const value = Math.max(1, Number(select.value) || 1);
+  return Number.isFinite(value) ? value : null;
+}
+
+function setMeasurementSelectValue(select, value) {
+  if (!(select instanceof HTMLSelectElement) || !Number.isFinite(Number(value))) {
+    return;
+  }
+  const textValue = `${Math.max(1, Math.round(Number(value)))}`;
+  if (Array.from(select.options).some((option) => option.value === textValue)) {
+    select.value = textValue;
+  }
+}
+
+function captureGeneratedMeasurementStateSnapshot(item) {
+  if (!(item instanceof HTMLElement)) {
+    return null;
+  }
+  if (item.dataset.component === "single-measurement") {
+    const runtime = generatedSingleMeasurementRuntimes.get(item);
+    const blue = runtime
+      ? runtime.blueTubeCount
+      : parseMeasurementCountText(
+          item.querySelector('[data-role="tube-blue-count"]'),
+        );
+    const red = runtime
+      ? runtime.redTubeCount
+      : parseMeasurementCountText(
+          item.querySelector('[data-role="tube-red-count"]'),
+        );
+    return {
+      kind: "single",
+      blue,
+      red,
+      capacity: savedMeasurementCapacity(runtime?.tubeQubitCapacity),
+      iterations: measurementSelectValue(
+        item.querySelector('[data-role="measurement-count"]'),
+      ),
+    };
+  }
+  if (item.dataset.component === "double-measurement") {
+    const runtime = generatedDoubleMeasurementRuntimes.get(item);
+    const counts = {};
+    ["bb", "br", "rb", "rr"].forEach((key) => {
+      counts[key] =
+        runtime?.tubeCounts?.[key] ??
+        parseMeasurementCountText(
+          item.querySelector(`[data-role="pair-count-${key}"]`),
+        );
+    });
+    return {
+      kind: "double",
+      counts,
+      capacity: savedMeasurementCapacity(runtime?.tubePairCapacity),
+      iterations: measurementSelectValue(
+        item.querySelector('[data-role="pair-measurement-count"]'),
+      ),
+    };
+  }
+  if (isSeparatedPairMeasurementGroupElement(item)) {
+    const runtime = generatedSeparatedPairMeasurementRuntimes.get(item);
+    const counts = {};
+    ["bb", "br", "rb", "rr"].forEach((key) => {
+      counts[key] =
+        runtime?.tubeCounts?.[key] ??
+        parseMeasurementCountText(
+          item.querySelector(
+            `.pair-tube-column[data-key="${key}"] .tube-count`,
+          ),
+        );
+    });
+    return {
+      kind: "separated-pair",
+      counts,
+      capacity: savedMeasurementCapacity(runtime?.tubePairCapacity),
+      iterations: measurementSelectValue(
+        item.querySelector(
+          '.saved-group-child[data-component="measurement-count-menu"] [data-role="measurement-count"], [data-role="pair-measurement-count"]',
+        ),
+      ),
+    };
+  }
+  return null;
+}
+
+function applyGeneratedMeasurementStateSnapshot(item, measurementState) {
+  if (
+    !(item instanceof HTMLElement) ||
+    !measurementState ||
+    typeof measurementState !== "object"
+  ) {
+    return;
+  }
+  const capacity = savedMeasurementCapacity(measurementState.capacity);
+  if (item.dataset.component === "single-measurement") {
+    const blue = Math.max(0, Math.round(Number(measurementState.blue) || 0));
+    const red = Math.max(0, Math.round(Number(measurementState.red) || 0));
+    item.dataset.measurementTubeCapacity = `${capacity}`;
+    setMeasurementCountText(
+      item.querySelector('[data-role="tube-blue-count"]'),
+      blue,
+    );
+    setMeasurementCountText(
+      item.querySelector('[data-role="tube-red-count"]'),
+      red,
+    );
+    setMeasurementSelectValue(
+      item.querySelector('[data-role="measurement-count"]'),
+      measurementState.iterations,
+    );
+    const runtime = generatedSingleMeasurementRuntimes.get(item);
+    if (runtime) {
+      runtime.blueTubeCount = blue;
+      runtime.redTubeCount = red;
+      runtime.tubeQubitCapacity = capacity;
+      setMeasurementSelectValue(
+        runtime.measurementCount,
+        measurementState.iterations,
+      );
+      updateGeneratedMeasurementTubeFills(runtime);
+    }
+    return;
+  }
+  if (
+    item.dataset.component === "double-measurement" ||
+    measurementState.kind === "separated-pair"
+  ) {
+    item.dataset.measurementTubeCapacity = `${capacity}`;
+    const counts =
+      measurementState.counts && typeof measurementState.counts === "object"
+        ? measurementState.counts
+        : {};
+    const normalizedCounts = {};
+    ["bb", "br", "rb", "rr"].forEach((key) => {
+      normalizedCounts[key] = Math.max(
+        0,
+        Math.round(Number(counts[key]) || 0),
+      );
+      setMeasurementCountText(
+        item.dataset.component === "double-measurement"
+          ? item.querySelector(`[data-role="pair-count-${key}"]`)
+          : item.querySelector(
+              `.pair-tube-column[data-key="${key}"] .tube-count`,
+            ),
+        normalizedCounts[key],
+      );
+    });
+    setMeasurementSelectValue(
+      item.dataset.component === "double-measurement"
+        ? item.querySelector('[data-role="pair-measurement-count"]')
+        : item.querySelector(
+            '.saved-group-child[data-component="measurement-count-menu"] [data-role="measurement-count"], [data-role="pair-measurement-count"]',
+          ),
+      measurementState.iterations,
+    );
+    const runtime =
+      item.dataset.component === "double-measurement"
+        ? generatedDoubleMeasurementRuntimes.get(item)
+        : generatedSeparatedPairMeasurementRuntimes.get(item);
+    if (runtime) {
+      runtime.tubeCounts = { ...runtime.tubeCounts, ...normalizedCounts };
+      runtime.tubePairCapacity = capacity;
+      setMeasurementSelectValue(
+        runtime.measurementCount,
+        measurementState.iterations,
+      );
+      updateGeneratedDoubleMeasurementTubeFills(runtime);
+    }
+  }
+}
+
+function captureGeneratedMeasurementStateSnapshotsForCanvas(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return [];
+  }
+  return Array.from(canvas.querySelectorAll(":scope > .playground-node"))
+    .map((item) => {
+      const measurementState = captureGeneratedMeasurementStateSnapshot(item);
+      return measurementState
+        ? {
+            itemId: ensureGeneratedItemId(item),
+            measurementState,
+          }
+        : null;
+    })
+    .filter(Boolean);
+}
+
+function applyGeneratedMeasurementStateSnapshotsForCanvas(canvas, snapshots) {
+  if (!isGeneratedLayoutCanvas(canvas) || !Array.isArray(snapshots)) {
+    return;
+  }
+  snapshots.forEach((snapshot) => {
+    const item = generatedItemById(canvas, snapshot?.itemId);
+    applyGeneratedMeasurementStateSnapshot(item, snapshot?.measurementState);
+  });
 }
 
 function captureMeasurementLayoutSnapshot(item, specs, options = {}) {
@@ -2871,6 +3728,7 @@ function markTextBoxEdited(root) {
   }
   const canvas = root.closest(".generated-layout-canvas");
   if (isDocumentEditorCanvas(canvas)) {
+    markDocumentEditorCanvasEdited(canvas);
     saveCurrentDocumentEditorScene();
     updateDocEditorButtons();
   }
@@ -3734,6 +4592,8 @@ function generatedExperimentStateForCanvas(canvas) {
       suppressActionRecording: false,
       controlActionQueue: [],
       controlActionReplayRunning: false,
+      replayGateSettingsChanged: false,
+      playbackResultVisible: false,
     };
     generatedExperimentStates.set(canvas, state);
   }
@@ -3773,8 +4633,23 @@ function clearGeneratedExperimentStateForCanvas(canvas) {
   state.suppressActionRecording = false;
   state.controlActionQueue = [];
   state.controlActionReplayRunning = false;
+  state.replayGateSettingsChanged = false;
+  state.playbackResultVisible = false;
   canvas.classList.remove("generated-recording-active");
   updateGeneratedExperimentToolbar(canvas);
+}
+
+function setGeneratedExperimentPlaybackResultVisible(canvas, visible) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (state) {
+    state.playbackResultVisible = Boolean(visible);
+  }
+}
+
+function markDocumentEditorCanvasEdited(canvas = docEditorCanvas) {
+  if (isDocumentEditorCanvas(canvas)) {
+    setGeneratedExperimentPlaybackResultVisible(canvas, false);
+  }
 }
 
 function clearGeneratedTransientStateForCanvas(canvas) {
@@ -3871,6 +4746,16 @@ function syncGeneratedExperimentGateSettingsFromCanvas(canvas) {
     return;
   }
   state.gateSettings = captureGeneratedGateSettings(canvas);
+}
+
+function markGeneratedReplayGateSettingsChanged(canvas) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state || state.playing || state.recording || !state.experiment) {
+    return;
+  }
+  state.gateSettings = captureGeneratedGateSettings(canvas);
+  state.replayGateSettingsChanged = true;
+  state.playbackResultVisible = false;
 }
 
 function updateGeneratedExperimentToolbar(canvas) {
@@ -4003,6 +4888,8 @@ function beginGeneratedExperimentRecording(canvas) {
   state.suppressActionRecording = false;
   state.controlActionQueue = [];
   state.controlActionReplayRunning = false;
+  state.replayGateSettingsChanged = false;
+  state.playbackResultVisible = false;
   canvas.classList.add("generated-recording-active");
   updateGeneratedExperimentToolbar(canvas);
   return true;
@@ -4044,6 +4931,8 @@ function finishGeneratedExperimentRecording(canvas) {
   state.recording = false;
   canvas.classList.remove("generated-recording-active");
   state.experiment = currentGeneratedRecordingExperiment(canvas);
+  state.gateSettings = captureGeneratedGateSettings(canvas);
+  state.replayGateSettingsChanged = false;
   updateGeneratedExperimentToolbar(canvas);
 }
 
@@ -4575,6 +5464,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
       if (canvas && meta.changed && !meta.deferMeasurementClear) {
         clearGeneratedMeasurementsForCanvas(canvas);
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
+        markGeneratedReplayGateSettingsChanged(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
         handleGeneratedGateSettingChanged(canvas);
       }
@@ -4584,6 +5474,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
       if (canvas && changed) {
         clearGeneratedMeasurementsForCanvas(canvas);
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
+        markGeneratedReplayGateSettingsChanged(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
         handleGeneratedGateSettingChanged(canvas);
       }
@@ -4658,11 +5549,14 @@ function initializeGeneratedSingleMeasurementItem(item) {
     tubeCapacity: tubeCapacity instanceof HTMLElement ? tubeCapacity : null,
     measurementCount:
       measurementCount instanceof HTMLSelectElement ? measurementCount : null,
-    tubeQubitCapacity: INITIAL_TUBE_QUBIT_CAPACITY,
+    tubeQubitCapacity: savedMeasurementCapacity(
+      item.dataset.measurementTubeCapacity,
+    ),
     blueTubeCount: Number.parseInt(tubeBlueCount.textContent || "0", 10) || 0,
     redTubeCount: Number.parseInt(tubeRedCount.textContent || "0", 10) || 0,
     busy: false,
   };
+  maybeExpandGeneratedMeasurementTubeCapacity(runtime);
   updateGeneratedMeasurementTubeFills(runtime);
   if (runtime.measurementCount) {
     runtime.measurementCount.addEventListener("mousedown", (event) =>
@@ -4765,7 +5659,7 @@ function maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime) {
   }
 }
 
-function clearGeneratedDoubleMeasurementApparatus(runtime) {
+function clearGeneratedDoubleMeasurementApparatus(runtime, options = {}) {
   if (!runtime) {
     return;
   }
@@ -4773,6 +5667,9 @@ function clearGeneratedDoubleMeasurementApparatus(runtime) {
   ["bb", "br", "rb", "rr"].forEach((key) => {
     runtime.tubeCounts[key] = 0;
   });
+  if (options.resetIterations) {
+    setMeasurementSelectValue(runtime.measurementCount, 1);
+  }
   updateGeneratedDoubleMeasurementTubeFills(runtime);
 }
 
@@ -4871,12 +5768,15 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
       rb: Number.parseInt(countElements.rb.textContent || "0", 10) || 0,
       rr: Number.parseInt(countElements.rr.textContent || "0", 10) || 0,
     },
-    tubePairCapacity: INITIAL_TUBE_QUBIT_CAPACITY,
+    tubePairCapacity: savedMeasurementCapacity(
+      item.dataset.measurementTubeCapacity,
+    ),
     pendingMeasurements: [],
     measurementSequence: 0,
     busy: false,
     completing: false,
   };
+  maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
   updateGeneratedDoubleMeasurementTubeFills(runtime);
 
   const runRecordedExperimentFromControl = (
@@ -4953,7 +5853,7 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
   return runtime;
 }
 
-function clearGeneratedSeparatedPairMeasurementApparatus(runtime) {
+function clearGeneratedSeparatedPairMeasurementApparatus(runtime, options = {}) {
   if (!runtime) {
     return;
   }
@@ -4964,27 +5864,33 @@ function clearGeneratedSeparatedPairMeasurementApparatus(runtime) {
   runtime.pendingMeasurements = [];
   runtime.busy = false;
   runtime.completing = false;
+  if (options.resetIterations) {
+    setMeasurementSelectValue(runtime.measurementCount, 1);
+  }
   updateGeneratedDoubleMeasurementTubeFills(runtime);
 }
 
-function clearGeneratedMeasurementsForCanvas(canvas) {
+function clearGeneratedMeasurementsForCanvas(canvas, options = {}) {
   if (!isGeneratedLayoutCanvas(canvas)) {
     return;
   }
   generatedItemsOfType(canvas, "single-measurement").forEach((item) => {
     clearGeneratedMeasurementApparatus(
       initializeGeneratedSingleMeasurementItem(item),
+      options,
     );
   });
   generatedItemsOfType(canvas, "double-measurement").forEach((item) => {
     clearGeneratedDoubleMeasurementApparatus(
       initializeGeneratedDoubleMeasurementItem(item),
+      options,
     );
   });
   generatedItemsOfType(canvas, PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE).forEach(
     (item) => {
       clearGeneratedSeparatedPairMeasurementApparatus(
         initializeGeneratedSeparatedPairMeasurementItem(item),
+        options,
       );
     },
   );
@@ -5025,6 +5931,18 @@ function isGeneratedExperimentControlAction(action) {
 
 function generatedExperimentReplayIterations(action) {
   return Math.max(1, Number(action?.iterations) || 1);
+}
+
+function generatedExperimentUsesBatchReplay(iterations) {
+  return Math.max(1, Number(iterations) || 1) > 10;
+}
+
+function generatedExperimentHasBatchControlActions(experiment) {
+  return (Array.isArray(experiment?.actions) ? experiment.actions : []).some(
+    (action) =>
+      isGeneratedExperimentControlAction(action) &&
+      generatedExperimentUsesBatchReplay(action.iterations),
+  );
 }
 
 function generatedExperimentLowLevelActions(actions) {
@@ -5289,7 +6207,9 @@ function initializeGeneratedDoubleMeasurementItem(item) {
       rb: Number.parseInt(countElements.rb.textContent || "0", 10) || 0,
       rr: Number.parseInt(countElements.rr.textContent || "0", 10) || 0,
     },
-    tubePairCapacity: INITIAL_TUBE_QUBIT_CAPACITY,
+    tubePairCapacity: savedMeasurementCapacity(
+      item.dataset.measurementTubeCapacity,
+    ),
     slotOccupants: {
       left: null,
       right: null,
@@ -5299,6 +6219,7 @@ function initializeGeneratedDoubleMeasurementItem(item) {
     automationStartPoints: null,
     cyclePromise: null,
   };
+  maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
   updateGeneratedDoubleMeasurementTubeFills(runtime);
   if (runtime.measurementCount) {
     runtime.measurementCount.addEventListener("mousedown", (event) =>
@@ -5450,13 +6371,16 @@ function maybeExpandGeneratedMeasurementTubeCapacity(runtime) {
   }
 }
 
-function clearGeneratedMeasurementApparatus(runtime) {
+function clearGeneratedMeasurementApparatus(runtime, options = {}) {
   if (!runtime) {
     return;
   }
   runtime.tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
   runtime.blueTubeCount = 0;
   runtime.redTubeCount = 0;
+  if (options.resetIterations) {
+    setMeasurementSelectValue(runtime.measurementCount, 1);
+  }
   updateGeneratedMeasurementTubeFills(runtime);
 }
 
@@ -5843,6 +6767,7 @@ function duplicateSelectedGeneratedLayoutItem() {
   item.style.left = `${Math.round(clamped.left)}px`;
   item.style.top = `${Math.round(clamped.top)}px`;
   if (isDocumentEditorCanvas(canvas)) {
+    markDocumentEditorCanvasEdited(canvas);
     saveCurrentDocumentEditorScene();
     updateDocEditorButtons();
   }
@@ -5896,6 +6821,7 @@ function removeGeneratedLayoutItem(item) {
   }
   updateGeneratedEditorButtons();
   if (isDocumentEditorCanvas(canvas)) {
+    markDocumentEditorCanvasEdited(canvas);
     saveCurrentDocumentEditorScene();
     updateDocEditorButtons();
   }
@@ -5924,6 +6850,7 @@ function removeSelectedGeneratedLayoutPart() {
     syncGeneratedTextBoxSequence(canvas);
   }
   if (isDocumentEditorCanvas(canvas)) {
+    markDocumentEditorCanvasEdited(canvas);
     saveCurrentDocumentEditorScene();
     updateDocEditorButtons();
   }
@@ -6293,6 +7220,9 @@ function setDocumentCanvasSize(width, height, options = {}) {
   }
   const nextWidth = clampDocumentCanvasWidth(width);
   const nextHeight = clampDocumentCanvasHeight(height);
+  if (options.fromUser) {
+    markDocumentEditorCanvasEdited(docEditorCanvas);
+  }
   scene.canvasWidth = nextWidth;
   scene.canvasHeight = nextHeight;
   documentEditorState.suppressResizeObserver = true;
@@ -6361,6 +7291,9 @@ function saveCurrentDocumentEditorScene(options = {}) {
   if (experimentState?.recording || experimentState?.playing) {
     return false;
   }
+  if (experimentState?.playbackResultVisible && !options.savePlaybackResult) {
+    return true;
+  }
   const layout = captureGeneratedLayoutFromCanvas(docEditorCanvas);
   if (layout) {
     scene.items = normalizeSavedGroupLayoutItems(layout.items);
@@ -6381,6 +7314,7 @@ function handleGeneratedGateSettingChanged(canvas) {
     updateDocEditorButtons();
     return;
   }
+  markDocumentEditorCanvasEdited(canvas);
   saveCurrentDocumentEditorScene();
   updateDocEditorButtons();
 }
@@ -6448,7 +7382,7 @@ function updateDocEditorButtons() {
     docEditorStartRecordingButton.disabled = !canRecord || recording || playing;
   }
   if (docEditorStopRecordingButton instanceof HTMLButtonElement) {
-    docEditorStopRecordingButton.disabled = !recording;
+    docEditorStopRecordingButton.disabled = !recording || playing;
   }
   if (docEditorPlayRecordingButton instanceof HTMLButtonElement) {
     docEditorPlayRecordingButton.disabled =
@@ -6514,6 +7448,14 @@ function renderDocumentEditorScene() {
     experimentState.actions = [];
     experimentState.experiment = cloneGeneratedExperiment(scene.experiment);
     experimentState.status = docEditorRecordingStatus;
+    experimentState.replayGateSettingsChanged = false;
+    experimentState.playbackResultVisible = false;
+  }
+  if (sceneHasRecordedExperiment(scene)) {
+    resetGeneratedCanvasToRecordedSceneStart(
+      docEditorCanvas,
+      scene.experiment,
+    );
   }
   layoutGeneratedSingleGateDials(docEditorCanvas);
   documentEditorState.rendering = false;
@@ -6668,8 +7610,12 @@ function finishDocumentEditorRecording() {
   if (!scene) {
     return false;
   }
-  finishGeneratedExperimentRecording(docEditorCanvas);
   const state = generatedExperimentStateForCanvas(docEditorCanvas);
+  if (state?.playing || state?.controlActionReplayRunning) {
+    updateDocEditorButtons();
+    return false;
+  }
+  finishGeneratedExperimentRecording(docEditorCanvas);
   if (!state?.experiment) {
     updateDocEditorButtons();
     return false;
@@ -6680,7 +7626,8 @@ function finishDocumentEditorRecording() {
   if (isDocumentEditorTabActive()) {
     setLayoutEditEnabled(true);
   }
-  renderDocumentEditorScene();
+  refreshGeneratedMeasurementFillsForCanvas(docEditorCanvas);
+  updateDocEditorButtons();
   return true;
 }
 
@@ -6704,15 +7651,21 @@ async function playDocumentEditorRecording() {
   state.experiment = cloneGeneratedExperiment(scene.experiment);
   setLayoutEditEnabled(false);
   updateDocEditorButtons();
+  let completed = false;
   try {
-    await runGeneratedRecordedExperiment(docEditorCanvas, 1);
+    clearGeneratedMeasurementsForCanvas(docEditorCanvas);
+    completed = await runGeneratedRecordedExperiment(docEditorCanvas, 1);
+    return completed;
   } finally {
     if (isDocumentEditorTabActive()) {
       setLayoutEditEnabled(true);
     }
-    renderDocumentEditorScene();
+    if (completed) {
+      setGeneratedExperimentPlaybackResultVisible(docEditorCanvas, true);
+    }
+    layoutGeneratedSingleGateDials(docEditorCanvas);
+    updateDocEditorButtons();
   }
-  return true;
 }
 
 function setupDocumentEditor() {
@@ -6758,13 +7711,16 @@ function setupDocumentEditor() {
     if (item && docEditorComponentSelect instanceof HTMLSelectElement) {
       docEditorComponentSelect.value = "";
     }
+    markDocumentEditorCanvasEdited(docEditorCanvas);
     saveCurrentDocumentEditorScene();
     updateDocEditorButtons();
   });
   docEditorCanvas.addEventListener("input", () => {
+    markDocumentEditorCanvasEdited(docEditorCanvas);
     saveCurrentDocumentEditorScene();
   });
   docEditorCanvas.addEventListener("change", () => {
+    markDocumentEditorCanvasEdited(docEditorCanvas);
     saveCurrentDocumentEditorScene();
   });
   if (typeof ResizeObserver === "function") {
@@ -6915,6 +7871,11 @@ function renderDocumentRuntimeScene() {
     state.recording = false;
     state.playing = false;
     state.experiment = cloneGeneratedExperiment(scene.experiment);
+    state.replayGateSettingsChanged = false;
+    state.playbackResultVisible = false;
+  }
+  if (sceneHasRecordedExperiment(scene)) {
+    resetGeneratedCanvasToRecordedSceneStart(runtimeCanvas, scene.experiment);
   }
   if (docRuntimeTitle instanceof HTMLElement) {
     const target = collectPlaygroundSaveTargets().find(
@@ -7016,13 +7977,18 @@ async function playDocumentRuntimeSceneExperiment() {
   documentRuntimeState.playing = true;
   const state = generatedExperimentStateForCanvas(runtimeCanvas);
   state.experiment = cloneGeneratedExperiment(scene.experiment);
+  let completed = false;
   try {
-    await runGeneratedRecordedExperiment(runtimeCanvas, 1);
+    clearGeneratedMeasurementsForCanvas(runtimeCanvas);
+    completed = await runGeneratedRecordedExperiment(runtimeCanvas, 1);
+    return completed;
   } finally {
     documentRuntimeState.playing = false;
-    renderDocumentRuntimeScene();
+    if (completed) {
+      setGeneratedExperimentPlaybackResultVisible(runtimeCanvas, true);
+    }
+    layoutGeneratedSingleGateDials(runtimeCanvas);
   }
-  return true;
 }
 
 function handleDocumentTextBoxAction(canvas, action) {
@@ -9308,14 +10274,10 @@ function generatedExperimentGateTickMap(experiment) {
   return ticks;
 }
 
-function generatedCurrentGateTickMap(canvas, experiment) {
-  const recordedTicks = generatedExperimentGateTickMap(experiment);
-  if (recordedTicks.size > 0) {
-    return recordedTicks;
-  }
+function generatedLiveGateTickMap(canvas) {
   const ticks = new Map();
   if (!isGeneratedLayoutCanvas(canvas)) {
-    return recordedTicks;
+    return ticks;
   }
   generatedItemsOfType(canvas, "single-gate").forEach((item) => {
     const runtime = initializeGeneratedSingleGateItem(item, {
@@ -9329,6 +10291,36 @@ function generatedCurrentGateTickMap(canvas, experiment) {
       normalizeTickIndex(runtime.activeTick),
     );
   });
+  return ticks;
+}
+
+function generatedReplayUsesLiveGateSettings(canvas) {
+  return Boolean(
+    generatedExperimentStateForCanvas(canvas)?.replayGateSettingsChanged,
+  );
+}
+
+function generatedReplayOptionsForCanvas(canvas) {
+  const preferLiveGateSettings = generatedReplayUsesLiveGateSettings(canvas);
+  return {
+    preferLiveGateSettings,
+    ignoreGateSettingActions: preferLiveGateSettings,
+  };
+}
+
+function generatedCurrentGateTickMap(canvas, experiment, options = {}) {
+  const recordedTicks = generatedExperimentGateTickMap(experiment);
+  const preferLiveGateSettings = Boolean(options.preferLiveGateSettings);
+  if (preferLiveGateSettings) {
+    const liveTicks = generatedLiveGateTickMap(canvas);
+    if (liveTicks.size > 0) {
+      return liveTicks;
+    }
+  }
+  if (recordedTicks.size > 0) {
+    return recordedTicks;
+  }
+  const ticks = generatedLiveGateTickMap(canvas);
   if (ticks.size > 0) {
     return ticks;
   }
@@ -9406,6 +10398,18 @@ function resetGeneratedCanvasToExperimentStart(canvas, experiment, options = {})
     }
     applyGeneratedQubitVectorVisualState(qubitItem);
   });
+}
+
+function resetGeneratedCanvasToRecordedSceneStart(
+  canvas,
+  experiment,
+  options = {},
+) {
+  clearGeneratedMeasurementsForCanvas(canvas, {
+    resetIterations: options.resetIterations !== false,
+  });
+  resetGeneratedCanvasToExperimentStart(canvas, experiment, options);
+  setGeneratedExperimentPlaybackResultVisible(canvas, false);
 }
 
 function releaseGeneratedRuntimeSlotsForCanvas(canvas) {
@@ -9626,6 +10630,7 @@ async function replayGeneratedRecordedExperimentAnimatedIterations(
   experiment,
   iterations,
   initialGateTicks = null,
+  options = {},
 ) {
   const count = Math.max(1, Number(iterations) || 1);
   const previousPlaybackSpeed = generatedExperimentPlaybackSpeed;
@@ -9637,6 +10642,7 @@ async function replayGeneratedRecordedExperimentAnimatedIterations(
         canvas,
         experiment,
         initialGateTicks,
+        options,
       );
       if (!completed) {
         return false;
@@ -9653,6 +10659,7 @@ async function replayGeneratedRecordedExperimentControlAction(
   experiment,
   action,
   actionIndex,
+  options = {},
 ) {
   if (!isGeneratedExperimentControlAction(action)) {
     return false;
@@ -9672,17 +10679,19 @@ async function replayGeneratedRecordedExperimentControlAction(
   ) {
     return false;
   }
-  const baseGateTicks = generatedCurrentGateTickMap(canvas, baseExperiment);
-  if (iterations >= 100) {
+  const baseGateTicks = generatedCurrentGateTickMap(
+    canvas,
+    baseExperiment,
+    options,
+  );
+  if (generatedExperimentUsesBatchReplay(iterations)) {
     replayGeneratedRecordedExperimentFast(
       canvas,
       baseExperiment,
       iterations,
       baseGateTicks,
+      options,
     );
-    resetGeneratedCanvasToExperimentStart(canvas, baseExperiment, {
-      gateTicks: baseGateTicks,
-    });
     return true;
   }
   return replayGeneratedRecordedExperimentAnimatedIterations(
@@ -9690,18 +10699,59 @@ async function replayGeneratedRecordedExperimentControlAction(
     baseExperiment,
     iterations,
     baseGateTicks,
+    options,
   );
+}
+
+async function replayGeneratedRecordedExperimentBatchControls(
+  canvas,
+  experiment,
+  options = {},
+) {
+  const actions = Array.isArray(experiment?.actions) ? experiment.actions : [];
+  let replayed = false;
+  for (let actionIndex = 0; actionIndex < actions.length; actionIndex += 1) {
+    const action = actions[actionIndex];
+    if (!isGeneratedExperimentControlAction(action)) {
+      continue;
+    }
+    const iterations = generatedExperimentReplayIterations(action);
+    if (action.type === GENERATED_EXPERIMENT_COUNT_ACTION) {
+      setRecordedMeasurementIterationCount(canvas, action);
+      clearRecordedMeasurementForControlAction(canvas, action);
+    }
+    const baseExperiment = generatedExperimentBaseForControlAction(
+      experiment,
+      actionIndex,
+    );
+    if (
+      !Array.isArray(baseExperiment.actions) ||
+      baseExperiment.actions.length === 0
+    ) {
+      return false;
+    }
+    replayGeneratedRecordedExperimentFast(
+      canvas,
+      baseExperiment,
+      iterations,
+      generatedCurrentGateTickMap(canvas, baseExperiment, options),
+      options,
+    );
+    replayed = true;
+  }
+  return replayed;
 }
 
 async function replayGeneratedRecordedExperimentAnimated(
   canvas,
   experiment,
   initialGateTicks = null,
+  options = {},
 ) {
   const gateTicks =
     initialGateTicks instanceof Map
       ? new Map(initialGateTicks)
-      : generatedCurrentGateTickMap(canvas, experiment);
+      : generatedCurrentGateTickMap(canvas, experiment, options);
   resetGeneratedCanvasToExperimentStart(canvas, experiment, { gateTicks });
   const initialCenters = generatedExperimentInitialCenterMap(experiment);
   const actions = experiment.actions || [];
@@ -9710,6 +10760,9 @@ async function replayGeneratedRecordedExperimentAnimated(
     if (action.type === "drag") {
       await replayGeneratedRecordedDragAction(canvas, action);
     } else if (action.type === "gate-setting") {
+      if (options.ignoreGateSettingActions) {
+        continue;
+      }
       if (!applyGeneratedRecordedGateSettingAction(canvas, action, gateTicks)) {
         return false;
       }
@@ -9779,6 +10832,7 @@ async function replayGeneratedRecordedExperimentAnimated(
         experiment,
         action,
         actionIndex,
+        options,
       );
       if (!completed) {
         return false;
@@ -9880,12 +10934,13 @@ function replayGeneratedRecordedExperimentFast(
   experiment,
   iterations,
   initialGateTicks = null,
+  options = {},
 ) {
   const measurementRuntimesToUpdate = new Set();
   const baseGateTicks =
     initialGateTicks instanceof Map
       ? new Map(initialGateTicks)
-      : generatedCurrentGateTickMap(canvas, experiment);
+      : generatedCurrentGateTickMap(canvas, experiment, options);
   const initialCenters = generatedExperimentInitialCenterMap(experiment);
   const logicalQubitIds = generatedExperimentQubitLogicalIdMap(experiment);
   for (let run = 0; run < iterations; run += 1) {
@@ -9895,6 +10950,9 @@ function replayGeneratedRecordedExperimentFast(
     const separatedPendingByMeasurement = new Map();
     (experiment.actions || []).forEach((action) => {
       if (action.type === "gate-setting") {
+        if (options.ignoreGateSettingActions) {
+          return;
+        }
         const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
         if (action.gateId) {
           gateTicks.set(action.gateId, tickIndex);
@@ -10130,6 +11188,302 @@ function replayGeneratedRecordedExperimentFast(
   });
 }
 
+function generatedSingleGateEjectedCenter(canvas, qubitItem, gateRuntime) {
+  if (!gateRuntime?.gateWindow || !qubitItem) {
+    return null;
+  }
+  const canvasRect = canvas.getBoundingClientRect();
+  const pipeRect = gateRuntime.gateWindow.getBoundingClientRect();
+  const qubitRect = qubitItem.getBoundingClientRect();
+  const gateCenter = generatedCanvasPointForElementCenter(
+    canvas,
+    gateRuntime.ticksWrap,
+  );
+  return {
+    x:
+      pipeRect.right -
+      canvasRect.left +
+      canvas.scrollLeft +
+      100 +
+      qubitRect.width / 2,
+    y: gateCenter.y,
+  };
+}
+
+function generatedCnotEjectedCenters(canvas, topQubit, bottomQubit, runtime) {
+  if (!runtime?.body || !runtime.windowTop || !runtime.windowBottom) {
+    return null;
+  }
+  const canvasRect = canvas.getBoundingClientRect();
+  const bodyRect = runtime.body.getBoundingClientRect();
+  const topWindowCenter = generatedCanvasPointForElementCenter(
+    canvas,
+    runtime.windowTop,
+  );
+  const bottomWindowCenter = generatedCanvasPointForElementCenter(
+    canvas,
+    runtime.windowBottom,
+  );
+  const topQubitRect = topQubit.getBoundingClientRect();
+  const bottomQubitRect = bottomQubit.getBoundingClientRect();
+  return {
+    top: {
+      x:
+        bodyRect.right -
+        canvasRect.left +
+        canvas.scrollLeft +
+        50 +
+        topQubitRect.width / 2,
+      y: topWindowCenter.y,
+    },
+    bottom: {
+      x:
+        bodyRect.right -
+        canvasRect.left +
+        canvas.scrollLeft +
+        50 +
+        bottomQubitRect.width / 2,
+      y: bottomWindowCenter.y,
+    },
+  };
+}
+
+function applyGeneratedRecordedExperimentStaticFinalVisualState(
+  canvas,
+  experiment,
+  initialGateTicks = null,
+  options = {},
+) {
+  const gateTicks =
+    initialGateTicks instanceof Map
+      ? new Map(initialGateTicks)
+      : generatedCurrentGateTickMap(canvas, experiment, options);
+  resetGeneratedCanvasToExperimentStart(canvas, experiment, { gateTicks });
+  const initialCenters = generatedExperimentInitialCenterMap(experiment);
+  (experiment.actions || []).forEach((action) => {
+    if (action.type === "drag") {
+      const qubitItem = generatedQubitItemForRecordedAction(
+        canvas,
+        action.qubitId,
+        action.qubitLogicalId,
+      );
+      const points = Array.isArray(action.path)
+        ? action.path.filter((point) => validPoint(point))
+        : [];
+      const finalPoint = points[points.length - 1];
+      if (qubitItem && finalPoint) {
+        setGeneratedQubitCenter(canvas, qubitItem, finalPoint.x, finalPoint.y);
+        settleGeneratedQubitVisualState(qubitItem);
+      }
+      return;
+    }
+    if (action.type === "gate-setting") {
+      if (options.ignoreGateSettingActions) {
+        return;
+      }
+      applyGeneratedRecordedGateSettingAction(canvas, action, gateTicks);
+      return;
+    }
+    if (action.type === "gate") {
+      const qubitItem = generatedQubitItemForRecordedAction(
+        canvas,
+        action.qubitId,
+        action.qubitLogicalId,
+      );
+      const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
+      const gateRuntime = initializeGeneratedSingleGateItem(
+        generatedItemById(canvas, action.gateId),
+        { singleGateTick: tickIndex },
+      );
+      if (!qubitItem || !gateRuntime) {
+        return;
+      }
+      setGeneratedGateRuntimeTick(gateRuntime, tickIndex);
+      applyGeneratedSingleGateToQubitState(qubitItem, tickIndex);
+      const ejectedCenter = generatedSingleGateEjectedCenter(
+        canvas,
+        qubitItem,
+        gateRuntime,
+      );
+      if (ejectedCenter) {
+        setGeneratedQubitCenter(
+          canvas,
+          qubitItem,
+          ejectedCenter.x,
+          ejectedCenter.y,
+        );
+      }
+      settleGeneratedQubitVisualState(qubitItem);
+      return;
+    }
+    if (action.type === "cnot") {
+      const runtime = initializeGeneratedCnotItem(
+        generatedItemById(canvas, action.cnotId),
+      );
+      const topQubit = generatedQubitItemForRecordedAction(
+        canvas,
+        action.topQubitId,
+        action.topQubitLogicalId,
+      );
+      const bottomQubit = generatedQubitItemForRecordedAction(
+        canvas,
+        action.bottomQubitId,
+        action.bottomQubitLogicalId,
+      );
+      if (!runtime || !topQubit || !bottomQubit) {
+        return;
+      }
+      applyGeneratedCnotToQubitStates(topQubit, bottomQubit);
+      const ejectedCenters = generatedCnotEjectedCenters(
+        canvas,
+        topQubit,
+        bottomQubit,
+        runtime,
+      );
+      if (ejectedCenters) {
+        setGeneratedQubitCenter(
+          canvas,
+          topQubit,
+          ejectedCenters.top.x,
+          ejectedCenters.top.y,
+        );
+        setGeneratedQubitCenter(
+          canvas,
+          bottomQubit,
+          ejectedCenters.bottom.x,
+          ejectedCenters.bottom.y,
+        );
+      }
+      settleGeneratedQubitVisualState(topQubit);
+      settleGeneratedQubitVisualState(bottomQubit);
+      return;
+    }
+    if (action.type === "single-measure") {
+      const qubitItem = generatedQubitItemForRecordedAction(
+        canvas,
+        action.qubitId,
+        action.qubitLogicalId,
+      );
+      const runtime = initializeGeneratedSingleMeasurementItem(
+        generatedItemById(canvas, action.measurementId),
+      );
+      const lensCircle = generatedLensCircle(runtime);
+      if (!qubitItem || !runtime || !lensCircle) {
+        return;
+      }
+      const lensCenter = generatedViewportPointToCanvasPoint(
+        canvas,
+        lensCircle.x,
+        lensCircle.y,
+      );
+      collapseGeneratedQubitState(qubitItem);
+      setGeneratedQubitCenter(canvas, qubitItem, lensCenter.x + 100, lensCenter.y);
+      settleGeneratedQubitVisualState(qubitItem);
+      return;
+    }
+    if (action.type === "double-measure") {
+      const leftQubit = generatedQubitItemForRecordedAction(
+        canvas,
+        action.leftQubitId,
+        action.leftQubitLogicalId,
+      );
+      const rightQubit = generatedQubitItemForRecordedAction(
+        canvas,
+        action.rightQubitId,
+        action.rightQubitLogicalId,
+      );
+      const qubitOrder = generatedRecordedDoubleMeasureOrder(
+        action,
+        initialCenters,
+      );
+      const topQubit = generatedQubitItemForRecordedAction(
+        canvas,
+        qubitOrder.topQubitId,
+        qubitOrder.topQubitLogicalId,
+      );
+      const bottomQubit = generatedQubitItemForRecordedAction(
+        canvas,
+        qubitOrder.bottomQubitId,
+        qubitOrder.bottomQubitLogicalId,
+      );
+      if (topQubit && bottomQubit) {
+        collapseGeneratedQubitPairFromCnot(topQubit, bottomQubit);
+      }
+      [
+        [leftQubit, initialCenters.get(action.leftQubitId)],
+        [rightQubit, initialCenters.get(action.rightQubitId)],
+      ].forEach(([qubitItem, point]) => {
+        if (qubitItem && validPoint(point)) {
+          setGeneratedQubitCenter(canvas, qubitItem, point.x, point.y);
+          settleGeneratedQubitVisualState(qubitItem);
+        }
+      });
+      return;
+    }
+    if (action.type === "separated-pair-measure") {
+      const measurementItem =
+        generatedItemById(canvas, action.measurementId) ||
+        generatedItemsOfType(canvas, PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE).find(
+          (item) => initializeGeneratedSeparatedPairMeasurementItem(item),
+        );
+      const runtime =
+        initializeGeneratedSeparatedPairMeasurementItem(measurementItem);
+      const qubitItem = generatedQubitItemForRecordedAction(
+        canvas,
+        action.qubitId,
+        action.logicalQubitId,
+      );
+      const target = generatedSeparatedPairMeasurementTargetForQubit(
+        canvas,
+        qubitItem,
+        runtime,
+        action.magnifierIndex,
+      );
+      if (!runtime || !qubitItem || !target) {
+        return;
+      }
+      const orderIndex = generatedSeparatedPairOrderIndexForQubit(
+        canvas,
+        runtime,
+        qubitItem,
+        ensureGeneratedQubitRuntimeState(qubitItem),
+      );
+      collapseGeneratedQubitState(qubitItem);
+      const ejectionPoint = generatedSeparatedPairMeasurementEjectionPoint(
+        canvas,
+        target,
+        qubitItem,
+        orderIndex,
+      );
+      setGeneratedQubitCenter(canvas, qubitItem, ejectionPoint.x, ejectionPoint.y);
+      settleGeneratedQubitVisualState(qubitItem);
+    }
+  });
+}
+
+async function replayGeneratedRecordedExperimentFastWithFinalVisualState(
+  canvas,
+  experiment,
+  iterations,
+  initialGateTicks = null,
+  options = {},
+) {
+  replayGeneratedRecordedExperimentFast(
+    canvas,
+    experiment,
+    iterations,
+    initialGateTicks,
+    options,
+  );
+  applyGeneratedRecordedExperimentStaticFinalVisualState(
+    canvas,
+    experiment,
+    initialGateTicks,
+    options,
+  );
+  return true;
+}
+
 async function runGeneratedRecordedExperiment(canvas, iterations) {
   const state = generatedExperimentStateForCanvas(canvas);
   const experiment = cloneGeneratedExperiment(state?.experiment);
@@ -10145,28 +11499,48 @@ async function runGeneratedRecordedExperiment(canvas, iterations) {
     return false;
   }
   const count = Math.max(1, Number(iterations) || 1);
-  const initialGateTicks = generatedCurrentGateTickMap(canvas, experiment);
+  const replayOptions = generatedReplayOptionsForCanvas(canvas);
+  const initialGateTicks = generatedCurrentGateTickMap(
+    canvas,
+    experiment,
+    replayOptions,
+  );
   const hasControlActions = generatedExperimentHasControlActions(experiment);
+  state.playbackResultVisible = false;
   state.playing = true;
   updateGeneratedExperimentToolbar(canvas);
   try {
-    if (count >= 100 && !hasControlActions) {
-      replayGeneratedRecordedExperimentFast(
+    if (generatedExperimentHasBatchControlActions(experiment)) {
+      const completed = await replayGeneratedRecordedExperimentBatchControls(
+        canvas,
+        experiment,
+        replayOptions,
+      );
+      if (completed) {
+        applyGeneratedRecordedExperimentStaticFinalVisualState(
+          canvas,
+          experiment,
+          initialGateTicks,
+          replayOptions,
+        );
+      }
+      return completed;
+    }
+    if (generatedExperimentUsesBatchReplay(count) && !hasControlActions) {
+      return await replayGeneratedRecordedExperimentFastWithFinalVisualState(
         canvas,
         experiment,
         count,
         initialGateTicks,
+        replayOptions,
       );
-      resetGeneratedCanvasToExperimentStart(canvas, experiment, {
-        gateTicks: initialGateTicks,
-      });
-      return true;
     }
-    return replayGeneratedRecordedExperimentAnimatedIterations(
+    return await replayGeneratedRecordedExperimentAnimatedIterations(
       canvas,
       experiment,
       count,
       initialGateTicks,
+      replayOptions,
     );
   } finally {
     state.playing = false;
@@ -10575,6 +11949,9 @@ function continueGeneratedLayoutEditGesture(event) {
   }
   const dx = point.clientX - gesture.startX;
   const dy = point.clientY - gesture.startY;
+  if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+    gesture.edited = true;
+  }
   if (gesture.mode === "part-resize") {
     let nextWidth = Math.max(gesture.minWidth, gesture.startWidth + dx);
     let nextHeight = Math.max(gesture.minHeight, gesture.startHeight + dy);
@@ -10663,6 +12040,9 @@ function endGeneratedLayoutEditGesture() {
   }
   generatedLayoutGesture = null;
   if (isDocumentEditorCanvas(canvas)) {
+    if (gesture.edited) {
+      markDocumentEditorCanvasEdited(canvas);
+    }
     saveCurrentDocumentEditorScene();
     updateDocEditorButtons();
   }
@@ -13572,6 +14952,18 @@ function setupPlagroundComposer() {
       bringToFront(item);
       setSelectedItem(item);
       event.preventDefault();
+      return;
+    }
+    if (
+      layoutEditorState.enabled &&
+      item.dataset.component === "text-box" &&
+      origin.closest('[data-role="text-box-body"]')
+    ) {
+      bringToFront(item);
+      setSelectedItem(item, null, {
+        additive: Boolean(event.shiftKey || event.metaKey || event.ctrlKey),
+      });
+      event.stopPropagation();
       return;
     }
     if (runtimeQubitDrag) {
@@ -16741,6 +18133,9 @@ function setActiveTab(tabTarget) {
 
 tabButtons.forEach((button) => registerTabButton(button));
 restoreGeneratedTabs();
+if (seedInitialWhatsThisDocuments()) {
+  refreshGeneratedDocumentToolbars();
+}
 plagroundComposer?.handleGeneratedTabsChanged?.();
 documentEditorComposer?.handleGeneratedTabsChanged?.();
 

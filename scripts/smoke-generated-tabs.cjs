@@ -1163,6 +1163,14 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await page.locator("#playgroundComponentSelect").selectOption("text-box");
   await page.mouse.click(canvasBox.x + 170, canvasBox.y + 345);
   await wait(150);
+
+  const firstEditorTextBody = page
+    .locator('#playgroundCanvas > .playground-node[data-component="text-box"]')
+    .first()
+    .locator('[data-role="text-box-body"]');
+  await firstEditorTextBody.click();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await page.keyboard.type("Remember to measure twice.");
   await page.evaluate(() => {
     const textBoxes = Array.from(document.querySelectorAll(
       '#playgroundCanvas > .playground-node[data-component="text-box"]',
@@ -1170,7 +1178,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const setTextBox = (textBox, text, buttonMode) => {
       const body = textBox?.querySelector('[data-role="text-box-body"]');
       const select = textBox?.querySelector('[data-role="text-box-button-mode"]');
-      if (body) {
+      if (body && typeof text === "string") {
         body.textContent = text;
         body.dispatchEvent(new Event("input", { bubbles: true }));
       }
@@ -1179,7 +1187,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
         select.dispatchEvent(new Event("change", { bubbles: true }));
       }
     };
-    setTextBox(textBoxes[0], "Remember to measure twice.", "next");
+    setTextBox(textBoxes[0], null, "next");
     setTextBox(textBoxes[1], "Second text box.", "done");
   });
 
@@ -1914,6 +1922,7 @@ async function runDocEditorMeasurementRecordingSmoke(page) {
   const readDocMeasurementState = () =>
     page.evaluate(() => {
       const canvas = document.querySelector("#docEditorCanvas");
+      const qubit = canvas?.querySelector('[data-component="qubit"]');
       const measurement = canvas?.querySelector(
         '[data-component="single-measurement"]',
       );
@@ -1939,9 +1948,19 @@ async function runDocEditorMeasurementRecordingSmoke(page) {
         blue,
         red,
         total: blue + red,
+        qubitLeft: Math.round(parseFloat(qubit?.style.left || "0")),
+        qubitTop: Math.round(parseFloat(qubit?.style.top || "0")),
         blueHeight,
         redHeight,
         recording: canvas?.classList.contains("generated-recording-active"),
+        playing: Boolean(generatedExperimentStateForCanvas(canvas)?.playing),
+        playbackResultVisible: Boolean(
+          generatedExperimentStateForCanvas(canvas)?.playbackResultVisible,
+        ),
+        iterations:
+          measurement
+            ?.querySelector('[data-role="measurement-count"]')
+            ?.value || "",
         status:
           document.querySelector("#docEditorRecordingStatus")?.textContent ||
           "",
@@ -1991,8 +2010,13 @@ async function runDocEditorMeasurementRecordingSmoke(page) {
   const queuedState = await waitForDocMeasurementState(
     (latest) =>
       latest.total === 20000 &&
-      latest.actions.map((action) => action.type).join(",") ===
-        "single-measure,experiment-count,experiment-count,experiment-repeat",
+      latest.playing === false &&
+      latest.actions
+        .map((action) => action.type)
+        .join(",")
+        .endsWith(
+          "single-measure,experiment-count,experiment-count,experiment-repeat",
+        ),
     20000,
   );
   const queuedIterations = (queuedState?.actions || [])
@@ -2011,6 +2035,121 @@ async function runDocEditorMeasurementRecordingSmoke(page) {
   ) {
     throw new Error(
       `Doc Editor queued recording controls did not persist the 10000 run: ${JSON.stringify(queuedState)}`,
+    );
+  }
+
+  await page.locator("#docEditorStopRecordingButton").click();
+  await wait(350);
+  const stoppedState = await page.evaluate(() => {
+    const canvas = document.querySelector("#docEditorCanvas");
+    const qubit = canvas?.querySelector('[data-component="qubit"]');
+    const measurement = canvas?.querySelector(
+      '[data-component="single-measurement"]',
+    );
+    const blue = Number(
+      measurement
+        ?.querySelector('[data-role="tube-blue-count"]')
+        ?.textContent?.trim() || 0,
+    );
+    const red = Number(
+      measurement
+        ?.querySelector('[data-role="tube-red-count"]')
+        ?.textContent?.trim() || 0,
+    );
+    const documents = JSON.parse(
+      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+    ).documents || [];
+    const documentEntry = documents.find(
+      (entry) => entry.tabId === "doc-measure-recording",
+    );
+    const scene = documentEntry?.scenes?.[0];
+    const storedQubit = scene?.items?.find((item) => item.id === "doc-measure-q");
+    const storedMeasurement = scene?.items?.find(
+      (item) => item.id === "doc-measure-stage",
+    );
+    return {
+      recording: canvas?.classList.contains("generated-recording-active"),
+      layoutEditActive: document.body.classList.contains("layout-edit-active"),
+      liveTotal: blue + red,
+      liveQubitLeft: Math.round(parseFloat(qubit?.style.left || "0")),
+      liveQubitTop: Math.round(parseFloat(qubit?.style.top || "0")),
+      storedQubitLeft: storedQubit?.left,
+      storedQubitTop: storedQubit?.top,
+      storedMeasurementStatePresent: Boolean(storedMeasurement?.measurementState),
+      experimentActions: scene?.experiment?.actions?.map(
+        (action) => action.type,
+      ),
+    };
+  });
+  if (
+    stoppedState.recording !== false ||
+    stoppedState.layoutEditActive !== true ||
+    stoppedState.liveTotal !== 20000 ||
+    stoppedState.liveQubitLeft <= 250 ||
+    stoppedState.storedQubitLeft !== 80 ||
+    stoppedState.storedQubitTop !== 170 ||
+    stoppedState.storedMeasurementStatePresent !== false ||
+    !stoppedState.experimentActions
+      ?.join(",")
+      .endsWith(
+        "single-measure,experiment-count,experiment-count,experiment-repeat",
+      )
+  ) {
+    throw new Error(
+      `Doc Editor recording stop did not preserve live final state while keeping stored scene initial: ${JSON.stringify(stoppedState)}`,
+    );
+  }
+
+  await page.evaluate(() => renderDocumentEditorScene());
+  const rerenderedInitialState = await readDocMeasurementState();
+  if (
+    rerenderedInitialState.total !== 0 ||
+    Math.abs(rerenderedInitialState.qubitLeft - 80) > 4 ||
+    Math.abs(rerenderedInitialState.qubitTop - 170) > 4 ||
+    rerenderedInitialState.iterations !== "1" ||
+    rerenderedInitialState.playbackResultVisible !== false
+  ) {
+    throw new Error(
+      `Doc Editor recorded scene did not reopen at the experiment start: ${JSON.stringify(rerenderedInitialState)}`,
+    );
+  }
+
+  await page.evaluate(() => {
+    window.__docPlaybackAnimatedReplayCount = 0;
+    const originalReplay = replayGeneratedRecordedExperimentAnimated;
+    window.__restoreDocPlaybackAnimatedReplay = () => {
+      replayGeneratedRecordedExperimentAnimated = originalReplay;
+    };
+    replayGeneratedRecordedExperimentAnimated = async (...args) => {
+      window.__docPlaybackAnimatedReplayCount += 1;
+      return originalReplay(...args);
+    };
+  });
+  await page.locator("#docEditorPlayRecordingButton").click();
+  const playbackState = await waitForDocMeasurementState(
+    (latest) =>
+      latest.total === 20000 &&
+      latest.playing === false &&
+      latest.playbackResultVisible === true,
+    20000,
+  );
+  const playbackAnimatedReplays = await page.evaluate(() => {
+    const count = window.__docPlaybackAnimatedReplayCount || 0;
+    window.__restoreDocPlaybackAnimatedReplay?.();
+    delete window.__restoreDocPlaybackAnimatedReplay;
+    delete window.__docPlaybackAnimatedReplayCount;
+    return count;
+  });
+  if (
+    !playbackState ||
+    playbackState.total !== 20000 ||
+    playbackState.qubitLeft <= 250 ||
+    playbackState.iterations !== "10000" ||
+    playbackState.playbackResultVisible !== true ||
+    playbackAnimatedReplays !== 0
+  ) {
+    throw new Error(
+      `Doc Editor high-count playback animated instead of batch-running: ${JSON.stringify({ playbackState, playbackAnimatedReplays })}`,
     );
   }
 }
@@ -2496,6 +2635,202 @@ async function runDocEditorTextPersistenceSmoke(page) {
   ) {
     throw new Error(
       `What's this runtime did not use persisted scene geometry: ${JSON.stringify(runtimeState)}`,
+    );
+  }
+}
+
+async function runInitialWhatsThisSeedSmoke(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "quantum_generated_tabs_v1",
+      JSON.stringify({
+        tabs: [
+          {
+            id: "seed-one-qubit",
+            label: "One Qubit",
+            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+          },
+          {
+            id: "seed-two-qubits",
+            label: "Two Qubits",
+            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+          },
+          {
+            id: "seed-entanglement-2",
+            label: "Entanglement 2",
+            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+          },
+          {
+            id: "seed-entanglement-3",
+            label: "Entanglement 3",
+            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+          },
+        ],
+      }),
+    );
+    localStorage.removeItem("quantum_whats_this_documents_v1");
+    localStorage.removeItem("quantum_whats_this_documents_seed_v1");
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  const seeded = await page.evaluate(() => {
+    const documents = JSON.parse(
+      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+    ).documents || [];
+    const byTab = Object.fromEntries(
+      documents.map((entry) => [entry.tabId, entry]),
+    );
+    return {
+      seedVersion:
+        localStorage.getItem("quantum_whats_this_documents_seed_v1") || "",
+      tabIds: documents.map((entry) => entry.tabId),
+      sceneCounts: Object.fromEntries(
+        documents.map((entry) => [entry.tabId, entry.scenes?.length || 0]),
+      ),
+      buttons: {
+        one: Boolean(
+          document.querySelector(
+            "#panel-seed-one-qubit [data-generated-document-action='whats-this']",
+          ),
+        ),
+        two: Boolean(
+          document.querySelector(
+            "#panel-seed-two-qubits [data-generated-document-action='whats-this']",
+          ),
+        ),
+        entanglement2: Boolean(
+          document.querySelector(
+            "#panel-seed-entanglement-2 [data-generated-document-action='whats-this']",
+          ),
+        ),
+        entanglement3: Boolean(
+          document.querySelector(
+            "#panel-seed-entanglement-3 [data-generated-document-action='whats-this']",
+          ),
+        ),
+      },
+      firstText:
+        byTab["seed-one-qubit"]?.scenes?.[0]?.items?.find(
+          (item) => item.type === "text-box",
+        )?.text || "",
+      oldEntanglementDocument: Boolean(byTab["seed-entanglement-1"]),
+      entanglementTitle: byTab["seed-entanglement-2"]?.title || "",
+      showScenes: documents.flatMap((entry) =>
+        (entry.scenes || [])
+          .filter((scene) =>
+            (scene.items || []).some((item) =>
+              (item.buttons || []).includes("show"),
+            ),
+          )
+          .map((scene) => ({
+            tabId: entry.tabId,
+            sceneId: scene.id,
+            actions: scene.experiment?.actions?.length || 0,
+          })),
+      ),
+    };
+  });
+  if (
+    seeded.seedVersion !== "qubit-lab-scripts-v1" ||
+    seeded.tabIds.length !== 3 ||
+    !seeded.tabIds.includes("seed-one-qubit") ||
+    !seeded.tabIds.includes("seed-two-qubits") ||
+    !seeded.tabIds.includes("seed-entanglement-2") ||
+    seeded.tabIds.includes("seed-entanglement-3") ||
+    seeded.sceneCounts["seed-one-qubit"] !== 5 ||
+    seeded.sceneCounts["seed-two-qubits"] !== 4 ||
+    seeded.sceneCounts["seed-entanglement-2"] !== 4 ||
+    !seeded.buttons.one ||
+    !seeded.buttons.two ||
+    !seeded.buttons.entanglement2 ||
+    seeded.buttons.entanglement3 ||
+    !seeded.firstText.includes("People often say a qubit") ||
+    seeded.oldEntanglementDocument ||
+    seeded.entanglementTitle !== "Entanglement" ||
+    seeded.showScenes.length < 4 ||
+    seeded.showScenes.some((scene) => scene.actions === 0)
+  ) {
+    throw new Error(
+      `Initial What's this seed failed: ${JSON.stringify(seeded)}`,
+    );
+  }
+
+  await page.locator("#tab-seed-one-qubit").click();
+  await page
+    .locator(
+      "#panel-seed-one-qubit [data-generated-document-action='whats-this']",
+    )
+    .click();
+  await wait(250);
+  const runtime = await page.evaluate(() => {
+    const panel = document.getElementById("panel-seed-one-qubit");
+    const canvas = panel?.querySelector(".generated-layout-canvas");
+    const firstText =
+      canvas?.querySelector('[data-role="text-box-body"]')?.textContent || "";
+    const nextButton = canvas?.querySelector(
+      '[data-role="text-box-action"][data-text-box-action="next"]',
+    );
+    nextButton?.click();
+    const secondText =
+      canvas?.querySelector('[data-role="text-box-body"]')?.textContent || "";
+    const showButton = canvas?.querySelector(
+      '[data-role="text-box-action"][data-text-box-action="show"]',
+    );
+    return {
+      docRuntime: canvas?.dataset.docRuntimeCanvas || "",
+      tabId: canvas?.dataset.generatedTabId || "",
+      firstText,
+      secondText,
+      hasShow: Boolean(showButton),
+      sceneLabel:
+        document.querySelector("#docRuntimeSceneLabel")?.textContent || "",
+    };
+  });
+  if (
+    runtime.docRuntime !== "true" ||
+    runtime.tabId !== "seed-one-qubit" ||
+    !runtime.firstText.includes("People often say a qubit") ||
+    !runtime.secondText.includes("The blue circle is a qubit") ||
+    !runtime.hasShow ||
+    runtime.sceneLabel !== "Scene 2 of 5"
+  ) {
+    throw new Error(
+      `Seeded What's this runtime failed: ${JSON.stringify(runtime)}`,
+    );
+  }
+
+  await page
+    .locator(
+      "#panel-seed-one-qubit [data-role='text-box-action'][data-text-box-action='show']",
+    )
+    .click();
+  const deadline = Date.now() + 8000;
+  let showRun = null;
+  while (Date.now() < deadline) {
+    showRun = await page.evaluate(() => {
+      const panel = document.getElementById("panel-seed-one-qubit");
+      const canvas = panel?.querySelector(".generated-layout-canvas");
+      const qubit = canvas?.querySelector("[data-component='qubit']");
+      const state = generatedExperimentStateForCanvas(canvas);
+      return {
+        qubitLeft: Math.round(parseFloat(qubit?.style.left || "0")),
+        playing: Boolean(state?.playing),
+        playbackResultVisible: Boolean(state?.playbackResultVisible),
+      };
+    });
+    if (!showRun.playing && showRun.playbackResultVisible) {
+      break;
+    }
+    await wait(250);
+  }
+  if (
+    !showRun ||
+    showRun.playing ||
+    !showRun.playbackResultVisible ||
+    showRun.qubitLeft <= 180
+  ) {
+    throw new Error(
+      `Seeded What's this Show me action failed: ${JSON.stringify(showRun)}`,
     );
   }
 }
@@ -3010,13 +3345,25 @@ async function runEntangledMathSmoke(page) {
       }
       throw new Error("Doc recording control replay did not finish");
     };
-    docControlMeasurementRuntime.measurementCount.value = "5";
-    docControlMeasurementRuntime.measurementCount.dispatchEvent(
-      new Event("change", { bubbles: true }),
-    );
-    await waitForDocControlRecordingIdle();
-    docControlMeasurementRuntime.measurementTool.click();
-    await waitForDocControlRecordingIdle();
+    const originalRecordedExperimentAnimated =
+      replayGeneratedRecordedExperimentAnimated;
+    let docRecordingControlAnimatedReplays = 0;
+    replayGeneratedRecordedExperimentAnimated = async (...args) => {
+      docRecordingControlAnimatedReplays += 1;
+      return originalRecordedExperimentAnimated(...args);
+    };
+    try {
+      docControlMeasurementRuntime.measurementCount.value = "100";
+      docControlMeasurementRuntime.measurementCount.dispatchEvent(
+        new Event("change", { bubbles: true }),
+      );
+      await waitForDocControlRecordingIdle();
+      docControlMeasurementRuntime.measurementTool.click();
+      await waitForDocControlRecordingIdle();
+    } finally {
+      replayGeneratedRecordedExperimentAnimated =
+        originalRecordedExperimentAnimated;
+    }
     finishGeneratedExperimentRecording(docRecordingControlCanvas);
     const docRecordingControlState = generatedExperimentStateForCanvas(
       docRecordingControlCanvas,
@@ -3036,6 +3383,7 @@ async function runEntangledMathSmoke(page) {
       blue: docControlMeasurementRuntime.blueTubeCount,
       red: docControlMeasurementRuntime.redTubeCount,
       selectedCount: docControlMeasurementRuntime.measurementCount.value,
+      animatedReplays: docRecordingControlAnimatedReplays,
     };
     docRecordingControlCanvas.remove();
     const generatedReplaySpeeds = {
@@ -3150,10 +3498,11 @@ async function runEntangledMathSmoke(page) {
     result.docRecordingControlResult.recording !== false ||
     result.docRecordingControlResult.actionTypes.join(",") !==
       "single-measure,experiment-count,experiment-repeat" ||
-    result.docRecordingControlResult.iterations.join(",") !== "5,5" ||
-    result.docRecordingControlResult.blue !== 10 ||
+    result.docRecordingControlResult.iterations.join(",") !== "100,100" ||
+    result.docRecordingControlResult.blue !== 200 ||
     result.docRecordingControlResult.red !== 0 ||
-    result.docRecordingControlResult.selectedCount !== "5" ||
+    result.docRecordingControlResult.selectedCount !== "100" ||
+    result.docRecordingControlResult.animatedReplays !== 0 ||
     result.generatedReplaySpeeds.one !== 1 ||
     result.generatedReplaySpeeds.five !== 5 ||
     result.generatedReplaySpeeds.ten !== 10 ||
@@ -3188,6 +3537,7 @@ async function runSmokeTest(baseUrl) {
     await runDocEditorMeasurementRecordingSmoke(page);
     await runDocEditorTwoQubitPlaybackSmoke(page);
     await runDocEditorTextPersistenceSmoke(page);
+    await runInitialWhatsThisSeedSmoke(page);
 
   await page.evaluate(() => {
     localStorage.setItem(
@@ -3690,9 +4040,9 @@ async function runSmokeTest(baseUrl) {
       "panel-editor-gate-setting",
       100,
     );
-    if (gateUpdatedCounts.blue !== 0 || gateUpdatedCounts.red !== 100) {
+    if (gateUpdatedCounts.blue !== 100 || gateUpdatedCounts.red !== 0) {
       throw new Error(
-        `Recorded experiment did not replay recorded gate setting changes: ${JSON.stringify(gateUpdatedCounts)}`,
+        `Post-recording gate setting change did not start a fresh replay with the same path: ${JSON.stringify(gateUpdatedCounts)}`,
       );
     }
 
@@ -3773,6 +4123,31 @@ async function runSmokeTest(baseUrl) {
     const afterSelect = await waitForTotal(page, 5);
     await measurement.click();
     const afterClick = await waitForTotal(page, 10);
+    await page.evaluate(() => {
+      window.__tabBatchAnimatedReplayCount = 0;
+      const originalReplay = replayGeneratedRecordedExperimentAnimated;
+      window.__restoreTabBatchAnimatedReplay = () => {
+        replayGeneratedRecordedExperimentAnimated = originalReplay;
+      };
+      replayGeneratedRecordedExperimentAnimated = async (...args) => {
+        window.__tabBatchAnimatedReplayCount += 1;
+        return originalReplay(...args);
+      };
+    });
+    await countSelect.selectOption("100");
+    const afterBatchSelect = await waitForTotal(page, 100);
+    const tabBatchAnimatedReplays = await page.evaluate(() => {
+      const count = window.__tabBatchAnimatedReplayCount || 0;
+      window.__restoreTabBatchAnimatedReplay?.();
+      delete window.__restoreTabBatchAnimatedReplay;
+      delete window.__tabBatchAnimatedReplayCount;
+      return count;
+    });
+    if (tabBatchAnimatedReplays !== 0) {
+      throw new Error(
+        `Generated tab high-count replay animated instead of batch-running: ${JSON.stringify({ afterBatchSelect, tabBatchAnimatedReplays })}`,
+      );
+    }
 
     await page
       .locator('#panel-editor-smoke [data-generated-experiment-action="reset"]')
@@ -3835,12 +4210,14 @@ async function runSmokeTest(baseUrl) {
       ok: true,
       recordedOnce,
       gateInitialCounts,
-      gateUpdatedCounts,
-      afterSelect,
-      afterClick,
-      afterResetCounts,
-      afterReloadReplayAttempt,
-    };
+	      gateUpdatedCounts,
+	      afterSelect,
+	      afterClick,
+	      afterBatchSelect,
+	      tabBatchAnimatedReplays,
+	      afterResetCounts,
+	      afterReloadReplayAttempt,
+	    };
   } finally {
     await browser.close();
   }
