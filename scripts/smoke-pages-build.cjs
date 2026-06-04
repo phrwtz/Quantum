@@ -104,6 +104,9 @@ async function runSmoke(baseUrl) {
           .length,
         generatedPanels: document.querySelectorAll(".tab-panel.generated-tab")
           .length,
+        introductionNextButtons: document.querySelectorAll(
+          '#panel-introduction [data-role="text-box-action"][data-text-box-action="next"]',
+        ).length,
         documentToolbarTargets: documentTabs.filter((tabId) =>
           document.querySelector(
             `#panel-${tabId} [data-generated-document-action="whats-this"]`,
@@ -129,6 +132,7 @@ async function runSmoke(baseUrl) {
       result.authoringPanels ||
       result.editorToolbars !== 0 ||
       result.generatedPanels !== 5 ||
+      result.introductionNextButtons !== 0 ||
       result.documentToolbarTargets.length !== 4
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);

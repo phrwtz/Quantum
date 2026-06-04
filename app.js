@@ -1953,7 +1953,7 @@ function createPagesIntroductionLayout() {
       seededTextBoxItem(
         "pages-introduction-text-1",
         "Welcome to Qubit Lab. This version is set up for exploring the lessons, with the authoring tools tucked away.",
-        ["next"],
+        [],
         { left: 42, top: 34, width: 430, height: 168 },
       ),
       seededTextBoxItem(
