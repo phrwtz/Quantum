@@ -108,7 +108,7 @@ async function runSmoke(baseUrl) {
       );
     });
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#tab-introduction");
+    await page.waitForSelector(".tab-btn.generated-tab-btn");
 
     const result = await page.evaluate(() => {
       const labels = Array.from(document.querySelectorAll(".tab-btn")).map(
