@@ -117,10 +117,17 @@ async function runSmoke(baseUrl) {
       const publicTargets = Array.from(document.querySelectorAll(".tab-btn")).map(
         (button) => button.dataset.tabTarget || "",
       );
+      const landingPanel = publicTargets[0]
+        ? document.getElementById(`panel-${publicTargets[0]}`)
+        : null;
+      const landingButtonLabels = Array.from(
+        landingPanel?.querySelectorAll("button") || [],
+      ).map((button) => button.textContent.trim());
       return {
         target: document.documentElement.dataset.quantumTarget || "",
         labels,
         publicTargets,
+        landingButtonLabels,
         activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget,
         authoringButtons: Boolean(
           document.querySelector("#tab-plaground, #tab-doc-editor"),
@@ -144,7 +151,11 @@ async function runSmoke(baseUrl) {
       result.authoringButtons ||
       result.authoringPanels ||
       result.editorToolbars !== 0 ||
-      result.generatedPanels !== result.publicTargets.length
+      result.generatedPanels !== result.publicTargets.length ||
+      (result.labels[0] === "Introduction" &&
+        result.landingButtonLabels.some((label) =>
+          ["Reset", "What's this?"].includes(label),
+        ))
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
     }

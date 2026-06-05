@@ -7223,7 +7223,7 @@ function removeSelectedGeneratedLayoutItem() {
 }
 
 function createGeneratedEditorToolbar(entry, canvas) {
-  if (IS_GITHUB_PAGES_BUILD) {
+  if (IS_GITHUB_PAGES_BUILD || isGeneratedLandingPageTab(entry)) {
     return null;
   }
   const toolbar = document.createElement("div");
@@ -7355,8 +7355,16 @@ function createGeneratedExperimentToolbar(canvas) {
   return toolbar;
 }
 
+function isGeneratedLandingPageTab(entry) {
+  return storageLabelKey(entry?.label) === "introduction";
+}
+
 function createGeneratedDocumentToolbar(entry, canvas) {
-  if (!entry?.id || !documentForTabId(entry.id)) {
+  if (
+    !entry?.id ||
+    isGeneratedLandingPageTab(entry) ||
+    !documentForTabId(entry.id)
+  ) {
     return null;
   }
   const toolbar = document.createElement("div");
@@ -7478,7 +7486,9 @@ function renderGeneratedLayoutPanel(panel, entry) {
   if (editorToolbar) {
     gatePanel.appendChild(editorToolbar);
   }
-  gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
+  if (!isGeneratedLandingPageTab(entry)) {
+    gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
+  }
   gatePanel.appendChild(canvas);
   panel.appendChild(gatePanel);
   refreshGeneratedDocumentToolbarForEntry(entry);
