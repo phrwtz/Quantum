@@ -142,6 +142,10 @@ const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
 const DOCUMENTS_STORAGE_KEY = "quantum_whats_this_documents_v1";
 const DOCUMENTS_SEED_STORAGE_KEY = "quantum_whats_this_documents_seed_v1";
+const LOCAL_CONTENT_API_PORT = "8124";
+const LOCAL_CONTENT_API_ROOT = "/__quantum-content";
+const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
+const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
 const INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION = "qubit-lab-scripts-v2";
 const GITHUB_PAGES_TAB_IDS = [
   "introduction",
@@ -1640,15 +1644,89 @@ function normalizeGeneratedTabsState(state) {
   return { state: { tabs: normalizedTabs }, changed };
 }
 
-function readGeneratedTabsState() {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return normalizeGeneratedTabsState(createGithubPagesGeneratedTabsState())
-      .state;
+function localContentApiEndpoint(contentName) {
+  const name = String(contentName || "").replace(/[^a-z-]/g, "");
+  if (!name || IS_GITHUB_PAGES_BUILD) {
+    return "";
   }
+  const path = `${LOCAL_CONTENT_API_ROOT}/${name}`;
+  const protocol = window.location.protocol;
+  if (protocol === "file:") {
+    return `http://127.0.0.1:${LOCAL_CONTENT_API_PORT}${path}`;
+  }
+  if (protocol !== "http:" && protocol !== "https:") {
+    return "";
+  }
+  const host = String(window.location.hostname || "").toLowerCase();
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+  return localHosts.has(host) && window.location.port === LOCAL_CONTENT_API_PORT
+    ? path
+    : "";
+}
+
+function readJsonResourceSync(url) {
+  if (!url || typeof XMLHttpRequest === "undefined") {
+    return null;
+  }
+  try {
+    const request = new XMLHttpRequest();
+    request.open("GET", url, false);
+    request.overrideMimeType?.("application/json");
+    request.send(null);
+    const ok =
+      (request.status >= 200 && request.status < 300) ||
+      (request.status === 0 && Boolean(request.responseText));
+    if (!ok || !request.responseText) {
+      return null;
+    }
+    return JSON.parse(request.responseText);
+  } catch (_error) {
+    return null;
+  }
+}
+
+function writeJsonResourceSync(url, payload) {
+  if (!url || typeof XMLHttpRequest === "undefined") {
+    return false;
+  }
+  try {
+    const request = new XMLHttpRequest();
+    request.open("POST", url, false);
+    request.send(JSON.stringify(payload));
+    return request.status >= 200 && request.status < 300;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function readLocalContentState(contentName) {
+  return readJsonResourceSync(localContentApiEndpoint(contentName));
+}
+
+function writeLocalContentState(contentName, state) {
+  return writeJsonResourceSync(localContentApiEndpoint(contentName), state);
+}
+
+function readContentFileState(relativePath) {
+  return readJsonResourceSync(relativePath);
+}
+
+function normalizeGeneratedTabsContentState(state) {
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+  return normalizeGeneratedTabsState(state).state;
+}
+
+function generatedTabsStateHasTabs(state) {
+  return Array.isArray(state?.tabs) && state.tabs.length > 0;
+}
+
+function readGeneratedTabsLocalStorageState() {
   try {
     const serialized = window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY);
     if (!serialized) {
-      return { tabs: [] };
+      return null;
     }
     const parsed = JSON.parse(serialized);
     const normalized = normalizeGeneratedTabsState(parsed);
@@ -1660,14 +1738,11 @@ function readGeneratedTabsState() {
     }
     return normalized.state;
   } catch (_error) {
-    return { tabs: [] };
+    return null;
   }
 }
 
-function writeGeneratedTabsState(state) {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return true;
-  }
+function writeGeneratedTabsLocalStorageState(state) {
   try {
     const normalized = normalizeGeneratedTabsState(state);
     window.localStorage.setItem(
@@ -1678,6 +1753,43 @@ function writeGeneratedTabsState(state) {
   } catch (_error) {
     return false;
   }
+}
+
+function readGeneratedTabsState() {
+  if (IS_GITHUB_PAGES_BUILD) {
+    const fileState = normalizeGeneratedTabsContentState(
+      readContentFileState(GENERATED_TABS_CONTENT_FILE),
+    );
+    return generatedTabsStateHasTabs(fileState)
+      ? fileState
+      : normalizeGeneratedTabsState(createGithubPagesGeneratedTabsState()).state;
+  }
+
+  const fileState = normalizeGeneratedTabsContentState(
+    readLocalContentState("generated-tabs"),
+  );
+  if (generatedTabsStateHasTabs(fileState)) {
+    return fileState;
+  }
+
+  const storedState = readGeneratedTabsLocalStorageState();
+  if (generatedTabsStateHasTabs(storedState)) {
+    writeLocalContentState("generated-tabs", storedState);
+    return storedState;
+  }
+
+  return fileState || storedState || { tabs: [] };
+}
+
+function writeGeneratedTabsState(state) {
+  const normalized = normalizeGeneratedTabsState(state).state;
+  if (IS_GITHUB_PAGES_BUILD) {
+    return true;
+  }
+  if (writeLocalContentState("generated-tabs", normalized)) {
+    return true;
+  }
+  return writeGeneratedTabsLocalStorageState(normalized);
 }
 
 function createDocumentScene(overrides = {}) {
@@ -1754,26 +1866,30 @@ function normalizeDocumentsState(state) {
   return { documents: Array.from(byTab.values()) };
 }
 
-function readDocumentsState() {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return { documents: [] };
+function normalizeDocumentsContentState(state) {
+  if (!state || typeof state !== "object") {
+    return null;
   }
+  return normalizeDocumentsState(state);
+}
+
+function documentsStateHasDocuments(state) {
+  return Array.isArray(state?.documents) && state.documents.length > 0;
+}
+
+function readDocumentsLocalStorageState() {
   try {
     const serialized = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
     if (!serialized) {
-      return { documents: [] };
+      return null;
     }
     return normalizeDocumentsState(JSON.parse(serialized));
   } catch (_error) {
-    return { documents: [] };
+    return null;
   }
 }
 
-function writeDocumentsState(state) {
-  if (IS_GITHUB_PAGES_BUILD) {
-    documentsState = normalizeDocumentsState(state);
-    return true;
-  }
+function writeDocumentsLocalStorageState(state) {
   try {
     const normalized = normalizeDocumentsState(state);
     window.localStorage.setItem(
@@ -1785,6 +1901,44 @@ function writeDocumentsState(state) {
   } catch (_error) {
     return false;
   }
+}
+
+function readDocumentsState() {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return (
+      normalizeDocumentsContentState(
+        readContentFileState(DOCUMENTS_CONTENT_FILE),
+      ) || { documents: [] }
+    );
+  }
+
+  const fileState = normalizeDocumentsContentState(
+    readLocalContentState("documents"),
+  );
+  if (documentsStateHasDocuments(fileState)) {
+    return fileState;
+  }
+
+  const storedState = readDocumentsLocalStorageState();
+  if (documentsStateHasDocuments(storedState)) {
+    writeLocalContentState("documents", storedState);
+    return storedState;
+  }
+
+  return fileState || storedState || { documents: [] };
+}
+
+function writeDocumentsState(state) {
+  const normalized = normalizeDocumentsState(state);
+  if (IS_GITHUB_PAGES_BUILD) {
+    documentsState = normalized;
+    return true;
+  }
+  if (writeLocalContentState("documents", normalized)) {
+    documentsState = normalized;
+    return true;
+  }
+  return writeDocumentsLocalStorageState(normalized);
 }
 
 function seededTextBoxItem(id, text, buttons, geometry = {}) {
@@ -18378,4 +18532,14 @@ window.addEventListener("resize", () => {
   refreshVisibleEditors();
 });
 
-setActiveTab(IS_GITHUB_PAGES_BUILD ? GITHUB_PAGES_TAB_IDS[0] : "plaground");
+function initialGithubPagesTabTarget() {
+  return (
+    (generatedTabsState.tabs || []).find(
+      (entry) => typeof entry?.id === "string" && entry.id,
+    )?.id || GITHUB_PAGES_TAB_IDS[0]
+  );
+}
+
+setActiveTab(
+  IS_GITHUB_PAGES_BUILD ? initialGithubPagesTabTarget() : "plaground",
+);

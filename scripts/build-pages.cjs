@@ -9,10 +9,14 @@ const staticFiles = [
   "styles.css",
   "Magnifying glass transparent.png",
   "New magnifying glass.png",
+  "data/generated-tabs.json",
+  "data/whats-this-documents.json",
 ];
 
 function copyFile(relativePath) {
-  fs.copyFileSync(path.join(rootDir, relativePath), path.join(distDir, relativePath));
+  const targetPath = path.join(distDir, relativePath);
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.copyFileSync(path.join(rootDir, relativePath), targetPath);
 }
 
 fs.rmSync(distDir, { recursive: true, force: true });

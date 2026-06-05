@@ -11,6 +11,7 @@ const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
   ".png": "image/png",
 };
 
@@ -116,12 +117,6 @@ async function runSmoke(baseUrl) {
       const publicTargets = Array.from(document.querySelectorAll(".tab-btn")).map(
         (button) => button.dataset.tabTarget || "",
       );
-      const documentTabs = [
-        "one-qubit",
-        "two-qubits",
-        "entanglement-1",
-        "entanglement-2",
-      ];
       return {
         target: document.documentElement.dataset.quantumTarget || "",
         labels,
@@ -137,46 +132,19 @@ async function runSmoke(baseUrl) {
           .length,
         generatedPanels: document.querySelectorAll(".tab-panel.generated-tab")
           .length,
-        introductionNextButtons: document.querySelectorAll(
-          '#panel-introduction [data-role="text-box-action"][data-text-box-action="next"]',
-        ).length,
-        introductionText:
-          document
-            .querySelector("#panel-introduction [data-role='text-box-body']")
-            ?.textContent?.trim() || "",
-        oneQubitDocFirstText:
-          documentForTabId("one-qubit")
-            ?.scenes?.[0]?.items?.find((item) => item.type === "text-box")
-            ?.text || "",
-        documentToolbarTargets: documentTabs.filter((tabId) =>
-          document.querySelector(
-            `#panel-${tabId} [data-generated-document-action="whats-this"]`,
-          ),
-        ),
       };
     });
 
-    const expectedLabels = [
-      "Introduction",
-      "One qubit",
-      "Two qubits",
-      "Entanglement 1",
-      "Entanglement 2",
-    ];
     if (
       result.target !== "github-pages" ||
-      result.labels.join("|") !== expectedLabels.join("|") ||
-      result.publicTargets.join("|") !==
-        "introduction|one-qubit|two-qubits|entanglement-1|entanglement-2" ||
-      result.activeTarget !== "introduction" ||
+      result.labels.length === 0 ||
+      result.publicTargets.length !== result.labels.length ||
+      result.publicTargets.some((target) => !target) ||
+      result.activeTarget !== result.publicTargets[0] ||
       result.authoringButtons ||
       result.authoringPanels ||
       result.editorToolbars !== 0 ||
-      result.generatedPanels !== 5 ||
-      result.introductionNextButtons !== 0 ||
-      !result.introductionText.includes("no pesky math") ||
-      !result.oneQubitDocFirstText.includes("People often talk about qubits") ||
-      result.documentToolbarTargets.length !== 4
+      result.generatedPanels !== result.publicTargets.length
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
     }

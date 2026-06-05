@@ -6,7 +6,7 @@
   "scripts": {
     "build:pages": "node scripts/build-pages.cjs",
     "check": "node --check app.js",
-    "serve": "python3 -m http.server 8124",
+    "serve": "node scripts/serve-local.cjs",
     "test": "node --check app.js && node scripts/smoke-generated-tabs.cjs",
     "test:pages": "node scripts/build-pages.cjs && node scripts/smoke-pages-build.cjs",
     "test:smoke": "node scripts/smoke-generated-tabs.cjs"

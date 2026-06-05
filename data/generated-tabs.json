@@ -1,0 +1,797 @@
+{
+  "tabs": [
+    {
+      "id": "editor-introduction",
+      "label": "Introduction",
+      "layout": {
+        "items": [
+          {
+            "type": "text-box",
+            "left": 182,
+            "top": 52,
+            "width": 676,
+            "height": 520,
+            "z": 633,
+            "text": "Eventually, this will be a full landing page with fancy graphics and (probably) buttons embedded on the page instead of tabs. But for now, here's some sample text.\n\nWelcome to Qubit Lab, a place where you can experiment with qubits, flipping them, measuring them and entangling them. You can even teleport the state of a qubit from one computer to another, all with no knowledge of quantum mechanics and no pesky math to deal with!\n\nWhen you click on any of the tabs above, One qubit, Two qubits, and the two Engtablement tabs, you will get a screen with a bunch of objects of it: qubits, things that act on qubits (called \"gates\" for some reason), and ways measuring the state of one or two qubits. These are special purpose simulated qubit laboratories. By dragging qubits into the various gates and measuring tools you will create experiments that you can run over an over again.\n\nEach tab also comes with two buttons: a Reset button that returns the tab to its original state (and loses any recorded experiement) and a What's this? button that opens up a sequence of scenes that explain the mechanics of the tab and some of the physics behind it.",
+            "buttons": [],
+            "buttonMode": "none"
+          }
+        ],
+        "gridSnap": true,
+        "canvasWidth": 1598,
+        "canvasHeight": 760,
+        "savedAt": 1780602329692
+      }
+    },
+    {
+      "id": "custom-one-qubit",
+      "label": "One qubit",
+      "layout": {
+        "items": [
+          {
+            "type": "single-gate",
+            "left": 234,
+            "top": 312,
+            "width": 338,
+            "height": 208,
+            "z": 929,
+            "singleGateTick": 3
+          },
+          {
+            "type": "single-measurement",
+            "left": 780,
+            "top": 26,
+            "width": 442,
+            "height": 520,
+            "z": 899,
+            "measurementLayout": {
+              "parts": {
+                "capacity": {
+                  "tx": -3,
+                  "ty": 5,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "blueTube": {
+                  "tx": -15,
+                  "ty": 45,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "redTube": {
+                  "tx": 13,
+                  "ty": 43,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "blueTubeCount": 0,
+                "redTubeCount": 0,
+                "magnifier": {
+                  "tx": -2,
+                  "ty": 47,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "measurementCount": {
+                  "tx": 0,
+                  "ty": 46,
+                  "width": "74px",
+                  "height": "28px",
+                  "deleted": false
+                }
+              }
+            }
+          },
+          {
+            "type": "qubit",
+            "left": 105,
+            "top": 353,
+            "width": 65,
+            "height": 65,
+            "z": 1073,
+            "qubitId": 351
+          }
+        ],
+        "gridSnap": false,
+        "canvasWidth": 1598,
+        "canvasHeight": 760,
+        "savedAt": 1779816277928
+      },
+      "infoScreens": [
+        {
+          "items": [
+            {
+              "id": "text-box-mplikhkd-2m",
+              "type": "text-box",
+              "left": 109,
+              "top": 9,
+              "width": 514,
+              "height": 296,
+              "z": 1,
+              "text": "People often talk about qubits as though they are like bits except that somehow \"they can be a zero and one all at once,\" whatever that means. And then they try to explain what it means by talking about flipping coins or some such. But that analogy is incomplete and, worse, it's misleading. There are some analogies, though, so let's start there. Coins have two states – heads and tails – qubits can also be in one of two states. These are commonly known as \"zero\" and \"one\" but in Qubit Lab we use two colors: blue and red.So that blue circle you see on the left there? That's a qubit in the blue state. And the funny looking tank-like object next to it? We call that a flipper because, in analogy to flipping a coin, it acts on a qubit to change its state. Here's how it works.",
+              "buttonMode": "next"
+            }
+          ],
+          "experiment": null,
+          "canvasWidth": 1359,
+          "canvasHeight": 715,
+          "savedAt": 1779847427547
+        },
+        {
+          "items": [
+            {
+              "id": "single-gate-mpnf7esj-f",
+              "type": "single-gate",
+              "left": 234,
+              "top": 312,
+              "width": 338,
+              "height": 208,
+              "z": 929,
+              "singleGateTick": 3
+            },
+            {
+              "id": "single-measurement-mpnf7esk-g",
+              "type": "single-measurement",
+              "left": 780,
+              "top": 26,
+              "width": 442,
+              "height": 520,
+              "z": 899,
+              "measurementLayout": {
+                "parts": {
+                  "capacity": {
+                    "tx": -3,
+                    "ty": 5,
+                    "width": "",
+                    "height": "",
+                    "deleted": false
+                  },
+                  "blueTube": {
+                    "tx": -15,
+                    "ty": 45,
+                    "width": "",
+                    "height": "",
+                    "deleted": false
+                  },
+                  "redTube": {
+                    "tx": 13,
+                    "ty": 43,
+                    "width": "",
+                    "height": "",
+                    "deleted": false
+                  },
+                  "blueTubeCount": 0,
+                  "redTubeCount": 0,
+                  "magnifier": {
+                    "tx": -2,
+                    "ty": 47,
+                    "width": "",
+                    "height": "",
+                    "deleted": false
+                  },
+                  "measurementCount": {
+                    "tx": 0,
+                    "ty": 46,
+                    "width": "74px",
+                    "height": "28px",
+                    "deleted": false
+                  }
+                }
+              }
+            },
+            {
+              "id": "qubit-mpnf7eso-h",
+              "type": "qubit",
+              "left": 105,
+              "top": 353,
+              "width": 65,
+              "height": 65,
+              "z": 1073,
+              "qubitId": 351
+            },
+            {
+              "id": "text-box-mpli9jrb-1a",
+              "type": "text-box",
+              "left": 126,
+              "top": 49,
+              "width": 481,
+              "height": 244,
+              "z": 1074,
+              "text": "Watch this!",
+              "buttonMode": "next"
+            }
+          ],
+          "experiment": null,
+          "canvasWidth": 1600,
+          "canvasHeight": 760,
+          "savedAt": 1779847439542
+        },
+        {
+          "items": [
+            {
+              "id": "text-box-mplimwc0-2o",
+              "type": "text-box",
+              "left": 78,
+              "top": 39,
+              "width": 407,
+              "height": 234,
+              "z": 1,
+              "text": "That's it folks!",
+              "buttonMode": "next"
+            }
+          ],
+          "experiment": null,
+          "canvasWidth": 579,
+          "canvasHeight": 339,
+          "savedAt": 1779845411917
+        },
+        {
+          "items": [
+            {
+              "id": "text-box-mpndtl5h-t",
+              "type": "text-box",
+              "left": 80,
+              "top": 80,
+              "width": 360,
+              "height": 180,
+              "z": 1,
+              "text": "Last screen",
+              "buttonMode": "done"
+            }
+          ],
+          "experiment": null,
+          "canvasWidth": 760,
+          "canvasHeight": 430,
+          "savedAt": 1779845210452
+        }
+      ]
+    },
+    {
+      "id": "custom-two-qubits",
+      "label": "Two qubits",
+      "layout": {
+        "items": [
+          {
+            "type": "qubit",
+            "left": 104,
+            "top": 416,
+            "width": 72,
+            "height": 72,
+            "z": 598
+          },
+          {
+            "type": "qubit",
+            "left": 104,
+            "top": 130,
+            "width": 72,
+            "height": 72,
+            "z": 595
+          },
+          {
+            "type": "single-gate",
+            "left": 234,
+            "top": 78,
+            "width": 338,
+            "height": 208,
+            "z": 119,
+            "singleGateTick": 0
+          },
+          {
+            "type": "single-gate",
+            "left": 234,
+            "top": 364,
+            "width": 338,
+            "height": 208,
+            "z": 113,
+            "singleGateTick": 0
+          },
+          {
+            "type": "double-measurement",
+            "left": 858,
+            "top": 78,
+            "width": 520,
+            "height": 520,
+            "z": 101,
+            "measurementLayout": {
+              "parts": {
+                "capacity": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "397px",
+                  "height": "60px",
+                  "deleted": false
+                },
+                "tubeRack": {
+                  "tx": -3,
+                  "ty": 16,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "magnifier": {
+                  "tx": 0,
+                  "ty": 20,
+                  "width": "412px",
+                  "height": "185px",
+                  "deleted": false
+                }
+              }
+            }
+          }
+        ],
+        "gridSnap": true,
+        "canvasWidth": 1600,
+        "canvasHeight": 760,
+        "savedAt": 1779470045603
+      }
+    },
+    {
+      "id": "custom-entanglement-2",
+      "label": "Entanglement 1",
+      "layout": {
+        "items": [
+          {
+            "type": "qubit",
+            "left": 26,
+            "top": 156,
+            "width": 72,
+            "height": 72,
+            "z": 588
+          },
+          {
+            "type": "qubit",
+            "left": 26,
+            "top": 390,
+            "width": 72,
+            "height": 72,
+            "z": 589
+          },
+          {
+            "type": "single-gate",
+            "left": 156,
+            "top": 104,
+            "width": 338,
+            "height": 208,
+            "z": 217,
+            "singleGateTick": 3
+          },
+          {
+            "type": "single-gate",
+            "left": 156,
+            "top": 338,
+            "width": 338,
+            "height": 208,
+            "z": 213,
+            "singleGateTick": 6
+          },
+          {
+            "type": "cnot-gate",
+            "left": 572,
+            "top": 234,
+            "width": 373,
+            "height": 209,
+            "z": 269,
+            "cnotLayout": {
+              "gate": {
+                "tx": 0,
+                "ty": 0,
+                "width": "373px",
+                "height": "209px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "572px",
+                  "top": "234px",
+                  "width": "373px",
+                  "height": "209px",
+                  "translate": "0px"
+                }
+              },
+              "body": {
+                "tx": 7,
+                "ty": -1,
+                "width": "327px",
+                "height": "164px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "38.36px",
+                  "right": "41.87px",
+                  "top": "0px",
+                  "bottom": "0px",
+                  "width": "327px",
+                  "height": "164px",
+                  "translate": "7px -1px"
+                }
+              },
+              "funnelTop": {
+                "tx": 13,
+                "ty": -17,
+                "width": "62px",
+                "height": "84px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "-12.35px",
+                  "right": "353.19px",
+                  "top": "58.51px",
+                  "bottom": "82.58px",
+                  "width": "62px",
+                  "height": "84px",
+                  "translate": "13px -17px"
+                }
+              },
+              "funnelBottom": {
+                "tx": 5,
+                "ty": -24,
+                "width": "70px",
+                "height": "96px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "-12.35px",
+                  "right": "353.19px",
+                  "top": "150.47px",
+                  "bottom": "-9.38px",
+                  "width": "70px",
+                  "height": "96px",
+                  "translate": "5px -24px"
+                }
+              },
+              "windowTop": {
+                "tx": -27,
+                "ty": -10,
+                "width": "66px",
+                "height": "66px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "178.8px",
+                  "right": "111.06px",
+                  "top": "46.1px",
+                  "bottom": "95.29px",
+                  "width": "66px",
+                  "height": "66px",
+                  "transform": "translate(-50%, -50%)",
+                  "translate": "-27px -10px"
+                }
+              },
+              "windowBottom": {
+                "tx": -25,
+                "ty": -36,
+                "width": "68px",
+                "height": "68px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "178.8px",
+                  "right": "107.64px",
+                  "top": "154.3px",
+                  "bottom": "-17.83px",
+                  "width": "68px",
+                  "height": "68px",
+                  "transform": "translate(-50%, -50%)",
+                  "translate": "-25px -36px"
+                }
+              },
+              "flangeTop": {
+                "tx": -8,
+                "ty": -13,
+                "width": "15px",
+                "height": "61px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "313.35px",
+                  "right": "8.59px",
+                  "top": "56.09px",
+                  "bottom": "92.35px",
+                  "width": "15px",
+                  "height": "61px",
+                  "translate": "-8px -13px"
+                }
+              },
+              "flangeBottom": {
+                "tx": -4,
+                "ty": -38,
+                "width": "15px",
+                "height": "57px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "313.07px",
+                  "right": "8.59px",
+                  "top": "144.29px",
+                  "bottom": "5.71px",
+                  "width": "15px",
+                  "height": "57px",
+                  "translate": "-4px -38px"
+                }
+              }
+            }
+          },
+          {
+            "type": "double-measurement",
+            "left": 0,
+            "top": 0,
+            "width": 1596,
+            "height": 756,
+            "z": 558,
+            "measurementLayout": {
+              "parts": {
+                "capacity": {
+                  "tx": 511,
+                  "ty": 8,
+                  "width": "396px",
+                  "height": "65px",
+                  "deleted": false
+                },
+                "tubeRack": {
+                  "tx": 450,
+                  "ty": 46,
+                  "width": "327px",
+                  "height": "184px",
+                  "deleted": false
+                },
+                "tubeBB": {
+                  "tx": 3,
+                  "ty": 3,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "magnifier": {
+                  "tx": 549,
+                  "ty": 51,
+                  "width": "521px",
+                  "height": "196px",
+                  "deleted": false
+                },
+                "measurementCount": {
+                  "tx": 481,
+                  "ty": 3,
+                  "width": "77px",
+                  "height": "34px",
+                  "deleted": false
+                }
+              }
+            }
+          }
+        ],
+        "gridSnap": true,
+        "canvasWidth": 1598,
+        "canvasHeight": 760,
+        "savedAt": 1779409747679
+      }
+    },
+    {
+      "id": "custom-entanglement-3",
+      "label": "Entanglement 2",
+      "layout": {
+        "items": [
+          {
+            "type": "qubit",
+            "left": 34,
+            "top": 147,
+            "width": 72,
+            "height": 72,
+            "z": 618,
+            "qubitId": 129730
+          },
+          {
+            "type": "qubit",
+            "left": 40,
+            "top": 377,
+            "width": 72,
+            "height": 72,
+            "z": 624,
+            "qubitId": 129731
+          },
+          {
+            "type": "single-gate",
+            "left": 156,
+            "top": 104,
+            "width": 338,
+            "height": 208,
+            "z": 217,
+            "singleGateTick": 3
+          },
+          {
+            "type": "single-gate",
+            "left": 156,
+            "top": 338,
+            "width": 338,
+            "height": 208,
+            "z": 213,
+            "singleGateTick": 6
+          },
+          {
+            "type": "cnot-gate",
+            "left": 649,
+            "top": 218,
+            "width": 373,
+            "height": 209,
+            "z": 615,
+            "cnotLayout": {
+              "gate": {
+                "tx": 0,
+                "ty": 0,
+                "width": "373px",
+                "height": "209px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "649px",
+                  "top": "218px",
+                  "width": "373px",
+                  "height": "209px"
+                }
+              },
+              "body": {
+                "tx": 10,
+                "ty": 3,
+                "width": "327px",
+                "height": "164px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "38.36px",
+                  "top": "0px",
+                  "width": "327px",
+                  "height": "164px",
+                  "translate": "10px 3px"
+                }
+              },
+              "funnelTop": {
+                "tx": 13,
+                "ty": -17,
+                "width": "62px",
+                "height": "84px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "-12.35px",
+                  "right": "353.19px",
+                  "top": "58.51px",
+                  "bottom": "82.58px",
+                  "width": "62px",
+                  "height": "84px",
+                  "translate": "13px -17px"
+                }
+              },
+              "funnelBottom": {
+                "tx": 5,
+                "ty": -24,
+                "width": "70px",
+                "height": "96px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "-12.35px",
+                  "right": "353.19px",
+                  "top": "150.47px",
+                  "bottom": "-9.38px",
+                  "width": "70px",
+                  "height": "96px",
+                  "translate": "5px -24px"
+                }
+              },
+              "windowTop": {
+                "tx": -27,
+                "ty": -10,
+                "width": "66px",
+                "height": "66px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "178.8px",
+                  "right": "111.06px",
+                  "top": "46.1px",
+                  "bottom": "95.29px",
+                  "width": "66px",
+                  "height": "66px",
+                  "transform": "translate(-50%, -50%)",
+                  "translate": "-27px -10px"
+                }
+              },
+              "windowBottom": {
+                "tx": -25,
+                "ty": -36,
+                "width": "68px",
+                "height": "68px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "178.8px",
+                  "right": "107.64px",
+                  "top": "154.3px",
+                  "bottom": "-17.83px",
+                  "width": "68px",
+                  "height": "68px",
+                  "transform": "translate(-50%, -50%)",
+                  "translate": "-25px -36px"
+                }
+              },
+              "flangeTop": {
+                "tx": -8,
+                "ty": -13,
+                "width": "15px",
+                "height": "61px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "313.35px",
+                  "right": "8.59px",
+                  "top": "56.09px",
+                  "bottom": "92.35px",
+                  "width": "15px",
+                  "height": "61px",
+                  "translate": "-8px -13px"
+                }
+              },
+              "flangeBottom": {
+                "tx": -4,
+                "ty": -38,
+                "width": "15px",
+                "height": "57px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "313.07px",
+                  "right": "8.59px",
+                  "top": "144.29px",
+                  "bottom": "5.71px",
+                  "width": "15px",
+                  "height": "57px",
+                  "translate": "-4px -38px"
+                }
+              }
+            }
+          },
+          {
+            "type": "component-group",
+            "left": 1118,
+            "top": 52,
+            "width": 442,
+            "height": 530,
+            "z": 598,
+            "items": [
+              {
+                "type": "measurement-capacity",
+                "left": 52,
+                "top": 0,
+                "width": 330,
+                "height": 70,
+                "z": 1,
+                "measurementRole": "capacity"
+              },
+              {
+                "type": "double-tube-array",
+                "left": 26,
+                "top": 52,
+                "width": 390,
+                "height": 260,
+                "z": 2,
+                "measurementRole": "double-tubes"
+              },
+              {
+                "type": "single-magnifier",
+                "left": 117,
+                "top": 333,
+                "width": 208,
+                "height": 156,
+                "z": 3,
+                "measurementRole": "single-magnifier"
+              },
+              {
+                "type": "measurement-count-menu",
+                "left": 156,
+                "top": 468,
+                "width": 110,
+                "height": 62,
+                "z": 5,
+                "measurementRole": "iteration-count"
+              }
+            ],
+            "itemsWidth": 442,
+            "itemsHeight": 530,
+            "measurementGroupId": "separate-two-qubit-measurment-mpe5t5bg",
+            "groupComponentId": "separate-two-qubit-measurment"
+          }
+        ],
+        "gridSnap": false,
+        "canvasWidth": 1600,
+        "canvasHeight": 760,
+        "savedAt": 1780340415196
+      }
+    }
+  ]
+}
