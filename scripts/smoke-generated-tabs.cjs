@@ -2524,6 +2524,35 @@ async function runDocEditorTextPersistenceSmoke(page) {
     .locator("#docEditorCanvas [data-role='text-box-body']")
     .type("Second line.");
   await wait(120);
+  await page.locator("#docEditorNewSceneButton").click();
+  await page.waitForFunction(
+    () => document.querySelector("#docEditorSceneLabel")?.textContent === "Scene 2 of 3",
+  );
+  const insertedSceneCanvasBox = await page.locator("#docEditorCanvas").boundingBox();
+  if (!insertedSceneCanvasBox) {
+    throw new Error("Missing Doc Editor canvas after inserting a middle scene");
+  }
+  await page.locator("#docEditorComponentSelect").selectOption("text-box");
+  await page.mouse.click(
+    insertedSceneCanvasBox.x + 220,
+    insertedSceneCanvasBox.y + 150,
+  );
+  await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
+  await page.evaluate(() => {
+    const textBox = document.querySelector(
+      "#docEditorCanvas [data-component='text-box']",
+    );
+    const body = textBox?.querySelector('[data-role="text-box-body"]');
+    const select = textBox?.querySelector('[data-role="text-box-button-mode"]');
+    if (!(body instanceof HTMLElement) || !(select instanceof HTMLSelectElement)) {
+      throw new Error("Inserted Doc Editor scene did not create an editable text box");
+    }
+    body.textContent = "Inserted middle scene.";
+    body.dispatchEvent(new Event("input", { bubbles: true }));
+    select.value = "next";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await wait(120);
   await page.locator("#docEditorSceneNextButton").click();
   await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
   await page.locator("#docEditorCanvasWidth").fill("920");
@@ -2562,28 +2591,33 @@ async function runDocEditorTextPersistenceSmoke(page) {
     );
     return {
       activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      sceneIds: (documentEntry?.scenes || []).map((scene) => scene.id),
       sceneTexts: (documentEntry?.scenes || []).map(
         (scene) => scene.items?.find((item) => item.type === "text-box")?.text,
       ),
-      secondSceneCanvas: {
-        width: documentEntry?.scenes?.[1]?.canvasWidth,
-        height: documentEntry?.scenes?.[1]?.canvasHeight,
+      finalSceneCanvas: {
+        width: documentEntry?.scenes?.[2]?.canvasWidth,
+        height: documentEntry?.scenes?.[2]?.canvasHeight,
       },
-      secondTextBox: documentEntry?.scenes?.[1]?.items?.find(
+      finalTextBox: documentEntry?.scenes?.[2]?.items?.find(
         (item) => item.type === "text-box",
       ),
     };
   });
   if (
     stored.activeTab !== "doc-text-persist" ||
+    stored.sceneIds.length !== 3 ||
+    stored.sceneIds[0] !== "doc-text-scene-1" ||
+    stored.sceneIds[2] !== "doc-text-scene-2" ||
+    !stored.sceneIds[1]?.startsWith("scene-") ||
     stored.sceneTexts.join("|") !==
-      `${editedFirstSceneText}|Edited second scene.` ||
-    stored.secondSceneCanvas.width !== 920 ||
-    stored.secondSceneCanvas.height !== 540 ||
-    stored.secondTextBox?.left !== 240 ||
-    stored.secondTextBox?.top !== 180 ||
-    stored.secondTextBox?.width !== 430 ||
-    stored.secondTextBox?.height !== 190
+      `${editedFirstSceneText}|Inserted middle scene.|Edited second scene.` ||
+    stored.finalSceneCanvas.width !== 920 ||
+    stored.finalSceneCanvas.height !== 540 ||
+    stored.finalTextBox?.left !== 240 ||
+    stored.finalTextBox?.top !== 180 ||
+    stored.finalTextBox?.width !== 430 ||
+    stored.finalTextBox?.height !== 190
   ) {
     throw new Error(
       `Doc Editor Done did not persist edited scene geometry: ${JSON.stringify(stored)}`,
@@ -2605,33 +2639,39 @@ async function runDocEditorTextPersistenceSmoke(page) {
       '[data-role="text-box-action"][data-text-box-action="next"]',
     );
     nextButton?.click();
-    const nextBox = canvas?.querySelector("[data-component='text-box']");
-    const nextText =
-      nextBox?.querySelector('[data-role="text-box-body"]')?.textContent || "";
+    const middleText =
+      canvas?.querySelector('[data-role="text-box-body"]')?.textContent || "";
+    const middleNextButton = canvas?.querySelector(
+      '[data-role="text-box-action"][data-text-box-action="next"]',
+    );
+    middleNextButton?.click();
+    const finalBox = canvas?.querySelector("[data-component='text-box']");
+    const finalText =
+      finalBox?.querySelector('[data-role="text-box-body"]')?.textContent || "";
     return {
-      texts: [currentText, nextText],
+      texts: [currentText, middleText, finalText],
       canvasWidth: canvas instanceof HTMLElement ? canvas.offsetWidth : 0,
       canvasHeight: canvas instanceof HTMLElement ? canvas.offsetHeight : 0,
-      secondTextBox:
-        nextBox instanceof HTMLElement
+      finalTextBox:
+        finalBox instanceof HTMLElement
           ? {
-              left: Math.round(parseFloat(nextBox.style.left) || 0),
-              top: Math.round(parseFloat(nextBox.style.top) || 0),
-              width: Math.round(nextBox.offsetWidth),
-              height: Math.round(nextBox.offsetHeight),
+              left: Math.round(parseFloat(finalBox.style.left) || 0),
+              top: Math.round(parseFloat(finalBox.style.top) || 0),
+              width: Math.round(finalBox.offsetWidth),
+              height: Math.round(finalBox.offsetHeight),
             }
           : null,
     };
   });
   if (
     runtimeState.texts.join("|") !==
-      `${editedFirstSceneText}|Edited second scene.` ||
+      `${editedFirstSceneText}|Inserted middle scene.|Edited second scene.` ||
     runtimeState.canvasWidth !== 920 ||
     runtimeState.canvasHeight !== 540 ||
-    runtimeState.secondTextBox?.left !== 240 ||
-    runtimeState.secondTextBox?.top !== 180 ||
-    runtimeState.secondTextBox?.width !== 430 ||
-    runtimeState.secondTextBox?.height !== 190
+    runtimeState.finalTextBox?.left !== 240 ||
+    runtimeState.finalTextBox?.top !== 180 ||
+    runtimeState.finalTextBox?.width !== 430 ||
+    runtimeState.finalTextBox?.height !== 190
   ) {
     throw new Error(
       `What's this runtime did not use persisted scene geometry: ${JSON.stringify(runtimeState)}`,

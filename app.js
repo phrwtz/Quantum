@@ -7907,8 +7907,19 @@ function addDocumentEditorScene() {
     return false;
   }
   saveCurrentDocumentEditorScene();
-  documentEditorState.document.scenes.push(createDocumentScene());
-  documentEditorState.sceneIndex = documentEditorState.document.scenes.length - 1;
+  const scenes = Array.isArray(documentEditorState.document.scenes)
+    ? documentEditorState.document.scenes
+    : [];
+  if (scenes !== documentEditorState.document.scenes) {
+    documentEditorState.document.scenes = scenes;
+  }
+  const insertIndex = clamp(
+    documentEditorState.sceneIndex + 1,
+    0,
+    scenes.length,
+  );
+  scenes.splice(insertIndex, 0, createDocumentScene());
+  documentEditorState.sceneIndex = insertIndex;
   persistDocumentEditorDocument();
   renderDocumentEditorScene();
   return true;
