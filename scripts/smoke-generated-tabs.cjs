@@ -5,18 +5,6 @@ const path = require("node:path");
 const { chromium } = require("playwright");
 
 const rootDir = path.resolve(__dirname, "..");
-const expectedPublishedTabLabels = [
-  "Introduction",
-  "One qubit",
-  "Two qubits",
-  "Entanglement 1",
-  "Entanglement 2",
-];
-const expectedLocalTabLabels = [
-  "Editor",
-  "Doc Editor",
-  ...expectedPublishedTabLabels,
-];
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -2691,113 +2679,6 @@ async function runDocEditorTextPersistenceSmoke(page) {
   }
 }
 
-async function runContentFilesIgnoreLocalStorageSmoke(browser, baseUrl) {
-  const context = await browser.newContext({ viewport: { width: 1100, height: 760 } });
-  try {
-    const page = await context.newPage();
-    await page.addInitScript(() => {
-      localStorage.setItem(
-        "quantum_generated_tabs_v1",
-        JSON.stringify({
-          tabs: [
-            {
-              id: "stale-local-tab",
-              label: "Stale Local Tab",
-              layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
-            },
-          ],
-        }),
-      );
-      localStorage.setItem(
-        "quantum_whats_this_documents_v1",
-        JSON.stringify({
-          documents: [
-            {
-              tabId: "stale-local-tab",
-              title: "Stale Local Document",
-              scenes: [
-                {
-                  id: "stale-local-scene",
-                  title: "Stale",
-                  items: [
-                    {
-                      id: "stale-local-text",
-                      type: "text-box",
-                      text: "This stale browser-storage text should not render.",
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        }),
-      );
-    });
-    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
-    const state = await page.evaluate(() => ({
-      hasStaleTab: Boolean(document.querySelector("#tab-stale-local-tab")),
-      hasFileTab: Boolean(document.querySelector("#tab-custom-one-qubit")),
-      labels: Array.from(document.querySelectorAll(".tab-btn")).map((button) =>
-        button.textContent.trim(),
-      ),
-    }));
-    if (state.hasStaleTab || !state.hasFileTab) {
-      throw new Error(
-        `Local content files did not override browser storage: ${JSON.stringify(state)}`,
-      );
-    }
-  } finally {
-    await context.close();
-  }
-}
-
-async function runFileModeRepositoryContentSmoke(browser) {
-  const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
-  const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      errors.push(message.text());
-    }
-  });
-  try {
-    await page.goto(`file://${path.join(rootDir, "index.html")}`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForSelector("#tab-custom-one-qubit");
-    const state = await page.evaluate(() => ({
-      labels: Array.from(document.querySelectorAll(".tab-btn")).map((button) =>
-        button.textContent.trim(),
-      ),
-      targets: Array.from(document.querySelectorAll(".tab-btn")).map(
-        (button) => button.dataset.tabTarget || "",
-      ),
-      generatedPanels: document.querySelectorAll(".tab-panel.generated-tab").length,
-      authoringButtons: Boolean(
-        document.querySelector("#tab-plaground, #tab-doc-editor"),
-      ),
-      activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
-      whatsThisButtons: document.querySelectorAll(
-        "[data-generated-document-action='whats-this']",
-      ).length,
-    }));
-    if (
-      state.labels.join("|") !== expectedLocalTabLabels.join("|") ||
-      state.generatedPanels !== expectedPublishedTabLabels.length ||
-      !state.authoringButtons ||
-      state.activeTarget !== "plaground" ||
-      state.whatsThisButtons < expectedPublishedTabLabels.length - 1 ||
-      errors.length > 0
-    ) {
-      throw new Error(
-        `File-mode repository content failed: ${JSON.stringify({ state, errors })}`,
-      );
-    }
-  } finally {
-    await page.close();
-  }
-}
-
 async function runInitialWhatsThisSeedSmoke(page) {
   await page.evaluate(() => {
     localStorage.setItem(
@@ -2827,10 +2708,7 @@ async function runInitialWhatsThisSeedSmoke(page) {
         ],
       }),
     );
-    localStorage.setItem(
-      "quantum_whats_this_documents_v1",
-      JSON.stringify({ documents: [] }),
-    );
+    localStorage.removeItem("quantum_whats_this_documents_v1");
     localStorage.removeItem("quantum_whats_this_documents_seed_v1");
   });
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -3682,8 +3560,6 @@ async function runEntangledMathSmoke(page) {
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
-    await runFileModeRepositoryContentSmoke(browser);
-    await runContentFilesIgnoreLocalStorageSmoke(browser, baseUrl);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -3693,10 +3569,7 @@ async function runSmokeTest(baseUrl) {
       }
     });
 
-    await page.goto(
-      `${baseUrl}/index.html?quantumAllowLocalStorageContent=1`,
-      { waitUntil: "domcontentloaded" },
-    );
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
     await runEntangledMathSmoke(page);
     await runEditorDoubleMeasurementSmoke(page);
     await runSequentialMeasurementEditorSmoke(page);

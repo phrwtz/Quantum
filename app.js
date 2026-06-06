@@ -159,13 +159,6 @@ const IS_GITHUB_PAGES_BUILD =
   document.documentElement?.dataset?.quantumTarget === "github-pages" ||
   new URLSearchParams(window.location.search).get("quantumTarget") ===
     "github-pages";
-const CONTENT_FILE_CACHE_BUST =
-  document.documentElement?.dataset?.quantumContentVersion || "";
-const ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK =
-  !IS_GITHUB_PAGES_BUILD &&
-  new URLSearchParams(window.location.search).get(
-    "quantumAllowLocalStorageContent",
-  ) === "1";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -1692,15 +1685,6 @@ function readJsonResourceSync(url) {
   }
 }
 
-function readBundledContentState(relativePath) {
-  const bundle = window.__QUANTUM_REPOSITORY_CONTENT__;
-  const files = bundle && typeof bundle === "object" ? bundle.files : null;
-  if (!files || typeof files !== "object") {
-    return null;
-  }
-  return cloneJson(files[relativePath]);
-}
-
 function writeJsonResourceSync(url, payload) {
   if (!url || typeof XMLHttpRequest === "undefined") {
     return false;
@@ -1724,27 +1708,7 @@ function writeLocalContentState(contentName, state) {
 }
 
 function readContentFileState(relativePath) {
-  const bundledState = readBundledContentState(relativePath);
-  if (window.location.protocol === "file:" && bundledState) {
-    return bundledState;
-  }
-  if (!IS_GITHUB_PAGES_BUILD || !CONTENT_FILE_CACHE_BUST) {
-    return readJsonResourceSync(relativePath) || bundledState;
-  }
-  const separator = relativePath.includes("?") ? "&" : "?";
-  return (
-    readJsonResourceSync(
-      `${relativePath}${separator}v=${encodeURIComponent(CONTENT_FILE_CACHE_BUST)}`,
-    ) || bundledState
-  );
-}
-
-function readLocalRepositoryContentState(contentName, relativePath) {
-  const bundledState = readBundledContentState(relativePath);
-  if (window.location.protocol === "file:" && bundledState) {
-    return bundledState;
-  }
-  return readLocalContentState(contentName) || readContentFileState(relativePath);
+  return readJsonResourceSync(relativePath);
 }
 
 function normalizeGeneratedTabsContentState(state) {
@@ -1801,26 +1765,20 @@ function readGeneratedTabsState() {
       : normalizeGeneratedTabsState(createGithubPagesGeneratedTabsState()).state;
   }
 
-  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
-    const storedState = readGeneratedTabsLocalStorageState();
-    if (storedState) {
-      return storedState;
-    }
-  }
-
   const fileState = normalizeGeneratedTabsContentState(
-    readLocalRepositoryContentState("generated-tabs", GENERATED_TABS_CONTENT_FILE),
+    readLocalContentState("generated-tabs"),
   );
   if (generatedTabsStateHasTabs(fileState)) {
     return fileState;
   }
 
-  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
-    const storedState = readGeneratedTabsLocalStorageState();
-    return fileState || storedState || { tabs: [] };
+  const storedState = readGeneratedTabsLocalStorageState();
+  if (generatedTabsStateHasTabs(storedState)) {
+    writeLocalContentState("generated-tabs", storedState);
+    return storedState;
   }
 
-  return fileState || { tabs: [] };
+  return fileState || storedState || { tabs: [] };
 }
 
 function writeGeneratedTabsState(state) {
@@ -1831,9 +1789,7 @@ function writeGeneratedTabsState(state) {
   if (writeLocalContentState("generated-tabs", normalized)) {
     return true;
   }
-  return ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK
-    ? writeGeneratedTabsLocalStorageState(normalized)
-    : false;
+  return writeGeneratedTabsLocalStorageState(normalized);
 }
 
 function createDocumentScene(overrides = {}) {
@@ -1956,26 +1912,20 @@ function readDocumentsState() {
     );
   }
 
-  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
-    const storedState = readDocumentsLocalStorageState();
-    if (storedState) {
-      return storedState;
-    }
-  }
-
   const fileState = normalizeDocumentsContentState(
-    readLocalRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
+    readLocalContentState("documents"),
   );
   if (documentsStateHasDocuments(fileState)) {
     return fileState;
   }
 
-  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
-    const storedState = readDocumentsLocalStorageState();
-    return fileState || storedState || { documents: [] };
+  const storedState = readDocumentsLocalStorageState();
+  if (documentsStateHasDocuments(storedState)) {
+    writeLocalContentState("documents", storedState);
+    return storedState;
   }
 
-  return fileState || { documents: [] };
+  return fileState || storedState || { documents: [] };
 }
 
 function writeDocumentsState(state) {
@@ -1988,9 +1938,7 @@ function writeDocumentsState(state) {
     documentsState = normalized;
     return true;
   }
-  return ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK
-    ? writeDocumentsLocalStorageState(normalized)
-    : false;
+  return writeDocumentsLocalStorageState(normalized);
 }
 
 function seededTextBoxItem(id, text, buttons, geometry = {}) {
@@ -7690,11 +7638,6 @@ function persistDocumentEditorDocument() {
     applyGeneratedTabsState(generatedTabsState);
     refreshGeneratedDocumentToolbars();
     plagroundComposer?.handleGeneratedTabsChanged?.();
-  } else {
-    setDocumentEditorMessage(
-      "Save failed: start the local server to write repository files",
-      { target: "status", warning: true, sticky: true },
-    );
   }
   return saved;
 }
@@ -8030,14 +7973,11 @@ function documentEditorDone() {
   saveCurrentDocumentEditorScene({ persist: false });
   if (documentEditorState.document) {
     documentEditorState.document.updatedAt = Date.now();
-    if (!persistDocumentEditorDocument()) {
-      return false;
-    }
+    persistDocumentEditorDocument();
   }
   const targetId = documentEditorState.tabId || "plaground";
   refreshGeneratedDocumentToolbarForTabId(targetId);
   setActiveTab(targetId);
-  return true;
 }
 
 function finishDocumentEditorRecording() {

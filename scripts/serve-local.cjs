@@ -2,7 +2,6 @@ const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const http = require("node:http");
 const path = require("node:path");
-const { syncContentBundle } = require("./sync-content-bundle.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const port = Number(process.env.PORT || 8124);
@@ -85,7 +84,6 @@ async function handleContentRequest(request, response, contentName) {
       const payload = await jsonBody(request);
       await fsp.mkdir(path.dirname(filePath), { recursive: true });
       await fsp.writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`);
-      syncContentBundle();
       send(response, 200, JSON.stringify({ ok: true }), mimeTypes[".json"]);
     } catch (error) {
       send(response, 400, error.message || "Invalid JSON");
