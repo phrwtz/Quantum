@@ -1692,6 +1692,15 @@ function readJsonResourceSync(url) {
   }
 }
 
+function readBundledContentState(relativePath) {
+  const bundle = window.__QUANTUM_REPOSITORY_CONTENT__;
+  const files = bundle && typeof bundle === "object" ? bundle.files : null;
+  if (!files || typeof files !== "object") {
+    return null;
+  }
+  return cloneJson(files[relativePath]);
+}
+
 function writeJsonResourceSync(url, payload) {
   if (!url || typeof XMLHttpRequest === "undefined") {
     return false;
@@ -1715,13 +1724,27 @@ function writeLocalContentState(contentName, state) {
 }
 
 function readContentFileState(relativePath) {
+  const bundledState = readBundledContentState(relativePath);
+  if (window.location.protocol === "file:" && bundledState) {
+    return bundledState;
+  }
   if (!IS_GITHUB_PAGES_BUILD || !CONTENT_FILE_CACHE_BUST) {
-    return readJsonResourceSync(relativePath);
+    return readJsonResourceSync(relativePath) || bundledState;
   }
   const separator = relativePath.includes("?") ? "&" : "?";
-  return readJsonResourceSync(
-    `${relativePath}${separator}v=${encodeURIComponent(CONTENT_FILE_CACHE_BUST)}`,
+  return (
+    readJsonResourceSync(
+      `${relativePath}${separator}v=${encodeURIComponent(CONTENT_FILE_CACHE_BUST)}`,
+    ) || bundledState
   );
+}
+
+function readLocalRepositoryContentState(contentName, relativePath) {
+  const bundledState = readBundledContentState(relativePath);
+  if (window.location.protocol === "file:" && bundledState) {
+    return bundledState;
+  }
+  return readLocalContentState(contentName) || readContentFileState(relativePath);
 }
 
 function normalizeGeneratedTabsContentState(state) {
@@ -1786,8 +1809,7 @@ function readGeneratedTabsState() {
   }
 
   const fileState = normalizeGeneratedTabsContentState(
-    readLocalContentState("generated-tabs") ||
-      readContentFileState(GENERATED_TABS_CONTENT_FILE),
+    readLocalRepositoryContentState("generated-tabs", GENERATED_TABS_CONTENT_FILE),
   );
   if (generatedTabsStateHasTabs(fileState)) {
     return fileState;
@@ -1942,8 +1964,7 @@ function readDocumentsState() {
   }
 
   const fileState = normalizeDocumentsContentState(
-    readLocalContentState("documents") ||
-      readContentFileState(DOCUMENTS_CONTENT_FILE),
+    readLocalRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
   );
   if (documentsStateHasDocuments(fileState)) {
     return fileState;

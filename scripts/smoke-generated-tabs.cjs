@@ -5,6 +5,18 @@ const path = require("node:path");
 const { chromium } = require("playwright");
 
 const rootDir = path.resolve(__dirname, "..");
+const expectedPublishedTabLabels = [
+  "Introduction",
+  "One qubit",
+  "Two qubits",
+  "Entanglement 1",
+  "Entanglement 2",
+];
+const expectedLocalTabLabels = [
+  "Editor",
+  "Doc Editor",
+  ...expectedPublishedTabLabels,
+];
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -2739,6 +2751,53 @@ async function runContentFilesIgnoreLocalStorageSmoke(browser, baseUrl) {
   }
 }
 
+async function runFileModeRepositoryContentSmoke(browser) {
+  const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text());
+    }
+  });
+  try {
+    await page.goto(`file://${path.join(rootDir, "index.html")}`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForSelector("#tab-custom-one-qubit");
+    const state = await page.evaluate(() => ({
+      labels: Array.from(document.querySelectorAll(".tab-btn")).map((button) =>
+        button.textContent.trim(),
+      ),
+      targets: Array.from(document.querySelectorAll(".tab-btn")).map(
+        (button) => button.dataset.tabTarget || "",
+      ),
+      generatedPanels: document.querySelectorAll(".tab-panel.generated-tab").length,
+      authoringButtons: Boolean(
+        document.querySelector("#tab-plaground, #tab-doc-editor"),
+      ),
+      activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      whatsThisButtons: document.querySelectorAll(
+        "[data-generated-document-action='whats-this']",
+      ).length,
+    }));
+    if (
+      state.labels.join("|") !== expectedLocalTabLabels.join("|") ||
+      state.generatedPanels !== expectedPublishedTabLabels.length ||
+      !state.authoringButtons ||
+      state.activeTarget !== "plaground" ||
+      state.whatsThisButtons < expectedPublishedTabLabels.length - 1 ||
+      errors.length > 0
+    ) {
+      throw new Error(
+        `File-mode repository content failed: ${JSON.stringify({ state, errors })}`,
+      );
+    }
+  } finally {
+    await page.close();
+  }
+}
+
 async function runInitialWhatsThisSeedSmoke(page) {
   await page.evaluate(() => {
     localStorage.setItem(
@@ -3623,6 +3682,7 @@ async function runEntangledMathSmoke(page) {
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
+    await runFileModeRepositoryContentSmoke(browser);
     await runContentFilesIgnoreLocalStorageSmoke(browser, baseUrl);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
     const errors = [];

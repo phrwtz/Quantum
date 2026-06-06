@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const path = require("node:path");
+const { syncContentBundle } = require("./sync-content-bundle.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const distDir = path.join(rootDir, "dist");
@@ -12,6 +13,7 @@ const staticFiles = [
   "New magnifying glass.png",
   "data/generated-tabs.json",
   "data/whats-this-documents.json",
+  "data/repository-content.js",
 ];
 
 function copyFile(relativePath) {
@@ -33,6 +35,7 @@ function buildVersionForFiles(relativePaths) {
 
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
+syncContentBundle();
 
 const buildVersion = buildVersionForFiles(staticFiles);
 let html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
@@ -43,6 +46,10 @@ html = html.replace(
 html = html.replace(
   'href="styles.css"',
   `href="styles.css?v=${buildVersion}"`,
+);
+html = html.replace(
+  /src="data\/repository-content\.js(?:\?v=[^"]*)?"/,
+  `src="data/repository-content.js?v=${buildVersion}"`,
 );
 html = html.replace(
   /src="app\.js(?:\?v=[^"]*)?"/,
