@@ -161,6 +161,11 @@ const IS_GITHUB_PAGES_BUILD =
     "github-pages";
 const CONTENT_FILE_CACHE_BUST =
   document.documentElement?.dataset?.quantumContentVersion || "";
+const ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK =
+  !IS_GITHUB_PAGES_BUILD &&
+  new URLSearchParams(window.location.search).get(
+    "quantumAllowLocalStorageContent",
+  ) === "1";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -1773,20 +1778,27 @@ function readGeneratedTabsState() {
       : normalizeGeneratedTabsState(createGithubPagesGeneratedTabsState()).state;
   }
 
+  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
+    const storedState = readGeneratedTabsLocalStorageState();
+    if (storedState) {
+      return storedState;
+    }
+  }
+
   const fileState = normalizeGeneratedTabsContentState(
-    readLocalContentState("generated-tabs"),
+    readLocalContentState("generated-tabs") ||
+      readContentFileState(GENERATED_TABS_CONTENT_FILE),
   );
   if (generatedTabsStateHasTabs(fileState)) {
     return fileState;
   }
 
-  const storedState = readGeneratedTabsLocalStorageState();
-  if (generatedTabsStateHasTabs(storedState)) {
-    writeLocalContentState("generated-tabs", storedState);
-    return storedState;
+  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
+    const storedState = readGeneratedTabsLocalStorageState();
+    return fileState || storedState || { tabs: [] };
   }
 
-  return fileState || storedState || { tabs: [] };
+  return fileState || { tabs: [] };
 }
 
 function writeGeneratedTabsState(state) {
@@ -1797,7 +1809,9 @@ function writeGeneratedTabsState(state) {
   if (writeLocalContentState("generated-tabs", normalized)) {
     return true;
   }
-  return writeGeneratedTabsLocalStorageState(normalized);
+  return ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK
+    ? writeGeneratedTabsLocalStorageState(normalized)
+    : false;
 }
 
 function createDocumentScene(overrides = {}) {
@@ -1920,20 +1934,27 @@ function readDocumentsState() {
     );
   }
 
+  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
+    const storedState = readDocumentsLocalStorageState();
+    if (storedState) {
+      return storedState;
+    }
+  }
+
   const fileState = normalizeDocumentsContentState(
-    readLocalContentState("documents"),
+    readLocalContentState("documents") ||
+      readContentFileState(DOCUMENTS_CONTENT_FILE),
   );
   if (documentsStateHasDocuments(fileState)) {
     return fileState;
   }
 
-  const storedState = readDocumentsLocalStorageState();
-  if (documentsStateHasDocuments(storedState)) {
-    writeLocalContentState("documents", storedState);
-    return storedState;
+  if (ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK) {
+    const storedState = readDocumentsLocalStorageState();
+    return fileState || storedState || { documents: [] };
   }
 
-  return fileState || storedState || { documents: [] };
+  return fileState || { documents: [] };
 }
 
 function writeDocumentsState(state) {
@@ -1946,7 +1967,9 @@ function writeDocumentsState(state) {
     documentsState = normalized;
     return true;
   }
-  return writeDocumentsLocalStorageState(normalized);
+  return ALLOW_LOCAL_STORAGE_CONTENT_FALLBACK
+    ? writeDocumentsLocalStorageState(normalized)
+    : false;
 }
 
 function seededTextBoxItem(id, text, buttons, geometry = {}) {
@@ -7646,6 +7669,11 @@ function persistDocumentEditorDocument() {
     applyGeneratedTabsState(generatedTabsState);
     refreshGeneratedDocumentToolbars();
     plagroundComposer?.handleGeneratedTabsChanged?.();
+  } else {
+    setDocumentEditorMessage(
+      "Save failed: start the local server to write repository files",
+      { target: "status", warning: true, sticky: true },
+    );
   }
   return saved;
 }
@@ -7981,11 +8009,14 @@ function documentEditorDone() {
   saveCurrentDocumentEditorScene({ persist: false });
   if (documentEditorState.document) {
     documentEditorState.document.updatedAt = Date.now();
-    persistDocumentEditorDocument();
+    if (!persistDocumentEditorDocument()) {
+      return false;
+    }
   }
   const targetId = documentEditorState.tabId || "plaground";
   refreshGeneratedDocumentToolbarForTabId(targetId);
   setActiveTab(targetId);
+  return true;
 }
 
 function finishDocumentEditorRecording() {

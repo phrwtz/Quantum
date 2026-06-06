@@ -2679,6 +2679,66 @@ async function runDocEditorTextPersistenceSmoke(page) {
   }
 }
 
+async function runContentFilesIgnoreLocalStorageSmoke(browser, baseUrl) {
+  const context = await browser.newContext({ viewport: { width: 1100, height: 760 } });
+  try {
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "quantum_generated_tabs_v1",
+        JSON.stringify({
+          tabs: [
+            {
+              id: "stale-local-tab",
+              label: "Stale Local Tab",
+              layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+            },
+          ],
+        }),
+      );
+      localStorage.setItem(
+        "quantum_whats_this_documents_v1",
+        JSON.stringify({
+          documents: [
+            {
+              tabId: "stale-local-tab",
+              title: "Stale Local Document",
+              scenes: [
+                {
+                  id: "stale-local-scene",
+                  title: "Stale",
+                  items: [
+                    {
+                      id: "stale-local-text",
+                      type: "text-box",
+                      text: "This stale browser-storage text should not render.",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    });
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    const state = await page.evaluate(() => ({
+      hasStaleTab: Boolean(document.querySelector("#tab-stale-local-tab")),
+      hasFileTab: Boolean(document.querySelector("#tab-custom-one-qubit")),
+      labels: Array.from(document.querySelectorAll(".tab-btn")).map((button) =>
+        button.textContent.trim(),
+      ),
+    }));
+    if (state.hasStaleTab || !state.hasFileTab) {
+      throw new Error(
+        `Local content files did not override browser storage: ${JSON.stringify(state)}`,
+      );
+    }
+  } finally {
+    await context.close();
+  }
+}
+
 async function runInitialWhatsThisSeedSmoke(page) {
   await page.evaluate(() => {
     localStorage.setItem(
@@ -2708,7 +2768,10 @@ async function runInitialWhatsThisSeedSmoke(page) {
         ],
       }),
     );
-    localStorage.removeItem("quantum_whats_this_documents_v1");
+    localStorage.setItem(
+      "quantum_whats_this_documents_v1",
+      JSON.stringify({ documents: [] }),
+    );
     localStorage.removeItem("quantum_whats_this_documents_seed_v1");
   });
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -3560,6 +3623,7 @@ async function runEntangledMathSmoke(page) {
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
+    await runContentFilesIgnoreLocalStorageSmoke(browser, baseUrl);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -3569,7 +3633,10 @@ async function runSmokeTest(baseUrl) {
       }
     });
 
-    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await page.goto(
+      `${baseUrl}/index.html?quantumAllowLocalStorageContent=1`,
+      { waitUntil: "domcontentloaded" },
+    );
     await runEntangledMathSmoke(page);
     await runEditorDoubleMeasurementSmoke(page);
     await runSequentialMeasurementEditorSmoke(page);
