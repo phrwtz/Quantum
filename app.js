@@ -159,6 +159,8 @@ const IS_GITHUB_PAGES_BUILD =
   document.documentElement?.dataset?.quantumTarget === "github-pages" ||
   new URLSearchParams(window.location.search).get("quantumTarget") ===
     "github-pages";
+const CONTENT_FILE_CACHE_BUST =
+  document.documentElement?.dataset?.quantumContentVersion || "";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -1708,7 +1710,13 @@ function writeLocalContentState(contentName, state) {
 }
 
 function readContentFileState(relativePath) {
-  return readJsonResourceSync(relativePath);
+  if (!IS_GITHUB_PAGES_BUILD || !CONTENT_FILE_CACHE_BUST) {
+    return readJsonResourceSync(relativePath);
+  }
+  const separator = relativePath.includes("?") ? "&" : "?";
+  return readJsonResourceSync(
+    `${relativePath}${separator}v=${encodeURIComponent(CONTENT_FILE_CACHE_BUST)}`,
+  );
 }
 
 function normalizeGeneratedTabsContentState(state) {
