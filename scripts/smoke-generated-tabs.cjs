@@ -3493,6 +3493,15 @@ async function runFileModeRepositoryContentSmoke(browser) {
         .filter((item) => item.type === "text-box")
         .map((item) => item.text || "")
         .join("\n");
+      const entanglementOne = docs.find(
+        (doc) => doc.tabId === "custom-entanglement-2",
+      );
+      const entanglementLast =
+        entanglementOne?.scenes?.[entanglementOne.scenes.length - 1];
+      const entanglementLastText = (entanglementLast?.items || [])
+        .filter((item) => item.type === "text-box")
+        .map((item) => item.text || "")
+        .join("\n");
       const oneQubitToolbar = document.querySelector(
         "#panel-custom-one-qubit [data-generated-document-action='whats-this']",
       );
@@ -3506,6 +3515,12 @@ async function runFileModeRepositoryContentSmoke(browser) {
           "I recommend working through the tabs in order",
         ),
         oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
+        entanglementOneLastSceneHasMarker: entanglementLastText.includes(
+          "Here are some questions to ponder:",
+        ),
+        entanglementOneLastSceneHasOldText: entanglementLastText.includes(
+          "leave it to you to experiment but here are some questions to get you started",
+        ),
         hasAuthoringTabs: Boolean(
           document.querySelector("#tab-plaground") &&
             document.querySelector("#tab-doc-editor"),
@@ -3522,6 +3537,8 @@ async function runFileModeRepositoryContentSmoke(browser) {
       result.hasLandingToolbar ||
       !result.oneQubitLastSceneHasMarker ||
       result.oneQubitLastSceneHasClue ||
+      !result.entanglementOneLastSceneHasMarker ||
+      result.entanglementOneLastSceneHasOldText ||
       errors.length > 0
     ) {
       throw new Error(

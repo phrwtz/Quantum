@@ -114,6 +114,15 @@ async function runSmoke(baseUrl) {
         .filter((item) => item.type === "text-box")
         .map((item) => item.text || "")
         .join("\n");
+      const entanglementOne = docs.documents.find(
+        (doc) => doc.tabId === "custom-entanglement-2",
+      );
+      const entanglementLast =
+        entanglementOne?.scenes?.[entanglementOne.scenes.length - 1];
+      const entanglementLastText = (entanglementLast?.items || [])
+        .filter((item) => item.type === "text-box")
+        .map((item) => item.text || "")
+        .join("\n");
       return {
         target: document.documentElement.dataset.quantumTarget || "",
         labels,
@@ -124,6 +133,12 @@ async function runSmoke(baseUrl) {
           "I recommend working through the tabs in order",
         ),
         oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
+        entanglementOneLastSceneHasMarker: entanglementLastText.includes(
+          "Here are some questions to ponder:",
+        ),
+        entanglementOneLastSceneHasOldText: entanglementLastText.includes(
+          "leave it to you to experiment but here are some questions to get you started",
+        ),
         activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget,
         authoringButtons: Boolean(
           document.querySelector("#tab-plaground, #tab-doc-editor"),
@@ -152,6 +167,8 @@ async function runSmoke(baseUrl) {
       result.whatsThisTargets.includes(result.publicTargets[0]) ||
       !result.oneQubitLastSceneHasMarker ||
       result.oneQubitLastSceneHasClue ||
+      !result.entanglementOneLastSceneHasMarker ||
+      result.entanglementOneLastSceneHasOldText ||
       (result.labels[0] === "Introduction" &&
         result.landingButtonLabels.some((label) =>
           ["Reset", "What's this?"].includes(label),

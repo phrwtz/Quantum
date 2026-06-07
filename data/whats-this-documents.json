@@ -1892,7 +1892,7 @@
               "width": 722,
               "height": 276,
               "z": 2,
-              "text": "Did you notice anything strange about that last experiment? No? Well I'll leave it to you to experiment but here are some questions to get you started.\n\nWhat happens when the control qubit is purple and the target qubit is red?\nWhat happens when they're both purple?\nWhat if they're some other color –  closer to red or closer to blue?\n\nDo you think you could reproduce these results using just the flipper gates?",
+              "text": "Did you notice anything strange about that last experiment? No? Here are some questions to ponder:\n\nWhat happens when the control qubit is purple and the target qubit is red?\nWhat happens when they're both purple?\nWhat if they're some other color –  closer to red or closer to blue?\n\nDo you think you could reproduce these results using just the flipper gates?",
               "buttons": [
                 "back",
                 "done"
@@ -1906,7 +1906,7 @@
           "savedAt": 1780344233589
         }
       ],
-      "updatedAt": 1780344233589
+      "updatedAt": 1780842272411
     },
     {
       "version": 1,
