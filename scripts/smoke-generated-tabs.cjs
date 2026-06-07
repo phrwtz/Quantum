@@ -2,14 +2,36 @@ const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const http = require("node:http");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { chromium } = require("playwright");
 
 const rootDir = path.resolve(__dirname, "..");
+const expectedGeneratedTabLabels = [
+  "Introduction",
+  "One qubit",
+  "Two qubits",
+  "Entanglement 1",
+  "Entanglement 2",
+];
+const expectedLocalFileTabLabels = [
+  "Editor",
+  "Doc Editor",
+  ...expectedGeneratedTabLabels,
+];
+const contentFilePaths = new Map([
+  ["generated-tabs", path.join(rootDir, "data", "generated-tabs.json")],
+  ["documents", path.join(rootDir, "data", "whats-this-documents.json")],
+]);
+const fallbackContent = new Map([
+  ["generated-tabs", { tabs: [] }],
+  ["documents", { documents: [] }],
+]);
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
   ".png": "image/png",
 };
 
@@ -17,10 +39,88 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function readInitialContentState() {
+  return Object.fromEntries(
+    Array.from(contentFilePaths.entries()).map(([name, filePath]) => {
+      try {
+        return [name, JSON.parse(fs.readFileSync(filePath, "utf8"))];
+      } catch (_error) {
+        return [name, cloneJson(fallbackContent.get(name))];
+      }
+    }),
+  );
+}
+
+function sendJson(response, status, payload) {
+  response.writeHead(status, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cache-Control": "no-store",
+    "Content-Type": mimeTypes[".json"],
+  });
+  response.end(JSON.stringify(payload));
+}
+
+function readRequestJson(request) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      try {
+        resolve(JSON.parse(body || "{}"));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    request.on("error", reject);
+  });
+}
+
 function startServer() {
+  const contentState = readInitialContentState();
   const server = http.createServer(async (request, response) => {
     try {
+      if (request.method === "OPTIONS") {
+        response.writeHead(204, {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        });
+        response.end("");
+        return;
+      }
       const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
+      const contentMatch = requestUrl.pathname.match(
+        /^\/__quantum-content\/([a-z-]+)$/,
+      );
+      if (contentMatch) {
+        const contentName = contentMatch[1];
+        if (!Object.prototype.hasOwnProperty.call(contentState, contentName)) {
+          response.writeHead(404);
+          response.end("Not found");
+          return;
+        }
+        if (request.method === "GET") {
+          sendJson(response, 200, contentState[contentName]);
+          return;
+        }
+        if (request.method === "POST") {
+          contentState[contentName] = await readRequestJson(request);
+          sendJson(response, 200, { ok: true });
+          return;
+        }
+        response.writeHead(405);
+        response.end("Method not allowed");
+        return;
+      }
       const decodedPath = decodeURIComponent(requestUrl.pathname);
       const relativePath = decodedPath === "/" ? "index.html" : decodedPath.slice(1);
       const filePath = path.resolve(rootDir, relativePath);
@@ -73,6 +173,29 @@ async function rectCenter(locator) {
     y: box.y + box.height / 2,
     box,
   };
+}
+
+async function installContentApiHelpers(page) {
+  await page.addInitScript(() => {
+    window.readQuantumContentState = (contentName) => {
+      const request = new XMLHttpRequest();
+      request.open("GET", `/__quantum-content/${contentName}`, false);
+      request.send(null);
+      if (request.status < 200 || request.status >= 300) {
+        throw new Error(`Unable to read ${contentName}`);
+      }
+      return JSON.parse(request.responseText || "{}");
+    };
+    window.writeQuantumContentState = (contentName, payload) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `/__quantum-content/${contentName}`, false);
+      request.send(JSON.stringify(payload));
+      if (request.status < 200 || request.status >= 300) {
+        throw new Error(`Unable to write ${contentName}`);
+      }
+      return true;
+    };
+  });
 }
 
 async function tubeCounts(page) {
@@ -808,7 +931,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
         },
       ],
     });
-    localStorage.removeItem("quantum_generated_tabs_v1");
+    window.writeQuantumContentState("generated-tabs", { tabs: [] });
     localStorage.removeItem("quantum_plaground_layout_v1");
   });
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -990,7 +1113,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
   await wait(250);
   const savedSequentialLayout = await page.evaluate(() => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     const entry = (state.tabs || []).find(
       (tab) => tab.label === "Sequential Edit Smoke",
@@ -1051,47 +1174,44 @@ async function runEditorDocumentWorkflowSmoke(page) {
         ],
       }),
     );
-    localStorage.setItem(
-      "quantum_generated_tabs_v1",
-      JSON.stringify({
-        tabs: [
-          {
-            id: "editor-test",
-            label: "Test",
-            layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
+    window.writeQuantumContentState("generated-tabs", {
+      tabs: [
+        {
+          id: "editor-test",
+          label: "Test",
+          layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
+        },
+        {
+          id: "editor-keep",
+          label: "Keep",
+          layout: {
+            items: [
+              {
+                id: "legacy-group-use",
+                type: "component-group",
+                groupComponentId: "separate-two-qubit-measurement",
+                left: 20,
+                top: 20,
+                width: 320,
+                height: 240,
+              },
+            ],
+            canvasWidth: 600,
+            canvasHeight: 420,
           },
-          {
-            id: "editor-keep",
-            label: "Keep",
-            layout: {
-              items: [
-                {
-                  id: "legacy-group-use",
-                  type: "component-group",
-                  groupComponentId: "separate-two-qubit-measurement",
-                  left: 20,
-                  top: 20,
-                  width: 320,
-                  height: 240,
-                },
-              ],
-              canvasWidth: 600,
-              canvasHeight: 420,
-            },
-          },
-          {
-            id: "editor-entanglement-2",
-            label: "Entanglement 2",
-            layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
-          },
-          {
-            id: "editor-entanglement-3",
-            label: "Entanglement 3",
-            layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
-          },
-        ],
-	      }),
-	    );
+        },
+        {
+          id: "editor-entanglement-2",
+          label: "Entanglement 2",
+          layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
+        },
+        {
+          id: "editor-entanglement-3",
+          label: "Entanglement 3",
+          layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
+        },
+      ],
+    });
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator("#tab-plaground").click();
@@ -1102,7 +1222,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
       localStorage.getItem("quantum_playground_group_components_v1") || "{}",
     ).groups || [];
     const tabs = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     ).tabs || [];
     return {
       groupLabels: groups.map((group) => group.label),
@@ -1221,7 +1341,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
 
   const saved = await page.evaluate(() => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     const entry = (state.tabs || []).find(
       (tab) => tab.label === "Doc Smoke A",
@@ -1259,9 +1379,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   }
 
   await page.evaluate((tabId) => {
-    localStorage.setItem(
-      "quantum_whats_this_documents_v1",
-      JSON.stringify({
+    window.writeQuantumContentState("documents", {
         documents: [
           {
             tabId,
@@ -1317,8 +1435,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
             ],
           },
         ],
-      }),
-    );
+      });
   }, saved.id);
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(`#tab-${saved.id}`).click();
@@ -1476,7 +1593,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   }
   const persistedSetupGateTick = await page.evaluate((tabId) => {
     const docs = JSON.parse(
-      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("documents")),
     ).documents || [];
     return docs
       .find((doc) => doc.tabId === tabId)
@@ -1517,7 +1634,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await wait(350);
   const recordedGateTickState = await page.evaluate((tabId) => {
     const docs = JSON.parse(
-      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("documents")),
     ).documents || [];
     const scene = docs.find((doc) => doc.tabId === tabId)?.scenes?.[0];
     return {
@@ -1664,7 +1781,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await wait(200);
   const saveSameNameCount = await page.evaluate(() => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     return (state.tabs || []).filter((tab) => tab.label === "Doc Smoke A")
       .length;
@@ -1721,7 +1838,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await wait(250);
   const copied = await page.evaluate(() => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     const entry = (state.tabs || []).find(
       (tab) => tab.label === "Doc Smoke Copy",
@@ -1755,7 +1872,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await wait(250);
   const reordered = await page.evaluate((ids) => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     const storedOrder = (state.tabs || []).map((tab) => tab.id);
     const domOrder = Array.from(
@@ -1797,7 +1914,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await wait(250);
   const renamed = await page.evaluate((copyId) => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     const entry = (state.tabs || []).find((tab) => tab.id === copyId);
     return {
@@ -1824,7 +1941,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   await wait(250);
   const deleted = await page.evaluate((copyId) => {
     const state = JSON.parse(
-      localStorage.getItem("quantum_generated_tabs_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     return {
       stillStored: (state.tabs || []).some((tab) => tab.id === copyId),
@@ -1846,55 +1963,49 @@ async function runEditorDocumentWorkflowSmoke(page) {
 
 async function runDocEditorMeasurementRecordingSmoke(page) {
   await page.evaluate(() => {
-    localStorage.setItem(
-      "quantum_generated_tabs_v1",
-      JSON.stringify({
-        tabs: [
-          {
-            id: "doc-measure-recording",
-            label: "Doc Measure Recording",
-            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
-          },
-        ],
-      }),
-    );
-    localStorage.setItem(
-      "quantum_whats_this_documents_v1",
-      JSON.stringify({
-        documents: [
-          {
-            tabId: "doc-measure-recording",
-            title: "Measurement Recording",
-            scenes: [
-              {
-                id: "doc-measure-scene",
-                title: "Scene 1",
-                canvasWidth: 760,
-                canvasHeight: 420,
-                items: [
-                  {
-                    id: "doc-measure-q",
-                    type: "qubit",
-                    left: 80,
-                    top: 170,
-                    width: 52,
-                    height: 52,
-                  },
-                  {
-                    id: "doc-measure-stage",
-                    type: "single-measurement",
-                    left: 300,
-                    top: 80,
-                    width: 330,
-                    height: 240,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.writeQuantumContentState("generated-tabs", {
+      tabs: [
+        {
+          id: "doc-measure-recording",
+          label: "Doc Measure Recording",
+          layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+        },
+      ],
+    });
+    window.writeQuantumContentState("documents", {
+      documents: [
+        {
+          tabId: "doc-measure-recording",
+          title: "Measurement Recording",
+          scenes: [
+            {
+              id: "doc-measure-scene",
+              title: "Scene 1",
+              canvasWidth: 760,
+              canvasHeight: 420,
+              items: [
+                {
+                  id: "doc-measure-q",
+                  type: "qubit",
+                  left: 80,
+                  top: 170,
+                  width: 52,
+                  height: 52,
+                },
+                {
+                  id: "doc-measure-stage",
+                  type: "single-measurement",
+                  left: 300,
+                  top: 80,
+                  width: 330,
+                  height: 240,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator("#tab-doc-editor").click();
@@ -2057,7 +2168,7 @@ async function runDocEditorMeasurementRecordingSmoke(page) {
         ?.textContent?.trim() || 0,
     );
     const documents = JSON.parse(
-      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("documents")),
     ).documents || [];
     const documentEntry = documents.find(
       (entry) => entry.tabId === "doc-measure-recording",
@@ -2414,99 +2525,93 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
 
 async function runDocEditorTextPersistenceSmoke(page) {
   await page.evaluate(() => {
-    localStorage.setItem(
-      "quantum_generated_tabs_v1",
-      JSON.stringify({
-        tabs: [
-          {
-            id: "doc-text-persist",
-            label: "Doc Text Persist",
-            layout: {
-              items: [
-                {
-                  id: "doc-text-persist-q",
-                  type: "qubit",
-                  left: 80,
-                  top: 170,
-                  width: 52,
-                  height: 52,
-                },
-              ],
-              canvasWidth: 760,
-              canvasHeight: 420,
-            },
-          },
-        ],
-      }),
-    );
-    localStorage.setItem(
-      "quantum_whats_this_documents_v1",
-      JSON.stringify({
-        documents: [
-          {
-            tabId: "doc-text-persist",
-            title: "Text Persistence",
-            scenes: [
+    window.writeQuantumContentState("generated-tabs", {
+      tabs: [
+        {
+          id: "doc-text-persist",
+          label: "Doc Text Persist",
+          layout: {
+            items: [
               {
-                id: "doc-text-scene-1",
-                title: "Scene 1",
-                canvasWidth: 760,
-                canvasHeight: 420,
-                items: [
-                  {
-                    id: "doc-text-box-1",
-                    type: "text-box",
-                    left: 80,
-                    top: 90,
-                    width: 300,
-                    height: 140,
-                    text: "Original first scene.",
-                    buttons: ["next"],
-                    buttonMode: "next",
-                  },
-                ],
-              },
-              {
-                id: "doc-text-scene-2",
-                title: "Scene 2",
-                canvasWidth: 760,
-                canvasHeight: 420,
-                experiment: {
-                  version: 1,
-                  recordedAt: Date.now(),
-                  initialQubits: [],
-                  gateSettings: [],
-                  actions: [
-                    {
-                      type: "drag",
-                      qubitId: "missing-qubit",
-                      qubitLogicalId: "missing-logical-qubit",
-                      path: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 1 },
-                      ],
-                    },
-                  ],
-                },
-                items: [
-                  {
-                    id: "doc-text-box-2",
-                    type: "text-box",
-                    left: 90,
-                    top: 100,
-                    width: 320,
-                    height: 150,
-                    text: "Original second scene.",
-                    buttons: ["done"],
-                    buttonMode: "done",
-                  },
-                ],
+                id: "doc-text-persist-q",
+                type: "qubit",
+                left: 80,
+                top: 170,
+                width: 52,
+                height: 52,
               },
             ],
+            canvasWidth: 760,
+            canvasHeight: 420,
           },
-        ],
-      }),
-    );
+        },
+      ],
+    });
+    window.writeQuantumContentState("documents", {
+      documents: [
+        {
+          tabId: "doc-text-persist",
+          title: "Text Persistence",
+          scenes: [
+            {
+              id: "doc-text-scene-1",
+              title: "Scene 1",
+              canvasWidth: 760,
+              canvasHeight: 420,
+              items: [
+                {
+                  id: "doc-text-box-1",
+                  type: "text-box",
+                  left: 80,
+                  top: 90,
+                  width: 300,
+                  height: 140,
+                  text: "Original first scene.",
+                  buttons: ["next"],
+                  buttonMode: "next",
+                },
+              ],
+            },
+            {
+              id: "doc-text-scene-2",
+              title: "Scene 2",
+              canvasWidth: 760,
+              canvasHeight: 420,
+              experiment: {
+                version: 1,
+                recordedAt: Date.now(),
+                initialQubits: [],
+                gateSettings: [],
+                actions: [
+                  {
+                    type: "drag",
+                    qubitId: "missing-qubit",
+                    qubitLogicalId: "missing-logical-qubit",
+                    path: [
+                      { x: 0, y: 0 },
+                      { x: 1, y: 1 },
+                    ],
+                  },
+                ],
+              },
+              items: [
+                {
+                  id: "doc-text-box-2",
+                  type: "text-box",
+                  left: 90,
+                  top: 100,
+                  width: 320,
+                  height: 150,
+                  text: "Original second scene.",
+                  buttons: ["done"],
+                  buttonMode: "done",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator("#tab-doc-editor").click();
@@ -2584,7 +2689,7 @@ async function runDocEditorTextPersistenceSmoke(page) {
 
   const stored = await page.evaluate(() => {
     const documents = JSON.parse(
-      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
+      JSON.stringify(window.readQuantumContentState("documents")),
     ).documents || [];
     const documentEntry = documents.find(
       (entry) => entry.tabId === "doc-text-persist",
@@ -2675,202 +2780,6 @@ async function runDocEditorTextPersistenceSmoke(page) {
   ) {
     throw new Error(
       `What's this runtime did not use persisted scene geometry: ${JSON.stringify(runtimeState)}`,
-    );
-  }
-}
-
-async function runInitialWhatsThisSeedSmoke(page) {
-  await page.evaluate(() => {
-    localStorage.setItem(
-      "quantum_generated_tabs_v1",
-      JSON.stringify({
-        tabs: [
-          {
-            id: "seed-one-qubit",
-            label: "One Qubit",
-            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
-          },
-          {
-            id: "seed-two-qubits",
-            label: "Two Qubits",
-            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
-          },
-          {
-            id: "seed-entanglement-2",
-            label: "Entanglement 2",
-            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
-          },
-          {
-            id: "seed-entanglement-3",
-            label: "Entanglement 3",
-            layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
-          },
-        ],
-      }),
-    );
-    localStorage.removeItem("quantum_whats_this_documents_v1");
-    localStorage.removeItem("quantum_whats_this_documents_seed_v1");
-  });
-  await page.reload({ waitUntil: "domcontentloaded" });
-
-  const seeded = await page.evaluate(() => {
-    const documents = JSON.parse(
-      localStorage.getItem("quantum_whats_this_documents_v1") || "{}",
-    ).documents || [];
-    const byTab = Object.fromEntries(
-      documents.map((entry) => [entry.tabId, entry]),
-    );
-    return {
-      seedVersion:
-        localStorage.getItem("quantum_whats_this_documents_seed_v1") || "",
-      tabIds: documents.map((entry) => entry.tabId),
-      sceneCounts: Object.fromEntries(
-        documents.map((entry) => [entry.tabId, entry.scenes?.length || 0]),
-      ),
-      buttons: {
-        one: Boolean(
-          document.querySelector(
-            "#panel-seed-one-qubit [data-generated-document-action='whats-this']",
-          ),
-        ),
-        two: Boolean(
-          document.querySelector(
-            "#panel-seed-two-qubits [data-generated-document-action='whats-this']",
-          ),
-        ),
-        entanglement2: Boolean(
-          document.querySelector(
-            "#panel-seed-entanglement-2 [data-generated-document-action='whats-this']",
-          ),
-        ),
-        entanglement3: Boolean(
-          document.querySelector(
-            "#panel-seed-entanglement-3 [data-generated-document-action='whats-this']",
-          ),
-        ),
-      },
-      firstText:
-        byTab["seed-one-qubit"]?.scenes?.[0]?.items?.find(
-          (item) => item.type === "text-box",
-        )?.text || "",
-      oldEntanglementDocument: Boolean(byTab["seed-entanglement-1"]),
-      entanglementTitle: byTab["seed-entanglement-2"]?.title || "",
-      showScenes: documents.flatMap((entry) =>
-        (entry.scenes || [])
-          .filter((scene) =>
-            (scene.items || []).some((item) =>
-              (item.buttons || []).includes("show"),
-            ),
-          )
-          .map((scene) => ({
-            tabId: entry.tabId,
-            sceneId: scene.id,
-            actions: scene.experiment?.actions?.length || 0,
-          })),
-      ),
-    };
-  });
-  if (
-    seeded.seedVersion !== "qubit-lab-scripts-v2" ||
-    seeded.tabIds.length !== 3 ||
-    !seeded.tabIds.includes("seed-one-qubit") ||
-    !seeded.tabIds.includes("seed-two-qubits") ||
-    !seeded.tabIds.includes("seed-entanglement-2") ||
-    seeded.tabIds.includes("seed-entanglement-3") ||
-    seeded.sceneCounts["seed-one-qubit"] !== 5 ||
-    seeded.sceneCounts["seed-two-qubits"] !== 4 ||
-    seeded.sceneCounts["seed-entanglement-2"] !== 4 ||
-    !seeded.buttons.one ||
-    !seeded.buttons.two ||
-    !seeded.buttons.entanglement2 ||
-    seeded.buttons.entanglement3 ||
-    !seeded.firstText.includes("People often talk about qubits") ||
-    seeded.oldEntanglementDocument ||
-    seeded.entanglementTitle !== "Entanglement" ||
-    seeded.showScenes.length < 4 ||
-    seeded.showScenes.some((scene) => scene.actions === 0)
-  ) {
-    throw new Error(
-      `Initial What's this seed failed: ${JSON.stringify(seeded)}`,
-    );
-  }
-
-  await page.locator("#tab-seed-one-qubit").click();
-  await page
-    .locator(
-      "#panel-seed-one-qubit [data-generated-document-action='whats-this']",
-    )
-    .click();
-  await wait(250);
-  const runtime = await page.evaluate(() => {
-    const panel = document.getElementById("panel-seed-one-qubit");
-    const canvas = panel?.querySelector(".generated-layout-canvas");
-    const firstText =
-      canvas?.querySelector('[data-role="text-box-body"]')?.textContent || "";
-    const nextButton = canvas?.querySelector(
-      '[data-role="text-box-action"][data-text-box-action="next"]',
-    );
-    nextButton?.click();
-    const secondText =
-      canvas?.querySelector('[data-role="text-box-body"]')?.textContent || "";
-    const showButton = canvas?.querySelector(
-      '[data-role="text-box-action"][data-text-box-action="show"]',
-    );
-    return {
-      docRuntime: canvas?.dataset.docRuntimeCanvas || "",
-      tabId: canvas?.dataset.generatedTabId || "",
-      firstText,
-      secondText,
-      hasShow: Boolean(showButton),
-      sceneLabel:
-        document.querySelector("#docRuntimeSceneLabel")?.textContent || "",
-    };
-  });
-  if (
-    runtime.docRuntime !== "true" ||
-    runtime.tabId !== "seed-one-qubit" ||
-    !runtime.firstText.includes("People often talk about qubits") ||
-    !runtime.secondText.includes("The blue circle is a qubit") ||
-    !runtime.hasShow ||
-    runtime.sceneLabel !== "Scene 2 of 5"
-  ) {
-    throw new Error(
-      `Seeded What's this runtime failed: ${JSON.stringify(runtime)}`,
-    );
-  }
-
-  await page
-    .locator(
-      "#panel-seed-one-qubit [data-role='text-box-action'][data-text-box-action='show']",
-    )
-    .click();
-  const deadline = Date.now() + 8000;
-  let showRun = null;
-  while (Date.now() < deadline) {
-    showRun = await page.evaluate(() => {
-      const panel = document.getElementById("panel-seed-one-qubit");
-      const canvas = panel?.querySelector(".generated-layout-canvas");
-      const qubit = canvas?.querySelector("[data-component='qubit']");
-      const state = generatedExperimentStateForCanvas(canvas);
-      return {
-        qubitLeft: Math.round(parseFloat(qubit?.style.left || "0")),
-        playing: Boolean(state?.playing),
-        playbackResultVisible: Boolean(state?.playbackResultVisible),
-      };
-    });
-    if (!showRun.playing && showRun.playbackResultVisible) {
-      break;
-    }
-    await wait(250);
-  }
-  if (
-    !showRun ||
-    showRun.playing ||
-    !showRun.playbackResultVisible ||
-    showRun.qubitLeft <= 180
-  ) {
-    throw new Error(
-      `Seeded What's this Show me action failed: ${JSON.stringify(showRun)}`,
     );
   }
 }
@@ -3557,10 +3466,83 @@ async function runEntangledMathSmoke(page) {
   }
 }
 
+async function runFileModeRepositoryContentSmoke(browser) {
+  const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text());
+    }
+  });
+  try {
+    const fileUrl = pathToFileURL(path.join(rootDir, "index.html")).href;
+    await page.goto(fileUrl, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#tab-custom-one-qubit");
+    const result = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll(".tab-btn")).map(
+        (button) => button.textContent.trim(),
+      );
+      const bundleFiles = window.__QUANTUM_REPOSITORY_CONTENT__?.files || {};
+      const tabs = bundleFiles["data/generated-tabs.json"]?.tabs || [];
+      const docs =
+        bundleFiles["data/whats-this-documents.json"]?.documents || [];
+      const one = docs.find((doc) => doc.tabId === "custom-one-qubit");
+      const last = one?.scenes?.[one.scenes.length - 1];
+      const lastText = (last?.items || [])
+        .filter((item) => item.type === "text-box")
+        .map((item) => item.text || "")
+        .join("\n");
+      const oneQubitToolbar = document.querySelector(
+        "#panel-custom-one-qubit [data-generated-document-action='whats-this']",
+      );
+      const landingToolbar = document.querySelector(
+        "#panel-editor-introduction [data-generated-document-action='whats-this']",
+      );
+      return {
+        labels,
+        generatedLabels: tabs.map((tab) => tab.label),
+        oneQubitLastSceneHasMarker: lastText.includes(
+          "I recommend working through the tabs in order",
+        ),
+        oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
+        hasAuthoringTabs: Boolean(
+          document.querySelector("#tab-plaground") &&
+            document.querySelector("#tab-doc-editor"),
+        ),
+        hasOneQubitToolbar: Boolean(oneQubitToolbar),
+        hasLandingToolbar: Boolean(landingToolbar),
+      };
+    });
+    if (
+      result.labels.join("|") !== expectedLocalFileTabLabels.join("|") ||
+      result.generatedLabels.join("|") !== expectedGeneratedTabLabels.join("|") ||
+      !result.hasAuthoringTabs ||
+      !result.hasOneQubitToolbar ||
+      result.hasLandingToolbar ||
+      !result.oneQubitLastSceneHasMarker ||
+      result.oneQubitLastSceneHasClue ||
+      errors.length > 0
+    ) {
+      throw new Error(
+        `File-mode repository content smoke failed: ${JSON.stringify({
+          ...result,
+          errors,
+        })}`,
+      );
+    }
+    return result;
+  } finally {
+    await page.close();
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
+    const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+    await installContentApiHelpers(page);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
@@ -3577,12 +3559,9 @@ async function runSmokeTest(baseUrl) {
     await runDocEditorMeasurementRecordingSmoke(page);
     await runDocEditorTwoQubitPlaybackSmoke(page);
     await runDocEditorTextPersistenceSmoke(page);
-    await runInitialWhatsThisSeedSmoke(page);
 
-  await page.evaluate(() => {
-    localStorage.setItem(
-      "quantum_generated_tabs_v1",
-      JSON.stringify({
+    await page.evaluate(() => {
+      window.writeQuantumContentState("generated-tabs", {
         tabs: [
           {
             id: "editor-fresh-double",
@@ -3750,8 +3729,7 @@ async function runSmokeTest(baseUrl) {
             },
           },
         ],
-        }),
-      );
+      });
     });
 
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -4248,6 +4226,7 @@ async function runSmokeTest(baseUrl) {
     }
     return {
       ok: true,
+      fileMode,
       recordedOnce,
       gateInitialCounts,
 	      gateUpdatedCounts,

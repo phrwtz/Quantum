@@ -6,6 +6,13 @@ const { chromium } = require("playwright");
 
 const rootDir = path.resolve(__dirname, "..");
 const distDir = path.join(rootDir, "dist");
+const expectedPublishedTabLabels = [
+  "Introduction",
+  "One qubit",
+  "Two qubits",
+  "Entanglement 1",
+  "Entanglement 2",
+];
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -74,39 +81,6 @@ async function runSmoke(baseUrl) {
         errors.push(message.text());
       }
     });
-    await page.addInitScript(() => {
-      localStorage.setItem(
-        "quantum_whats_this_documents_seed_v1",
-        "qubit-lab-scripts-v1",
-      );
-      localStorage.setItem(
-        "quantum_whats_this_documents_v1",
-        JSON.stringify({
-          documents: [
-            {
-              version: 1,
-              tabId: "one-qubit",
-              title: "Old One Qubit",
-              scenes: [
-                {
-                  id: "old-scene",
-                  title: "Old scene",
-                  canvasWidth: 900,
-                  canvasHeight: 560,
-                  items: [
-                    {
-                      id: "old-text",
-                      type: "text-box",
-                      text: "People often say a qubit is like a bit.",
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        }),
-      );
-    });
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector(".tab-btn.generated-tab-btn");
 
@@ -123,11 +97,33 @@ async function runSmoke(baseUrl) {
       const landingButtonLabels = Array.from(
         landingPanel?.querySelectorAll("button") || [],
       ).map((button) => button.textContent.trim());
+      const whatsThisTargets = publicTargets.filter((target) =>
+        Boolean(
+          document
+            .getElementById(`panel-${target}`)
+            ?.querySelector("[data-generated-document-action='whats-this']"),
+        ),
+      );
+      const docs =
+        window.__QUANTUM_REPOSITORY_CONTENT__?.files?.[
+          "data/whats-this-documents.json"
+        ] || { documents: [] };
+      const one = docs.documents.find((doc) => doc.tabId === "custom-one-qubit");
+      const last = one?.scenes?.[one.scenes.length - 1];
+      const lastText = (last?.items || [])
+        .filter((item) => item.type === "text-box")
+        .map((item) => item.text || "")
+        .join("\n");
       return {
         target: document.documentElement.dataset.quantumTarget || "",
         labels,
         publicTargets,
         landingButtonLabels,
+        whatsThisTargets,
+        oneQubitLastSceneHasMarker: lastText.includes(
+          "I recommend working through the tabs in order",
+        ),
+        oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
         activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget,
         authoringButtons: Boolean(
           document.querySelector("#tab-plaground, #tab-doc-editor"),
@@ -144,7 +140,7 @@ async function runSmoke(baseUrl) {
 
     if (
       result.target !== "github-pages" ||
-      result.labels.length === 0 ||
+      result.labels.join("|") !== expectedPublishedTabLabels.join("|") ||
       result.publicTargets.length !== result.labels.length ||
       result.publicTargets.some((target) => !target) ||
       result.activeTarget !== result.publicTargets[0] ||
@@ -152,6 +148,10 @@ async function runSmoke(baseUrl) {
       result.authoringPanels ||
       result.editorToolbars !== 0 ||
       result.generatedPanels !== result.publicTargets.length ||
+      result.whatsThisTargets.length !== expectedPublishedTabLabels.length - 1 ||
+      result.whatsThisTargets.includes(result.publicTargets[0]) ||
+      !result.oneQubitLastSceneHasMarker ||
+      result.oneQubitLastSceneHasClue ||
       (result.labels[0] === "Introduction" &&
         result.landingButtonLabels.some((label) =>
           ["Reset", "What's this?"].includes(label),

@@ -8069,7 +8069,7 @@
               "width": 458,
               "height": 237,
               "z": 2,
-              "text": "You might have noticed that the \"unflipping\" process also illustrated something else: the setting on a flipper doesn't represent the final state of the qubit, it tells you how much the flipper will \"rotate\" the qubit from blue to red. So the final state of the qubit depends on what state it started in. Watch closely as we illustrate that point.",
+              "text": "You might have noticed that the \"unflipping\" process also illustrated something else: the setting on a flipper doesn't represent the final state of the qubit, it tells you how much the flipper will \"rotate\" the qubit from blue to red. So the final state of the qubit depends on what state it started in. Watch closely as we illustrate that point.\n\nI recommend working through the tabs in order.",
               "buttons": [
                 "back",
                 "next",
@@ -10190,7 +10190,7 @@
           "savedAt": 1780693252994
         }
       ],
-      "updatedAt": 1780693623654
+      "updatedAt": 1780839825333
     }
   ]
 }

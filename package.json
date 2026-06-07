@@ -7,6 +7,7 @@
     "build:pages": "node scripts/build-pages.cjs",
     "check": "node --check app.js",
     "serve": "node scripts/serve-local.cjs",
+    "sync:content": "node scripts/sync-content-bundle.cjs",
     "test": "node --check app.js && node scripts/smoke-generated-tabs.cjs",
     "test:pages": "node scripts/build-pages.cjs && node scripts/smoke-pages-build.cjs",
     "test:smoke": "node scripts/smoke-generated-tabs.cjs"

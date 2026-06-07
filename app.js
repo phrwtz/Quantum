@@ -135,30 +135,21 @@ const GENERATED_EXPERIMENT_COUNT_ACTION = "experiment-count";
 const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
 const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
   "quantum_playground_component_defaults_v1";
-const GENERATED_TABS_STORAGE_KEY = "quantum_generated_tabs_v1";
 const LEGACY_GENERATED_TABS_PROPERTY = ["cus", "tomTabs"].join("");
 const QUBIT_ID_STORAGE_KEY = "quantum_qubit_next_id_v1";
 const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
-const DOCUMENTS_STORAGE_KEY = "quantum_whats_this_documents_v1";
-const DOCUMENTS_SEED_STORAGE_KEY = "quantum_whats_this_documents_seed_v1";
 const LOCAL_CONTENT_API_PORT = "8124";
 const LOCAL_CONTENT_API_ROOT = "/__quantum-content";
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
-const INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION = "qubit-lab-scripts-v2";
-const GITHUB_PAGES_TAB_IDS = [
-  "introduction",
-  "one-qubit",
-  "two-qubits",
-  "entanglement-1",
-  "entanglement-2",
-];
 const IS_GITHUB_PAGES_BUILD =
   window.location.hostname.endsWith(".github.io") ||
   document.documentElement?.dataset?.quantumTarget === "github-pages" ||
   new URLSearchParams(window.location.search).get("quantumTarget") ===
     "github-pages";
+const CONTENT_FILE_CACHE_BUST =
+  document.documentElement?.dataset?.quantumContentVersion || "";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -894,14 +885,6 @@ function maxKnownQubitId() {
     maxId,
     maxQubitIdInGroupComponentsPayload(playgroundGroupComponentsCache),
   );
-  try {
-    const generatedTabsPayload = JSON.parse(
-      window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY) || "{}",
-    );
-    maxId = Math.max(maxId, maxQubitIdInGeneratedTabsPayload(generatedTabsPayload));
-  } catch (_error) {
-    // Ignore malformed persisted tabs when choosing the next id.
-  }
   try {
     const groupPayload = JSON.parse(
       window.localStorage.getItem(PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY) ||
@@ -1659,9 +1642,7 @@ function localContentApiEndpoint(contentName) {
   }
   const host = String(window.location.hostname || "").toLowerCase();
   const localHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-  return localHosts.has(host) && window.location.port === LOCAL_CONTENT_API_PORT
-    ? path
-    : "";
+  return localHosts.has(host) ? path : "";
 }
 
 function readJsonResourceSync(url) {
@@ -1707,78 +1688,52 @@ function writeLocalContentState(contentName, state) {
   return writeJsonResourceSync(localContentApiEndpoint(contentName), state);
 }
 
+function readBundledContentState(relativePath) {
+  const bundle = window.__QUANTUM_REPOSITORY_CONTENT__;
+  const files = bundle && typeof bundle === "object" ? bundle.files : null;
+  if (!files || typeof files !== "object") {
+    return null;
+  }
+  return cloneJson(files[relativePath]);
+}
+
 function readContentFileState(relativePath) {
-  return readJsonResourceSync(relativePath);
-}
-
-function normalizeGeneratedTabsContentState(state) {
-  if (!state || typeof state !== "object") {
-    return null;
+  const bundledState = readBundledContentState(relativePath);
+  if (window.location.protocol === "file:" && bundledState) {
+    return bundledState;
   }
-  return normalizeGeneratedTabsState(state).state;
-}
-
-function generatedTabsStateHasTabs(state) {
-  return Array.isArray(state?.tabs) && state.tabs.length > 0;
-}
-
-function readGeneratedTabsLocalStorageState() {
-  try {
-    const serialized = window.localStorage.getItem(GENERATED_TABS_STORAGE_KEY);
-    if (!serialized) {
-      return null;
-    }
-    const parsed = JSON.parse(serialized);
-    const normalized = normalizeGeneratedTabsState(parsed);
-    if (normalized.changed) {
-      window.localStorage.setItem(
-        GENERATED_TABS_STORAGE_KEY,
-        JSON.stringify(normalized.state),
-      );
-    }
-    return normalized.state;
-  } catch (_error) {
-    return null;
+  if (!IS_GITHUB_PAGES_BUILD || !CONTENT_FILE_CACHE_BUST) {
+    return readJsonResourceSync(relativePath) || bundledState;
   }
+  const separator = relativePath.includes("?") ? "&" : "?";
+  return (
+    readJsonResourceSync(
+      `${relativePath}${separator}v=${encodeURIComponent(CONTENT_FILE_CACHE_BUST)}`,
+    ) || bundledState
+  );
 }
 
-function writeGeneratedTabsLocalStorageState(state) {
-  try {
-    const normalized = normalizeGeneratedTabsState(state);
-    window.localStorage.setItem(
-      GENERATED_TABS_STORAGE_KEY,
-      JSON.stringify(normalized.state),
-    );
-    return true;
-  } catch (_error) {
-    return false;
+function readRepositoryContentState(contentName, relativePath) {
+  const bundledState = readBundledContentState(relativePath);
+  if (window.location.protocol === "file:" && bundledState) {
+    return bundledState;
   }
+  return readLocalContentState(contentName) || readContentFileState(relativePath);
 }
 
 function readGeneratedTabsState() {
-  if (IS_GITHUB_PAGES_BUILD) {
-    const fileState = normalizeGeneratedTabsContentState(
-      readContentFileState(GENERATED_TABS_CONTENT_FILE),
-    );
-    return generatedTabsStateHasTabs(fileState)
-      ? fileState
-      : normalizeGeneratedTabsState(createGithubPagesGeneratedTabsState()).state;
-  }
-
-  const fileState = normalizeGeneratedTabsContentState(
-    readLocalContentState("generated-tabs"),
+  const fileState = readRepositoryContentState(
+    "generated-tabs",
+    GENERATED_TABS_CONTENT_FILE,
   );
-  if (generatedTabsStateHasTabs(fileState)) {
-    return fileState;
+  if (!fileState || typeof fileState !== "object") {
+    return { tabs: [] };
   }
-
-  const storedState = readGeneratedTabsLocalStorageState();
-  if (generatedTabsStateHasTabs(storedState)) {
-    writeLocalContentState("generated-tabs", storedState);
-    return storedState;
+  const normalized = normalizeGeneratedTabsState(fileState);
+  if (normalized.changed && !IS_GITHUB_PAGES_BUILD) {
+    writeLocalContentState("generated-tabs", normalized.state);
   }
-
-  return fileState || storedState || { tabs: [] };
+  return normalized.state;
 }
 
 function writeGeneratedTabsState(state) {
@@ -1789,7 +1744,7 @@ function writeGeneratedTabsState(state) {
   if (writeLocalContentState("generated-tabs", normalized)) {
     return true;
   }
-  return writeGeneratedTabsLocalStorageState(normalized);
+  return false;
 }
 
 function createDocumentScene(overrides = {}) {
@@ -1873,59 +1828,11 @@ function normalizeDocumentsContentState(state) {
   return normalizeDocumentsState(state);
 }
 
-function documentsStateHasDocuments(state) {
-  return Array.isArray(state?.documents) && state.documents.length > 0;
-}
-
-function readDocumentsLocalStorageState() {
-  try {
-    const serialized = window.localStorage.getItem(DOCUMENTS_STORAGE_KEY);
-    if (!serialized) {
-      return null;
-    }
-    return normalizeDocumentsState(JSON.parse(serialized));
-  } catch (_error) {
-    return null;
-  }
-}
-
-function writeDocumentsLocalStorageState(state) {
-  try {
-    const normalized = normalizeDocumentsState(state);
-    window.localStorage.setItem(
-      DOCUMENTS_STORAGE_KEY,
-      JSON.stringify(normalized),
-    );
-    documentsState = normalized;
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
 function readDocumentsState() {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return (
-      normalizeDocumentsContentState(
-        readContentFileState(DOCUMENTS_CONTENT_FILE),
-      ) || { documents: [] }
-    );
-  }
-
   const fileState = normalizeDocumentsContentState(
-    readLocalContentState("documents"),
+    readRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
   );
-  if (documentsStateHasDocuments(fileState)) {
-    return fileState;
-  }
-
-  const storedState = readDocumentsLocalStorageState();
-  if (documentsStateHasDocuments(storedState)) {
-    writeLocalContentState("documents", storedState);
-    return storedState;
-  }
-
-  return fileState || storedState || { documents: [] };
+  return fileState || { documents: [] };
 }
 
 function writeDocumentsState(state) {
@@ -1938,784 +1845,7 @@ function writeDocumentsState(state) {
     documentsState = normalized;
     return true;
   }
-  return writeDocumentsLocalStorageState(normalized);
-}
-
-function seededTextBoxItem(id, text, buttons, geometry = {}) {
-  const normalizedButtons = Array.isArray(buttons) ? buttons : [];
-  const buttonKey = normalizedButtons.join(",");
-  const buttonMode =
-    buttonKey === "next"
-      ? "next"
-      : buttonKey === "done"
-        ? "done"
-        : buttonKey === "next,done"
-          ? "next-done"
-          : "custom";
-  return {
-    id,
-    type: "text-box",
-    left: Number.isFinite(geometry.left) ? geometry.left : 36,
-    top: Number.isFinite(geometry.top) ? geometry.top : 30,
-    width: Number.isFinite(geometry.width) ? geometry.width : 388,
-    height: Number.isFinite(geometry.height) ? geometry.height : 178,
-    z: Number.isFinite(geometry.z) ? geometry.z : 20,
-    text,
-    buttons: normalizedButtons,
-    buttonMode,
-  };
-}
-
-function seededQubitItem(id, left, top, qubitId, size = 58, vector = [1, 0]) {
-  const item = {
-    id,
-    type: "qubit",
-    left,
-    top,
-    width: size,
-    height: size,
-    qubitId,
-  };
-  Object.defineProperty(item, "__seedVector", {
-    value: vector,
-    enumerable: false,
-  });
-  return item;
-}
-
-function seededSingleGateItem(
-  id,
-  left,
-  top,
-  width = 320,
-  height = 160,
-  singleGateTick = DEFAULT_SINGLE_GATE_TICK_INDEX,
-) {
-  return {
-    id,
-    type: "single-gate",
-    left,
-    top,
-    width,
-    height,
-    singleGateTick,
-  };
-}
-
-function seededSingleMeasurementItem(
-  id,
-  left,
-  top,
-  width = 360,
-  height = 330,
-) {
-  return {
-    id,
-    type: "single-measurement",
-    left,
-    top,
-    width,
-    height,
-  };
-}
-
-function seededDoubleMeasurementItem(
-  id,
-  left,
-  top,
-  width = 430,
-  height = 380,
-) {
-  return {
-    id,
-    type: "double-measurement",
-    left,
-    top,
-    width,
-    height,
-  };
-}
-
-function seededCnotItem(id, left, top, width = 360, height = 220) {
-  return {
-    id,
-    type: "cnot-gate",
-    left,
-    top,
-    width,
-    height,
-  };
-}
-
-function seededQubitCenter(item) {
-  return {
-    x: parseLayoutNumeric(item.left, 0) + parseLayoutNumeric(item.width, 0) / 2,
-    y: parseLayoutNumeric(item.top, 0) + parseLayoutNumeric(item.height, 0) / 2,
-  };
-}
-
-function seededInitialQubit(item) {
-  return {
-    itemId: item.id,
-    logicalQubitId: item.qubitId,
-    center: seededQubitCenter(item),
-    vector: Array.isArray(item.__seedVector) ? item.__seedVector : [1, 0],
-  };
-}
-
-function seededExperiment(items, actions) {
-  return {
-    version: 1,
-    recordedAt: 0,
-    initialQubits: items
-      .filter((item) => item?.type === "qubit")
-      .map(seededInitialQubit),
-    gateSettings: items
-      .filter((item) => item?.type === "single-gate")
-      .map((item) => ({
-        itemId: item.id,
-        tickIndex: Number.isFinite(item.singleGateTick)
-          ? item.singleGateTick
-          : DEFAULT_SINGLE_GATE_TICK_INDEX,
-      })),
-    actions: actions.map((action, index) => ({
-      ...action,
-      t: Number.isFinite(action.t) ? action.t : (index + 1) * 800,
-    })),
-  };
-}
-
-function seededPagesQubitItem(
-  id,
-  left,
-  top,
-  qubitId,
-  size = 58,
-  vector = [1, 0],
-) {
-  return {
-    ...seededQubitItem(id, left, top, qubitId, size, vector),
-    vector,
-  };
-}
-
-function seededPagesLayout(items, canvasWidth, canvasHeight) {
-  return {
-    items,
-    canvasWidth,
-    canvasHeight,
-    gridSnap: true,
-  };
-}
-
-function createPagesIntroductionLayout() {
-  return seededPagesLayout(
-    [
-      seededTextBoxItem(
-        "pages-introduction-text-1",
-        "Welcome to Qubit Lab, a place where you can experiment with qubits, flipping them, measuring them and entangling them. You can even teleport the state of a qubit from one computer to another, all with no knowledge of quantum mechanics and no pesky math to deal with!",
-        [],
-        { left: 42, top: 34, width: 486, height: 214 },
-      ),
-      seededPagesQubitItem("pages-intro-q-top", 94, 314, 901),
-      seededPagesQubitItem("pages-intro-q-bottom", 94, 420, 902),
-      seededSingleGateItem("pages-intro-gate", 246, 338, 320, 160),
-      seededCnotItem("pages-intro-cnot", 604, 304, 330, 210),
-    ],
-    1010,
-    560,
-  );
-}
-
-function createPagesOneQubitLayout() {
-  return seededPagesLayout(
-    [
-      seededPagesQubitItem("pages-one-q", 80, 286, 911),
-      seededSingleGateItem("pages-one-gate", 232, 236, 340, 170),
-      seededSingleMeasurementItem("pages-one-measure", 660, 102, 380, 350),
-    ],
-    1080,
-    560,
-  );
-}
-
-function createPagesTwoQubitsLayout() {
-  return seededPagesLayout(
-    [
-      seededPagesQubitItem("pages-two-q-top", 78, 224, 921),
-      seededPagesQubitItem("pages-two-q-bottom", 78, 356, 922),
-      seededSingleGateItem("pages-two-gate-top", 224, 168, 320, 150),
-      seededSingleGateItem("pages-two-gate-bottom", 224, 308, 320, 150),
-      seededDoubleMeasurementItem("pages-two-measure", 640, 112, 440, 390),
-    ],
-    1120,
-    610,
-  );
-}
-
-function createPagesEntanglementOneLayout() {
-  return seededPagesLayout(
-    [
-      seededPagesQubitItem("pages-ent-one-q-top", 86, 240, 931, 58, [0, 1]),
-      seededPagesQubitItem("pages-ent-one-q-bottom", 86, 376, 932),
-      seededCnotItem("pages-ent-one-cnot", 282, 242, 360, 220),
-      seededDoubleMeasurementItem("pages-ent-one-measure", 720, 112, 440, 390),
-    ],
-    1200,
-    620,
-  );
-}
-
-function createPagesEntanglementTwoLayout() {
-  return seededPagesLayout(
-    [
-      seededPagesQubitItem(
-        "pages-ent-two-q-top",
-        86,
-        240,
-        941,
-        58,
-        [Math.SQRT1_2, Math.SQRT1_2],
-      ),
-      seededPagesQubitItem("pages-ent-two-q-bottom", 86, 376, 942),
-      seededCnotItem("pages-ent-two-cnot", 282, 242, 360, 220),
-      seededDoubleMeasurementItem("pages-ent-two-measure", 720, 112, 440, 390),
-    ],
-    1200,
-    620,
-  );
-}
-
-function createGithubPagesGeneratedTabsState() {
-  const definitions = [
-    {
-      id: "introduction",
-      label: "Introduction",
-      createLayout: createPagesIntroductionLayout,
-    },
-    {
-      id: "one-qubit",
-      label: "One qubit",
-      createLayout: createPagesOneQubitLayout,
-    },
-    {
-      id: "two-qubits",
-      label: "Two qubits",
-      createLayout: createPagesTwoQubitsLayout,
-    },
-    {
-      id: "entanglement-1",
-      label: "Entanglement 1",
-      createLayout: createPagesEntanglementOneLayout,
-    },
-    {
-      id: "entanglement-2",
-      label: "Entanglement 2",
-      createLayout: createPagesEntanglementTwoLayout,
-    },
-  ];
-  return {
-    tabs: definitions.map((definition) => ({
-      id: definition.id,
-      label: definition.label,
-      layout: definition.createLayout(),
-    })),
-  };
-}
-
-function createOneQubitWhatsThisDocument(tabId) {
-  const setupItems = [
-    seededTextBoxItem(
-      "one-qubit-setup-text",
-      "People often talk about qubits as though they are like bits except that somehow they can be zero and one all at once. That analogy is incomplete and misleading. Coins have two states, heads and tails, and qubits also have two states. In Qubit Lab we use two colors: blue and red.",
-      ["next", "done"],
-      { height: 246 },
-    ),
-    seededQubitItem("one-qubit-setup-q", 82, 334, 101),
-    seededSingleGateItem("one-qubit-setup-gate", 226, 292),
-    seededSingleMeasurementItem("one-qubit-setup-measure", 586, 142),
-  ];
-  const gateItems = [
-    seededTextBoxItem(
-      "one-qubit-gate-text",
-      "The blue circle is a qubit in the blue state. The funny looking tank-like object is a flipper. In analogy to flipping a coin, it acts on a qubit to change its state. Click Show me to run the qubit through the flipper.",
-      ["back", "show", "next", "done"],
-      { height: 236 },
-    ),
-    seededQubitItem("one-qubit-gate-q", 92, 338, 102),
-    seededSingleGateItem("one-qubit-gate", 260, 292),
-  ];
-  const measureItems = [
-    seededTextBoxItem(
-      "one-qubit-measure-text",
-      "After the flipper, the qubit changes to a purplish color, something in between blue and red. The magnifying glass is a tool for measuring the state of a qubit. When you measure a qubit, it always comes out either red or blue.",
-      ["back", "show", "next", "done"],
-      { height: 236 },
-    ),
-    seededQubitItem("one-qubit-measure-q", 82, 334, 103),
-    seededSingleGateItem("one-qubit-measure-gate", 226, 292),
-    seededSingleMeasurementItem("one-qubit-measure-tool", 586, 142),
-  ];
-  const repeatItems = [
-    seededTextBoxItem(
-      "one-qubit-repeat-text",
-      "Qubit Lab lets you repeat the same experiment as many times as you like. Small counts replay the movie, but large counts run as fast as possible while the thermometers keep track of the outcomes. With the flipper set to 3, about half the measurements come out blue and half red.",
-      ["back", "next", "done"],
-      { height: 256 },
-    ),
-    seededQubitItem("one-qubit-repeat-q", 82, 334, 104),
-    seededSingleGateItem("one-qubit-repeat-gate", 226, 292),
-    seededSingleMeasurementItem("one-qubit-repeat-tool", 586, 142),
-  ];
-  return {
-    version: 1,
-    tabId,
-    title: "One Qubit",
-    scenes: [
-      {
-        id: "one-qubit-intro",
-        title: "Qubits use colors",
-        canvasWidth: 980,
-        canvasHeight: 560,
-        items: setupItems,
-        savedAt: 0,
-      },
-      {
-        id: "one-qubit-flipper",
-        title: "The flipper",
-        canvasWidth: 980,
-        canvasHeight: 560,
-        items: gateItems,
-        experiment: seededExperiment(gateItems, [
-          {
-            type: "gate",
-            qubitId: "one-qubit-gate-q",
-            qubitLogicalId: 102,
-            gateId: "one-qubit-gate",
-            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
-          },
-        ]),
-        savedAt: 0,
-      },
-      {
-        id: "one-qubit-measurement",
-        title: "Measurement",
-        canvasWidth: 980,
-        canvasHeight: 560,
-        items: measureItems,
-        experiment: seededExperiment(measureItems, [
-          {
-            type: "gate",
-            qubitId: "one-qubit-measure-q",
-            qubitLogicalId: 103,
-            gateId: "one-qubit-measure-gate",
-            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
-          },
-          {
-            type: "single-measure",
-            qubitId: "one-qubit-measure-q",
-            qubitLogicalId: 103,
-            measurementId: "one-qubit-measure-tool",
-          },
-        ]),
-        savedAt: 0,
-      },
-      {
-        id: "one-qubit-repeat",
-        title: "Repeat the experiment",
-        canvasWidth: 980,
-        canvasHeight: 560,
-        items: repeatItems,
-        savedAt: 0,
-      },
-      {
-        id: "one-qubit-explore",
-        title: "Try changing it",
-        canvasWidth: 980,
-        canvasHeight: 560,
-        items: [
-          seededTextBoxItem(
-            "one-qubit-explore-text",
-            "So far qubits look a lot like coins. One difference is the clock hand on the flipper. You can drag it to a different time. What do you think will happen? What happens if you send the qubit through the flipper twice or three times before measuring it?",
-            ["back", "done"],
-            { height: 246 },
-          ),
-          seededQubitItem("one-qubit-explore-q", 92, 338, 105),
-          seededSingleGateItem("one-qubit-explore-gate", 260, 292),
-          seededSingleMeasurementItem("one-qubit-explore-tool", 586, 142),
-        ],
-        savedAt: 0,
-      },
-    ],
-    updatedAt: 0,
-  };
-}
-
-function createTwoQubitsWhatsThisDocument(tabId) {
-  const setupItems = [
-    seededTextBoxItem(
-      "two-qubits-setup-text",
-      "Now we have two qubits, two flippers, and a different kind of magnifying glass that measures two qubits at once. Both flippers are set to 3. What do you think will happen when the qubits are flipped and then measured?",
-      ["next", "done"],
-      { height: 236 },
-    ),
-    seededQubitItem("two-qubits-setup-q-top", 78, 284, 201),
-    seededQubitItem("two-qubits-setup-q-bottom", 78, 396, 202),
-    seededSingleGateItem("two-qubits-setup-gate-top", 214, 230, 300, 145),
-    seededSingleGateItem("two-qubits-setup-gate-bottom", 214, 342, 300, 145),
-    seededDoubleMeasurementItem("two-qubits-setup-measure", 572, 150),
-  ];
-  const runItems = [
-    seededTextBoxItem(
-      "two-qubits-run-text",
-      "You may notice that qubits can come out with a plus or minus sign when they are not purely red or blue. For the moment there is no difference between those states, but for more complicated situations those signs matter. A single run gives one of four possible outcomes.",
-      ["back", "show", "next", "done"],
-      { height: 256 },
-    ),
-    seededQubitItem("two-qubits-run-q-top", 78, 284, 203),
-    seededQubitItem("two-qubits-run-q-bottom", 78, 396, 204),
-    seededSingleGateItem("two-qubits-run-gate-top", 214, 230, 300, 145),
-    seededSingleGateItem("two-qubits-run-gate-bottom", 214, 342, 300, 145),
-    seededDoubleMeasurementItem("two-qubits-run-measure", 572, 150),
-  ];
-  return {
-    version: 1,
-    tabId,
-    title: "Two Qubits",
-    scenes: [
-      {
-        id: "two-qubits-setup",
-        title: "Two flippers",
-        canvasWidth: 1040,
-        canvasHeight: 610,
-        items: setupItems,
-        savedAt: 0,
-      },
-      {
-        id: "two-qubits-first-run",
-        title: "One run",
-        canvasWidth: 1040,
-        canvasHeight: 610,
-        items: runItems,
-        experiment: seededExperiment(runItems, [
-          {
-            type: "gate",
-            qubitId: "two-qubits-run-q-top",
-            qubitLogicalId: 203,
-            gateId: "two-qubits-run-gate-top",
-            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
-          },
-          {
-            type: "gate",
-            qubitId: "two-qubits-run-q-bottom",
-            qubitLogicalId: 204,
-            gateId: "two-qubits-run-gate-bottom",
-            tickIndex: DEFAULT_SINGLE_GATE_TICK_INDEX,
-          },
-          {
-            type: "double-measure",
-            measurementId: "two-qubits-run-measure",
-            leftQubitId: "two-qubits-run-q-top",
-            rightQubitId: "two-qubits-run-q-bottom",
-            leftQubitLogicalId: 203,
-            rightQubitLogicalId: 204,
-            topQubitId: "two-qubits-run-q-top",
-            bottomQubitId: "two-qubits-run-q-bottom",
-            topQubitLogicalId: 203,
-            bottomQubitLogicalId: 204,
-          },
-        ]),
-        savedAt: 0,
-      },
-      {
-        id: "two-qubits-repeat",
-        title: "Repeat it",
-        canvasWidth: 1040,
-        canvasHeight: 610,
-        items: [
-          seededTextBoxItem(
-            "two-qubits-repeat-text",
-            "One run is not enough to know what is going on. Try five runs, then try ten thousand. Before you run the larger count, make a prediction. Do the four thermometers fill in the way you expected?",
-            ["back", "next", "done"],
-            { height: 226 },
-          ),
-          seededQubitItem("two-qubits-repeat-q-top", 78, 284, 205),
-          seededQubitItem("two-qubits-repeat-q-bottom", 78, 396, 206),
-          seededSingleGateItem("two-qubits-repeat-gate-top", 214, 230, 300, 145),
-          seededSingleGateItem("two-qubits-repeat-gate-bottom", 214, 342, 300, 145),
-          seededDoubleMeasurementItem("two-qubits-repeat-measure", 572, 150),
-        ],
-        savedAt: 0,
-      },
-      {
-        id: "two-qubits-explore",
-        title: "Try changing it",
-        canvasWidth: 1040,
-        canvasHeight: 610,
-        items: [
-          seededTextBoxItem(
-            "two-qubits-explore-text",
-            "What do you think would happen if you changed the clocks on the two flippers? Try changing one clock but not the other, then try matching settings and compare the results.",
-            ["back", "done"],
-            { height: 206 },
-          ),
-          seededQubitItem("two-qubits-explore-q-top", 78, 284, 207),
-          seededQubitItem("two-qubits-explore-q-bottom", 78, 396, 208),
-          seededSingleGateItem("two-qubits-explore-gate-top", 214, 230, 300, 145),
-          seededSingleGateItem("two-qubits-explore-gate-bottom", 214, 342, 300, 145),
-          seededDoubleMeasurementItem("two-qubits-explore-measure", 572, 150),
-        ],
-        savedAt: 0,
-      },
-    ],
-    updatedAt: 0,
-  };
-}
-
-function createEntanglementWhatsThisDocument(tabId) {
-  const pureItems = [
-    seededTextBoxItem(
-      "entanglement-pure-text",
-      "Flipping individual qubits and then measuring the pair did not add much, but now it gets interesting. The funny looking fat tank is a C-NOT gate. Think of it as a controlled flipper: if the top qubit is blue, the bottom qubit is unchanged; if the top qubit is red, the bottom qubit switches from blue to red.",
-      ["next", "done"],
-      { height: 286 },
-    ),
-    seededQubitItem("entanglement-pure-q-top", 88, 282, 301),
-    seededQubitItem("entanglement-pure-q-bottom", 88, 398, 302),
-    seededCnotItem("entanglement-pure-cnot", 292, 278),
-    seededDoubleMeasurementItem("entanglement-pure-measure", 676, 148),
-  ];
-  const redControlItems = [
-    seededTextBoxItem(
-      "entanglement-red-control-text",
-      "The C-NOT takes two qubits. Here the top control qubit starts red and the bottom target starts blue. Click Show me to see the target flip, then both qubits go into the magnifier because we are measuring the pair.",
-      ["back", "show", "next", "done"],
-      { height: 246 },
-    ),
-    seededQubitItem("entanglement-red-q-top", 88, 282, 303, 58, [0, 1]),
-    seededQubitItem("entanglement-red-q-bottom", 88, 398, 304),
-    seededCnotItem("entanglement-red-cnot", 292, 278),
-    seededDoubleMeasurementItem("entanglement-red-measure", 676, 148),
-  ];
-  const mixedTargetItems = [
-    seededTextBoxItem(
-      "entanglement-target-text",
-      "So far both qubits have been in pure states: they were either red or blue. What happens if we make the bottom target qubit a purple mixture? Since the red control qubit flips blue to red and red to blue, a fifty-fifty target still looks balanced after many runs.",
-      ["back", "show", "next", "done"],
-      { height: 276 },
-    ),
-    seededQubitItem("entanglement-target-q-top", 88, 282, 305, 58, [0, 1]),
-    seededQubitItem(
-      "entanglement-target-q-bottom",
-      88,
-      398,
-      306,
-      58,
-      [Math.SQRT1_2, Math.SQRT1_2],
-    ),
-    seededCnotItem("entanglement-target-cnot", 292, 278),
-    seededDoubleMeasurementItem("entanglement-target-measure", 676, 148),
-  ];
-  return {
-    version: 1,
-    tabId,
-    title: "Entanglement",
-    scenes: [
-      {
-        id: "entanglement-cnot",
-        title: "The controlled flipper",
-        canvasWidth: 1120,
-        canvasHeight: 620,
-        items: pureItems,
-        savedAt: 0,
-      },
-      {
-        id: "entanglement-red-control",
-        title: "Pure-state control",
-        canvasWidth: 1120,
-        canvasHeight: 620,
-        items: redControlItems,
-        experiment: seededExperiment(redControlItems, [
-          {
-            type: "cnot",
-            cnotId: "entanglement-red-cnot",
-            topQubitId: "entanglement-red-q-top",
-            bottomQubitId: "entanglement-red-q-bottom",
-            topQubitLogicalId: 303,
-            bottomQubitLogicalId: 304,
-          },
-          {
-            type: "double-measure",
-            measurementId: "entanglement-red-measure",
-            leftQubitId: "entanglement-red-q-top",
-            rightQubitId: "entanglement-red-q-bottom",
-            leftQubitLogicalId: 303,
-            rightQubitLogicalId: 304,
-            topQubitId: "entanglement-red-q-top",
-            bottomQubitId: "entanglement-red-q-bottom",
-            topQubitLogicalId: 303,
-            bottomQubitLogicalId: 304,
-          },
-        ]),
-        savedAt: 0,
-      },
-      {
-        id: "entanglement-mixed-target",
-        title: "A mixed target",
-        canvasWidth: 1120,
-        canvasHeight: 620,
-        items: mixedTargetItems,
-        experiment: seededExperiment(mixedTargetItems, [
-          {
-            type: "cnot",
-            cnotId: "entanglement-target-cnot",
-            topQubitId: "entanglement-target-q-top",
-            bottomQubitId: "entanglement-target-q-bottom",
-            topQubitLogicalId: 305,
-            bottomQubitLogicalId: 306,
-          },
-          {
-            type: "double-measure",
-            measurementId: "entanglement-target-measure",
-            leftQubitId: "entanglement-target-q-top",
-            rightQubitId: "entanglement-target-q-bottom",
-            leftQubitLogicalId: 305,
-            rightQubitLogicalId: 306,
-            topQubitId: "entanglement-target-q-top",
-            bottomQubitId: "entanglement-target-q-bottom",
-            topQubitLogicalId: 305,
-            bottomQubitLogicalId: 306,
-          },
-        ]),
-        savedAt: 0,
-      },
-      {
-        id: "entanglement-mixed-control",
-        title: "The interesting question",
-        canvasWidth: 1120,
-        canvasHeight: 620,
-        items: [
-          seededTextBoxItem(
-            "entanglement-control-text",
-            "What happens if you keep the control qubit red but change the target qubit to some other combination of colors? Finally, what do you think happens if the control qubit itself is a mixture, say equal parts red and blue?",
-            ["back", "done"],
-            { height: 246 },
-          ),
-          seededQubitItem(
-            "entanglement-control-q-top",
-            88,
-            282,
-            307,
-            58,
-            [Math.SQRT1_2, Math.SQRT1_2],
-          ),
-          seededQubitItem("entanglement-control-q-bottom", 88, 398, 308),
-          seededCnotItem("entanglement-control-cnot", 292, 278),
-          seededDoubleMeasurementItem("entanglement-control-measure", 676, 148),
-        ],
-        savedAt: 0,
-      },
-    ],
-    updatedAt: 0,
-  };
-}
-
-const INITIAL_WHATS_THIS_DOCUMENT_SEEDS = [
-  {
-    labelKeys: ["one qubit"],
-    createDocument: createOneQubitWhatsThisDocument,
-  },
-  {
-    labelKeys: ["two qubits"],
-    createDocument: createTwoQubitsWhatsThisDocument,
-  },
-  {
-    labelKeys: ["entanglement 2", "entanglement 1"],
-    createDocument: createEntanglementWhatsThisDocument,
-  },
-];
-
-function readDocumentsSeedVersion() {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return "";
-  }
-  try {
-    return window.localStorage.getItem(DOCUMENTS_SEED_STORAGE_KEY) || "";
-  } catch (_error) {
-    return "";
-  }
-}
-
-function writeDocumentsSeedVersion() {
-  try {
-    window.localStorage.setItem(
-      DOCUMENTS_SEED_STORAGE_KEY,
-      INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION,
-    );
-  } catch (_error) {
-    // Seeding still succeeds if the version marker cannot be persisted.
-  }
-}
-
-function initialWhatsThisSeedForTab(entry) {
-  const labelKey = storageLabelKey(entry?.label);
-  return (
-    INITIAL_WHATS_THIS_DOCUMENT_SEEDS.find((seed) =>
-      seed.labelKeys.includes(labelKey),
-    ) || null
-  );
-}
-
-function seedInitialWhatsThisDocuments() {
-  if (
-    readDocumentsSeedVersion() === INITIAL_WHATS_THIS_DOCUMENT_SEED_VERSION
-  ) {
-    return false;
-  }
-  const existingDocuments = Array.isArray(documentsState.documents)
-    ? documentsState.documents
-    : [];
-  const existingTabIds = new Set(
-    existingDocuments
-      .map((entry) => storageIdentifierKey(entry?.tabId))
-      .filter(Boolean),
-  );
-  const seededDocuments = [];
-  let matchedSeedableTab = false;
-  (generatedTabsState.tabs || []).forEach((entry) => {
-    const tabId = storageIdentifierKey(entry?.id);
-    if (!tabId) {
-      return;
-    }
-    const seed = initialWhatsThisSeedForTab(entry);
-    if (!seed) {
-      return;
-    }
-    matchedSeedableTab = true;
-    if (existingTabIds.has(tabId)) {
-      return;
-    }
-    const documentEntry = normalizeDocument(seed.createDocument(tabId));
-    if (documentEntry) {
-      seededDocuments.push(documentEntry);
-      existingTabIds.add(tabId);
-    }
-  });
-
-  if (seededDocuments.length === 0) {
-    if (matchedSeedableTab) {
-      writeDocumentsSeedVersion();
-    }
-    return false;
-  }
-
-  const written = writeDocumentsState({
-    documents: [...existingDocuments, ...seededDocuments],
-  });
-  if (written) {
-    writeDocumentsSeedVersion();
-  }
-  return written;
+  return false;
 }
 
 function documentForTabId(tabId) {
@@ -7638,6 +6768,11 @@ function persistDocumentEditorDocument() {
     applyGeneratedTabsState(generatedTabsState);
     refreshGeneratedDocumentToolbars();
     plagroundComposer?.handleGeneratedTabsChanged?.();
+  } else {
+    setDocumentEditorMessage("Save failed", {
+      target: "status",
+      warning: true,
+    });
   }
   return saved;
 }
@@ -18543,9 +17678,6 @@ function removeAuthoringTabsForGithubPages() {
 removeAuthoringTabsForGithubPages();
 tabButtons.forEach((button) => registerTabButton(button));
 restoreGeneratedTabs();
-if (seedInitialWhatsThisDocuments()) {
-  refreshGeneratedDocumentToolbars();
-}
 plagroundComposer?.handleGeneratedTabsChanged?.();
 documentEditorComposer?.handleGeneratedTabsChanged?.();
 
@@ -18557,7 +17689,7 @@ function initialGithubPagesTabTarget() {
   return (
     (generatedTabsState.tabs || []).find(
       (entry) => typeof entry?.id === "string" && entry.id,
-    )?.id || GITHUB_PAGES_TAB_IDS[0]
+    )?.id || ""
   );
 }
 
