@@ -2357,6 +2357,39 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
         initializeGeneratedSingleGateItem(gate2),
       );
       const cnotRuntime = initializeGeneratedCnotItem(cnot);
+      const cnotSpringGeometry = (() => {
+        const spring = cnot.querySelector(".cnot-spring-top");
+        const flange = cnot.querySelector(".cnot-output-flange-top");
+        if (!(spring instanceof HTMLElement) || !(flange instanceof HTMLElement)) {
+          return { ok: false, reason: "missing spring or flange" };
+        }
+        const originalTransition = spring.style.transition;
+        spring.style.transition = "none";
+        cnotRuntime.body.classList.add("platform-extended");
+        const itemRect = cnot.getBoundingClientRect();
+        const bodyRect = cnotRuntime.body.getBoundingClientRect();
+        const flangeRect = flange.getBoundingClientRect();
+        const springRect = spring.getBoundingClientRect();
+        const cnotStyle = getComputedStyle(cnot);
+        const flangeStyle = getComputedStyle(flange);
+        const result = {
+          ok: true,
+          cnotOverflow: cnotStyle.overflow,
+          flangeOverflow: flangeStyle.overflow,
+          springLeftMinusFlangeRight: Number.parseFloat(
+            (springRect.left - flangeRect.right).toFixed(2),
+          ),
+          springLeftMinusBodyRight: Number.parseFloat(
+            (springRect.left - bodyRect.right).toFixed(2),
+          ),
+          springRightMinusItemRight: Number.parseFloat(
+            (springRect.right - itemRect.right).toFixed(2),
+          ),
+        };
+        cnotRuntime.body.classList.remove("platform-extended");
+        spring.style.transition = originalTransition;
+        return result;
+      })();
       await runGeneratedCnotIngress(canvas, q1, cnotRuntime, "top");
       const cnotFirstSlotLayer = {
         active: q1.classList.contains("generated-transit-active"),
@@ -2456,6 +2489,7 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
         actions,
         cnotFirstSlotLayer,
         cnotSecondSlotLayer,
+        cnotSpringGeometry,
         replayCnotLayer,
         directCnotCompleted,
         firstSlotLayer,
@@ -2502,6 +2536,11 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
     result.cnotSecondSlotLayer.topZIndex < 10000 ||
     result.cnotSecondSlotLayer.bottomZIndex < 10000 ||
     result.cnotSecondSlotLayer.cnotZIndex !== 80 ||
+    !result.cnotSpringGeometry.ok ||
+    result.cnotSpringGeometry.cnotOverflow !== "visible" ||
+    result.cnotSpringGeometry.flangeOverflow !== "visible" ||
+    Math.abs(result.cnotSpringGeometry.springLeftMinusBodyRight) > 6 ||
+    result.cnotSpringGeometry.springRightMinusItemRight < 40 ||
     !result.replayCnotLayer.topActive ||
     !result.replayCnotLayer.bottomActive ||
     result.replayCnotLayer.topZIndex < 10000 ||
