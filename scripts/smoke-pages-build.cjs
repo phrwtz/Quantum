@@ -176,6 +176,75 @@ async function runSmoke(baseUrl) {
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
     }
+
+    const targetForLabel = (label) =>
+      result.publicTargets[result.labels.indexOf(label)] || "";
+    const entanglementTwoTarget = targetForLabel("Entanglement 2");
+    if (!entanglementTwoTarget) {
+      throw new Error("GitHub Pages smoke failed: missing Entanglement 2 tab");
+    }
+    await page.locator(`#tab-${entanglementTwoTarget}`).click();
+    await page.waitForSelector(
+      `#panel-${entanglementTwoTarget} .generated-layout-canvas`,
+    );
+    const entanglementTwoMeasurement = await page.evaluate((target) => {
+      const panel = document.getElementById(`panel-${target}`);
+      const measurement = panel?.querySelector(
+        '[data-component="component-group"][data-separated-pair-measurement="true"]',
+      );
+      return {
+        hasMeasurement: Boolean(measurement),
+        magnifierCount:
+          measurement?.querySelectorAll(
+            '.saved-group-child[data-component="single-magnifier"] [data-role="measurement-tool"]',
+          ).length || 0,
+        tubeCount:
+          measurement?.querySelectorAll(".pair-tube-column[data-key]").length ||
+          0,
+        fallbackText:
+          measurement?.textContent?.includes("Saved group") || false,
+      };
+    }, entanglementTwoTarget);
+    if (
+      !entanglementTwoMeasurement.hasMeasurement ||
+      entanglementTwoMeasurement.magnifierCount < 1 ||
+      entanglementTwoMeasurement.tubeCount !== 4 ||
+      entanglementTwoMeasurement.fallbackText
+    ) {
+      throw new Error(
+        `GitHub Pages Entanglement 2 measurement missing: ${JSON.stringify(entanglementTwoMeasurement)}`,
+      );
+    }
+
+    const oneQubitTarget = targetForLabel("One qubit");
+    if (!oneQubitTarget) {
+      throw new Error("GitHub Pages smoke failed: missing One qubit tab");
+    }
+    await page.locator(`#tab-${oneQubitTarget}`).click();
+    await page
+      .locator(
+        `#panel-${oneQubitTarget} [data-generated-document-action="whats-this"]`,
+      )
+      .click();
+    await page.waitForSelector(
+      `#panel-${oneQubitTarget} .doc-runtime-canvas [data-component="text-box"]`,
+    );
+    const runtimeTextBoxState = await page.evaluate((target) => {
+      const panel = document.getElementById(`panel-${target}`);
+      const body = panel?.querySelector(
+        '.doc-runtime-canvas [data-component="text-box"] [data-role="text-box-body"]',
+      );
+      return {
+        found: Boolean(body),
+        editable: body?.isContentEditable || false,
+        text: body?.textContent || "",
+      };
+    }, oneQubitTarget);
+    if (!runtimeTextBoxState.found || runtimeTextBoxState.editable) {
+      throw new Error(
+        `GitHub Pages What's this text box editability failed: ${JSON.stringify(runtimeTextBoxState)}`,
+      );
+    }
     if (errors.length > 0) {
       throw new Error(`Browser errors: ${errors.join(" | ")}`);
     }

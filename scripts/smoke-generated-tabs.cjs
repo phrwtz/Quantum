@@ -1702,8 +1702,13 @@ async function runEditorDocumentWorkflowSmoke(page) {
   }
   await docTextBoxBody.fill("Edited doc text box.");
   const docTextEdited = await docTextBoxBody.textContent();
-  if (docTextEdited !== "Edited doc text box.") {
-    throw new Error(`Doc Editor text box edit failed: ${docTextEdited}`);
+  const docTextEditable = await docTextBoxBody.evaluate(
+    (body) => body.isContentEditable,
+  );
+  if (docTextEdited !== "Edited doc text box." || !docTextEditable) {
+    throw new Error(
+      `Doc Editor text box edit failed: text=${docTextEdited} editable=${docTextEditable}`,
+    );
   }
   await docTextBoxBody.click();
   await page.locator("#docEditorDeleteComponentButton").click();
@@ -1731,6 +1736,9 @@ async function runEditorDocumentWorkflowSmoke(page) {
           text:
             textBox.querySelector('[data-role="text-box-body"]')?.textContent ||
             "",
+          editable:
+            textBox.querySelector('[data-role="text-box-body"]')
+              ?.isContentEditable || false,
           buttons: Array.from(
             textBox.querySelectorAll('[data-role="text-box-action"]'),
           ).map((button) => button.textContent || ""),
@@ -1740,6 +1748,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   if (
     firstRuntimeTextBoxes.length !== 1 ||
     firstRuntimeTextBoxes[0].text !== "Remember to measure twice." ||
+    firstRuntimeTextBoxes[0].editable ||
     firstRuntimeTextBoxes[0].buttons.join(",") !== "Next"
   ) {
     throw new Error(
@@ -1756,6 +1765,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   if (
     secondRuntimeTextBoxes.length !== 1 ||
     secondRuntimeTextBoxes[0].text !== "Second text box." ||
+    secondRuntimeTextBoxes[0].editable ||
     secondRuntimeTextBoxes[0].buttons.join(",") !== "Done"
   ) {
     throw new Error(

@@ -955,6 +955,7 @@ const SEQUENTIAL_TWO_QUBIT_MEASUREMENT_PHRASES = new Set([
 ]);
 const HIDDEN_COMPONENT_PICKER_GROUP_IDS = new Set([
   "separate",
+  "separate-two-qubit-measurment",
   "separate-two-qubit-measurement",
   "seperate-two-qubit-measurement",
   "sequential-two-qubit-measurement",
@@ -3173,6 +3174,28 @@ function applyTextBoxSnapshotToElement(item, geometry = {}) {
   applyTextBoxButtons(root, geometry?.buttons || geometry?.buttonMode);
 }
 
+function setTextBoxBodyEditable(item, editable) {
+  const root = textBoxRootForItem(item);
+  const body = root?.querySelector?.('[data-role="text-box-body"]');
+  if (!(body instanceof HTMLElement)) {
+    return;
+  }
+  body.contentEditable = editable ? "true" : "false";
+  body.spellcheck = Boolean(editable);
+  body.setAttribute("aria-readonly", editable ? "false" : "true");
+}
+
+function syncGeneratedTextBoxEditability(item) {
+  if (!(item instanceof HTMLElement) || item.dataset.component !== "text-box") {
+    return;
+  }
+  const canvas = generatedCanvasForItem(item);
+  const editable =
+    isDocumentEditorCanvas(canvas) ||
+    (layoutEditorState.enabled && !isDocumentRuntimeCanvas(canvas));
+  setTextBoxBodyEditable(item, editable);
+}
+
 function markTextBoxEdited(root) {
   if (!(root instanceof HTMLElement)) {
     return;
@@ -3316,7 +3339,10 @@ function syncGeneratedTextBoxSequence(canvas, options = {}) {
     return;
   }
   const items = generatedTextBoxItems(canvas);
-  items.forEach(registerGeneratedTextBoxActions);
+  items.forEach((item) => {
+    registerGeneratedTextBoxActions(item);
+    syncGeneratedTextBoxEditability(item);
+  });
   if (items.length === 0) {
     delete canvas.dataset.textBoxSequenceIndex;
     delete canvas.dataset.textBoxSequenceClosed;
@@ -3646,38 +3672,39 @@ function createSavedGroupNode(group, geometry = {}) {
   if (groupId) {
     wrapper.dataset.groupComponentId = groupId;
   }
-  if (!group || !Array.isArray(group.items) || group.items.length === 0) {
+  const instanceItems =
+    Array.isArray(geometry?.items) && geometry.items.length > 0
+      ? geometry.items
+      : null;
+  const groupItems =
+    instanceItems || (Array.isArray(group?.items) ? group.items : []);
+  if (groupItems.length === 0) {
     wrapper.appendChild(createPlaygroundFallback("Saved group"));
     return wrapper;
   }
   const renderDepth = Number(geometry?.groupRenderDepth) || 0;
   if (renderDepth > 4) {
-    wrapper.appendChild(createPlaygroundFallback(group.label || "Saved group"));
+    wrapper.appendChild(createPlaygroundFallback(group?.label || "Saved group"));
     return wrapper;
   }
-  const instanceItems =
-    Array.isArray(geometry?.items) && geometry.items.length > 0
-      ? geometry.items
-      : null;
-  const groupItems = instanceItems || group.items;
   const groupWidth = instanceItems
     ? finitePositiveNumber(
         geometry?.itemsWidth,
         finitePositiveNumber(
           geometry?.width,
-          finitePositiveNumber(group.width, 320),
+          finitePositiveNumber(group?.width, 320),
         ),
       )
-    : finitePositiveNumber(group.width, 320);
+    : finitePositiveNumber(group?.width, 320);
   const groupHeight = instanceItems
     ? finitePositiveNumber(
         geometry?.itemsHeight,
         finitePositiveNumber(
           geometry?.height,
-          finitePositiveNumber(group.height, 240),
+          finitePositiveNumber(group?.height, 240),
         ),
       )
-    : finitePositiveNumber(group.height, 240);
+    : finitePositiveNumber(group?.height, 240);
   groupItems
     .slice()
     .sort((a, b) => (Number(a?.z) || 0) - (Number(b?.z) || 0))
@@ -4840,6 +4867,7 @@ function prepareGeneratedLayoutItem(item) {
   const minSize = minGeneratedLayoutSizeForType(item.dataset.component);
   item.dataset.layoutMinWidth = `${minSize.minWidth}`;
   item.dataset.layoutMinHeight = `${minSize.minHeight}`;
+  syncGeneratedTextBoxEditability(item);
   ensureLayoutResizeHandle(item);
   prepareGeneratedMeasurementParts(item);
 }
@@ -6023,6 +6051,9 @@ function createGeneratedLayoutItemNode(type, geometry = {}) {
   }
 
   item.dataset.component = type;
+  if (type === "text-box") {
+    setTextBoxBodyEditable(item, false);
+  }
   if (type === "qubit") {
     ensureQubitLogicalId(item, geometry.qubitId);
     if (Array.isArray(geometry.vector)) {
