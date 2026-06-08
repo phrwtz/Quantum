@@ -23,9 +23,6 @@ const playgroundSaveGroupButton = document.getElementById(
   "playgroundSaveGroupButton",
 );
 const playgroundSaveButton = document.getElementById("playgroundSaveButton");
-const playgroundSaveAsButton = document.getElementById(
-  "playgroundSaveAsButton",
-);
 const playgroundLoadButton = document.getElementById("playgroundLoadButton");
 const playgroundStatus = document.getElementById("playgroundStatus");
 const editorTargetTabSelect = document.getElementById("editorTargetTabSelect");
@@ -133,6 +130,7 @@ const DEFAULT_SINGLE_GATE_TICK_INDEX = 3;
 const GENERATED_EXPERIMENT_REPEAT_ACTION = "experiment-repeat";
 const GENERATED_EXPERIMENT_COUNT_ACTION = "experiment-count";
 const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
+const LOCAL_CONTENT_STORAGE_KEY_PREFIX = "quantum_local_content_state_v1_";
 const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
   "quantum_playground_component_defaults_v1";
 const LEGACY_GENERATED_TABS_PROPERTY = ["cus", "tomTabs"].join("");
@@ -942,21 +940,30 @@ function stripQubitIdsFromLayoutGeometry(geometry) {
 }
 
 const SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL =
-  "Sequential two qubit measurement";
+  "Separate two qubit measurement";
+const SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID =
+  "separate-two-qubit-measurement";
+const SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID_ALIASES = new Set([
+  "separate",
+  "separate-two-qubit-measurment",
+  "separate-two-qubit-measurement",
+  "seperate-two-qubit-measurement",
+  "sequential-two-qubit-measurement",
+]);
 const LEGACY_SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABELS = new Set([
   "separate",
   "separate two qubit measurement",
   "seperate two qubit measurement",
+  "sequential two qubit measurement",
 ]);
 const SEQUENTIAL_TWO_QUBIT_MEASUREMENT_PHRASES = new Set([
   "separate",
   "separate two qubit measurement",
   "seperate two qubit measurement",
+  "sequential two qubit measurement",
 ]);
 const HIDDEN_COMPONENT_PICKER_GROUP_IDS = new Set([
   "separate",
-  "separate-two-qubit-measurment",
-  "separate-two-qubit-measurement",
   "seperate-two-qubit-measurement",
   "sequential-two-qubit-measurement",
 ]);
@@ -992,13 +999,22 @@ function isLegacySequentialTwoQubitMeasurementGroup(group) {
   );
 }
 
+function isSeparateTwoQubitMeasurementGroupAlias(group) {
+  return (
+    isLegacySequentialTwoQubitMeasurementGroup(group) ||
+    SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID_ALIASES.has(
+      storageIdentifierKey(group?.id),
+    )
+  );
+}
+
 function isSequentialTwoQubitMeasurementGroupDefinition(group) {
   return (
     storageLabelKey(group?.label) ===
       storageLabelKey(SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) ||
     storagePhraseKey(group?.label) ===
       storagePhraseKey(SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) ||
-    isLegacySequentialTwoQubitMeasurementGroup(group) ||
+    isSeparateTwoQubitMeasurementGroupAlias(group) ||
     HIDDEN_COMPONENT_PICKER_GROUP_IDS.has(storageIdentifierKey(group?.id))
   );
 }
@@ -1279,27 +1295,55 @@ function remapGroupComponentReferencesInItems(items, redirectMap) {
 function normalizePlaygroundGroupComponentsPayload(payload) {
   const groups = Array.isArray(payload?.groups) ? payload.groups : [];
   const redirectMap = new Map();
-  const canonicalGroup =
-    groups.find((group) => storageLabelKey(group?.label) === "separate") ||
-    groups.find(isLegacySequentialTwoQubitMeasurementGroup) ||
-    null;
-  const canonicalId =
-    canonicalGroup && typeof canonicalGroup.id === "string" ? canonicalGroup.id : "";
+  const hasCanonicalSeparateGroup = groups.some(
+    (group) =>
+      storageIdentifierKey(group?.id) === SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID,
+  );
+  let keptSeparateGroup = false;
   let changed = false;
 
   const normalizedGroups = groups.reduce((acc, group) => {
     if (!group || typeof group !== "object") {
       return acc;
     }
-    const isLegacy = isLegacySequentialTwoQubitMeasurementGroup(group);
+    const isSeparateAlias = isSeparateTwoQubitMeasurementGroupAlias(group);
     const groupId = typeof group.id === "string" ? group.id : "";
-    if (isLegacy && canonicalId && groupId && groupId !== canonicalId) {
-      redirectMap.set(groupId, canonicalId);
+    const groupIdKey = storageIdentifierKey(groupId);
+    if (
+      isSeparateAlias &&
+      groupId &&
+      groupIdKey !== SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID
+    ) {
+      redirectMap.set(groupId, SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID);
+      changed = true;
+    }
+    if (
+      isSeparateAlias &&
+      hasCanonicalSeparateGroup &&
+      groupIdKey !== SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID
+    ) {
+      changed = true;
+      return acc;
+    }
+    if (isSeparateAlias && keptSeparateGroup) {
+      if (groupId) {
+        redirectMap.set(groupId, SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID);
+      }
       changed = true;
       return acc;
     }
     let nextGroup = { ...group };
-    if (isLegacy && nextGroup.label !== SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL) {
+    if (isSeparateAlias) {
+      keptSeparateGroup = true;
+      if (nextGroup.id !== SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID) {
+        nextGroup.id = SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID;
+        changed = true;
+      }
+    }
+    if (
+      isSeparateAlias &&
+      nextGroup.label !== SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL
+    ) {
       nextGroup.label = SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL;
       changed = true;
     }
@@ -1331,6 +1375,74 @@ function normalizePlaygroundGroupComponentsPayload(payload) {
   return { payload: { groups: remappedGroups }, changed };
 }
 
+function separateTwoQubitMeasurementGroupFromLayoutItem(item) {
+  if (
+    !item ||
+    typeof item !== "object" ||
+    item.type !== PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE ||
+    !Array.isArray(item.items) ||
+    !isSeparatedPairMeasurementGroupDefinition({ items: item.items })
+  ) {
+    return null;
+  }
+  const group = {
+    id: SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID,
+    label: SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL,
+    width: finitePositiveNumber(
+      item.itemsWidth,
+      finitePositiveNumber(item.width, 442),
+    ),
+    height: finitePositiveNumber(
+      item.itemsHeight,
+      finitePositiveNumber(item.height, 530),
+    ),
+    items: item.items.map((child) =>
+      stripQubitIdsFromLayoutGeometry({ ...(child || {}) }),
+    ),
+  };
+  const normalized = normalizeSeparatedPairMeasurementGroupGeometry(group, {
+    centerSingleMagnifier: false,
+  });
+  return normalized.group;
+}
+
+function builtInSeparateTwoQubitMeasurementGroup() {
+  const state =
+    readContentFileState(GENERATED_TABS_CONTENT_FILE) ||
+    readBundledContentState(GENERATED_TABS_CONTENT_FILE) ||
+    readRepositoryContentState("generated-tabs", GENERATED_TABS_CONTENT_FILE);
+  const tabs = Array.isArray(state?.tabs) ? state.tabs : [];
+  for (const tab of tabs) {
+    const items = Array.isArray(tab?.layout?.items) ? tab.layout.items : [];
+    for (const item of items) {
+      const group = separateTwoQubitMeasurementGroupFromLayoutItem(item);
+      if (group) {
+        return group;
+      }
+    }
+  }
+  return null;
+}
+
+function mergeBuiltInGroupComponentsPayload(payload) {
+  const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+  const builtin = builtInSeparateTwoQubitMeasurementGroup();
+  if (!builtin) {
+    return payload && typeof payload === "object" ? payload : { groups };
+  }
+  const alreadyPresent = groups.some(
+    (group) =>
+      storageIdentifierKey(group?.id) === storageIdentifierKey(builtin.id),
+  );
+  if (alreadyPresent) {
+    return { ...(payload || {}), groups };
+  }
+  return {
+    ...(payload || {}),
+    groups: [...groups, builtin],
+  };
+}
+
 function readPlaygroundGroupComponentsPayload() {
   try {
     const serialized = window.localStorage.getItem(
@@ -1338,7 +1450,7 @@ function readPlaygroundGroupComponentsPayload() {
     );
     if (!serialized) {
       legacyGroupComponentIdRedirects = new Map();
-      return { groups: [] };
+      return mergeBuiltInGroupComponentsPayload({ groups: [] });
     }
     const parsed = JSON.parse(serialized);
     const normalized = normalizePlaygroundGroupComponentsPayload(parsed);
@@ -1348,10 +1460,10 @@ function readPlaygroundGroupComponentsPayload() {
         JSON.stringify(normalized.payload),
       );
     }
-    return normalized.payload;
+    return mergeBuiltInGroupComponentsPayload(normalized.payload);
   } catch (_error) {
     legacyGroupComponentIdRedirects = new Map();
-    return { groups: [] };
+    return mergeBuiltInGroupComponentsPayload({ groups: [] });
   }
 }
 
@@ -1445,13 +1557,23 @@ function populateComponentPicker(select) {
     option.textContent = config.label;
     select.appendChild(option);
   });
+  const visibleGroupKeys = new Set();
   playgroundGroupComponents().forEach((group) => {
     if (!group?.id || isHiddenComponentPickerGroup(group)) {
       return;
     }
+    const groupKey = isSeparateTwoQubitMeasurementGroupAlias(group)
+      ? storageLabelKey(SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL)
+      : storageLabelKey(group.label || group.id);
+    if (visibleGroupKeys.has(groupKey)) {
+      return;
+    }
+    visibleGroupKeys.add(groupKey);
     const option = document.createElement("option");
     option.value = savedGroupComponentType(group.id);
-    option.textContent = group.label || "Saved Group";
+    option.textContent = isSeparateTwoQubitMeasurementGroupAlias(group)
+      ? SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL
+      : group.label || "Saved Group";
     select.appendChild(option);
   });
   select.value = Array.from(select.options).some(
@@ -1628,22 +1750,77 @@ function normalizeGeneratedTabsState(state) {
   return { state: { tabs: normalizedTabs }, changed };
 }
 
-function localContentApiEndpoint(contentName) {
+function localContentApiEndpoints(contentName) {
   const name = String(contentName || "").replace(/[^a-z-]/g, "");
   if (!name || IS_GITHUB_PAGES_BUILD) {
-    return "";
+    return [];
   }
   const path = `${LOCAL_CONTENT_API_ROOT}/${name}`;
+  const canonicalLocalEndpoint = `http://127.0.0.1:${LOCAL_CONTENT_API_PORT}${path}`;
   const protocol = window.location.protocol;
   if (protocol === "file:") {
-    return `http://127.0.0.1:${LOCAL_CONTENT_API_PORT}${path}`;
+    return [canonicalLocalEndpoint];
   }
   if (protocol !== "http:" && protocol !== "https:") {
-    return "";
+    return [];
   }
   const host = String(window.location.hostname || "").toLowerCase();
   const localHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-  return localHosts.has(host) ? path : "";
+  if (!localHosts.has(host)) {
+    return [];
+  }
+  const endpoints = [path];
+  const currentPort =
+    window.location.port ||
+    (protocol === "https:" ? "443" : protocol === "http:" ? "80" : "");
+  const isCanonicalLocalServer =
+    (host === "127.0.0.1" || host === "localhost") &&
+    currentPort === LOCAL_CONTENT_API_PORT;
+  if (!isCanonicalLocalServer) {
+    endpoints.push(canonicalLocalEndpoint);
+  }
+  return endpoints;
+}
+
+function localContentBrowserStorageKey(contentName) {
+  const name = String(contentName || "").replace(/[^a-z-]/g, "");
+  return name ? `${LOCAL_CONTENT_STORAGE_KEY_PREFIX}${name}` : "";
+}
+
+function readBrowserLocalContentState(contentName) {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return null;
+  }
+  const key = localContentBrowserStorageKey(contentName);
+  if (!key) {
+    return null;
+  }
+  try {
+    const serialized = window.localStorage.getItem(key);
+    if (!serialized) {
+      return null;
+    }
+    const parsed = JSON.parse(serialized);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function writeBrowserLocalContentState(contentName, state) {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return false;
+  }
+  const key = localContentBrowserStorageKey(contentName);
+  if (!key) {
+    return false;
+  }
+  try {
+    window.localStorage.setItem(key, JSON.stringify(state || {}));
+    return true;
+  } catch (_error) {
+    return false;
+  }
 }
 
 function readJsonResourceSync(url) {
@@ -1682,11 +1859,20 @@ function writeJsonResourceSync(url, payload) {
 }
 
 function readLocalContentState(contentName) {
-  return readJsonResourceSync(localContentApiEndpoint(contentName));
+  const endpoints = localContentApiEndpoints(contentName);
+  for (const endpoint of endpoints) {
+    const state = readJsonResourceSync(endpoint);
+    if (state && typeof state === "object") {
+      return state;
+    }
+  }
+  return null;
 }
 
 function writeLocalContentState(contentName, state) {
-  return writeJsonResourceSync(localContentApiEndpoint(contentName), state);
+  return localContentApiEndpoints(contentName).some((endpoint) =>
+    writeJsonResourceSync(endpoint, state),
+  );
 }
 
 function readBundledContentState(relativePath) {
@@ -1722,10 +1908,76 @@ function readRepositoryContentState(contentName, relativePath) {
   return readLocalContentState(contentName) || readContentFileState(relativePath);
 }
 
+function mergeGeneratedTabsContentState(baseState, overlayState) {
+  const baseTabs = Array.isArray(baseState?.tabs) ? baseState.tabs : [];
+  const overlayTabs = Array.isArray(overlayState?.tabs) ? overlayState.tabs : [];
+  if (overlayTabs.length === 0) {
+    return baseState;
+  }
+  const overlayById = new Map(
+    overlayTabs
+      .filter((entry) => entry && typeof entry.id === "string" && entry.id)
+      .map((entry) => [entry.id, entry]),
+  );
+  const mergedTabs = baseTabs.map((entry) =>
+    overlayById.has(entry?.id) ? overlayById.get(entry.id) : entry,
+  );
+  const baseIds = new Set(
+    baseTabs
+      .filter((entry) => entry && typeof entry.id === "string")
+      .map((entry) => entry.id),
+  );
+  overlayTabs.forEach((entry) => {
+    if (entry && typeof entry.id === "string" && !baseIds.has(entry.id)) {
+      mergedTabs.push(entry);
+    }
+  });
+  return {
+    ...(baseState || {}),
+    ...(overlayState || {}),
+    tabs: mergedTabs,
+  };
+}
+
+function mergeDocumentsContentState(baseState, overlayState) {
+  const baseDocuments = Array.isArray(baseState?.documents)
+    ? baseState.documents
+    : [];
+  const overlayDocuments = Array.isArray(overlayState?.documents)
+    ? overlayState.documents
+    : [];
+  if (overlayDocuments.length === 0) {
+    return baseState;
+  }
+  const overlayByTabId = new Map(
+    overlayDocuments
+      .filter((entry) => entry && typeof entry.tabId === "string" && entry.tabId)
+      .map((entry) => [entry.tabId, entry]),
+  );
+  const mergedDocuments = baseDocuments.map((entry) =>
+    overlayByTabId.has(entry?.tabId) ? overlayByTabId.get(entry.tabId) : entry,
+  );
+  const baseTabIds = new Set(
+    baseDocuments
+      .filter((entry) => entry && typeof entry.tabId === "string")
+      .map((entry) => entry.tabId),
+  );
+  overlayDocuments.forEach((entry) => {
+    if (entry && typeof entry.tabId === "string" && !baseTabIds.has(entry.tabId)) {
+      mergedDocuments.push(entry);
+    }
+  });
+  return {
+    ...(baseState || {}),
+    ...(overlayState || {}),
+    documents: mergedDocuments,
+  };
+}
+
 function readGeneratedTabsState() {
-  const fileState = readRepositoryContentState(
-    "generated-tabs",
-    GENERATED_TABS_CONTENT_FILE,
+  const fileState = mergeGeneratedTabsContentState(
+    readRepositoryContentState("generated-tabs", GENERATED_TABS_CONTENT_FILE),
+    readBrowserLocalContentState("generated-tabs"),
   );
   if (!fileState || typeof fileState !== "object") {
     return { tabs: [] };
@@ -1743,6 +1995,10 @@ function writeGeneratedTabsState(state) {
     return true;
   }
   if (writeLocalContentState("generated-tabs", normalized)) {
+    writeBrowserLocalContentState("generated-tabs", normalized);
+    return true;
+  }
+  if (writeBrowserLocalContentState("generated-tabs", normalized)) {
     return true;
   }
   return false;
@@ -1831,7 +2087,10 @@ function normalizeDocumentsContentState(state) {
 
 function readDocumentsState() {
   const fileState = normalizeDocumentsContentState(
-    readRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
+    mergeDocumentsContentState(
+      readRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
+      readBrowserLocalContentState("documents"),
+    ),
   );
   return fileState || { documents: [] };
 }
@@ -1843,6 +2102,11 @@ function writeDocumentsState(state) {
     return true;
   }
   if (writeLocalContentState("documents", normalized)) {
+    documentsState = normalized;
+    writeBrowserLocalContentState("documents", normalized);
+    return true;
+  }
+  if (writeBrowserLocalContentState("documents", normalized)) {
     documentsState = normalized;
     return true;
   }
@@ -2384,7 +2648,204 @@ function persistPlaygroundCnotDefaultsFromDom(sourceOverride = null) {
   if (saved) {
     playgroundComponentDefaultsCache = payload;
   }
-  return saved;
+  return (
+    saved &&
+    syncGeneratedCnotLayoutsFromComponentDefaults(
+      snapshot,
+      componentGeometryDefaults(payload)["cnot-gate"],
+    )
+  );
+}
+
+function updateCnotLayoutDefaultsInItems(items, snapshot, geometryDefaults) {
+  if (!Array.isArray(items)) {
+    return { items: [], changed: false };
+  }
+  let changed = false;
+  const nextItems = items.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    let nextItem = item;
+    if (item.type === "cnot-gate") {
+      nextItem = {
+        ...item,
+        cnotLayout: cloneJson(snapshot),
+      };
+      if (Number.isFinite(geometryDefaults?.width)) {
+        nextItem.width = geometryDefaults.width;
+      }
+      if (Number.isFinite(geometryDefaults?.height)) {
+        nextItem.height = geometryDefaults.height;
+      }
+      changed = true;
+    }
+    if (Array.isArray(nextItem.items)) {
+      const nested = updateCnotLayoutDefaultsInItems(
+        nextItem.items,
+        snapshot,
+        geometryDefaults,
+      );
+      if (nested.changed) {
+        nextItem = { ...nextItem, items: nested.items };
+        changed = true;
+      }
+    }
+    if (Array.isArray(nextItem.layout?.items)) {
+      const nestedLayout = updateCnotLayoutDefaultsInItems(
+        nextItem.layout.items,
+        snapshot,
+        geometryDefaults,
+      );
+      if (nestedLayout.changed) {
+        nextItem = {
+          ...nextItem,
+          layout: { ...nextItem.layout, items: nestedLayout.items },
+        };
+        changed = true;
+      }
+    }
+    return nextItem;
+  });
+  return { items: nextItems, changed };
+}
+
+function syncGeneratedCnotLayoutsFromComponentDefaults(
+  snapshot,
+  geometryDefaults,
+) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return false;
+  }
+  const currentState = cloneJson(generatedTabsState) || { tabs: [] };
+  let changed = false;
+  const nextTabs = (Array.isArray(currentState.tabs) ? currentState.tabs : [])
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || !entry.layout) {
+        return entry;
+      }
+      const updated = updateCnotLayoutDefaultsInItems(
+        entry.layout.items,
+        snapshot,
+        geometryDefaults,
+      );
+      if (!updated.changed) {
+        return entry;
+      }
+      changed = true;
+      return {
+        ...entry,
+        layout: {
+          ...entry.layout,
+          items: updated.items,
+          savedAt: Date.now(),
+        },
+      };
+    });
+  if (!changed) {
+    return true;
+  }
+  const nextState = { ...currentState, tabs: nextTabs };
+  if (!writeGeneratedTabsState(nextState)) {
+    return false;
+  }
+  applyGeneratedTabsState(nextState);
+  plagroundComposer?.handleGeneratedTabsChanged?.();
+  documentEditorComposer?.handleGeneratedTabsChanged?.();
+  return true;
+}
+
+function updateMeasurementLayoutDefaultsInItems(items, type, snapshot) {
+  if (!Array.isArray(items)) {
+    return { items: [], changed: false };
+  }
+  let changed = false;
+  const nextItems = items.map((item) => {
+    if (!item || typeof item !== "object") {
+      return item;
+    }
+    let nextItem = item;
+    if (item.type === type) {
+      nextItem = {
+        ...item,
+        measurementLayout: cloneJson(snapshot),
+      };
+      changed = true;
+    }
+    if (Array.isArray(nextItem.items)) {
+      const nested = updateMeasurementLayoutDefaultsInItems(
+        nextItem.items,
+        type,
+        snapshot,
+      );
+      if (nested.changed) {
+        nextItem = { ...nextItem, items: nested.items };
+        changed = true;
+      }
+    }
+    if (Array.isArray(nextItem.layout?.items)) {
+      const nestedLayout = updateMeasurementLayoutDefaultsInItems(
+        nextItem.layout.items,
+        type,
+        snapshot,
+      );
+      if (nestedLayout.changed) {
+        nextItem = {
+          ...nextItem,
+          layout: { ...nextItem.layout, items: nestedLayout.items },
+        };
+        changed = true;
+      }
+    }
+    return nextItem;
+  });
+  return { items: nextItems, changed };
+}
+
+function syncGeneratedMeasurementLayoutsFromComponentDefaults(type, snapshot) {
+  if (
+    !isMeasurementComponentType(type) ||
+    !snapshot ||
+    typeof snapshot !== "object"
+  ) {
+    return false;
+  }
+  const currentState = cloneJson(generatedTabsState) || { tabs: [] };
+  let changed = false;
+  const nextTabs = (Array.isArray(currentState.tabs) ? currentState.tabs : [])
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || !entry.layout) {
+        return entry;
+      }
+      const updated = updateMeasurementLayoutDefaultsInItems(
+        entry.layout.items,
+        type,
+        snapshot,
+      );
+      if (!updated.changed) {
+        return entry;
+      }
+      changed = true;
+      return {
+        ...entry,
+        layout: {
+          ...entry.layout,
+          items: updated.items,
+          savedAt: Date.now(),
+        },
+      };
+    });
+  if (!changed) {
+    return true;
+  }
+  const nextState = { ...currentState, tabs: nextTabs };
+  if (!writeGeneratedTabsState(nextState)) {
+    return false;
+  }
+  applyGeneratedTabsState(nextState);
+  plagroundComposer?.handleGeneratedTabsChanged?.();
+  documentEditorComposer?.handleGeneratedTabsChanged?.();
+  return true;
 }
 
 function persistPlaygroundMeasurementDefaultsFromDom(
@@ -2422,7 +2883,9 @@ function persistPlaygroundMeasurementDefaultsFromDom(
   if (saved) {
     playgroundComponentDefaultsCache = payload;
   }
-  return saved;
+  return (
+    saved && syncGeneratedMeasurementLayoutsFromComponentDefaults(type, snapshot)
+  );
 }
 
 function persistVisiblePlaygroundComponentDefaultsFromDom() {
@@ -3593,18 +4056,27 @@ function persistSavedGroupComponentDefinitionFromElement(item) {
   const index = groups.findIndex(
     (group) => group?.id === item.dataset.groupComponentId,
   );
-  if (index < 0) {
-    return false;
+  const nextGroup = {
+    ...(index >= 0 ? groups[index] : {}),
+    id: item.dataset.groupComponentId,
+    label:
+      index >= 0
+        ? groups[index].label
+        : item.dataset.groupComponentId === SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID
+          ? SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL
+          : "Saved Group",
+    width: snapshot.itemsWidth,
+    height: snapshot.itemsHeight,
+    items: snapshot.items.map((item) =>
+      stripQubitIdsFromLayoutGeometry({ ...item }),
+    ),
+    savedAt: Date.now(),
+  };
+  if (index >= 0) {
+    groups[index] = nextGroup;
+  } else {
+    groups.push(nextGroup);
   }
-    groups[index] = {
-      ...groups[index],
-      width: snapshot.itemsWidth,
-      height: snapshot.itemsHeight,
-      items: snapshot.items.map((item) =>
-        stripQubitIdsFromLayoutGeometry({ ...item }),
-      ),
-      savedAt: Date.now(),
-    };
   const saved = writePlaygroundGroupComponentsPayload({ groups });
   if (saved) {
     refreshAllComponentPickers();
@@ -4743,6 +5215,26 @@ function generatedCanvasPointForElementCenter(canvas, element) {
   };
 }
 
+function generatedCanvasXForElementLeft(canvas, element) {
+  const canvasRect = canvas.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
+  return rect.left - canvasRect.left + canvas.scrollLeft;
+}
+
+function generatedCanvasXForElementRight(canvas, element) {
+  const canvasRect = canvas.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
+  return rect.right - canvasRect.left + canvas.scrollLeft;
+}
+
+function cnotSpringExpandedLength(spring) {
+  const styleWidth = Number.parseFloat(getComputedStyle(spring).width);
+  if (Number.isFinite(styleWidth) && styleWidth > 0) {
+    return styleWidth;
+  }
+  return spring.offsetWidth || spring.getBoundingClientRect().width || 0;
+}
+
 function generatedViewportPointToCanvasPoint(canvas, x, y) {
   const canvasRect = canvas.getBoundingClientRect();
   return {
@@ -5810,12 +6302,20 @@ function initializeGeneratedCnotItem(item) {
   const windowBottom = item.querySelector(
     ".cnot-porthole-bottom, [data-part='window-bottom']",
   );
+  const flangeTop = item.querySelector(".cnot-output-flange-top");
+  const flangeBottom = item.querySelector(".cnot-output-flange-bottom");
+  const springTop = item.querySelector(".cnot-spring-top");
+  const springBottom = item.querySelector(".cnot-spring-bottom");
   if (
     !(body instanceof HTMLElement) ||
     !(funnelTop instanceof HTMLElement) ||
     !(funnelBottom instanceof HTMLElement) ||
     !(windowTop instanceof HTMLElement) ||
-    !(windowBottom instanceof HTMLElement)
+    !(windowBottom instanceof HTMLElement) ||
+    !(flangeTop instanceof HTMLElement) ||
+    !(flangeBottom instanceof HTMLElement) ||
+    !(springTop instanceof HTMLElement) ||
+    !(springBottom instanceof HTMLElement)
   ) {
     return null;
   }
@@ -5827,6 +6327,10 @@ function initializeGeneratedCnotItem(item) {
     funnelBottom,
     windowTop,
     windowBottom,
+    flangeTop,
+    flangeBottom,
+    springTop,
+    springBottom,
     slotOccupants: {
       top: null,
       bottom: null,
@@ -7950,24 +8454,61 @@ async function runGeneratedCnotCycle(canvas, runtime) {
       );
       await nextAnimationFrame();
 
-      runtime.body.classList.add("platform-extended");
-      const canvasRect = canvas.getBoundingClientRect();
-      const bodyRect = runtime.body.getBoundingClientRect();
       const topQubitRect = topQubit.getBoundingClientRect();
       const bottomQubitRect = bottomQubit.getBoundingClientRect();
-      const ejectedCenterX =
-        bodyRect.right -
-        canvasRect.left +
-        canvas.scrollLeft +
-        50 +
-        topQubitRect.width / 2;
-      const topEjectedCenter = { x: ejectedCenterX, y: topWindowCenter.y };
+      const topFlangeRight = generatedCanvasXForElementRight(
+        canvas,
+        runtime.flangeTop,
+      );
+      const bottomFlangeRight = generatedCanvasXForElementRight(
+        canvas,
+        runtime.flangeBottom,
+      );
+      const topReadyCenter = {
+        x: topFlangeRight + topQubitRect.width / 2,
+        y: topWindowCenter.y,
+      };
+      const bottomReadyCenter = {
+        x: bottomFlangeRight + bottomQubitRect.width / 2,
+        y: bottomWindowCenter.y,
+      };
+      await Promise.all([
+        moveGeneratedQubitToPoint(
+          canvas,
+          topQubit,
+          topReadyCenter.x,
+          topReadyCenter.y,
+          AUTO_TRAVEL_MS,
+        ),
+        moveGeneratedQubitToPoint(
+          canvas,
+          bottomQubit,
+          bottomReadyCenter.x,
+          bottomReadyCenter.y,
+          AUTO_TRAVEL_MS,
+        ),
+      ]);
+
+      runtime.body.classList.add("platform-extended");
+      const topSpringLeft = generatedCanvasXForElementLeft(
+        canvas,
+        runtime.springTop,
+      );
+      const bottomSpringLeft = generatedCanvasXForElementLeft(
+        canvas,
+        runtime.springBottom,
+      );
+      const topEjectedCenter = {
+        x:
+          topSpringLeft +
+          cnotSpringExpandedLength(runtime.springTop) +
+          topQubitRect.width / 2,
+        y: topWindowCenter.y,
+      };
       const bottomEjectedCenter = {
         x:
-          bodyRect.right -
-          canvasRect.left +
-          canvas.scrollLeft +
-          50 +
+          bottomSpringLeft +
+          cnotSpringExpandedLength(runtime.springBottom) +
           bottomQubitRect.width / 2,
         y: bottomWindowCenter.y,
       };
@@ -12748,6 +13289,18 @@ function setupPlagroundComposer() {
     };
   };
 
+  const canvasXForElementLeft = (element) => {
+    const canvasRect = playgroundCanvas.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    return rect.left - canvasRect.left + playgroundCanvas.scrollLeft;
+  };
+
+  const canvasXForElementRight = (element) => {
+    const canvasRect = playgroundCanvas.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    return rect.right - canvasRect.left + playgroundCanvas.scrollLeft;
+  };
+
   const setPlaygroundQubitCenter = (qubitItem, x, y) => {
     const safeX = Number.isFinite(x) ? x : playgroundCanvas.clientWidth / 2;
     const safeY = Number.isFinite(y) ? y : playgroundCanvas.clientHeight / 2;
@@ -13148,12 +13701,20 @@ function setupPlagroundComposer() {
     const windowBottom = item.querySelector(
       ".cnot-porthole-bottom, [data-part='window-bottom']",
     );
+    const flangeTop = item.querySelector(".cnot-output-flange-top");
+    const flangeBottom = item.querySelector(".cnot-output-flange-bottom");
+    const springTop = item.querySelector(".cnot-spring-top");
+    const springBottom = item.querySelector(".cnot-spring-bottom");
     if (
       !(body instanceof HTMLElement) ||
       !(funnelTop instanceof HTMLElement) ||
       !(funnelBottom instanceof HTMLElement) ||
       !(windowTop instanceof HTMLElement) ||
-      !(windowBottom instanceof HTMLElement)
+      !(windowBottom instanceof HTMLElement) ||
+      !(flangeTop instanceof HTMLElement) ||
+      !(flangeBottom instanceof HTMLElement) ||
+      !(springTop instanceof HTMLElement) ||
+      !(springBottom instanceof HTMLElement)
     ) {
       return null;
     }
@@ -13164,6 +13725,10 @@ function setupPlagroundComposer() {
       funnelBottom,
       windowTop,
       windowBottom,
+      flangeTop,
+      flangeBottom,
+      springTop,
+      springBottom,
       slotOccupants: {
         top: null,
         bottom: null,
@@ -13312,26 +13877,47 @@ function setupPlagroundComposer() {
         );
         await nextFrame();
 
-        runtime.body.classList.add("platform-extended");
-        const canvasRect = playgroundCanvas.getBoundingClientRect();
-        const bodyRect = runtime.body.getBoundingClientRect();
         const topQubitRect = topQubit.getBoundingClientRect();
         const bottomQubitRect = bottomQubit.getBoundingClientRect();
+        const topFlangeRight = canvasXForElementRight(runtime.flangeTop);
+        const bottomFlangeRight = canvasXForElementRight(runtime.flangeBottom);
+        const topReadyCenter = {
+          x: topFlangeRight + topQubitRect.width / 2,
+          y: topWindowCenter.y,
+        };
+        const bottomReadyCenter = {
+          x: bottomFlangeRight + bottomQubitRect.width / 2,
+          y: bottomWindowCenter.y,
+        };
+        await Promise.all([
+          movePlaygroundQubitToPoint(
+            topQubit,
+            topReadyCenter.x,
+            topReadyCenter.y,
+            AUTO_TRAVEL_MS,
+          ),
+          movePlaygroundQubitToPoint(
+            bottomQubit,
+            bottomReadyCenter.x,
+            bottomReadyCenter.y,
+            AUTO_TRAVEL_MS,
+          ),
+        ]);
+
+        runtime.body.classList.add("platform-extended");
+        const topSpringLeft = canvasXForElementLeft(runtime.springTop);
+        const bottomSpringLeft = canvasXForElementLeft(runtime.springBottom);
         const topEjectedCenter = {
           x:
-            bodyRect.right -
-            canvasRect.left +
-            playgroundCanvas.scrollLeft +
-            50 +
+            topSpringLeft +
+            cnotSpringExpandedLength(runtime.springTop) +
             topQubitRect.width / 2,
           y: topWindowCenter.y,
         };
         const bottomEjectedCenter = {
           x:
-            bodyRect.right -
-            canvasRect.left +
-            playgroundCanvas.scrollLeft +
-            50 +
+            bottomSpringLeft +
+            cnotSpringExpandedLength(runtime.springBottom) +
             bottomQubitRect.width / 2,
           y: bottomWindowCenter.y,
         };
@@ -15082,7 +15668,7 @@ function setupPlagroundComposer() {
     return true;
   };
 
-  const saveLayout = async ({ forceNew = false } = {}) => {
+  const saveLayout = async () => {
     persistVisiblePlaygroundComponentDefaultsFromDom();
     const payload = buildLayoutPayload();
     const layout = cloneJson(payload);
@@ -15091,7 +15677,7 @@ function setupPlagroundComposer() {
       return false;
     }
 
-    const targetId = forceNew ? "__new__" : currentEditorTabId || "__new__";
+    const targetId = currentEditorTabId || "__new__";
     const nextState = cloneJson(generatedTabsState) || { tabs: [] };
     nextState.tabs = Array.isArray(nextState.tabs)
       ? nextState.tabs
@@ -15452,7 +16038,7 @@ function setupPlagroundComposer() {
         setStatus("Group component save failed");
         return false;
       }
-      setStatus("Sequential measurement component saved");
+      setStatus("Separate measurement component saved");
       return true;
     }
     if (selectedType === "single-gate") {
@@ -15666,13 +16252,6 @@ function setupPlagroundComposer() {
   if (playgroundSaveButton) {
     playgroundSaveButton.addEventListener("click", () => {
       saveLayout().catch(() => {
-        setStatus("Save failed");
-      });
-    });
-  }
-  if (playgroundSaveAsButton) {
-    playgroundSaveAsButton.addEventListener("click", () => {
-      saveLayout({ forceNew: true }).catch(() => {
         setStatus("Save failed");
       });
     });

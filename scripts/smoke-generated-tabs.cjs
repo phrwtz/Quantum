@@ -852,7 +852,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
         },
         {
           id: "sequential-edit-smoke",
-          label: "Sequential two qubit measurement",
+          label: "Separate two qubit measurement",
           width: 420,
           height: 410,
           items: [
@@ -968,7 +968,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
     };
   });
   if (
-    normalizedLegacySeparate.label !== "Sequential two qubit measurement" ||
+    normalizedLegacySeparate.label !== "Separate two qubit measurement" ||
     normalizedLegacySeparate.magnifierCount !== 1 ||
     normalizedLegacySeparate.magnifierLeft !== 99 ||
     normalizedLegacySeparate.magnifierTop !== 266 ||
@@ -1109,7 +1109,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
   }
 
   await page.locator("#editorNewTabName").fill("Sequential Edit Smoke");
-  await page.locator("#playgroundSaveAsButton").click();
+  await page.locator("#playgroundSaveButton").click();
   await wait(250);
   const savedSequentialLayout = await page.evaluate(() => {
     const state = JSON.parse(
@@ -1243,17 +1243,16 @@ async function runEditorDocumentWorkflowSmoke(page) {
     };
   });
   const sequentialCount = migrated.groupLabels.filter(
-    (label) => label === "Sequential two qubit measurement",
+    (label) => label === "Separate two qubit measurement",
   ).length;
   if (
     sequentialCount !== 1 ||
     migrated.groupLabels.includes("separate") ||
-    migrated.groupLabels.includes("separate two qubit measurement") ||
     migrated.pickerLabels.includes("Sequential two qubit measurement") ||
     migrated.pickerLabels.includes("separate") ||
-    migrated.pickerLabels.includes("separate two qubit measurement") ||
+    !migrated.pickerLabels.includes("Separate two qubit measurement") ||
     migrated.pickerValues.includes("group:separate") ||
-    migrated.pickerValues.includes("group:separate-two-qubit-measurement") ||
+    !migrated.pickerValues.includes("group:separate-two-qubit-measurement") ||
     !migrated.tabLabels.includes("Test") ||
     !migrated.tabButtonLabels.includes("Test") ||
     !migrated.tabLabels.includes("Entanglement 2") ||
@@ -1843,15 +1842,17 @@ async function runEditorDocumentWorkflowSmoke(page) {
     );
   }
 
-  await page.locator("#editorNewTabName").fill("Doc Smoke Copy");
-  await page.locator("#playgroundSaveAsButton").click();
+  await page.locator("#editorNewTabButton").click();
+  await wait(150);
+  await page.locator("#editorNewTabName").fill("Doc Smoke B");
+  await page.locator("#playgroundSaveButton").click();
   await wait(250);
-  const copied = await page.evaluate(() => {
+  const created = await page.evaluate(() => {
     const state = JSON.parse(
       JSON.stringify(window.readQuantumContentState("generated-tabs")),
     );
     const entry = (state.tabs || []).find(
-      (tab) => tab.label === "Doc Smoke Copy",
+      (tab) => tab.label === "Doc Smoke B",
     );
     return {
       id: entry?.id || "",
@@ -1859,11 +1860,11 @@ async function runEditorDocumentWorkflowSmoke(page) {
       status: document.querySelector("#editorDocumentStatus")?.textContent || "",
     };
   });
-  if (!copied.id || copied.itemCount !== saved.itemCount || !/Doc Smoke Copy/.test(copied.status)) {
-    throw new Error(`Editor Save As did not create the copy: ${JSON.stringify(copied)}`);
+  if (!created.id || created.itemCount !== 0 || !/Doc Smoke B/.test(created.status)) {
+    throw new Error(`Editor Save did not create the second tab: ${JSON.stringify(created)}`);
   }
 
-  const sourceTabBox = await page.locator(`#tab-${copied.id}`).boundingBox();
+  const sourceTabBox = await page.locator(`#tab-${created.id}`).boundingBox();
   const targetTabBox = await page.locator(`#tab-${saved.id}`).boundingBox();
   if (!sourceTabBox || !targetTabBox) {
     throw new Error("Missing generated tab button bounds for reorder smoke");
@@ -1910,7 +1911,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
       domOrder,
       selectOrder,
     };
-  }, { copyId: copied.id, savedId: saved.id });
+  }, { copyId: created.id, savedId: saved.id });
   if (
     !reordered.copiedBeforeOriginal ||
     !reordered.domCopiedBeforeOriginal ||
@@ -1932,7 +1933,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
       tabText: document.querySelector(`#tab-${copyId}`)?.textContent?.trim() || "",
       status: document.querySelector("#editorDocumentStatus")?.textContent || "",
     };
-  }, copied.id);
+  }, created.id);
   if (
     renamed.label !== "Doc Smoke Renamed" ||
     renamed.tabText !== "Doc Smoke Renamed" ||
@@ -1960,7 +1961,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
         .length,
       status: document.querySelector("#editorDocumentStatus")?.textContent || "",
     };
-  }, copied.id);
+  }, created.id);
   if (
     deleted.stillStored ||
     deleted.stillInDom ||
@@ -2539,7 +2540,7 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
     !result.cnotSpringGeometry.ok ||
     result.cnotSpringGeometry.cnotOverflow !== "visible" ||
     result.cnotSpringGeometry.flangeOverflow !== "visible" ||
-    Math.abs(result.cnotSpringGeometry.springLeftMinusBodyRight) > 6 ||
+    Math.abs(result.cnotSpringGeometry.springLeftMinusFlangeRight) > 4 ||
     result.cnotSpringGeometry.springRightMinusItemRight < 40 ||
     !result.replayCnotLayer.topActive ||
     !result.replayCnotLayer.bottomActive ||
