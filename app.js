@@ -1033,6 +1033,62 @@ function isSeparatedPairMeasurementGroupDefinition(group) {
   );
 }
 
+function separateTwoQubitMeasurementGroupScore(group, index) {
+  if (!isSeparateTwoQubitMeasurementGroupAlias(group)) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const idKey = storageIdentifierKey(group?.id);
+  const labelKey = storageLabelKey(group?.label);
+  const phraseKey = storagePhraseKey(group?.label);
+  const canonicalLabelKey = storageLabelKey(
+    SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL,
+  );
+  const canonicalPhraseKey = storagePhraseKey(
+    SEQUENTIAL_TWO_QUBIT_MEASUREMENT_LABEL,
+  );
+  const items = Array.isArray(group?.items) ? group.items : [];
+  let score = 0;
+  if (idKey === SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID) {
+    score += 10000;
+  }
+  if (labelKey === canonicalLabelKey) {
+    score += 1000;
+  }
+  if (phraseKey === canonicalPhraseKey) {
+    score += 500;
+  }
+  if (isSeparatedPairMeasurementGroupDefinition(group)) {
+    score += 100;
+  }
+  score += items.length * 10;
+  if (items.some((item) => item?.type === "measurement-capacity")) {
+    score += 6;
+  }
+  if (items.some((item) => item?.type === "measurement-count-menu")) {
+    score += 6;
+  }
+  if (items.some((item) => item?.type === "double-tube-array")) {
+    score += 3;
+  }
+  if (items.some((item) => item?.type === "single-magnifier")) {
+    score += 3;
+  }
+  return score - index / 1000;
+}
+
+function preferredSeparateTwoQubitMeasurementGroupIndex(groups) {
+  if (!Array.isArray(groups)) {
+    return -1;
+  }
+  return groups.reduce(
+    (best, group, index) => {
+      const score = separateTwoQubitMeasurementGroupScore(group, index);
+      return score > best.score ? { index, score } : best;
+    },
+    { index: -1, score: Number.NEGATIVE_INFINITY },
+  ).index;
+}
+
 function roundedLayoutNumber(value) {
   return Number.parseFloat(Number(value).toFixed(2));
 }
@@ -1295,14 +1351,11 @@ function remapGroupComponentReferencesInItems(items, redirectMap) {
 function normalizePlaygroundGroupComponentsPayload(payload) {
   const groups = Array.isArray(payload?.groups) ? payload.groups : [];
   const redirectMap = new Map();
-  const hasCanonicalSeparateGroup = groups.some(
-    (group) =>
-      storageIdentifierKey(group?.id) === SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID,
-  );
-  let keptSeparateGroup = false;
+  const preferredSeparateGroupIndex =
+    preferredSeparateTwoQubitMeasurementGroupIndex(groups);
   let changed = false;
 
-  const normalizedGroups = groups.reduce((acc, group) => {
+  const normalizedGroups = groups.reduce((acc, group, index) => {
     if (!group || typeof group !== "object") {
       return acc;
     }
@@ -1317,15 +1370,7 @@ function normalizePlaygroundGroupComponentsPayload(payload) {
       redirectMap.set(groupId, SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID);
       changed = true;
     }
-    if (
-      isSeparateAlias &&
-      hasCanonicalSeparateGroup &&
-      groupIdKey !== SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID
-    ) {
-      changed = true;
-      return acc;
-    }
-    if (isSeparateAlias && keptSeparateGroup) {
+    if (isSeparateAlias && index !== preferredSeparateGroupIndex) {
       if (groupId) {
         redirectMap.set(groupId, SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID);
       }
@@ -1334,7 +1379,6 @@ function normalizePlaygroundGroupComponentsPayload(payload) {
     }
     let nextGroup = { ...group };
     if (isSeparateAlias) {
-      keptSeparateGroup = true;
       if (nextGroup.id !== SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID) {
         nextGroup.id = SEPARATE_TWO_QUBIT_MEASUREMENT_GROUP_ID;
         changed = true;

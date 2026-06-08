@@ -812,6 +812,7 @@ async function runEditorDoubleMeasurementSmoke(page) {
 }
 
 async function runSequentialMeasurementEditorSmoke(page) {
+  const canonicalSeparateGroupId = "separate-two-qubit-measurement";
   await page.evaluate(() => {
     writePlaygroundGroupComponentsPayload({
       groups: [
@@ -943,8 +944,11 @@ async function runSequentialMeasurementEditorSmoke(page) {
       localStorage.getItem("quantum_playground_group_components_v1") || "{}",
     );
     const group = (payload.groups || []).find(
-      (entry) => entry.id === "hyphen-separate-smoke",
+      (entry) => entry.id === "separate-two-qubit-measurement",
     );
+    const legacyAliasCount = (payload.groups || []).filter((entry) =>
+      ["hyphen-separate-smoke", "sequential-edit-smoke"].includes(entry.id),
+    ).length;
     const structuralGroup = (payload.groups || []).find(
       (entry) => entry.id === "structural-pair-smoke",
     );
@@ -961,6 +965,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
       magnifierCount: magnifiers.length,
       magnifierLeft: magnifiers[0]?.left,
       magnifierTop: magnifiers[0]?.top,
+      legacyAliasCount,
       structuralLabel: structuralGroup?.label || "",
       structuralMagnifierCount: structuralMagnifiers.length,
       structuralMagnifierLeft: structuralMagnifiers[0]?.left,
@@ -973,6 +978,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
     normalizedLegacySeparate.magnifierLeft !== 99 ||
     normalizedLegacySeparate.magnifierTop !== 266 ||
     normalizedLegacySeparate.height < 386 ||
+    normalizedLegacySeparate.legacyAliasCount !== 0 ||
     normalizedLegacySeparate.structuralLabel !== "Custom Pair Measurement" ||
     normalizedLegacySeparate.structuralMagnifierCount !== 1 ||
     normalizedLegacySeparate.structuralMagnifierLeft !== 99 ||
@@ -989,12 +995,12 @@ async function runSequentialMeasurementEditorSmoke(page) {
   if (!canvasBox) {
     throw new Error("Missing editor canvas for sequential smoke");
   }
-  await select.selectOption("group:sequential-edit-smoke");
+  await select.selectOption(`group:${canonicalSeparateGroupId}`);
   await page.mouse.click(canvasBox.x + 210, canvasBox.y + 90);
   await wait(250);
 
   const group = page.locator(
-    '#playgroundCanvas > [data-component="component-group"][data-group-component-id="sequential-edit-smoke"]',
+    `#playgroundCanvas > [data-component="component-group"][data-group-component-id="${canonicalSeparateGroupId}"]`,
   );
   const groupBoxBefore = await group.boundingBox();
   if (!groupBoxBefore) {
@@ -1011,7 +1017,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
 
   const editedMagnifier = page
     .locator(
-      '#playgroundCanvas > [data-component="component-group"][data-group-component-id="sequential-edit-smoke"] > .saved-group-child[data-component="single-magnifier"]',
+      `#playgroundCanvas > [data-component="component-group"][data-group-component-id="${canonicalSeparateGroupId}"] > .saved-group-child[data-component="single-magnifier"]`,
     )
     .first();
   const magnifierBefore = await editedMagnifier.boundingBox();
@@ -1119,7 +1125,7 @@ async function runSequentialMeasurementEditorSmoke(page) {
       (tab) => tab.label === "Sequential Edit Smoke",
     );
     const groupItem = entry?.layout?.items?.find(
-      (item) => item.groupComponentId === "sequential-edit-smoke",
+      (item) => item.groupComponentId === "separate-two-qubit-measurement",
     );
     const editedMagnifierItem = (groupItem?.items || [])
       .filter((item) => item.type === "single-magnifier")
@@ -1260,8 +1266,8 @@ async function runEditorDocumentWorkflowSmoke(page) {
     !migrated.tabButtonLabels.includes("Entanglement 2") ||
     !migrated.tabButtonLabels.includes("Entanglement 3") ||
     migrated.tabLabels.includes("Entanglement 1") ||
-    migrated.tabButtonLabels.includes("Entanglement 1") ||
-    migrated.keepGroupId !== "separate"
+    !migrated.tabButtonLabels.includes("Entanglement 1") ||
+    migrated.keepGroupId !== "separate-two-qubit-measurement"
   ) {
     throw new Error(
       `Editor storage migration failed: ${JSON.stringify(migrated)}`,
@@ -3807,9 +3813,17 @@ async function runSmokeTest(baseUrl) {
       const generatedPanels = Array.from(
         document.querySelectorAll(".tab-panel.generated-tab"),
       );
+      const experimentPanels = generatedPanels.filter((panel) => {
+        const target = panel.id.replace(/^panel-/, "");
+        const tab = Array.from(document.querySelectorAll(".tab-btn")).find(
+          (button) => button.dataset.tabTarget === target,
+        );
+        return tab?.textContent?.trim() !== "Introduction";
+      });
       return {
         generatedTabs: generatedPanels.length,
-        resetButtons: generatedPanels.reduce(
+        experimentTabs: experimentPanels.length,
+        resetButtons: experimentPanels.reduce(
           (count, panel) =>
             count +
             panel.querySelectorAll('[data-generated-experiment-action="reset"]')
@@ -3823,7 +3837,7 @@ async function runSmokeTest(baseUrl) {
     });
     if (
       resetCoverage.generatedTabs === 0 ||
-      resetCoverage.resetButtons !== resetCoverage.generatedTabs ||
+      resetCoverage.resetButtons !== resetCoverage.experimentTabs ||
       resetCoverage.editorResetButtons !== 0
     ) {
       throw new Error(
