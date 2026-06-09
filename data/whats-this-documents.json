@@ -4153,7 +4153,7 @@
               "width": 707,
               "height": 377,
               "z": 2,
-              "text": "Note that the measurement doesn't get counted until both qubits have been measured. That's because the two qubits are really one object with four possible states: blue and blue, either qubit blue and the other one red, or both red. That's going to be imortant when you explore the phenomenon known as \"entanglement.\" \n\nTry running this tab with different settings on the two flipper gates. Do you see how that affects the two-qubit count? Try running qubits through those gates multiple times before making the measurement.\n\nBy the way to save time, once. you've recorded an experiment with one setting of the flipper gates you can change those settings and run the experiment again just by clicking on the magnifying glass or changing the count. You don't have to drag the qubits again.\n\n",
+              "text": "Note that the measurement doesn't get counted until both qubits have been measured. That's because the two qubits are really one object with four possible states: blue and blue, one qubit blue and the other one red, or both red. That's going to be important when you explore the phenomenon known as \"entanglement.\" \n\nTry running this tab with different settings on the two flipper gates. Do you see how that affects the two-qubit count? Try running qubits through those gates multiple times before making the measurement.\n\nBy the way, once you've recorded an experiment with one setting of the flipper gates you can change those settings and run the experiment again just by clicking on the magnifying glass or changing the count. You don't have to drag the qubits again.\n\n",
               "buttons": [
                 "back",
                 "done"
@@ -4211,7 +4211,7 @@
               "width": 736,
               "height": 188,
               "z": 2,
-              "text": "Meet the controlled-not (abbreviated C-NOT) gate! As you can see, it takes two qubits. The top qubit is the control qubit, the bottom one is the target qubit. Its action is very simple. If the control qubit is blue the C-NOT doesn't change the target qubit; if the control is red the C-NOT changes the target from blue to red or from red to blue. In either case the control qubit is unchanged.",
+              "text": "Meet the controlled-not (abbreviated C-NOT) gate! As you can see, it takes two qubits. The top qubit is the control qubit, the bottom one is the target qubit. Its action is very simple. If the control qubit is blue the C-NOT doesn't change the target qubit; if the control is red the C-NOT toggles the target from blue to red or from red to blue. In either case the control qubit is unchanged.",
               "buttons": [
                 "next"
               ],
@@ -5482,7 +5482,7 @@
               "width": 992,
               "height": 223,
               "z": 2,
-              "text": "As long as the control and target qubits are solid colors, either red or blue, the action of the C-NOT gate is straightforward: a blue control means \"do nothing to the target\" and a red one means \"flip the target between red and blue.\" And whatever happens, the control qubit is unchanged.\n\nWhat do think would happen if the target qubit were purple – half blue and half red. Think about that before running the experiment.",
+              "text": "As long as the control and target qubits are solid colors, either red or blue, the action of the C-NOT gate is straightforward: a blue control means \"do nothing to the target\" and a red one means \"flip the target between red and blue.\" And whatever happens, the control qubit is unchanged.\n\nWhat do you think would happen if the target qubit were purple – half blue and half red? Think about that before running the experiment.",
               "buttons": [
                 "back",
                 "next",
@@ -6188,7 +6188,7 @@
               "width": 688,
               "height": 282,
               "z": 2,
-              "text": "You've seen that that innocent looking C-NOT gate can do something intereeting to the qubits when the control qubit is neither red nor blue but is in some mixed state. In that situation, even if the target qubit starts out, say, blue it ends up in a mixed state but when the two qubits are measured they're always either both blue (because a blue control leaves the blue target alone) or both red (because a red control changes the target to red). So you never get a blue-red or a red-blue measurement.\n\n\nIn this situation the two qubits are said to be entangled.",
+              "text": "You've seen that that innocent looking C-NOT gate can do something intereeting to the qubits when the control qubit is neither red nor blue but is in some mixed state. In that situation, even if the target qubit starts out, say, blue it ends up in a mixed state but when the two qubits are measured they're always either both blue (because a blue control leaves the blue target alone) or both red (because a red control toggles the target to red). So you never get a blue-red or a red-blue measurement.\n\n\nIn this situation the two qubits are said to be entangled.",
               "buttons": [
                 "next"
               ],
