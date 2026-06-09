@@ -6975,6 +6975,37 @@ function createGeneratedDocumentToolbar(entry, canvas) {
   return toolbar;
 }
 
+function generatedTabLabelForId(tabId) {
+  const entry = (generatedTabsState.tabs || []).find(
+    (candidate) => candidate?.id === tabId,
+  );
+  const label =
+    typeof entry?.label === "string" && entry.label.trim()
+      ? entry.label
+      : document.getElementById(`tab-${tabId}`)?.textContent || "";
+  return String(label || "the current").trim().replace(/\s+/g, " ");
+}
+
+function applyInlineDocumentRuntimeToolbar(tabId, canvas) {
+  if (!(canvas instanceof HTMLElement)) {
+    return;
+  }
+  const gatePanel = canvas.closest(".generated-tab-panel");
+  if (!(gatePanel instanceof HTMLElement)) {
+    return;
+  }
+  const resetButton = gatePanel.querySelector(
+    ':scope > .generated-experiment-toolbar [data-generated-experiment-action="reset"]',
+  );
+  if (resetButton instanceof HTMLButtonElement) {
+    resetButton.textContent = `Back to the ${generatedTabLabelForId(tabId)} tab`;
+    resetButton.dataset.docRuntimeBackButton = "true";
+  }
+  gatePanel
+    .querySelectorAll(":scope > .generated-document-toolbar")
+    .forEach((toolbar) => toolbar.remove());
+}
+
 function refreshGeneratedDocumentToolbarForEntry(entry) {
   if (!entry?.id) {
     return false;
@@ -7896,6 +7927,9 @@ function openDocumentRuntime(tabId, options = {}) {
     docRuntimeOverlay.hidden = false;
   }
   renderDocumentRuntimeScene();
+  if (inline) {
+    applyInlineDocumentRuntimeToolbar(tabId, runtimeCanvas);
+  }
   return true;
 }
 

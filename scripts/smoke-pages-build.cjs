@@ -238,13 +238,25 @@ async function runSmoke(baseUrl) {
       const body = panel?.querySelector(
         '.doc-runtime-canvas [data-component="text-box"] [data-role="text-box-body"]',
       );
+      const reset = panel?.querySelector(
+        '[data-generated-experiment-action="reset"]',
+      );
       return {
         found: Boolean(body),
         editable: body?.isContentEditable || false,
         text: body?.textContent || "",
+        resetLabel: reset?.textContent?.trim() || "",
+        whatsThisButtons:
+          panel?.querySelectorAll('[data-generated-document-action="whats-this"]')
+            .length || 0,
       };
     }, oneQubitTarget);
-    if (!runtimeTextBoxState.found || runtimeTextBoxState.editable) {
+    if (
+      !runtimeTextBoxState.found ||
+      runtimeTextBoxState.editable ||
+      runtimeTextBoxState.resetLabel !== "Back to the One qubit tab" ||
+      runtimeTextBoxState.whatsThisButtons !== 0
+    ) {
       throw new Error(
         `GitHub Pages What's this text box editability failed: ${JSON.stringify(runtimeTextBoxState)}`,
       );

@@ -1528,10 +1528,17 @@ async function runEditorDocumentWorkflowSmoke(page) {
   const inlineDocState = await page.evaluate((tabId) => {
     const panel = document.getElementById(`panel-${tabId}`);
     const canvas = panel?.querySelector(".generated-layout-canvas");
+    const reset = panel?.querySelector(
+      '[data-generated-experiment-action="reset"]',
+    );
     return {
       overlayHidden: document.getElementById("docRuntimeOverlay")?.hidden,
       docRuntime: canvas?.dataset.docRuntimeCanvas || "",
       tabId: canvas?.dataset.generatedTabId || "",
+      resetLabel: reset?.textContent?.trim() || "",
+      whatsThisButtons:
+        panel?.querySelectorAll('[data-generated-document-action="whats-this"]')
+          .length || 0,
       qubits: panel?.querySelectorAll('[data-component="qubit"]').length || 0,
       texts: Array.from(
         panel?.querySelectorAll('[data-component="text-box"]') || [],
@@ -1546,6 +1553,8 @@ async function runEditorDocumentWorkflowSmoke(page) {
     inlineDocState.overlayHidden !== true ||
     inlineDocState.docRuntime !== "true" ||
     inlineDocState.tabId !== saved.id ||
+    inlineDocState.resetLabel !== "Back to the Doc Smoke A tab" ||
+    inlineDocState.whatsThisButtons !== 0 ||
     inlineDocState.qubits !== 0 ||
     inlineDocState.texts.join("|") !== "First doc scene."
   ) {
@@ -1560,14 +1569,23 @@ async function runEditorDocumentWorkflowSmoke(page) {
   const restoredAfterDoc = await page.evaluate((tabId) => {
     const panel = document.getElementById(`panel-${tabId}`);
     const canvas = panel?.querySelector(".generated-layout-canvas");
+    const reset = panel?.querySelector(
+      '[data-generated-experiment-action="reset"]',
+    );
     return {
       docRuntime: canvas?.dataset.docRuntimeCanvas || "",
+      resetLabel: reset?.textContent?.trim() || "",
+      whatsThisButtons:
+        panel?.querySelectorAll('[data-generated-document-action="whats-this"]')
+          .length || 0,
       qubits: panel?.querySelectorAll('[data-component="qubit"]').length || 0,
       textCount: panel?.querySelectorAll('[data-component="text-box"]').length || 0,
     };
   }, saved.id);
   if (
     restoredAfterDoc.docRuntime ||
+    restoredAfterDoc.resetLabel !== "Reset" ||
+    restoredAfterDoc.whatsThisButtons !== 1 ||
     restoredAfterDoc.qubits !== 1 ||
     restoredAfterDoc.textCount !== 2
   ) {
