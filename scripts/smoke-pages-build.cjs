@@ -130,7 +130,10 @@ async function runSmoke(baseUrl) {
         landingButtonLabels,
         whatsThisTargets,
         oneQubitLastSceneHasMarker: lastText.includes(
-          "I recommend working through the tabs in order",
+          'No more "canned" experiments',
+        ),
+        oneQubitLastSceneHasEnding: lastText.includes(
+          "Happy experimenting!",
         ),
         oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
         entanglementOneLastSceneHasMarker: entanglementLastText.includes(
@@ -166,6 +169,7 @@ async function runSmoke(baseUrl) {
       result.whatsThisTargets.length !== expectedPublishedTabLabels.length - 1 ||
       result.whatsThisTargets.includes(result.publicTargets[0]) ||
       !result.oneQubitLastSceneHasMarker ||
+      !result.oneQubitLastSceneHasEnding ||
       result.oneQubitLastSceneHasClue ||
       !result.entanglementOneLastSceneHasMarker ||
       result.entanglementOneLastSceneHasOldText ||

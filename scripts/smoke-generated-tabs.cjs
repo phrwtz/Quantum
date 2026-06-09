@@ -198,6 +198,53 @@ async function installContentApiHelpers(page) {
   });
 }
 
+async function installBrowserLocalContentTrap(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "quantum_local_content_state_v1_generated-tabs",
+      JSON.stringify({
+        tabs: [
+          {
+            id: "browser-local-ghost",
+            label: "Browser Local Ghost",
+            layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
+          },
+        ],
+      }),
+    );
+    localStorage.setItem(
+      "quantum_local_content_state_v1_documents",
+      JSON.stringify({
+        documents: [
+          {
+            version: 1,
+            tabId: "custom-one-qubit",
+            title: "What's this?",
+            scenes: [
+              {
+                id: "browser-local-ghost-scene",
+                title: "Scene",
+                items: [
+                  {
+                    type: "text-box",
+                    left: 0,
+                    top: 0,
+                    width: 300,
+                    height: 120,
+                    text: "Browser local ghost document",
+                  },
+                ],
+                canvasWidth: 600,
+                canvasHeight: 420,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+  });
+}
+
 async function tubeCounts(page) {
   return page.evaluate(() => {
     const root = document.querySelector("#panel-editor-smoke");
@@ -1266,7 +1313,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     !migrated.tabButtonLabels.includes("Entanglement 2") ||
     !migrated.tabButtonLabels.includes("Entanglement 3") ||
     migrated.tabLabels.includes("Entanglement 1") ||
-    !migrated.tabButtonLabels.includes("Entanglement 1") ||
+    migrated.tabButtonLabels.includes("Entanglement 1") ||
     migrated.keepGroupId !== "separate-two-qubit-measurement"
   ) {
     throw new Error(
@@ -3524,6 +3571,7 @@ async function runEntangledMathSmoke(page) {
 
 async function runFileModeRepositoryContentSmoke(browser) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  await installBrowserLocalContentTrap(page);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -3558,6 +3606,16 @@ async function runFileModeRepositoryContentSmoke(browser) {
         .filter((item) => item.type === "text-box")
         .map((item) => item.text || "")
         .join("\n");
+      const oneQubitRuntimeDocument =
+        typeof documentForTabId === "function"
+          ? documentForTabId("custom-one-qubit")
+          : null;
+      const oneQubitRuntimeText = (
+        oneQubitRuntimeDocument?.scenes?.[0]?.items || []
+      )
+        .filter((item) => item.type === "text-box")
+        .map((item) => item.text || "")
+        .join("\n");
       const oneQubitToolbar = document.querySelector(
         "#panel-custom-one-qubit [data-generated-document-action='whats-this']",
       );
@@ -3568,7 +3626,10 @@ async function runFileModeRepositoryContentSmoke(browser) {
         labels,
         generatedLabels: tabs.map((tab) => tab.label),
         oneQubitLastSceneHasMarker: lastText.includes(
-          "I recommend working through the tabs in order",
+          'No more "canned" experiments',
+        ),
+        oneQubitLastSceneHasEnding: lastText.includes(
+          "Happy experimenting!",
         ),
         oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
         entanglementOneLastSceneHasMarker: entanglementLastText.includes(
@@ -3576,6 +3637,10 @@ async function runFileModeRepositoryContentSmoke(browser) {
         ),
         entanglementOneLastSceneHasOldText: entanglementLastText.includes(
           "leave it to you to experiment but here are some questions to get you started",
+        ),
+        hasBrowserLocalGhostTab: labels.includes("Browser Local Ghost"),
+        hasBrowserLocalGhostDocument: oneQubitRuntimeText.includes(
+          "Browser local ghost document",
         ),
         hasAuthoringTabs: Boolean(
           document.querySelector("#tab-plaground") &&
@@ -3592,9 +3657,12 @@ async function runFileModeRepositoryContentSmoke(browser) {
       !result.hasOneQubitToolbar ||
       result.hasLandingToolbar ||
       !result.oneQubitLastSceneHasMarker ||
+      !result.oneQubitLastSceneHasEnding ||
       result.oneQubitLastSceneHasClue ||
       !result.entanglementOneLastSceneHasMarker ||
       result.entanglementOneLastSceneHasOldText ||
+      result.hasBrowserLocalGhostTab ||
+      result.hasBrowserLocalGhostDocument ||
       errors.length > 0
     ) {
       throw new Error(
@@ -3615,6 +3683,7 @@ async function runSmokeTest(baseUrl) {
   try {
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+    await installBrowserLocalContentTrap(page);
     await installContentApiHelpers(page);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));

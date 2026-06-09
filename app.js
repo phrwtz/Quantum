@@ -130,7 +130,6 @@ const DEFAULT_SINGLE_GATE_TICK_INDEX = 3;
 const GENERATED_EXPERIMENT_REPEAT_ACTION = "experiment-repeat";
 const GENERATED_EXPERIMENT_COUNT_ACTION = "experiment-count";
 const PLAYGROUND_LAYOUT_STORAGE_KEY = "quantum_plaground_layout_v1";
-const LOCAL_CONTENT_STORAGE_KEY_PREFIX = "quantum_local_content_state_v1_";
 const PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY =
   "quantum_playground_component_defaults_v1";
 const LEGACY_GENERATED_TABS_PROPERTY = ["cus", "tomTabs"].join("");
@@ -1826,47 +1825,6 @@ function localContentApiEndpoints(contentName) {
   return endpoints;
 }
 
-function localContentBrowserStorageKey(contentName) {
-  const name = String(contentName || "").replace(/[^a-z-]/g, "");
-  return name ? `${LOCAL_CONTENT_STORAGE_KEY_PREFIX}${name}` : "";
-}
-
-function readBrowserLocalContentState(contentName) {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return null;
-  }
-  const key = localContentBrowserStorageKey(contentName);
-  if (!key) {
-    return null;
-  }
-  try {
-    const serialized = window.localStorage.getItem(key);
-    if (!serialized) {
-      return null;
-    }
-    const parsed = JSON.parse(serialized);
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function writeBrowserLocalContentState(contentName, state) {
-  if (IS_GITHUB_PAGES_BUILD) {
-    return false;
-  }
-  const key = localContentBrowserStorageKey(contentName);
-  if (!key) {
-    return false;
-  }
-  try {
-    window.localStorage.setItem(key, JSON.stringify(state || {}));
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
 function readJsonResourceSync(url) {
   if (!url || typeof XMLHttpRequest === "undefined") {
     return null;
@@ -1919,6 +1877,10 @@ function writeLocalContentState(contentName, state) {
   );
 }
 
+function contentFileSaveFailureMessage() {
+  return "Save failed. Start the local server with npm run serve.";
+}
+
 function readBundledContentState(relativePath) {
   const bundle = window.__QUANTUM_REPOSITORY_CONTENT__;
   const files = bundle && typeof bundle === "object" ? bundle.files : null;
@@ -1952,76 +1914,10 @@ function readRepositoryContentState(contentName, relativePath) {
   return readLocalContentState(contentName) || readContentFileState(relativePath);
 }
 
-function mergeGeneratedTabsContentState(baseState, overlayState) {
-  const baseTabs = Array.isArray(baseState?.tabs) ? baseState.tabs : [];
-  const overlayTabs = Array.isArray(overlayState?.tabs) ? overlayState.tabs : [];
-  if (overlayTabs.length === 0) {
-    return baseState;
-  }
-  const overlayById = new Map(
-    overlayTabs
-      .filter((entry) => entry && typeof entry.id === "string" && entry.id)
-      .map((entry) => [entry.id, entry]),
-  );
-  const mergedTabs = baseTabs.map((entry) =>
-    overlayById.has(entry?.id) ? overlayById.get(entry.id) : entry,
-  );
-  const baseIds = new Set(
-    baseTabs
-      .filter((entry) => entry && typeof entry.id === "string")
-      .map((entry) => entry.id),
-  );
-  overlayTabs.forEach((entry) => {
-    if (entry && typeof entry.id === "string" && !baseIds.has(entry.id)) {
-      mergedTabs.push(entry);
-    }
-  });
-  return {
-    ...(baseState || {}),
-    ...(overlayState || {}),
-    tabs: mergedTabs,
-  };
-}
-
-function mergeDocumentsContentState(baseState, overlayState) {
-  const baseDocuments = Array.isArray(baseState?.documents)
-    ? baseState.documents
-    : [];
-  const overlayDocuments = Array.isArray(overlayState?.documents)
-    ? overlayState.documents
-    : [];
-  if (overlayDocuments.length === 0) {
-    return baseState;
-  }
-  const overlayByTabId = new Map(
-    overlayDocuments
-      .filter((entry) => entry && typeof entry.tabId === "string" && entry.tabId)
-      .map((entry) => [entry.tabId, entry]),
-  );
-  const mergedDocuments = baseDocuments.map((entry) =>
-    overlayByTabId.has(entry?.tabId) ? overlayByTabId.get(entry.tabId) : entry,
-  );
-  const baseTabIds = new Set(
-    baseDocuments
-      .filter((entry) => entry && typeof entry.tabId === "string")
-      .map((entry) => entry.tabId),
-  );
-  overlayDocuments.forEach((entry) => {
-    if (entry && typeof entry.tabId === "string" && !baseTabIds.has(entry.tabId)) {
-      mergedDocuments.push(entry);
-    }
-  });
-  return {
-    ...(baseState || {}),
-    ...(overlayState || {}),
-    documents: mergedDocuments,
-  };
-}
-
 function readGeneratedTabsState() {
-  const fileState = mergeGeneratedTabsContentState(
-    readRepositoryContentState("generated-tabs", GENERATED_TABS_CONTENT_FILE),
-    readBrowserLocalContentState("generated-tabs"),
+  const fileState = readRepositoryContentState(
+    "generated-tabs",
+    GENERATED_TABS_CONTENT_FILE,
   );
   if (!fileState || typeof fileState !== "object") {
     return { tabs: [] };
@@ -2039,10 +1935,6 @@ function writeGeneratedTabsState(state) {
     return true;
   }
   if (writeLocalContentState("generated-tabs", normalized)) {
-    writeBrowserLocalContentState("generated-tabs", normalized);
-    return true;
-  }
-  if (writeBrowserLocalContentState("generated-tabs", normalized)) {
     return true;
   }
   return false;
@@ -2131,10 +2023,7 @@ function normalizeDocumentsContentState(state) {
 
 function readDocumentsState() {
   const fileState = normalizeDocumentsContentState(
-    mergeDocumentsContentState(
-      readRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
-      readBrowserLocalContentState("documents"),
-    ),
+    readRepositoryContentState("documents", DOCUMENTS_CONTENT_FILE),
   );
   return fileState || { documents: [] };
 }
@@ -2146,11 +2035,6 @@ function writeDocumentsState(state) {
     return true;
   }
   if (writeLocalContentState("documents", normalized)) {
-    documentsState = normalized;
-    writeBrowserLocalContentState("documents", normalized);
-    return true;
-  }
-  if (writeBrowserLocalContentState("documents", normalized)) {
     documentsState = normalized;
     return true;
   }
@@ -7348,7 +7232,7 @@ function persistDocumentEditorDocument() {
     refreshGeneratedDocumentToolbars();
     plagroundComposer?.handleGeneratedTabsChanged?.();
   } else {
-    setDocumentEditorMessage("Save failed", {
+    setDocumentEditorMessage(contentFileSaveFailureMessage(), {
       target: "status",
       warning: true,
     });
@@ -15717,7 +15601,7 @@ function setupPlagroundComposer() {
     const payload = buildLayoutPayload();
     const layout = cloneJson(payload);
     if (!layout) {
-      setStatus("Save failed");
+      setStatus(contentFileSaveFailureMessage());
       return false;
     }
 
@@ -15763,14 +15647,14 @@ function setupPlagroundComposer() {
         (entry) => entry.id === targetId,
       );
       if (!editorEntry) {
-        setStatus("Save failed");
+        setStatus(contentFileSaveFailureMessage());
         return false;
       }
       editorEntry.layout = layout;
     }
 
     if (!writeGeneratedTabsState(nextState)) {
-      setStatus("Save failed");
+      setStatus(contentFileSaveFailureMessage());
       return false;
     }
     applyGeneratedTabsState(nextState);
@@ -16296,7 +16180,7 @@ function setupPlagroundComposer() {
   if (playgroundSaveButton) {
     playgroundSaveButton.addEventListener("click", () => {
       saveLayout().catch(() => {
-        setStatus("Save failed");
+        setStatus(contentFileSaveFailureMessage());
       });
     });
   }
