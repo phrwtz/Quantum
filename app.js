@@ -425,6 +425,22 @@ const layoutEditorState = {
 };
 let selectedGeneratedLayoutItem = null;
 let selectedGeneratedLayoutPart = null;
+const generatedLayoutResizeObserver =
+  typeof ResizeObserver === "function"
+    ? new ResizeObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!(entry.target instanceof HTMLElement)) {
+            return;
+          }
+          const canvas = entry.target.querySelector(
+            ":scope > .generated-layout-canvas",
+          );
+          if (canvas instanceof HTMLElement) {
+            syncGeneratedLayoutCanvasScale(canvas);
+          }
+        });
+      })
+    : null;
 
 function cloneTemplateElement(template, selector) {
   if (!(template instanceof HTMLTemplateElement)) {
@@ -4246,6 +4262,99 @@ function isGeneratedLayoutCanvas(element) {
   );
 }
 
+function generatedLayoutCanvasScale(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return 1;
+  }
+  const storedScale = Number.parseFloat(canvas.dataset.generatedLayoutScale);
+  if (Number.isFinite(storedScale) && storedScale > 0) {
+    return storedScale;
+  }
+  const logicalWidth = parseLayoutNumeric(
+    canvas.dataset.generatedLogicalWidth,
+    canvas.offsetWidth || canvas.clientWidth || 0,
+  );
+  const rectWidth = canvas.getBoundingClientRect().width;
+  if (logicalWidth > 0 && rectWidth > 0) {
+    return rectWidth / logicalWidth;
+  }
+  return 1;
+}
+
+function generatedLayoutViewportForCanvas(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return null;
+  }
+  const viewport = canvas.closest(".generated-layout-viewport");
+  return viewport instanceof HTMLElement ? viewport : null;
+}
+
+function syncGeneratedLayoutCanvasScale(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return 1;
+  }
+  const viewport = generatedLayoutViewportForCanvas(canvas);
+  const logicalWidth = parseLayoutNumeric(
+    canvas.dataset.generatedLogicalWidth,
+    canvas.offsetWidth || canvas.clientWidth || 0,
+  );
+  const viewportWidth = viewport?.getBoundingClientRect().width || logicalWidth;
+  const scale =
+    logicalWidth > 0 && viewportWidth > 0
+      ? Math.min(1, viewportWidth / logicalWidth)
+      : 1;
+  const normalizedScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  canvas.dataset.generatedLayoutScale = normalizedScale.toFixed(6);
+  canvas.style.setProperty("--generated-layout-scale", `${normalizedScale}`);
+  return normalizedScale;
+}
+
+function syncGeneratedLayoutCanvasScales(root = document) {
+  const scope =
+    root instanceof Document ? root : root?.ownerDocument || document;
+  const canvases =
+    root instanceof HTMLElement && root.matches(".generated-layout-canvas")
+      ? [root]
+      : Array.from(
+          (root instanceof HTMLElement ? root : scope).querySelectorAll(
+            ".generated-layout-canvas",
+          ),
+        );
+  canvases.forEach((canvas) => syncGeneratedLayoutCanvasScale(canvas));
+}
+
+function generatedViewportPointToCanvasPoint(canvas, x, y) {
+  const canvasRect = canvas.getBoundingClientRect();
+  const scale = generatedLayoutCanvasScale(canvas);
+  return {
+    x: (x - canvasRect.left) / scale + canvas.scrollLeft,
+    y: (y - canvasRect.top) / scale + canvas.scrollTop,
+  };
+}
+
+function generatedCanvasBoundsForElement(canvas, element) {
+  if (!isGeneratedLayoutCanvas(canvas) || !(element instanceof HTMLElement)) {
+    return null;
+  }
+  const rect = element.getBoundingClientRect();
+  const topLeft = generatedViewportPointToCanvasPoint(
+    canvas,
+    rect.left,
+    rect.top,
+  );
+  const bottomRight = generatedViewportPointToCanvasPoint(
+    canvas,
+    rect.right,
+    rect.bottom,
+  );
+  return {
+    left: topLeft.x,
+    right: bottomRight.x,
+    top: topLeft.y,
+    bottom: bottomRight.y,
+  };
+}
+
 function isDocumentEditorCanvas(element) {
   return (
     element instanceof HTMLElement && element.dataset.docEditorCanvas === "true"
@@ -5135,24 +5244,22 @@ function settleGeneratedQubitVisualState(item) {
 }
 
 function generatedCanvasPointForElementCenter(canvas, element) {
-  const canvasRect = canvas.getBoundingClientRect();
   const rect = element.getBoundingClientRect();
-  return {
-    x: rect.left - canvasRect.left + canvas.scrollLeft + rect.width / 2,
-    y: rect.top - canvasRect.top + canvas.scrollTop + rect.height / 2,
-  };
+  return generatedViewportPointToCanvasPoint(
+    canvas,
+    rect.left + rect.width / 2,
+    rect.top + rect.height / 2,
+  );
 }
 
 function generatedCanvasXForElementLeft(canvas, element) {
-  const canvasRect = canvas.getBoundingClientRect();
   const rect = element.getBoundingClientRect();
-  return rect.left - canvasRect.left + canvas.scrollLeft;
+  return generatedViewportPointToCanvasPoint(canvas, rect.left, rect.top).x;
 }
 
 function generatedCanvasXForElementRight(canvas, element) {
-  const canvasRect = canvas.getBoundingClientRect();
   const rect = element.getBoundingClientRect();
-  return rect.right - canvasRect.left + canvas.scrollLeft;
+  return generatedViewportPointToCanvasPoint(canvas, rect.right, rect.top).x;
 }
 
 function cnotSpringExpandedLength(spring) {
@@ -5161,14 +5268,6 @@ function cnotSpringExpandedLength(spring) {
     return styleWidth;
   }
   return spring.offsetWidth || spring.getBoundingClientRect().width || 0;
-}
-
-function generatedViewportPointToCanvasPoint(canvas, x, y) {
-  const canvasRect = canvas.getBoundingClientRect();
-  return {
-    x: x - canvasRect.left + canvas.scrollLeft,
-    y: y - canvasRect.top + canvas.scrollTop,
-  };
 }
 
 function setGeneratedQubitCenter(canvas, qubitItem, x, y) {
@@ -6592,11 +6691,9 @@ function positionGeneratedItemFromClientPoint(canvas, item, clientX, clientY) {
   if (!isGeneratedLayoutCanvas(canvas) || !(item instanceof HTMLElement)) {
     return;
   }
-  const canvasRect = canvas.getBoundingClientRect();
-  const pointerX = clientX - canvasRect.left + canvas.scrollLeft;
-  const pointerY = clientY - canvasRect.top + canvas.scrollTop;
-  const unclampedLeft = pointerX - item.offsetWidth / 2;
-  const unclampedTop = pointerY - 18;
+  const pointer = generatedViewportPointToCanvasPoint(canvas, clientX, clientY);
+  const unclampedLeft = pointer.x - item.offsetWidth / 2;
+  const unclampedTop = pointer.y - 18;
   const clamped = generatedLayoutClampItemPosition(
     canvas,
     item,
@@ -6662,16 +6759,12 @@ function addGeneratedGroupComponentAtPoint(canvas, group, clientX, clientY) {
   ) {
     return null;
   }
-  const canvasRect = canvas.getBoundingClientRect();
-  const origin = {
-    left: clientX - canvasRect.left + canvas.scrollLeft,
-    top: clientY - canvasRect.top + canvas.scrollTop,
-  };
+  const origin = generatedViewportPointToCanvasPoint(canvas, clientX, clientY);
   const instanceId = `${group.id || "group"}-${Date.now().toString(36)}`;
   const geometry = {
     type: PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
-    left: origin.left,
-    top: origin.top,
+    left: origin.x,
+    top: origin.y,
     width: Number.isFinite(group.width) ? group.width : 320,
     height: Number.isFinite(group.height) ? group.height : 240,
     measurementGroupId: instanceId,
@@ -7021,17 +7114,21 @@ function refreshGeneratedDocumentToolbarForEntry(entry) {
   gatePanel
     .querySelectorAll(":scope > .generated-document-toolbar")
     .forEach((toolbar) => toolbar.remove());
-  const canvas = gatePanel.querySelector(":scope > .generated-layout-canvas");
+  const canvas = gatePanel.querySelector(".generated-layout-canvas");
   const toolbar = createGeneratedDocumentToolbar(entry, canvas);
   if (!toolbar) {
     return false;
   }
+  const canvasViewport =
+    canvas instanceof HTMLElement
+      ? canvas.closest(".generated-layout-viewport")
+      : null;
   const experimentToolbar = gatePanel.querySelector(
     ":scope > .generated-experiment-toolbar",
   );
   gatePanel.insertBefore(
     toolbar,
-    experimentToolbar?.nextSibling || canvas || null,
+    experimentToolbar?.nextSibling || canvasViewport || null,
   );
   return true;
 }
@@ -7074,6 +7171,28 @@ function playgroundLayoutCanvasDimensions(layout) {
   };
 }
 
+function createGeneratedLayoutViewport(canvas, dimensions) {
+  const viewport = document.createElement("div");
+  viewport.className = "generated-layout-viewport";
+  viewport.style.setProperty(
+    "--generated-layout-logical-width",
+    `${dimensions.width}px`,
+  );
+  viewport.style.setProperty(
+    "--generated-layout-logical-height",
+    `${dimensions.height}px`,
+  );
+  viewport.style.setProperty(
+    "--generated-layout-aspect-ratio",
+    `${dimensions.width} / ${dimensions.height}`,
+  );
+  canvas.dataset.generatedLogicalWidth = `${dimensions.width}`;
+  canvas.dataset.generatedLogicalHeight = `${dimensions.height}`;
+  viewport.appendChild(canvas);
+  generatedLayoutResizeObserver?.observe(viewport);
+  return viewport;
+}
+
 function renderGeneratedLayoutPanel(panel, entry) {
   if (!(panel instanceof HTMLElement)) {
     return;
@@ -7113,12 +7232,16 @@ function renderGeneratedLayoutPanel(panel, entry) {
   if (!isGeneratedLandingPageTab(entry)) {
     gatePanel.appendChild(createGeneratedExperimentToolbar(canvas));
   }
-  gatePanel.appendChild(canvas);
+  gatePanel.appendChild(createGeneratedLayoutViewport(canvas, dimensions));
   panel.appendChild(gatePanel);
+  syncGeneratedLayoutCanvasScale(canvas);
   refreshGeneratedDocumentToolbarForEntry(entry);
   syncGeneratedTextBoxSequence(canvas, { reset: true });
   updateGeneratedEditorButtons(canvas);
-  window.requestAnimationFrame(() => layoutGeneratedSingleGateDials(canvas));
+  window.requestAnimationFrame(() => {
+    syncGeneratedLayoutCanvasScale(canvas);
+    layoutGeneratedSingleGateDials(canvas);
+  });
 }
 
 function activeDocumentEditorScene() {
@@ -8204,16 +8327,11 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
     }
 
     gateRuntime.item.classList.add("platform-extended");
-    const canvasRect = canvas.getBoundingClientRect();
-    const pipeRect = gateRuntime.gateWindow.getBoundingClientRect();
-    const qubitRect = qubitItem.getBoundingClientRect();
     const ejectedCenter = {
       x:
-        pipeRect.right -
-        canvasRect.left +
-        canvas.scrollLeft +
+        generatedCanvasXForElementRight(canvas, gateRuntime.gateWindow) +
         100 +
-        qubitRect.width / 2,
+        qubitItem.offsetWidth / 2,
       y: retractedPlatformPoint.y,
     };
     await moveGeneratedQubitToPoint(
@@ -9878,20 +9996,6 @@ function nearestGeneratedItemByCenter(canvas, sourceElement, items) {
   return bestItem;
 }
 
-function generatedCanvasBoundsForElement(canvas, element) {
-  if (!isGeneratedLayoutCanvas(canvas) || !(element instanceof HTMLElement)) {
-    return null;
-  }
-  const canvasRect = canvas.getBoundingClientRect();
-  const rect = element.getBoundingClientRect();
-  return {
-    left: rect.left - canvasRect.left + canvas.scrollLeft,
-    right: rect.right - canvasRect.left + canvas.scrollLeft,
-    top: rect.top - canvasRect.top + canvas.scrollTop,
-    bottom: rect.bottom - canvasRect.top + canvas.scrollTop,
-  };
-}
-
 function generatedPointInsideElement(canvas, point, element) {
   const bounds = generatedCanvasBoundsForElement(canvas, element);
   return Boolean(
@@ -11239,20 +11343,15 @@ function generatedSingleGateEjectedCenter(canvas, qubitItem, gateRuntime) {
   if (!gateRuntime?.gateWindow || !qubitItem) {
     return null;
   }
-  const canvasRect = canvas.getBoundingClientRect();
-  const pipeRect = gateRuntime.gateWindow.getBoundingClientRect();
-  const qubitRect = qubitItem.getBoundingClientRect();
   const gateCenter = generatedCanvasPointForElementCenter(
     canvas,
     gateRuntime.ticksWrap,
   );
   return {
     x:
-      pipeRect.right -
-      canvasRect.left +
-      canvas.scrollLeft +
+      generatedCanvasXForElementRight(canvas, gateRuntime.gateWindow) +
       100 +
-      qubitRect.width / 2,
+      qubitItem.offsetWidth / 2,
     y: gateCenter.y,
   };
 }
@@ -11261,8 +11360,7 @@ function generatedCnotEjectedCenters(canvas, topQubit, bottomQubit, runtime) {
   if (!runtime?.body || !runtime.windowTop || !runtime.windowBottom) {
     return null;
   }
-  const canvasRect = canvas.getBoundingClientRect();
-  const bodyRect = runtime.body.getBoundingClientRect();
+  const bodyRight = generatedCanvasXForElementRight(canvas, runtime.body);
   const topWindowCenter = generatedCanvasPointForElementCenter(
     canvas,
     runtime.windowTop,
@@ -11271,25 +11369,13 @@ function generatedCnotEjectedCenters(canvas, topQubit, bottomQubit, runtime) {
     canvas,
     runtime.windowBottom,
   );
-  const topQubitRect = topQubit.getBoundingClientRect();
-  const bottomQubitRect = bottomQubit.getBoundingClientRect();
   return {
     top: {
-      x:
-        bodyRect.right -
-        canvasRect.left +
-        canvas.scrollLeft +
-        50 +
-        topQubitRect.width / 2,
+      x: bodyRight + 50 + topQubit.offsetWidth / 2,
       y: topWindowCenter.y,
     },
     bottom: {
-      x:
-        bodyRect.right -
-        canvasRect.left +
-        canvas.scrollLeft +
-        50 +
-        bottomQubitRect.width / 2,
+      x: bodyRight + 50 + bottomQubit.offsetWidth / 2,
       y: bottomWindowCenter.y,
     },
   };
@@ -11642,14 +11728,19 @@ function beginGeneratedRuntimeQubitDrag(item, event) {
   bringGeneratedItemToFront(item);
   releaseGeneratedQubitFromCnotSlots(item);
   releaseGeneratedQubitFromDoubleMeasurementSlots(item);
-  const itemRect = item.getBoundingClientRect();
+  const pointerCanvasPoint = generatedViewportPointToCanvasPoint(
+    canvas,
+    point.clientX,
+    point.clientY,
+  );
+  const itemBounds = generatedCanvasBoundsForElement(canvas, item);
   const initialRecordPoint = generatedItemCenterSnapshot(canvas, item);
   generatedRuntimeDrag = {
     canvas,
     item,
     startPoint: generatedCanvasPointForElementCenter(canvas, item),
-    pointerOffsetX: point.clientX - itemRect.left,
-    pointerOffsetY: point.clientY - itemRect.top,
+    pointerOffsetX: pointerCanvasPoint.x - (itemBounds?.left || 0),
+    pointerOffsetY: pointerCanvasPoint.y - (itemBounds?.top || 0),
     initialRecordPoint,
     recordingPath: experimentState?.recording && initialRecordPoint
       ? [
@@ -11679,17 +11770,13 @@ function continueGeneratedRuntimeGesture(event) {
     event.preventDefault();
   }
   startGeneratedDragRecordingIfNeeded(gesture);
-  const canvasRect = gesture.canvas.getBoundingClientRect();
-  const left =
-    point.clientX -
-    canvasRect.left +
-    gesture.canvas.scrollLeft -
-    gesture.pointerOffsetX;
-  const top =
-    point.clientY -
-    canvasRect.top +
-    gesture.canvas.scrollTop -
-    gesture.pointerOffsetY;
+  const pointerCanvasPoint = generatedViewportPointToCanvasPoint(
+    gesture.canvas,
+    point.clientX,
+    point.clientY,
+  );
+  const left = pointerCanvasPoint.x - gesture.pointerOffsetX;
+  const top = pointerCanvasPoint.y - gesture.pointerOffsetY;
   const clamped = generatedLayoutClampItemPosition(
     gesture.canvas,
     gesture.item,
@@ -11841,6 +11928,11 @@ function beginGeneratedLayoutEditGesture(event) {
     return;
   }
   prepareGeneratedLayoutCanvas(canvas);
+  const startCanvasPoint = generatedViewportPointToCanvasPoint(
+    canvas,
+    point.clientX,
+    point.clientY,
+  );
   const origin = event.target;
   if (!(origin instanceof Element)) {
     return;
@@ -11872,14 +11964,20 @@ function beginGeneratedLayoutEditGesture(event) {
     const behindItem = layoutItemBehindPoint(canvas, originItem, point);
     if (behindItem?.dataset?.component === "qubit") {
       setSelectedGeneratedLayoutItem(behindItem);
+      const behindLeft = parseLayoutNumeric(behindItem.style.left, 0);
+      const behindTop = parseLayoutNumeric(behindItem.style.top, 0);
       generatedLayoutGesture = {
         mode: "item-move",
         canvas,
         item: behindItem,
         startX: point.clientX,
         startY: point.clientY,
-        startLeft: parseLayoutNumeric(behindItem.style.left, 0),
-        startTop: parseLayoutNumeric(behindItem.style.top, 0),
+        startCanvasX: startCanvasPoint.x,
+        startCanvasY: startCanvasPoint.y,
+        startLeft: behindLeft,
+        startTop: behindTop,
+        pointerOffsetX: startCanvasPoint.x - behindLeft,
+        pointerOffsetY: startCanvasPoint.y - behindTop,
         startWidth: behindItem.offsetWidth,
         startHeight: behindItem.offsetHeight,
         minWidth: minGeneratedLayoutSizeForType(behindItem.dataset.component)
@@ -11908,7 +12006,6 @@ function beginGeneratedLayoutEditGesture(event) {
       origin.closest(".layout-resize-handle") ||
       pointerNearResizeCorner(measurementPart, point, 18);
     const initialTranslate = layoutTargetTranslate(measurementPart);
-    const rect = measurementPart.getBoundingClientRect();
     generatedLayoutGesture = {
       mode: canResize && isResizeHandle ? "part-resize" : "part-move",
       canvas,
@@ -11916,10 +12013,12 @@ function beginGeneratedLayoutEditGesture(event) {
       part: measurementPart,
       startX: point.clientX,
       startY: point.clientY,
+      startCanvasX: startCanvasPoint.x,
+      startCanvasY: startCanvasPoint.y,
       startTx: initialTranslate.x,
       startTy: initialTranslate.y,
-      startWidth: rect.width,
-      startHeight: rect.height,
+      startWidth: measurementPart.offsetWidth,
+      startHeight: measurementPart.offsetHeight,
       uniformResize: measurementPart.dataset.layoutUniformResize === "true",
       minWidth: parseLayoutNumeric(measurementPart.dataset.layoutMinWidth, 24),
       minHeight: parseLayoutNumeric(
@@ -11955,7 +12054,7 @@ function beginGeneratedLayoutEditGesture(event) {
     targetItem.dataset.component === "text-box" &&
       origin.closest('[data-role="text-box-body"]'),
   );
-  const itemRect = targetItem.getBoundingClientRect();
+  const itemBounds = generatedCanvasBoundsForElement(canvas, targetItem);
   const isResizeHandle =
     origin.closest(".layout-resize-handle") ||
     pointerNearResizeCorner(targetItem, point, 22);
@@ -11966,13 +12065,18 @@ function beginGeneratedLayoutEditGesture(event) {
     item: targetItem,
     startX: point.clientX,
     startY: point.clientY,
+    startCanvasX: startCanvasPoint.x,
+    startCanvasY: startCanvasPoint.y,
     startLeft: parseLayoutNumeric(targetItem.style.left, 0),
     startTop: parseLayoutNumeric(targetItem.style.top, 0),
-    pointerOffsetX: point.clientX - itemRect.left,
-    pointerOffsetY: point.clientY - itemRect.top,
-    startWidth: itemRect.width,
-    startHeight: itemRect.height,
-    aspectRatio: itemRect.height > 0 ? itemRect.width / itemRect.height : 1,
+    pointerOffsetX: startCanvasPoint.x - (itemBounds?.left || 0),
+    pointerOffsetY: startCanvasPoint.y - (itemBounds?.top || 0),
+    startWidth: targetItem.offsetWidth,
+    startHeight: targetItem.offsetHeight,
+    aspectRatio:
+      targetItem.offsetHeight > 0
+        ? targetItem.offsetWidth / targetItem.offsetHeight
+        : 1,
     cnotBaseline:
       mode === "item-resize" ? captureCnotGeometryBaseline(targetItem) : null,
   };
@@ -11994,8 +12098,22 @@ function continueGeneratedLayoutEditGesture(event) {
   if (!point) {
     return;
   }
-  const dx = point.clientX - gesture.startX;
-  const dy = point.clientY - gesture.startY;
+  const currentCanvasPoint = generatedViewportPointToCanvasPoint(
+    gesture.canvas,
+    point.clientX,
+    point.clientY,
+  );
+  const startCanvasPoint =
+    Number.isFinite(gesture.startCanvasX) &&
+    Number.isFinite(gesture.startCanvasY)
+      ? { x: gesture.startCanvasX, y: gesture.startCanvasY }
+      : generatedViewportPointToCanvasPoint(
+          gesture.canvas,
+          gesture.startX,
+          gesture.startY,
+        );
+  const dx = currentCanvasPoint.x - startCanvasPoint.x;
+  const dy = currentCanvasPoint.y - startCanvasPoint.y;
   if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
     gesture.edited = true;
   }
@@ -12047,17 +12165,8 @@ function continueGeneratedLayoutEditGesture(event) {
     layoutGeneratedSingleGateDials(gesture.canvas);
     setLayoutManualEdited(gesture.item, true);
   } else {
-    const canvasRect = gesture.canvas.getBoundingClientRect();
-    const nextLeft =
-      point.clientX -
-      canvasRect.left +
-      gesture.canvas.scrollLeft -
-      gesture.pointerOffsetX;
-    const nextTop =
-      point.clientY -
-      canvasRect.top +
-      gesture.canvas.scrollTop -
-      gesture.pointerOffsetY;
+    const nextLeft = currentCanvasPoint.x - gesture.pointerOffsetX;
+    const nextTop = currentCanvasPoint.y - gesture.pointerOffsetY;
     const clamped = generatedLayoutClampItemPosition(
       gesture.canvas,
       gesture.item,
@@ -18192,7 +18301,10 @@ function setActiveTab(tabTarget) {
     panel.hidden = !isActive;
     panel.classList.toggle("active", isActive);
     if (isActive) {
-      window.requestAnimationFrame(() => layoutGeneratedSingleGateDials(panel));
+      window.requestAnimationFrame(() => {
+        syncGeneratedLayoutCanvasScales(panel);
+        layoutGeneratedSingleGateDials(panel);
+      });
     }
   });
 
@@ -18254,6 +18366,7 @@ plagroundComposer?.handleGeneratedTabsChanged?.();
 documentEditorComposer?.handleGeneratedTabsChanged?.();
 
 window.addEventListener("resize", () => {
+  syncGeneratedLayoutCanvasScales();
   refreshVisibleEditors();
 });
 
