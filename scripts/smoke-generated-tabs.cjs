@@ -3587,6 +3587,161 @@ async function runEntangledMathSmoke(page) {
   }
 }
 
+async function runDocEditorLandingIntroTextSmoke(page) {
+  const originalViewport = page.viewportSize();
+  const originalGeneratedTabs = await page.evaluate(() =>
+    JSON.parse(JSON.stringify(window.readQuantumContentState("generated-tabs"))),
+  );
+  try {
+    await page.setViewportSize({ width: 1200, height: 1000 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#tab-doc-editor").click();
+    await page.locator("#docEditorTabSelect").selectOption("editor-introduction");
+    await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
+    const initial = await page.evaluate(() => {
+      const textBox = document.querySelector(
+        "#docEditorCanvas [data-component='text-box']",
+      );
+      const body = textBox?.querySelector('[data-role="text-box-body"]');
+      return {
+        text: body?.textContent || "",
+        editable: body instanceof HTMLElement && body.isContentEditable,
+        left:
+          textBox instanceof HTMLElement
+            ? Number.parseFloat(textBox.style.left)
+            : null,
+        top:
+          textBox instanceof HTMLElement
+            ? Number.parseFloat(textBox.style.top)
+            : null,
+        width: textBox instanceof HTMLElement ? textBox.offsetWidth : null,
+        height: textBox instanceof HTMLElement ? textBox.offsetHeight : null,
+        resizable:
+          textBox instanceof HTMLElement &&
+          textBox.dataset.layoutResizable === "true" &&
+          Boolean(textBox.querySelector(":scope > .layout-resize-handle")),
+      };
+    });
+    if (
+      !initial.text.includes("Welcome to Qubit Lab") ||
+      !initial.text.includes("buttons below") ||
+      initial.text.includes("tabs above") ||
+      !initial.editable ||
+      !initial.resizable
+    ) {
+      throw new Error(
+        `Doc Editor Introduction text box did not load editable landing text: ${JSON.stringify(initial)}`,
+      );
+    }
+
+    const docTextBox = page.locator("#docEditorCanvas [data-component='text-box']");
+    const docTextBoxBody = page.locator(
+      "#docEditorCanvas [data-component='text-box'] [data-role='text-box-body']",
+    );
+    const editedLandingText = "Edited landing intro from Doc Editor.";
+    await docTextBoxBody.fill(editedLandingText);
+    await wait(120);
+
+    const beforeDrag = await docTextBox.boundingBox();
+    const bodyBox = await docTextBoxBody.boundingBox();
+    if (!beforeDrag || !bodyBox) {
+      throw new Error("Missing Introduction text box bounds before drag");
+    }
+    await page.mouse.move(bodyBox.x + 28, bodyBox.y + 28);
+    await page.mouse.down();
+    await page.mouse.move(bodyBox.x + 92, bodyBox.y + 58, { steps: 8 });
+    await page.mouse.up();
+    await wait(160);
+    const afterDrag = await docTextBox.boundingBox();
+    if (
+      !afterDrag ||
+      afterDrag.x - beforeDrag.x < 24 ||
+      afterDrag.y - beforeDrag.y < 10
+    ) {
+      throw new Error(
+        `Doc Editor Introduction text box did not drag: before=${JSON.stringify(
+          beforeDrag,
+        )} after=${JSON.stringify(afterDrag)}`,
+      );
+    }
+
+    await page.mouse.move(
+      afterDrag.x + afterDrag.width - 4,
+      afterDrag.y + afterDrag.height - 4,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      afterDrag.x + afterDrag.width + 78,
+      afterDrag.y + afterDrag.height + 44,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await wait(160);
+    const afterResize = await docTextBox.boundingBox();
+    if (
+      !afterResize ||
+      afterResize.width - afterDrag.width < 36 ||
+      afterResize.height - afterDrag.height < 20
+    ) {
+      throw new Error(
+        `Doc Editor Introduction text box did not resize: before=${JSON.stringify(
+          afterDrag,
+        )} after=${JSON.stringify(afterResize)}`,
+      );
+    }
+
+    await page.locator("#docEditorDoneButton").click();
+    await wait(250);
+    await page.locator("#panel-editor-introduction .landing-info-link").click();
+    const result = await page.evaluate((expectedText) => {
+      const generatedTabs = window.readQuantumContentState("generated-tabs");
+      const intro = (generatedTabs.tabs || []).find(
+        (entry) => entry.id === "editor-introduction",
+      );
+      const textBox = (intro?.layout?.items || []).find(
+        (item) => item.type === "text-box",
+      );
+      const card = document.querySelector(
+        "#panel-editor-introduction .landing-info-card",
+      );
+      return {
+        activeTab:
+          document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+        storedText: textBox?.text || "",
+        storedLeft: textBox?.left,
+        storedTop: textBox?.top,
+        storedWidth: textBox?.width,
+        storedHeight: textBox?.height,
+        cardVisible: Boolean(card && !card.hidden),
+        cardText: card?.textContent || "",
+        expectedText,
+      };
+    }, editedLandingText);
+    if (
+      result.activeTab !== "editor-introduction" ||
+      result.storedText !== editedLandingText ||
+      result.storedLeft <= initial.left ||
+      result.storedTop <= initial.top ||
+      result.storedWidth <= initial.width ||
+      result.storedHeight <= initial.height ||
+      !result.cardVisible ||
+      !result.cardText.includes(editedLandingText)
+    ) {
+      throw new Error(
+        `Doc Editor Introduction landing text persistence failed: ${JSON.stringify(result)}`,
+      );
+    }
+  } finally {
+    await page.evaluate((state) => {
+      window.writeQuantumContentState("generated-tabs", state);
+    }, originalGeneratedTabs);
+    if (originalViewport) {
+      await page.setViewportSize(originalViewport);
+    }
+    await page.reload({ waitUntil: "domcontentloaded" });
+  }
+}
+
 async function runFileModeRepositoryContentSmoke(browser) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
   await installBrowserLocalContentTrap(page);
@@ -3712,6 +3867,7 @@ async function runSmokeTest(baseUrl) {
     });
 
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await runDocEditorLandingIntroTextSmoke(page);
     await runEntangledMathSmoke(page);
     await runEditorDoubleMeasurementSmoke(page);
     await runSequentialMeasurementEditorSmoke(page);

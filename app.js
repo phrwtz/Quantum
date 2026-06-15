@@ -7045,6 +7045,250 @@ function isGeneratedLandingPageTab(entry) {
   return storageLabelKey(entry?.label) === "introduction";
 }
 
+function generatedTabEntryForId(tabId) {
+  const normalizedTabId = storageIdentifierKey(tabId);
+  if (!normalizedTabId) {
+    return null;
+  }
+  return (
+    (generatedTabsState.tabs || []).find(
+      (entry) => storageIdentifierKey(entry?.id) === normalizedTabId,
+    ) || null
+  );
+}
+
+function generatedLandingPageEntryForTabId(tabId) {
+  const entry = generatedTabEntryForId(tabId);
+  return isGeneratedLandingPageTab(entry) ? entry : null;
+}
+
+function generatedLandingLinkTargets(entry) {
+  const currentId = typeof entry?.id === "string" ? entry.id : "";
+  return (generatedTabsState.tabs || [])
+    .filter(
+      (candidate) =>
+        candidate &&
+        typeof candidate.id === "string" &&
+        candidate.id &&
+        candidate.id !== currentId &&
+        !isGeneratedLandingPageTab(candidate) &&
+        typeof candidate.label === "string" &&
+        candidate.label.trim(),
+    )
+    .map((candidate) => ({
+      id: candidate.id,
+      label: candidate.label.trim(),
+    }));
+}
+
+function generatedLandingIntroText(entry) {
+  return (
+    normalizeSavedGroupLayoutItems(entry?.layout?.items).find(
+      (item) => item?.type === "text-box" && typeof item.text === "string",
+    )?.text || ""
+  ).trim();
+}
+
+function generatedLandingTextBoxGeometry(entry) {
+  const existing = normalizeSavedGroupLayoutItems(entry?.layout?.items).find(
+    (item) => item?.type === "text-box",
+  );
+  if (existing) {
+    return cloneJson(existing) || { ...existing };
+  }
+  return {
+    id: `landing-${entry?.id || "introduction"}-text`,
+    type: "text-box",
+    left: 120,
+    top: 80,
+    width: 680,
+    height: 360,
+    z: 2,
+    text: "",
+    buttons: [],
+    buttonMode: "none",
+  };
+}
+
+function createLandingDocumentFromEntry(entry) {
+  if (!entry?.id || !isGeneratedLandingPageTab(entry)) {
+    return null;
+  }
+  const dimensions = playgroundLayoutCanvasDimensions(entry.layout);
+  const savedAt = Number.isFinite(entry.layout?.savedAt)
+    ? entry.layout.savedAt
+    : Date.now();
+  return normalizeDocument({
+    tabId: entry.id,
+    title: "What's this?",
+    scenes: [
+      createDocumentScene({
+        id: `landing-${entry.id}-scene`,
+        items: [generatedLandingTextBoxGeometry(entry)],
+        canvasWidth: dimensions.width,
+        canvasHeight: dimensions.height,
+        experiment: null,
+        savedAt,
+      }),
+    ],
+    updatedAt: savedAt,
+  });
+}
+
+function persistLandingDocumentEditorDocument() {
+  const tabId = documentEditorState.document?.tabId || documentEditorState.tabId;
+  const entry = generatedLandingPageEntryForTabId(tabId);
+  if (!entry) {
+    return false;
+  }
+  const scene =
+    activeDocumentEditorScene() || documentEditorState.document?.scenes?.[0];
+  if (!scene) {
+    return false;
+  }
+  const textBox = normalizeSavedGroupLayoutItems(scene.items).find(
+    (item) => item?.type === "text-box",
+  );
+  const nextState = cloneJson(generatedTabsState) || { tabs: [] };
+  const nextTabs = Array.isArray(nextState.tabs) ? nextState.tabs : [];
+  const tabIndex = nextTabs.findIndex(
+    (candidate) =>
+      storageIdentifierKey(candidate?.id) === storageIdentifierKey(entry.id),
+  );
+  if (tabIndex < 0) {
+    return false;
+  }
+  const nextEntry = nextTabs[tabIndex] || {};
+  const layout =
+    nextEntry.layout && typeof nextEntry.layout === "object"
+      ? nextEntry.layout
+      : {};
+  const replacementTextBox = textBox
+    ? { ...(cloneJson(textBox) || textBox), type: "text-box" }
+    : null;
+  let replacedTextBox = false;
+  const nextItems = normalizeSavedGroupLayoutItems(layout.items).reduce(
+    (items, item) => {
+      if (item?.type === "text-box") {
+        if (!replacedTextBox && replacementTextBox) {
+          items.push(replacementTextBox);
+        }
+        replacedTextBox = true;
+        return items;
+      }
+      items.push(item);
+      return items;
+    },
+    [],
+  );
+  if (!replacedTextBox && replacementTextBox) {
+    nextItems.unshift(replacementTextBox);
+  }
+  nextTabs[tabIndex] = {
+    ...nextEntry,
+    layout: {
+      ...layout,
+      items: nextItems,
+      canvasWidth: clampDocumentCanvasWidth(scene.canvasWidth),
+      canvasHeight: clampDocumentCanvasHeight(scene.canvasHeight),
+      savedAt: Date.now(),
+    },
+  };
+  nextState.tabs = nextTabs;
+  if (!writeGeneratedTabsState(nextState)) {
+    setDocumentEditorMessage(contentFileSaveFailureMessage(), {
+      target: "status",
+      warning: true,
+    });
+    return false;
+  }
+  applyGeneratedTabsState(nextState);
+  refreshGeneratedDocumentToolbars();
+  plagroundComposer?.handleGeneratedTabsChanged?.();
+  return true;
+}
+
+function createGeneratedLandingPanel(entry) {
+  const gatePanel = document.createElement("section");
+  gatePanel.className = "gate-panel generated-tab-panel generated-landing-panel";
+
+  const hero = document.createElement("section");
+  hero.className = "landing-hero";
+  hero.setAttribute("aria-label", "Qubit Lab introduction");
+
+  const title = document.createElement("h1");
+  title.className = "landing-hero-title";
+  title.textContent = "Qubit Lab";
+  hero.appendChild(title);
+
+  const animatedQubit = document.createElement("div");
+  animatedQubit.className = "landing-qubit-glow";
+  animatedQubit.setAttribute("aria-hidden", "true");
+  hero.appendChild(animatedQubit);
+
+  const introText = generatedLandingIntroText(entry);
+  const infoCard = document.createElement("section");
+  infoCard.className = "landing-info-card";
+  infoCard.id = `landing-info-${entry.id || "introduction"}`;
+  infoCard.hidden = true;
+  infoCard.setAttribute("aria-label", "About Qubit Lab");
+  const infoBody = document.createElement("div");
+  infoBody.className = "landing-info-body";
+  infoBody.textContent = introText;
+  const infoCloseButton = document.createElement("button");
+  infoCloseButton.className = "landing-info-close";
+  infoCloseButton.type = "button";
+  infoCloseButton.textContent = "Close";
+  infoCard.append(infoBody, infoCloseButton);
+  hero.appendChild(infoCard);
+
+  const nav = document.createElement("nav");
+  nav.className = "landing-tab-links";
+  nav.setAttribute("aria-label", "Open a Qubit Lab experiment");
+  if (introText) {
+    const infoButton = document.createElement("button");
+    infoButton.className = "landing-tab-link landing-info-link";
+    infoButton.type = "button";
+    infoButton.textContent = "What's this?";
+    infoButton.setAttribute("aria-controls", infoCard.id);
+    infoButton.setAttribute("aria-expanded", "false");
+    const closeInfo = () => {
+      infoCard.hidden = true;
+      infoButton.setAttribute("aria-expanded", "false");
+    };
+    const openInfo = () => {
+      infoCard.hidden = false;
+      infoButton.setAttribute("aria-expanded", "true");
+      infoCloseButton.focus();
+    };
+    infoButton.addEventListener("click", () => {
+      if (infoCard.hidden) {
+        openInfo();
+      } else {
+        closeInfo();
+      }
+    });
+    infoCloseButton.addEventListener("click", () => {
+      closeInfo();
+      infoButton.focus();
+    });
+    nav.appendChild(infoButton);
+  }
+  generatedLandingLinkTargets(entry).forEach((target) => {
+    const button = document.createElement("button");
+    button.className = "landing-tab-link";
+    button.type = "button";
+    button.dataset.landingTabTarget = target.id;
+    button.textContent = target.label;
+    button.addEventListener("click", () => setActiveTab(target.id));
+    nav.appendChild(button);
+  });
+  hero.appendChild(nav);
+
+  gatePanel.appendChild(hero);
+  return gatePanel;
+}
+
 function createGeneratedDocumentToolbar(entry, canvas) {
   if (
     !entry?.id ||
@@ -7199,6 +7443,10 @@ function renderGeneratedLayoutPanel(panel, entry) {
   }
   panel.dataset.generatedLayoutPanel = "true";
   panel.replaceChildren();
+  if (isGeneratedLandingPageTab(entry)) {
+    panel.appendChild(createGeneratedLandingPanel(entry));
+    return;
+  }
   const gatePanel = document.createElement("section");
   gatePanel.className = "gate-panel generated-tab-panel";
   const canvas = document.createElement("div");
@@ -7379,6 +7627,9 @@ function syncDocumentCanvasSizeFromDom() {
 function persistDocumentEditorDocument() {
   if (!documentEditorState.document) {
     return false;
+  }
+  if (generatedLandingPageEntryForTabId(documentEditorState.tabId)) {
+    return persistLandingDocumentEditorDocument();
   }
   const saved = upsertDocument(documentEditorState.document);
   if (saved) {
@@ -7618,19 +7869,24 @@ function openDocumentEditorForTab(tabId) {
     return false;
   }
   saveCurrentDocumentEditorScene();
-  const existing = documentForTabId(tabId);
+  const landingEntry = generatedLandingPageEntryForTabId(tabId);
+  const existing = landingEntry ? null : documentForTabId(tabId);
   const documentEntry = normalizeDocument(
-    existing || {
-      tabId,
-      title: "What's this?",
-      scenes: [createDocumentScene()],
-    },
+    landingEntry
+      ? createLandingDocumentFromEntry(landingEntry)
+      : existing || {
+          tabId,
+          title: "What's this?",
+          scenes: [createDocumentScene()],
+        },
   );
   documentEditorState.tabId = tabId;
   documentEditorState.document = cloneJson(documentEntry) || documentEntry;
   documentEditorState.sceneIndex = 0;
   refreshDocumentEditorTabSelect(tabId);
-  persistDocumentEditorDocument();
+  if (!landingEntry) {
+    persistDocumentEditorDocument();
+  }
   renderDocumentEditorScene();
   return true;
 }
@@ -18279,6 +18535,12 @@ function setActiveTab(tabTarget) {
   if (!tabButtons.length || !tabPanels.length) {
     return;
   }
+
+  document.documentElement.dataset.activeTabTarget = tabTarget;
+  document.documentElement.classList.toggle(
+    "github-pages-experiment-active",
+    IS_GITHUB_PAGES_BUILD && !generatedLandingPageEntryForTabId(tabTarget),
+  );
 
   const previousActiveTarget =
     document.querySelector(".tab-btn.active")?.dataset?.tabTarget || "";

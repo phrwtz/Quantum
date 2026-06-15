@@ -9,6 +9,7 @@ const distDir = path.join(rootDir, "dist");
 const assetFiles = [
   "app.js",
   "styles.css",
+  "assets/landing-lab-hero.png",
   "Magnifying glass transparent.png",
   "New magnifying glass.png",
   "data/generated-tabs.json",

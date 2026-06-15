@@ -6,21 +6,24 @@
       "layout": {
         "items": [
           {
+            "id": "text-box-mqfim5js-l",
             "type": "text-box",
-            "left": 182,
-            "top": 52,
+            "left": 180,
+            "top": 73,
             "width": 676,
             "height": 442,
-some            "z": 657,
-            "text": "Eventually, this will be a full landing page with fancy graphics and (probably) buttons embedded on the page instead of tabs. But for now, here's some sample text.\n\nWelcome to Qubit Lab, a place where you can experiment with qubits, flipping them, measuring them and entangling them. You can even teleport the state of a qubit from one computer to another (coming soon!), all with no knowledge of quantum mechanics and no pesky math to deal with!\n\nWhen you click on any of the tabs above, One qubit, Two qubits, and the two Entanglement tabs, you will get a screen with a bunch of objects on it: qubits, things that act on qubits (called \"gates\" for some reason), and ways measuring the state of one or two qubits. These are special purpose simulated qubit laboratories. By dragging qubits into the various gates and measuring tools you will create experiments that you can run over and over again.\n\nEach tab also comes with two buttons: a Reset button that returns the tab to its original state (and loses any recorded experiment) and a What's this? button that opens up a sequence of scenes that explain the mechanics of the tab and  of the physics behind it.",
-            "buttons": [],
-            "buttonMode": "none"
+            "z": 657,
+            "text": "Welcome to Qubit Lab, a place where you can experiment with qubits, flipping them, measuring them and entangling them. You can even teleport the state of a qubit from one computer to another (coming soon!), all with no knowledge of quantum mechanics and no pesky math to deal with!\n\nWhen you click on any of the buttons below, One qubit, Two qubits, and the two Entanglement tabs, you will get a screen with a bunch of objects on it: qubits, things that act on qubits (called \"gates\" for some reason), and ways measuring the state of one or two qubits. These are special purpose simulated qubit laboratories. By dragging qubits into the various gates and measuring tools you will create experiments that you can run over and over again.\n\nEach tab also comes with two buttons: a Reset button that returns the tab to its original state (and loses any recorded experiment) and a What's this? button that opens up a sequence of scenes that explain the mechanics of the tab and  of the physics behind it.",
+            "buttons": [
+              "done"
+            ],
+            "buttonMode": "done"
           }
         ],
         "gridSnap": true,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1780689998951
+        "savedAt": 1781546338603
       }
     },
     {

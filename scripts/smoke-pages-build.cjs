@@ -82,7 +82,9 @@ async function runSmoke(baseUrl) {
       }
     });
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector(".tab-btn.generated-tab-btn");
+    await page.waitForSelector(".tab-btn.generated-tab-btn", {
+      state: "attached",
+    });
 
     const result = await page.evaluate(() => {
       const labels = Array.from(document.querySelectorAll(".tab-btn")).map(
@@ -95,8 +97,15 @@ async function runSmoke(baseUrl) {
         ? document.getElementById(`panel-${publicTargets[0]}`)
         : null;
       const landingButtonLabels = Array.from(
-        landingPanel?.querySelectorAll("button") || [],
+        landingPanel?.querySelectorAll(
+          ".landing-tab-links .landing-tab-link",
+        ) || [],
       ).map((button) => button.textContent.trim());
+      const tabStrip = document.querySelector(".tab-strip");
+      const landingHero = landingPanel?.querySelector(".landing-hero");
+      const landingHeroStyle = landingHero
+        ? window.getComputedStyle(landingHero)
+        : null;
       const whatsThisTargets = publicTargets.filter((target) =>
         Boolean(
           document
@@ -128,6 +137,17 @@ async function runSmoke(baseUrl) {
         labels,
         publicTargets,
         landingButtonLabels,
+        topTabsVisible: Boolean(
+          tabStrip &&
+            window.getComputedStyle(tabStrip).display !== "none" &&
+            tabStrip.getClientRects().length > 0,
+        ),
+        landingHeroVisible: Boolean(
+          landingHero && landingHero.getClientRects().length > 0,
+        ),
+        landingHeroHasGraphic: Boolean(
+          landingHeroStyle?.backgroundImage?.includes("landing-lab-hero.png"),
+        ),
         whatsThisTargets,
         oneQubitLastSceneHasMarker: lastText.includes(
           'No more "canned" experiments',
@@ -166,6 +186,9 @@ async function runSmoke(baseUrl) {
       result.authoringPanels ||
       result.editorToolbars !== 0 ||
       result.generatedPanels !== result.publicTargets.length ||
+      result.topTabsVisible ||
+      !result.landingHeroVisible ||
+      !result.landingHeroHasGraphic ||
       result.whatsThisTargets.length !== expectedPublishedTabLabels.length - 1 ||
       result.whatsThisTargets.includes(result.publicTargets[0]) ||
       !result.oneQubitLastSceneHasMarker ||
@@ -173,12 +196,33 @@ async function runSmoke(baseUrl) {
       result.oneQubitLastSceneHasClue ||
       !result.entanglementOneLastSceneHasMarker ||
       result.entanglementOneLastSceneHasOldText ||
-      (result.labels[0] === "Introduction" &&
-        result.landingButtonLabels.some((label) =>
-          ["Reset", "What's this?"].includes(label),
-        ))
+      result.landingButtonLabels.includes("Reset") ||
+      result.landingButtonLabels[0] !== "What's this?"
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
+    }
+
+    const landingTarget = result.publicTargets[0];
+    await page
+      .locator(`#panel-${landingTarget} .landing-info-link`)
+      .click();
+    const landingInfoState = await page.evaluate((target) => {
+      const panel = document.getElementById(`panel-${target}`);
+      const card = panel?.querySelector(".landing-info-card");
+      return {
+        visible: Boolean(card && !card.hidden),
+        text: card?.textContent || "",
+      };
+    }, landingTarget);
+    if (
+      !landingInfoState.visible ||
+      !landingInfoState.text.includes("Welcome to Qubit Lab") ||
+      !landingInfoState.text.includes("buttons below") ||
+      landingInfoState.text.includes("tabs above")
+    ) {
+      throw new Error(
+        `GitHub Pages landing What's this failed: ${JSON.stringify(landingInfoState)}`,
+      );
     }
 
     const targetForLabel = (label) =>
@@ -187,10 +231,40 @@ async function runSmoke(baseUrl) {
     if (!entanglementTwoTarget) {
       throw new Error("GitHub Pages smoke failed: missing Entanglement 2 tab");
     }
-    await page.locator(`#tab-${entanglementTwoTarget}`).click();
+    await page.locator(`#panel-${landingTarget} .landing-info-close`).click();
+    await page
+      .locator(`#panel-${landingTarget} .landing-tab-link`)
+      .filter({ hasText: "Entanglement 2" })
+      .click();
     await page.waitForSelector(
       `#panel-${entanglementTwoTarget} .generated-layout-canvas`,
     );
+    const experimentNavState = await page.evaluate((target) => {
+      const tabStrip = document.querySelector(".tab-strip");
+      return {
+        activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget,
+        topTabsVisible: Boolean(
+          tabStrip &&
+            window.getComputedStyle(tabStrip).display !== "none" &&
+            tabStrip.getClientRects().length > 0,
+        ),
+        activeDataset: document.documentElement.dataset.activeTabTarget || "",
+        experimentClass: document.documentElement.classList.contains(
+          "github-pages-experiment-active",
+        ),
+        expectedTarget: target,
+      };
+    }, entanglementTwoTarget);
+    if (
+      experimentNavState.activeTarget !== entanglementTwoTarget ||
+      experimentNavState.activeDataset !== entanglementTwoTarget ||
+      !experimentNavState.topTabsVisible ||
+      !experimentNavState.experimentClass
+    ) {
+      throw new Error(
+        `GitHub Pages landing navigation failed: ${JSON.stringify(experimentNavState)}`,
+      );
+    }
     const entanglementTwoMeasurement = await page.evaluate((target) => {
       const panel = document.getElementById(`panel-${target}`);
       const measurement = panel?.querySelector(
