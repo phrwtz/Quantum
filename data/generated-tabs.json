@@ -238,27 +238,27 @@
                 "height": "209px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "572px",
-                  "top": "234px",
+                  "left": "416px",
+                  "top": "208px",
                   "width": "373px",
                   "height": "209px",
                   "translate": "0px"
                 }
               },
               "body": {
-                "tx": 7,
-                "ty": -1,
+                "tx": 10,
+                "ty": 3,
                 "width": "327px",
                 "height": "164px",
                 "deleted": false,
                 "inlineStyle": {
                   "left": "38.36px",
-                  "right": "41.87px",
+                  "right": "22px",
                   "top": "0px",
                   "bottom": "0px",
                   "width": "327px",
                   "height": "164px",
-                  "translate": "7px -1px"
+                  "translate": "10px 3px"
                 }
               },
               "funnelTop": {
@@ -278,19 +278,19 @@
                 }
               },
               "funnelBottom": {
-                "tx": 5,
-                "ty": -24,
-                "width": "70px",
-                "height": "96px",
+                "tx": 14,
+                "ty": -33,
+                "width": "63px",
+                "height": "94px",
                 "deleted": false,
                 "inlineStyle": {
                   "left": "-12.35px",
                   "right": "353.19px",
                   "top": "150.47px",
                   "bottom": "-9.38px",
-                  "width": "70px",
-                  "height": "96px",
-                  "translate": "5px -24px"
+                  "width": "63px",
+                  "height": "94px",
+                  "translate": "14px -33px"
                 }
               },
               "windowTop": {
@@ -412,7 +412,7 @@
         "gridSnap": true,
         "canvasWidth": 1598,
         "canvasHeight": 760,
-        "savedAt": 1779409747679
+        "savedAt": 1781547297097
       }
     },
     {
@@ -471,10 +471,11 @@
                 "height": "209px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "649px",
-                  "top": "218px",
+                  "left": "416px",
+                  "top": "208px",
                   "width": "373px",
-                  "height": "209px"
+                  "height": "209px",
+                  "translate": "0px"
                 }
               },
               "body": {
@@ -485,7 +486,9 @@
                 "deleted": false,
                 "inlineStyle": {
                   "left": "38.36px",
+                  "right": "22px",
                   "top": "0px",
+                  "bottom": "0px",
                   "width": "327px",
                   "height": "164px",
                   "translate": "10px 3px"
@@ -508,19 +511,19 @@
                 }
               },
               "funnelBottom": {
-                "tx": 5,
-                "ty": -24,
-                "width": "70px",
-                "height": "96px",
+                "tx": 14,
+                "ty": -33,
+                "width": "63px",
+                "height": "94px",
                 "deleted": false,
                 "inlineStyle": {
                   "left": "-12.35px",
                   "right": "353.19px",
                   "top": "150.47px",
                   "bottom": "-9.38px",
-                  "width": "70px",
-                  "height": "96px",
-                  "translate": "5px -24px"
+                  "width": "63px",
+                  "height": "94px",
+                  "translate": "14px -33px"
                 }
               },
               "windowTop": {
@@ -645,7 +648,7 @@
         "gridSnap": false,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1780340415196
+        "savedAt": 1781547297097
       }
     }
   ]
