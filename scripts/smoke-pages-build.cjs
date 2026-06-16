@@ -113,10 +113,72 @@ async function runSmoke(baseUrl) {
             ?.querySelector("[data-generated-document-action='whats-this']"),
         ),
       );
-      const docs =
-        window.__QUANTUM_REPOSITORY_CONTENT__?.files?.[
-          "data/whats-this-documents.json"
-        ] || { documents: [] };
+      const repositoryFiles =
+        window.__QUANTUM_REPOSITORY_CONTENT__?.files || {};
+      const docs = repositoryFiles["data/whats-this-documents.json"] || {
+        documents: [],
+      };
+      const auditCnotLayouts = () => {
+        const bad = [];
+        const counts = {};
+        const inspect = (source, node, path = []) => {
+          if (!node || typeof node !== "object") {
+            return;
+          }
+          if (node.type === "cnot-gate" && node.cnotLayout) {
+            counts[source] = (counts[source] || 0) + 1;
+            const body = node.cnotLayout.body || {};
+            const bottom = node.cnotLayout.funnelBottom || {};
+            const bodyStyle = body.inlineStyle || {};
+            const bottomStyle = bottom.inlineStyle || {};
+            const staleBody =
+              body.tx !== 10 ||
+              body.ty !== 3 ||
+              bodyStyle.right !== "22px" ||
+              bodyStyle.translate !== "10px 3px";
+            const staleBottom =
+              bottom.tx !== 14 ||
+              bottom.ty !== -33 ||
+              bottom.width !== "63px" ||
+              bottom.height !== "94px" ||
+              bottomStyle.width !== "63px" ||
+              bottomStyle.height !== "94px" ||
+              bottomStyle.translate !== "14px -33px";
+            if (staleBody || staleBottom) {
+              bad.push({
+                source,
+                path: path.join("."),
+                id: node.id || "",
+                body: {
+                  tx: body.tx,
+                  ty: body.ty,
+                  right: bodyStyle.right,
+                  translate: bodyStyle.translate,
+                },
+                bottom: {
+                  tx: bottom.tx,
+                  ty: bottom.ty,
+                  width: bottom.width,
+                  height: bottom.height,
+                  translate: bottomStyle.translate,
+                },
+              });
+            }
+          }
+          if (Array.isArray(node)) {
+            node.forEach((child, index) =>
+              inspect(source, child, path.concat(index)),
+            );
+            return;
+          }
+          Object.entries(node).forEach(([key, child]) =>
+            inspect(source, child, path.concat(key)),
+          );
+        };
+        inspect("generated-tabs", repositoryFiles["data/generated-tabs.json"]);
+        inspect("whats-this-documents", docs);
+        return { bad, counts };
+      };
       const one = docs.documents.find((doc) => doc.tabId === "custom-one-qubit");
       const last = one?.scenes?.[one.scenes.length - 1];
       const lastText = (last?.items || [])
@@ -162,6 +224,7 @@ async function runSmoke(baseUrl) {
         entanglementOneLastSceneHasOldText: entanglementLastText.includes(
           "leave it to you to experiment but here are some questions to get you started",
         ),
+        cnotLayoutAudit: auditCnotLayouts(),
         activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget,
         authoringButtons: Boolean(
           document.querySelector("#tab-plaground, #tab-doc-editor"),
@@ -196,6 +259,7 @@ async function runSmoke(baseUrl) {
       result.oneQubitLastSceneHasClue ||
       !result.entanglementOneLastSceneHasMarker ||
       result.entanglementOneLastSceneHasOldText ||
+      result.cnotLayoutAudit.bad.length > 0 ||
       result.landingButtonLabels.includes("Reset") ||
       result.landingButtonLabels[0] !== "What's this?"
     ) {

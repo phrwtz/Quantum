@@ -4418,19 +4418,19 @@
                   }
                 },
                 "body": {
-                  "tx": 7,
-                  "ty": -1,
+                  "tx": 10,
+                  "ty": 3,
                   "width": "327px",
                   "height": "164px",
                   "deleted": false,
                   "inlineStyle": {
                     "left": "38.36px",
-                    "right": "41.87px",
+                    "right": "22px",
                     "top": "0px",
                     "bottom": "0px",
                     "width": "327px",
                     "height": "164px",
-                    "translate": "7px -1px"
+                    "translate": "10px 3px"
                   }
                 },
                 "funnelTop": {
@@ -4450,19 +4450,19 @@
                   }
                 },
                 "funnelBottom": {
-                  "tx": 5,
-                  "ty": -24,
-                  "width": "70px",
-                  "height": "96px",
+                  "tx": 14,
+                  "ty": -33,
+                  "width": "63px",
+                  "height": "94px",
                   "deleted": false,
                   "inlineStyle": {
                     "left": "-12.35px",
                     "right": "353.19px",
                     "top": "150.47px",
                     "bottom": "-9.38px",
-                    "width": "70px",
-                    "height": "96px",
-                    "translate": "5px -24px"
+                    "width": "63px",
+                    "height": "94px",
+                    "translate": "14px -33px"
                   }
                 },
                 "windowTop": {
@@ -5553,19 +5553,19 @@
                   }
                 },
                 "body": {
-                  "tx": 7,
-                  "ty": -1,
+                  "tx": 10,
+                  "ty": 3,
                   "width": "327px",
                   "height": "164px",
                   "deleted": false,
                   "inlineStyle": {
                     "left": "38.36px",
-                    "right": "41.87px",
+                    "right": "22px",
                     "top": "0px",
                     "bottom": "0px",
                     "width": "327px",
                     "height": "164px",
-                    "translate": "7px -1px"
+                    "translate": "10px 3px"
                   }
                 },
                 "funnelTop": {
@@ -5585,19 +5585,19 @@
                   }
                 },
                 "funnelBottom": {
-                  "tx": 5,
-                  "ty": -24,
-                  "width": "70px",
-                  "height": "96px",
+                  "tx": 14,
+                  "ty": -33,
+                  "width": "63px",
+                  "height": "94px",
                   "deleted": false,
                   "inlineStyle": {
                     "left": "-12.35px",
                     "right": "353.19px",
                     "top": "150.47px",
                     "bottom": "-9.38px",
-                    "width": "70px",
-                    "height": "96px",
-                    "translate": "5px -24px"
+                    "width": "63px",
+                    "height": "94px",
+                    "translate": "14px -33px"
                   }
                 },
                 "windowTop": {
@@ -7043,19 +7043,19 @@
                   }
                 },
                 "funnelBottom": {
-                  "tx": 5,
-                  "ty": -24,
-                  "width": "70px",
-                  "height": "96px",
+                  "tx": 14,
+                  "ty": -33,
+                  "width": "63px",
+                  "height": "94px",
                   "deleted": false,
                   "inlineStyle": {
                     "left": "-12.35px",
                     "right": "353.19px",
                     "top": "150.47px",
                     "bottom": "-9.38px",
-                    "width": "70px",
-                    "height": "96px",
-                    "translate": "5px -24px"
+                    "width": "63px",
+                    "height": "94px",
+                    "translate": "14px -33px"
                   }
                 },
                 "windowTop": {
