@@ -346,6 +346,325 @@ html[data-quantum-target="github-pages"] .tabs-shell {
     sans-serif;
 }
 
+.local-lab-panel {
+  width: min(calc(100vw - 1.5rem), 1280px);
+  max-width: calc(100vw - 1.5rem);
+  padding: 1rem;
+}
+
+.local-lab-toolbar {
+  grid-template-columns: 1fr;
+}
+
+.local-lab-toolbar-group {
+  padding-block: 0.45rem;
+  border-block: 1px solid rgba(67, 103, 128, 0.28);
+}
+
+.local-lab-status {
+  flex: 1 1 220px;
+  min-width: min(100%, 220px);
+}
+
+.local-lab-teleportation,
+.local-lab-distributed-teleportation,
+.local-lab-protocol-framework,
+.local-lab-mailbox {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0;
+  border-block: 1px solid rgba(67, 103, 128, 0.34);
+}
+
+.local-lab-teleport-controls,
+.local-lab-teleport-readout,
+.local-lab-distributed-controls,
+.local-lab-distributed-readout,
+.local-lab-protocol-framework-controls,
+.local-lab-sync-controls,
+.local-lab-mailbox-controls {
+  min-width: 0;
+}
+
+.local-lab-mailbox {
+  margin-top: -0.2rem;
+  border-top: 0;
+}
+
+.local-lab-backend-input {
+  width: min(100%, 15rem);
+}
+
+.local-lab-room-input {
+  width: min(100%, 10rem);
+}
+
+.local-lab-participant-input {
+  width: min(100%, 8rem);
+}
+
+.local-lab-role-select {
+  width: min(100%, 7rem);
+}
+
+.local-lab-email-input {
+  width: min(100%, 13rem);
+}
+
+.local-lab-token-input {
+  width: min(100%, 17rem);
+  font-family: "Chakra Petch", monospace;
+}
+
+.local-lab-protocol-input {
+  width: min(100%, 11rem);
+}
+
+.local-lab-recipe-select {
+  width: min(100%, 13rem);
+}
+
+.local-lab-mailbox-link {
+  color: #174f78;
+  font:
+    700 0.75rem/1 "Aldrich",
+    sans-serif;
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+  white-space: nowrap;
+}
+
+.local-lab-sync-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  color: #173d59;
+  font:
+    700 0.72rem/1 "Aldrich",
+    sans-serif;
+  white-space: nowrap;
+}
+
+.local-lab-sync-toggle input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: #1f7ca8;
+}
+
+.local-lab-distributed-readout,
+.local-lab-protocol-step-list,
+.local-lab-teleport-readout {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.local-lab-role-chip {
+  border: 1px solid rgba(89, 121, 145, 0.58);
+  border-radius: 0.45rem;
+  background: rgba(249, 253, 255, 0.72);
+  color: #173d59;
+  padding: 0.34rem 0.48rem;
+  font:
+    700 0.72rem/1 "Aldrich",
+    sans-serif;
+}
+
+.local-lab-protocol-step {
+  border: 1px solid rgba(89, 121, 145, 0.5);
+  border-radius: 0.45rem;
+  background: rgba(249, 253, 255, 0.72);
+  color: #173d59;
+  padding: 0.34rem 0.48rem;
+  font:
+    700 0.7rem/1 "Aldrich",
+    sans-serif;
+  white-space: nowrap;
+}
+
+.local-lab-protocol-step.current {
+  border-color: rgba(31, 124, 168, 0.8);
+  background: rgba(209, 237, 249, 0.82);
+  color: #0f4f74;
+}
+
+.local-lab-protocol-step.complete {
+  border-color: rgba(65, 150, 105, 0.72);
+  background: rgba(224, 246, 232, 0.86);
+  color: #236243;
+}
+
+.local-lab-teleport-status {
+  flex: 1 1 260px;
+  min-width: min(100%, 260px);
+}
+
+.local-lab-mailbox-status {
+  flex: 1 1 280px;
+  min-width: min(100%, 260px);
+}
+
+.local-lab-sync-status {
+  flex: 1 1 240px;
+  min-width: min(100%, 220px);
+}
+
+.local-lab-distributed-status {
+  flex: 1 1 320px;
+  min-width: min(100%, 260px);
+}
+
+.local-lab-protocol-status {
+  min-width: min(100%, 280px);
+}
+
+.local-lab-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.local-lab-register,
+.local-lab-state {
+  min-width: 0;
+  border: 1px solid rgba(73, 106, 129, 0.45);
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.72),
+      rgba(230, 241, 248, 0.72)
+    ),
+    linear-gradient(135deg, rgba(255, 158, 61, 0.08), transparent 44%);
+  box-shadow: inset 0 1px 2px rgba(20, 48, 73, 0.14);
+  padding: 0.75rem;
+}
+
+.local-lab-qubit-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 0.55rem;
+}
+
+.local-lab-qubit {
+  appearance: none;
+  min-width: 0;
+  min-height: 108px;
+  border: 1px solid #7c98ad;
+  border-radius: 0.5rem;
+  background: linear-gradient(165deg, #f9fdff, #d9e9f3);
+  color: #12344e;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.34rem;
+  padding: 0.6rem 0.4rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 2px 5px rgba(17, 43, 64, 0.12);
+  cursor: pointer;
+}
+
+.local-lab-qubit.active {
+  border-color: #1e6b9b;
+  background: linear-gradient(165deg, #fff4dc, #ffd399);
+  box-shadow:
+    0 0 0 2px rgba(255, 158, 61, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.local-lab-qubit-core {
+  width: 42px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 2px solid rgba(11, 43, 65, 0.34);
+  background: var(--qubit-fill, #266ff7);
+  box-shadow:
+    inset -6px -7px 10px rgba(0, 0, 0, 0.18),
+    inset 5px 5px 8px rgba(255, 255, 255, 0.5),
+    0 3px 8px rgba(11, 42, 68, 0.28);
+}
+
+.local-lab-qubit-label {
+  font:
+    700 0.78rem/1 "Aldrich",
+    sans-serif;
+}
+
+.local-lab-qubit-probability {
+  font:
+    600 0.72rem/1.2 "Chakra Petch",
+    sans-serif;
+  color: #24506f;
+  text-align: center;
+}
+
+.local-lab-probability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  max-height: 330px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.local-lab-basis-state {
+  min-width: 0;
+  min-height: 52px;
+  border: 1px solid rgba(87, 120, 144, 0.5);
+  border-radius: 0.45rem;
+  background: rgba(248, 252, 255, 0.78);
+  padding: 0.46rem 0.52rem;
+  display: grid;
+  gap: 0.16rem;
+  box-shadow: inset 0 1px 1px rgba(20, 48, 73, 0.08);
+}
+
+.local-lab-basis-state[data-active="true"] {
+  border-color: #c46e24;
+  background: #fff1db;
+}
+
+.local-lab-basis-label {
+  font:
+    700 0.75rem/1 "Aldrich",
+    sans-serif;
+  color: #12344e;
+}
+
+.local-lab-basis-probability {
+  font:
+    600 0.72rem/1 "Chakra Petch",
+    sans-serif;
+  color: #285876;
+}
+
+.local-lab-ket-vector {
+  margin: 0;
+  min-height: 430px;
+  max-height: 620px;
+  overflow: auto;
+  color: #0c263a;
+  background:
+    linear-gradient(180deg, rgba(247, 252, 255, 0.88), rgba(232, 243, 250, 0.88)),
+    linear-gradient(90deg, rgba(31, 75, 108, 0.08) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    22px 22px;
+  border: 1px solid rgba(70, 102, 127, 0.42);
+  border-radius: 0.45rem;
+  padding: 0.75rem;
+  font:
+    600 0.78rem/1.45 "Chakra Petch",
+    monospace;
+  white-space: pre;
+}
+
 .playground-save-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -354,6 +673,34 @@ html[data-quantum-target="github-pages"] .tabs-shell {
   place-items: center;
   padding: 1.25rem;
   background: rgba(8, 22, 34, 0.48);
+}
+
+@media (max-width: 900px) {
+  .landing-hero-title {
+    top: clamp(0.8rem, 2.4vw, 2.8rem);
+    font-size: clamp(2rem, 8.5vw, 4rem);
+  }
+
+  .landing-about-link {
+    top: clamp(3.7rem, 11vw, 6rem);
+  }
+
+  .landing-info-card {
+    top: clamp(5.4rem, 17vw, 8rem);
+  }
+
+  .landing-lab-sign-closed {
+    top: calc(100% + 0.26rem);
+  }
+
+  .local-lab-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .local-lab-ket-vector {
+    min-height: 280px;
+    max-height: 420px;
+  }
 }
 
 .playground-save-modal {
@@ -1035,9 +1382,10 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
 
 .landing-hero-title {
   position: absolute;
-  left: clamp(1rem, 3.2vw, 3.2rem);
+  left: 50%;
   top: clamp(0.8rem, 2.4vw, 2.8rem);
   z-index: 3;
+  transform: translateX(-50%);
   margin: 0;
   color: #f6fbff;
   text-shadow:
@@ -1047,6 +1395,154 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
     600 clamp(2.1rem, 5.2vw, 5.6rem) "Aldrich",
     sans-serif;
   letter-spacing: 0;
+}
+
+.landing-signs {
+  position: absolute;
+  inset: clamp(0.85rem, 2.5vw, 2.2rem) clamp(0.85rem, 2.5vw, 2.4rem) auto;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.landing-sign {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.18rem;
+  pointer-events: auto;
+  border: 2px solid rgba(92, 63, 33, 0.84);
+  border-radius: 0.42rem;
+  color: #3a210f;
+  background:
+    linear-gradient(180deg, rgba(255, 239, 178, 0.98), rgba(244, 177, 88, 0.98)),
+    linear-gradient(90deg, rgba(88, 54, 21, 0.12), transparent 32%, rgba(88, 54, 21, 0.1));
+  box-shadow:
+    0 9px 18px rgba(28, 20, 11, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -4px 0 rgba(117, 72, 28, 0.12);
+  font:
+    800 clamp(0.72rem, 1.7vw, 1.1rem)/1.05 "Aldrich",
+    sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.landing-sign-label {
+  display: block;
+}
+
+.landing-sign-arrow {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 1.72em;
+  line-height: 0.8;
+}
+
+.landing-sign::before,
+.landing-sign::after {
+  content: "";
+  position: absolute;
+  top: 0.32rem;
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff9dc 0 28%, #7a4c20 34% 100%);
+  box-shadow: 0 1px 1px rgba(33, 21, 11, 0.42);
+}
+
+.landing-sign::before {
+  left: 0.46rem;
+}
+
+.landing-sign::after {
+  right: 0.46rem;
+}
+
+.landing-tour-sign {
+  appearance: none;
+  min-width: clamp(7.6rem, 16vw, 12rem);
+  min-height: clamp(2.5rem, 5.8vw, 3.9rem);
+  padding: 0.72rem 1rem 0.62rem;
+  margin-top: 100px;
+  margin-left: 70px;
+  cursor: pointer;
+  transform: rotate(-4deg);
+}
+
+.landing-tour-sign:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 248, 196, 1), rgba(255, 194, 95, 1)),
+    linear-gradient(90deg, rgba(88, 54, 21, 0.12), transparent 32%, rgba(88, 54, 21, 0.1));
+}
+
+.landing-tour-sign:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(255, 245, 174, 0.82),
+    0 9px 18px rgba(28, 20, 11, 0.32);
+}
+
+.landing-lab-sign {
+  min-width: clamp(7.4rem, 15vw, 11.5rem);
+  min-height: clamp(3.1rem, 6.5vw, 4.8rem);
+  padding: 0.72rem 0.92rem 1.85rem;
+  margin-top: 130px;
+  margin-right: 80px;
+  transform: rotate(3deg);
+}
+
+.landing-lab-sign-main {
+  white-space: nowrap;
+}
+
+.landing-lab-sign-nail {
+  position: absolute;
+  left: 50%;
+  top: calc(100% - 1.16rem);
+  width: 0.45rem;
+  height: 0.45rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fef7d9 0 26%, #60401f 34% 100%);
+  box-shadow: 0 1px 2px rgba(20, 14, 9, 0.45);
+}
+
+.landing-lab-sign-hanger {
+  position: absolute;
+  left: 50%;
+  top: calc(100% - 0.95rem);
+  width: 3.2rem;
+  height: 1.85rem;
+  transform: translateX(-50%);
+  border-left: 2px solid rgba(73, 49, 27, 0.8);
+  border-right: 2px solid rgba(73, 49, 27, 0.8);
+  border-top: 2px solid rgba(73, 49, 27, 0.8);
+  border-radius: 50% 50% 0 0;
+}
+
+.landing-lab-sign-closed {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.4rem);
+  min-width: clamp(5rem, 10vw, 7.5rem);
+  padding: 0.5rem 0.75rem 0.46rem;
+  transform: translateX(-50%) rotate(-5deg);
+  transform-origin: 50% -0.8rem;
+  border: 2px solid rgba(99, 55, 38, 0.86);
+  border-radius: 0.36rem;
+  color: #f8fbff;
+  background:
+    linear-gradient(180deg, rgba(225, 61, 67, 0.98), rgba(151, 35, 55, 0.98));
+  box-shadow:
+    0 8px 14px rgba(25, 15, 15, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  text-shadow: 0 1px 2px rgba(67, 10, 18, 0.6);
+  text-align: center;
+  font-size: clamp(0.68rem, 1.35vw, 0.94rem);
 }
 
 .landing-qubit-glow {
@@ -1088,33 +1584,22 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
   transform: rotate(-34deg) scaleX(1.52);
 }
 
-.landing-tab-links {
-  position: absolute;
-  left: clamp(1rem, 3vw, 3rem);
-  right: clamp(1rem, 3vw, 3rem);
-  bottom: clamp(1rem, 3vw, 2.4rem);
-  z-index: 3;
-  display: flex;
-  justify-content: center;
-  gap: 0.62rem;
-  flex-wrap: wrap;
-}
-
 .landing-info-card {
   position: absolute;
-  left: clamp(1rem, 4vw, 4rem);
-  bottom: clamp(5rem, 12vw, 7rem);
-  z-index: 4;
+  left: 50%;
+  top: clamp(6.8rem, 12vw, 10.4rem);
+  z-index: 5;
   width: min(760px, calc(100% - 2rem));
   max-height: min(54vh, 430px);
+  transform: translateX(-50%);
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 0.75rem;
   padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 0.5rem;
-  color: #0c2a40;
-  background: rgba(248, 253, 255, 0.92);
+  color: #062236;
+  background: rgb(248, 253, 255);
   box-shadow:
     0 16px 36px rgba(3, 14, 26, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
@@ -1129,6 +1614,9 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
   min-height: 0;
   overflow: auto;
   white-space: pre-wrap;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 7px rgba(255, 255, 255, 0.56);
   font:
     600 0.96rem/1.35 "Chakra Petch",
     sans-serif;
@@ -1150,15 +1638,12 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
   cursor: pointer;
 }
 
+.landing-about-link,
 .landing-tab-link {
   appearance: none;
-  min-width: 128px;
-  height: 2.35rem;
-  padding: 0 0.95rem;
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 0.5rem;
   color: #072238;
-  background: rgba(248, 253, 255, 0.86);
   box-shadow:
     0 8px 18px rgba(3, 14, 26, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
@@ -1168,19 +1653,69 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
   cursor: pointer;
 }
 
+.landing-about-link {
+  position: absolute;
+  left: 50%;
+  top: clamp(4.65rem, 8.2vw, 8.1rem);
+  z-index: 4;
+  min-width: 0;
+  height: auto;
+  padding: 0.28rem 0.58rem 0.25rem;
+  border-color: transparent;
+  transform: translateX(-50%);
+  color: #ffffff;
+  background: transparent;
+  box-shadow: none;
+  text-shadow:
+    0 3px 12px rgba(2, 15, 28, 0.78),
+    0 0 22px rgba(37, 173, 255, 0.58),
+    0 0 8px rgba(255, 255, 255, 0.62);
+  font:
+    600 clamp(1.42rem, 2.75vw, 2.32rem)/1 "Aldrich",
+    sans-serif;
+}
+
+.landing-tab-link {
+  min-width: 128px;
+  height: 2.35rem;
+  padding: 0 0.95rem;
+  background: rgba(248, 253, 255, 0.86);
+}
+
 .landing-info-link {
   background: rgba(255, 237, 200, 0.9);
 }
 
+.landing-about-link.landing-info-link {
+  background: transparent;
+}
+
+.landing-about-link:hover,
 .landing-tab-link:hover {
   background: #fff2cf;
 }
 
+.landing-about-link:hover {
+  color: #ffffff;
+  background: transparent;
+  text-shadow:
+    0 3px 12px rgba(2, 15, 28, 0.78),
+    0 0 28px rgba(255, 255, 255, 0.82),
+    0 0 20px rgba(37, 173, 255, 0.72);
+}
+
+.landing-about-link:focus-visible,
 .landing-tab-link:focus-visible {
   outline: none;
   box-shadow:
     0 0 0 3px rgba(255, 185, 74, 0.72),
     0 8px 18px rgba(3, 14, 26, 0.26);
+}
+
+.landing-about-link:focus-visible {
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 @keyframes landing-qubit-cycle {
@@ -1255,6 +1790,26 @@ body.layout-edit-active .generated-editor-toolbar {
   max-width: none;
   transform: scale(var(--generated-layout-scale, 1));
   transform-origin: 0 0;
+}
+
+#panel-custom-one-qubit
+  .generated-layout-viewport
+  > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas),
+#panel-custom-two-qubits
+  .generated-layout-viewport
+  > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas),
+#panel-custom-entanglement-2
+  .generated-layout-viewport
+  > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas),
+#panel-custom-entanglement-3
+  .generated-layout-viewport
+  > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas) {
+  background: #e6ffcc;
+  background-size: auto;
+}
+
+.generated-experiment-status {
+  font-size: 0.72rem;
 }
 
 .doc-editor-tab-panel {
@@ -3054,6 +3609,34 @@ body.layout-edit-active .pair-ejection-site {
 }
 
 @media (max-width: 500px) {
+  .landing-hero {
+    height: clamp(480px, calc(100vh - 4rem), 720px);
+  }
+
+  .landing-signs {
+    gap: 0.5rem;
+  }
+
+  .landing-tour-sign {
+    min-width: 6.45rem;
+    margin-top: 42px;
+    margin-left: 24px;
+    padding-inline: 0.65rem;
+  }
+
+  .landing-lab-sign {
+    min-width: 6.5rem;
+    margin-top: 42px;
+    margin-right: 24px;
+    padding-inline: 0.6rem;
+  }
+
+  .landing-info-card {
+    left: 50%;
+    top: 6.3rem;
+    width: calc(100% - 1.5rem);
+  }
+
   .tabs-shell {
     padding: 0.35rem;
   }

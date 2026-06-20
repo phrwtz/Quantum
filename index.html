@@ -17,6 +17,7 @@
     </script>
     <link rel="stylesheet" href="styles.css" />
     <script src="data/repository-content.js?v=repo-content-files-v4"></script>
+    <script src="quantum-core.js"></script>
   </head>
   <body>
     <main class="scene">
@@ -48,6 +49,18 @@
             tabindex="-1"
           >
             Doc Editor
+          </button>
+          <button
+            id="tab-local-lab"
+            class="tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-local-lab"
+            data-tab-target="local-lab"
+            tabindex="-1"
+          >
+            Local Lab
           </button>
         </div>
 
@@ -395,6 +408,501 @@
               aria-label="Document scene canvas"
               data-doc-editor-canvas="true"
             ></div>
+          </section>
+        </section>
+
+        <section
+          id="panel-local-lab"
+          class="tab-panel local-lab-tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-local-lab"
+          hidden
+        >
+          <section class="gate-panel local-lab-panel" data-local-lab>
+            <div class="playground-toolbar local-lab-toolbar">
+              <div
+                class="editor-toolbar-group local-lab-toolbar-group"
+                aria-label="Local register controls"
+              >
+                <label for="localLabQubitCount">Qubits</label>
+                <select
+                  id="localLabQubitCount"
+                  class="playground-component-select"
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                </select>
+                <button
+                  id="localLabResetButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Reset
+                </button>
+                <button
+                  id="localLabSaveSnapshotButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Save lab
+                </button>
+                <button
+                  id="localLabLoadSnapshotButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Load lab
+                </button>
+                <span
+                  id="localLabStatus"
+                  class="playground-status local-lab-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+              <div
+                class="editor-toolbar-group local-lab-toolbar-group"
+                aria-label="Local gate controls"
+              >
+                <label for="localLabTargetQubit">Target</label>
+                <select
+                  id="localLabTargetQubit"
+                  class="playground-component-select"
+                ></select>
+                <button
+                  class="playground-tool-btn local-lab-gate-btn"
+                  type="button"
+                  data-local-lab-gate="H"
+                  title="Hadamard"
+                >
+                  H
+                </button>
+                <button
+                  class="playground-tool-btn local-lab-gate-btn"
+                  type="button"
+                  data-local-lab-gate="X"
+                  title="Bit flip"
+                >
+                  X
+                </button>
+                <button
+                  class="playground-tool-btn local-lab-gate-btn"
+                  type="button"
+                  data-local-lab-gate="Z"
+                  title="Phase flip"
+                >
+                  Z
+                </button>
+                <button
+                  class="playground-tool-btn local-lab-gate-btn"
+                  type="button"
+                  data-local-lab-gate="Y"
+                  title="Y rotation"
+                >
+                  Y
+                </button>
+                <button
+                  class="playground-tool-btn local-lab-gate-btn"
+                  type="button"
+                  data-local-lab-gate="S"
+                  title="S phase"
+                >
+                  S
+                </button>
+                <button
+                  class="playground-tool-btn local-lab-gate-btn"
+                  type="button"
+                  data-local-lab-gate="T"
+                  title="T phase"
+                >
+                  T
+                </button>
+                <label for="localLabControlQubit">Control</label>
+                <select
+                  id="localLabControlQubit"
+                  class="playground-component-select"
+                ></select>
+                <button
+                  id="localLabCnotButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  C-NOT
+                </button>
+              </div>
+              <div
+                class="editor-toolbar-group local-lab-toolbar-group"
+                aria-label="Local measurement controls"
+              >
+                <label for="localLabMeasureQubit">Measure</label>
+                <select
+                  id="localLabMeasureQubit"
+                  class="playground-component-select"
+                ></select>
+                <button
+                  id="localLabMeasureButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Measure q
+                </button>
+                <button
+                  id="localLabMeasureAllButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Measure all
+                </button>
+              </div>
+            </div>
+            <section
+              class="local-lab-teleportation"
+              aria-label="Local teleportation protocol"
+            >
+              <div
+                class="editor-toolbar-group local-lab-teleport-controls"
+                aria-label="Teleportation controls"
+              >
+                <label for="localLabTeleportMessage">Message</label>
+                <select
+                  id="localLabTeleportMessage"
+                  class="playground-component-select"
+                >
+                  <option value="plus" selected>purple +</option>
+                  <option value="minus">purple -</option>
+                  <option value="blue">blue</option>
+                  <option value="red">red</option>
+                  <option value="tilted">tilted</option>
+                </select>
+                <button
+                  id="localLabTeleportPrepareButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Prepare q0
+                </button>
+                <button
+                  id="localLabTeleportBellButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Bell q1-q2
+                </button>
+                <button
+                  id="localLabTeleportAliceButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Alice measure
+                </button>
+                <button
+                  id="localLabTeleportBobButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Bob correction
+                </button>
+                <button
+                  id="localLabTeleportRunButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Run teleport
+                </button>
+              </div>
+              <div class="local-lab-teleport-readout">
+                <span class="local-lab-role-chip">q0 Alice message</span>
+                <span class="local-lab-role-chip">q1 Alice pair</span>
+                <span class="local-lab-role-chip">q2 Bob qubit</span>
+                <span
+                  id="localLabTeleportStatus"
+                  class="playground-status local-lab-teleport-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+            </section>
+            <section
+              class="local-lab-distributed-teleportation"
+              aria-label="Distributed teleportation protocol"
+            >
+              <div
+                class="editor-toolbar-group local-lab-distributed-controls"
+                aria-label="Distributed teleportation controls"
+              >
+                <label for="localLabDistributedProtocol">Protocol</label>
+                <input
+                  id="localLabDistributedProtocol"
+                  class="playground-component-select local-lab-protocol-input"
+                  type="text"
+                  value="teleport-demo"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Distributed teleportation protocol"
+                />
+                <button
+                  id="localLabDistributedBobStartButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Bob Bell + mail q1
+                </button>
+                <button
+                  id="localLabDistributedAliceMeasureButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Alice measure + send bits
+                </button>
+                <button
+                  id="localLabDistributedBobCorrectButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Bob correct + verify
+                </button>
+                <button
+                  id="localLabDistributedRefreshButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Refresh
+                </button>
+              </div>
+              <div class="local-lab-distributed-readout">
+                <span class="local-lab-role-chip">q0 Alice message</span>
+                <span class="local-lab-role-chip">q1 mailed pair</span>
+                <span class="local-lab-role-chip">q2 Bob result</span>
+                <a
+                  id="localLabDistributedMailboxLink"
+                  class="local-lab-mailbox-link"
+                  href="#"
+                  hidden
+                >
+                  Open Alice mailbox
+                </a>
+                <span
+                  id="localLabDistributedStatus"
+                  class="playground-status local-lab-distributed-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+            </section>
+            <section
+              class="local-lab-protocol-framework"
+              aria-label="Protocol framework"
+            >
+              <div
+                class="editor-toolbar-group local-lab-protocol-framework-controls"
+                aria-label="Protocol framework controls"
+              >
+                <label for="localLabProtocolRecipeSelect">Recipe</label>
+                <select
+                  id="localLabProtocolRecipeSelect"
+                  class="playground-component-select local-lab-recipe-select"
+                >
+                  <option value="distributed-teleportation" selected>
+                    Distributed teleportation
+                  </option>
+                  <option value="bell-test">Bell test</option>
+                  <option value="ghz-state">GHZ state</option>
+                  <option value="superdense-coding">Superdense coding</option>
+                  <option value="multi-user-entanglement">
+                    Multi-user entanglement
+                  </option>
+                  <option value="tour-introduction">Tour introduction</option>
+                </select>
+                <button
+                  id="localLabProtocolLoadButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Load recipe
+                </button>
+                <button
+                  id="localLabProtocolStepButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Mark step
+                </button>
+                <button
+                  id="localLabProtocolRefreshButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Refresh run
+                </button>
+              </div>
+              <div
+                id="localLabProtocolStepList"
+                class="local-lab-protocol-step-list"
+                aria-live="polite"
+              ></div>
+              <span
+                id="localLabProtocolStatus"
+                class="playground-status local-lab-protocol-status"
+                aria-live="polite"
+              ></span>
+            </section>
+            <section
+              class="local-lab-mailbox"
+              aria-label="Mailbox transfer"
+            >
+              <div
+                class="editor-toolbar-group local-lab-sync-controls"
+                aria-label="Shared register sync controls"
+              >
+                <label for="localLabSyncRoom">Room</label>
+                <input
+                  id="localLabSyncRoom"
+                  class="playground-component-select local-lab-room-input"
+                  type="text"
+                  value="local-lab-room"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Shared room"
+                />
+                <label for="localLabSyncParticipant">Name</label>
+                <input
+                  id="localLabSyncParticipant"
+                  class="playground-component-select local-lab-participant-input"
+                  type="text"
+                  value="Alice"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Participant name"
+                />
+                <label for="localLabParticipantRole">Role</label>
+                <select
+                  id="localLabParticipantRole"
+                  class="playground-component-select local-lab-role-select"
+                >
+                  <option value="editor" selected>Editor</option>
+                  <option value="viewer">Viewer</option>
+                  <option value="owner">Owner</option>
+                </select>
+                <button
+                  id="localLabSyncConnectButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Connect
+                </button>
+                <button
+                  id="localLabSyncPushButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Push
+                </button>
+                <button
+                  id="localLabSyncPullButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Pull
+                </button>
+                <button
+                  id="localLabClassroomLinkButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Copy link
+                </button>
+                <label class="local-lab-sync-toggle">
+                  <input id="localLabSyncLiveToggle" type="checkbox" />
+                  Live sync
+                </label>
+                <span
+                  id="localLabSyncStatus"
+                  class="playground-status local-lab-sync-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+              <div
+                class="editor-toolbar-group local-lab-mailbox-controls"
+                aria-label="Mailbox send controls"
+              >
+                <label for="localLabBackendUrl">Backend</label>
+                <input
+                  id="localLabBackendUrl"
+                  class="playground-component-select local-lab-backend-input"
+                  type="url"
+                  value="http://127.0.0.1:8787"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Backend URL"
+                />
+                <label for="localLabMailboxEmail">Email</label>
+                <input
+                  id="localLabMailboxEmail"
+                  class="playground-component-select local-lab-email-input"
+                  type="email"
+                  value="alice@example.com"
+                  autocomplete="email"
+                  aria-label="Mailbox recipient email"
+                />
+                <button
+                  id="localLabMailboxSendButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Send selected q
+                </button>
+              </div>
+              <div
+                class="editor-toolbar-group local-lab-mailbox-controls"
+                aria-label="Mailbox receive controls"
+              >
+                <label for="localLabMailboxToken">Token</label>
+                <input
+                  id="localLabMailboxToken"
+                  class="playground-component-select local-lab-token-input"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="mbx_..."
+                  aria-label="Mailbox token"
+                />
+                <button
+                  id="localLabMailboxReceiveButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Receive
+                </button>
+                <a
+                  id="localLabMailboxLink"
+                  class="local-lab-mailbox-link"
+                  href="#"
+                  hidden
+                >
+                  Open mailbox link
+                </a>
+                <span
+                  id="localLabMailboxStatus"
+                  class="playground-status local-lab-mailbox-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+            </section>
+            <div class="local-lab-workspace">
+              <section class="local-lab-register" aria-label="Local qubits">
+                <div id="localLabQubitRail" class="local-lab-qubit-rail"></div>
+                <div
+                  id="localLabProbabilityGrid"
+                  class="local-lab-probability-grid"
+                ></div>
+              </section>
+              <section class="local-lab-state" aria-label="Local ket vector">
+                <pre id="localLabKetVector" class="local-lab-ket-vector"></pre>
+              </section>
+            </div>
           </section>
         </section>
       </div>

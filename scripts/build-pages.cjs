@@ -8,6 +8,7 @@ const distDir = path.join(rootDir, "dist");
 
 const assetFiles = [
   "app.js",
+  "quantum-core.js",
   "styles.css",
   "assets/landing-lab-hero.png",
   "Magnifying glass transparent.png",
@@ -52,6 +53,10 @@ html = html.replace(
 html = html.replace(
   /src="data\/repository-content\.js(?:\?v=[^"]*)?"/,
   `src="data/repository-content.js?v=${buildVersion}"`,
+);
+html = html.replace(
+  /src="quantum-core\.js(?:\?v=[^"]*)?"/,
+  `src="quantum-core.js?v=${buildVersion}"`,
 );
 html = html.replace(
   /src="app\.js(?:\?v=[^"]*)?"/,

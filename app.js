@@ -79,6 +79,118 @@ const docRuntimeTitle = document.getElementById("docRuntimeTitle");
 const docRuntimeSceneLabel = document.getElementById("docRuntimeSceneLabel");
 const docRuntimeCloseButton = document.getElementById("docRuntimeCloseButton");
 const docRuntimeCanvas = document.getElementById("docRuntimeCanvas");
+const quantumCore = window.QuantumCore || null;
+const localLabPanel = document.querySelector("[data-local-lab]");
+const localLabQubitCount = document.getElementById("localLabQubitCount");
+const localLabResetButton = document.getElementById("localLabResetButton");
+const localLabSaveSnapshotButton = document.getElementById(
+  "localLabSaveSnapshotButton",
+);
+const localLabLoadSnapshotButton = document.getElementById(
+  "localLabLoadSnapshotButton",
+);
+const localLabTargetQubit = document.getElementById("localLabTargetQubit");
+const localLabControlQubit = document.getElementById("localLabControlQubit");
+const localLabCnotButton = document.getElementById("localLabCnotButton");
+const localLabMeasureQubit = document.getElementById("localLabMeasureQubit");
+const localLabMeasureButton = document.getElementById("localLabMeasureButton");
+const localLabMeasureAllButton = document.getElementById(
+  "localLabMeasureAllButton",
+);
+const localLabTeleportMessage = document.getElementById(
+  "localLabTeleportMessage",
+);
+const localLabTeleportPrepareButton = document.getElementById(
+  "localLabTeleportPrepareButton",
+);
+const localLabTeleportBellButton = document.getElementById(
+  "localLabTeleportBellButton",
+);
+const localLabTeleportAliceButton = document.getElementById(
+  "localLabTeleportAliceButton",
+);
+const localLabTeleportBobButton = document.getElementById(
+  "localLabTeleportBobButton",
+);
+const localLabTeleportRunButton = document.getElementById(
+  "localLabTeleportRunButton",
+);
+const localLabTeleportStatus = document.getElementById(
+  "localLabTeleportStatus",
+);
+const localLabDistributedProtocol = document.getElementById(
+  "localLabDistributedProtocol",
+);
+const localLabDistributedBobStartButton = document.getElementById(
+  "localLabDistributedBobStartButton",
+);
+const localLabDistributedAliceMeasureButton = document.getElementById(
+  "localLabDistributedAliceMeasureButton",
+);
+const localLabDistributedBobCorrectButton = document.getElementById(
+  "localLabDistributedBobCorrectButton",
+);
+const localLabDistributedRefreshButton = document.getElementById(
+  "localLabDistributedRefreshButton",
+);
+const localLabDistributedMailboxLink = document.getElementById(
+  "localLabDistributedMailboxLink",
+);
+const localLabDistributedStatus = document.getElementById(
+  "localLabDistributedStatus",
+);
+const localLabProtocolRecipeSelect = document.getElementById(
+  "localLabProtocolRecipeSelect",
+);
+const localLabProtocolLoadButton = document.getElementById(
+  "localLabProtocolLoadButton",
+);
+const localLabProtocolStepButton = document.getElementById(
+  "localLabProtocolStepButton",
+);
+const localLabProtocolRefreshButton = document.getElementById(
+  "localLabProtocolRefreshButton",
+);
+const localLabProtocolStepList = document.getElementById(
+  "localLabProtocolStepList",
+);
+const localLabProtocolStatus = document.getElementById(
+  "localLabProtocolStatus",
+);
+const localLabBackendUrl = document.getElementById("localLabBackendUrl");
+const localLabMailboxEmail = document.getElementById("localLabMailboxEmail");
+const localLabMailboxSendButton = document.getElementById(
+  "localLabMailboxSendButton",
+);
+const localLabMailboxToken = document.getElementById("localLabMailboxToken");
+const localLabMailboxReceiveButton = document.getElementById(
+  "localLabMailboxReceiveButton",
+);
+const localLabMailboxLink = document.getElementById("localLabMailboxLink");
+const localLabMailboxStatus = document.getElementById("localLabMailboxStatus");
+const localLabSyncRoom = document.getElementById("localLabSyncRoom");
+const localLabSyncParticipant = document.getElementById(
+  "localLabSyncParticipant",
+);
+const localLabParticipantRole = document.getElementById(
+  "localLabParticipantRole",
+);
+const localLabSyncConnectButton = document.getElementById(
+  "localLabSyncConnectButton",
+);
+const localLabSyncPushButton = document.getElementById("localLabSyncPushButton");
+const localLabSyncPullButton = document.getElementById("localLabSyncPullButton");
+const localLabClassroomLinkButton = document.getElementById(
+  "localLabClassroomLinkButton",
+);
+const localLabSyncLiveToggle = document.getElementById("localLabSyncLiveToggle");
+const localLabSyncStatus = document.getElementById("localLabSyncStatus");
+const localLabStatus = document.getElementById("localLabStatus");
+const localLabQubitRail = document.getElementById("localLabQubitRail");
+const localLabProbabilityGrid = document.getElementById(
+  "localLabProbabilityGrid",
+);
+const localLabKetVector = document.getElementById("localLabKetVector");
 
 const STEP_DEG = 30;
 const SNAP_OVERLAP_THRESHOLD = 0.9;
@@ -5515,6 +5627,11 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
     runtime.dial?.handleKeydown(event),
   );
   generatedSingleGateRuntimes.set(item, runtime);
+  registerGateInspector(item, () => ({
+    label: "Single Qubit Gate",
+    matrix: gateMatrixForTick(runtime.activeTick),
+    tickIndex: runtime.activeTick,
+  }));
   return runtime;
 }
 
@@ -6366,6 +6483,10 @@ function initializeGeneratedCnotItem(item) {
     cyclePromise: null,
   };
   generatedCnotRuntimes.set(item, runtime);
+  registerGateInspector(item, () => ({
+    label: "C-NOT Gate",
+    matrix: cnotGateMatrixForInspector(),
+  }));
   return runtime;
 }
 
@@ -6416,6 +6537,13 @@ function initializeGeneratedLayoutItemRuntime(item) {
   }
   if (isGeneratedQubitItem(item)) {
     ensureGeneratedQubitRuntimeState(item);
+    registerQubitInspector(item, () =>
+      inspectorRegisterFromRuntimeState(
+        item,
+        ensureGeneratedQubitRuntimeState(item),
+        "Qubit",
+      ),
+    );
     if (item.dataset.generatedRuntimeDragRegistered !== "true") {
       item.dataset.generatedRuntimeDragRegistered = "true";
       item.addEventListener("mousedown", (event) =>
@@ -7226,6 +7354,50 @@ function createGeneratedLandingPanel(entry) {
   animatedQubit.setAttribute("aria-hidden", "true");
   hero.appendChild(animatedQubit);
 
+  const tourTarget = generatedLandingLinkTargets(entry).find((target) =>
+    storageLabelKey(target.label) === "one qubit",
+  );
+  const signs = document.createElement("div");
+  signs.className = "landing-signs";
+  signs.setAttribute("aria-label", "Qubit Lab signs");
+  const tourSign = document.createElement("button");
+  tourSign.className = "landing-sign landing-tour-sign";
+  tourSign.type = "button";
+  const tourSignLabel = document.createElement("span");
+  tourSignLabel.className = "landing-sign-label";
+  tourSignLabel.textContent = "To the Tour";
+  const tourSignArrow = document.createElement("span");
+  tourSignArrow.className = "landing-sign-arrow";
+  tourSignArrow.setAttribute("aria-hidden", "true");
+  tourSignArrow.textContent = "←";
+  tourSign.append(tourSignLabel, tourSignArrow);
+  tourSign.addEventListener("click", () => {
+    setActiveTab(tourTarget?.id || "custom-one-qubit");
+  });
+  const labSign = document.createElement("div");
+  labSign.className = "landing-sign landing-lab-sign";
+  labSign.setAttribute("aria-label", "The Lab is Closed");
+  const labSignMain = document.createElement("span");
+  labSignMain.className = "landing-lab-sign-main";
+  labSignMain.textContent = "The Lab is";
+  const labSignNail = document.createElement("span");
+  labSignNail.className = "landing-lab-sign-nail";
+  labSignNail.setAttribute("aria-hidden", "true");
+  const labSignHanger = document.createElement("span");
+  labSignHanger.className = "landing-lab-sign-hanger";
+  labSignHanger.setAttribute("aria-hidden", "true");
+  const labSignClosed = document.createElement("span");
+  labSignClosed.className = "landing-lab-sign-closed";
+  labSignClosed.textContent = "Closed";
+  labSign.append(
+    labSignMain,
+    labSignNail,
+    labSignHanger,
+    labSignClosed,
+  );
+  signs.append(tourSign, labSign);
+  hero.appendChild(signs);
+
   const introText = generatedLandingIntroText(entry);
   const infoCard = document.createElement("section");
   infoCard.className = "landing-info-card";
@@ -7242,26 +7414,23 @@ function createGeneratedLandingPanel(entry) {
   infoCard.append(infoBody, infoCloseButton);
   hero.appendChild(infoCard);
 
-  const nav = document.createElement("nav");
-  nav.className = "landing-tab-links";
-  nav.setAttribute("aria-label", "Open a Qubit Lab experiment");
   if (introText) {
-    const infoButton = document.createElement("button");
-    infoButton.className = "landing-tab-link landing-info-link";
-    infoButton.type = "button";
-    infoButton.textContent = "What's this?";
-    infoButton.setAttribute("aria-controls", infoCard.id);
-    infoButton.setAttribute("aria-expanded", "false");
+    const aboutButton = document.createElement("button");
+    aboutButton.className = "landing-about-link landing-info-link";
+    aboutButton.type = "button";
+    aboutButton.textContent = "(About...)";
+    aboutButton.setAttribute("aria-controls", infoCard.id);
+    aboutButton.setAttribute("aria-expanded", "false");
     const closeInfo = () => {
       infoCard.hidden = true;
-      infoButton.setAttribute("aria-expanded", "false");
+      aboutButton.setAttribute("aria-expanded", "false");
     };
     const openInfo = () => {
       infoCard.hidden = false;
-      infoButton.setAttribute("aria-expanded", "true");
+      aboutButton.setAttribute("aria-expanded", "true");
       infoCloseButton.focus();
     };
-    infoButton.addEventListener("click", () => {
+    aboutButton.addEventListener("click", () => {
       if (infoCard.hidden) {
         openInfo();
       } else {
@@ -7270,20 +7439,10 @@ function createGeneratedLandingPanel(entry) {
     });
     infoCloseButton.addEventListener("click", () => {
       closeInfo();
-      infoButton.focus();
+      aboutButton.focus();
     });
-    nav.appendChild(infoButton);
+    hero.appendChild(aboutButton);
   }
-  generatedLandingLinkTargets(entry).forEach((target) => {
-    const button = document.createElement("button");
-    button.className = "landing-tab-link";
-    button.type = "button";
-    button.dataset.landingTabTarget = target.id;
-    button.textContent = target.label;
-    button.addEventListener("click", () => setActiveTab(target.id));
-    nav.appendChild(button);
-  });
-  hero.appendChild(nav);
 
   gatePanel.appendChild(hero);
   return gatePanel;
@@ -13175,6 +13334,13 @@ function setupPlagroundComposer() {
       playgroundQubitRuntime.set(item, state);
     }
     applyPlaygroundQubitVectorVisualState(item);
+    registerQubitInspector(item, () =>
+      inspectorRegisterFromRuntimeState(
+        item,
+        ensurePlaygroundQubitRuntimeState(item),
+        "Qubit",
+      ),
+    );
     return state;
   };
 
@@ -13859,6 +14025,11 @@ function setupPlagroundComposer() {
     );
 
     playgroundSingleGateRuntime.set(item, runtime);
+    registerGateInspector(item, () => ({
+      label: "Single Qubit Gate",
+      matrix: gateMatrixForTick(runtime.activeTick),
+      tickIndex: runtime.activeTick,
+    }));
     return runtime;
   };
 
@@ -14064,6 +14235,10 @@ function setupPlagroundComposer() {
       cyclePromise: null,
     };
     playgroundCnotRuntime.set(item, runtime);
+    registerGateInspector(item, () => ({
+      label: "C-NOT Gate",
+      matrix: cnotGateMatrixForInspector(),
+    }));
     return runtime;
   };
 
@@ -17361,7 +17536,76 @@ function hsvSpecToCss(hsv) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+function realAmplitudeFromQuantumValue(value, tolerance = 1e-10) {
+  let entry = value;
+  if (quantumCore?.cleanComplex) {
+    entry = quantumCore.cleanComplex(value, tolerance);
+  }
+  if (entry && typeof entry === "object" && Number.isFinite(entry.re)) {
+    return Object.is(entry.re, -0) ? 0 : entry.re;
+  }
+  if (Array.isArray(entry) && Number.isFinite(entry[0])) {
+    return Object.is(entry[0], -0) ? 0 : entry[0];
+  }
+  return Number.isFinite(entry) ? (Object.is(entry, -0) ? 0 : entry) : 0;
+}
+
+function realAmplitudesFromQuantumRegister(register, expectedLength) {
+  const amplitudes = Array.isArray(register?.amplitudes)
+    ? register.amplitudes
+    : [];
+  const length = Number.isInteger(expectedLength)
+    ? expectedLength
+    : amplitudes.length;
+  return Array.from({ length }, (_, index) =>
+    realAmplitudeFromQuantumValue(amplitudes[index] || 0),
+  );
+}
+
+function quantumRegisterForTourState(numQubits, amplitudes) {
+  if (!quantumCore?.createRegister) {
+    return null;
+  }
+  return quantumCore.createRegister(numQubits, amplitudes);
+}
+
+function normalizedProbabilityPair(blue, red, fallbackBlue = 0.5) {
+  const total = blue + red;
+  if (!Number.isFinite(total) || total <= 1e-12) {
+    return [clamp(fallbackBlue, 0, 1), clamp(1 - fallbackBlue, 0, 1)];
+  }
+  return [clamp(blue / total, 0, 1), clamp(red / total, 0, 1)];
+}
+
+function forcedPairMeasurementRegister(
+  pairState,
+  measuredQubitIndex,
+  measuredColor,
+) {
+  if (!quantumCore?.createRegister || !quantumCore?.bitValue) {
+    return null;
+  }
+  const source = quantumCore.createRegister(2, pairState?.amplitudes || []);
+  const outcome = measuredColor === "blue" || measuredColor === "b" ? 0 : 1;
+  const collapsed = source.amplitudes.map((amplitude, index) =>
+    quantumCore.bitValue(index, 2, measuredQubitIndex) === outcome
+      ? amplitude
+      : quantumCore.complex
+        ? quantumCore.complex(0)
+        : 0,
+  );
+  return quantumCore.createRegister(2, collapsed);
+}
+
 function vectorTimesMatrix2(vector, matrix) {
+  if (quantumCore?.createQubit && quantumCore?.applySingleQubitGate) {
+    const register = quantumCore.applySingleQubitGate(
+      quantumCore.createQubit(vector),
+      0,
+      matrix,
+    );
+    return realAmplitudesFromQuantumRegister(register, 2);
+  }
   return [
     matrix[0][0] * vector[0] + matrix[0][1] * vector[1],
     matrix[1][0] * vector[0] + matrix[1][1] * vector[1],
@@ -17369,6 +17613,9 @@ function vectorTimesMatrix2(vector, matrix) {
 }
 
 function normalizeVector2(vector) {
+  if (quantumCore?.createQubit) {
+    return realAmplitudesFromQuantumRegister(quantumCore.createQubit(vector), 2);
+  }
   const magnitude = Math.hypot(vector[0], vector[1]);
   if (!Number.isFinite(magnitude) || magnitude <= 1e-12) {
     return [1, 0];
@@ -17386,6 +17633,13 @@ function canonicalizeRealAmplitudeVector(vector, tolerance = 1e-12) {
 }
 
 function probabilitiesFromVector2(vector) {
+  if (quantumCore?.createQubit && quantumCore?.marginalProbabilities) {
+    const marginal = quantumCore.marginalProbabilities(
+      quantumCore.createQubit(vector),
+      0,
+    );
+    return normalizedProbabilityPair(marginal.blue, marginal.red, 1);
+  }
   const blue = vector[0] * vector[0];
   const red = vector[1] * vector[1];
   const total = blue + red;
@@ -17399,6 +17653,23 @@ function cnotMarginalProbabilitiesFromQubitVectors(
   controlVector,
   targetVector,
 ) {
+  if (
+    quantumCore?.productRegister &&
+    quantumCore?.applyCnot &&
+    quantumCore?.marginalProbabilities
+  ) {
+    const register = quantumCore.applyCnot(
+      quantumCore.productRegister([controlVector, targetVector]),
+      0,
+      1,
+    );
+    const control = quantumCore.marginalProbabilities(register, 0);
+    const target = quantumCore.marginalProbabilities(register, 1);
+    return {
+      control: normalizedProbabilityPair(control.blue, control.red, 0.5),
+      target: normalizedProbabilityPair(target.blue, target.red, 0.5),
+    };
+  }
   const control = normalizeVector2(controlVector);
   const target = normalizeVector2(targetVector);
 
@@ -17429,6 +17700,33 @@ function cnotMarginalProbabilitiesFromQubitVectors(
 }
 
 function cnotOutcomeProbabilitiesFromQubitVectors(controlVector, targetVector) {
+  if (
+    quantumCore?.productRegister &&
+    quantumCore?.applyCnot &&
+    quantumCore?.magnitudeSquared
+  ) {
+    const register = quantumCore.applyCnot(
+      quantumCore.productRegister([controlVector, targetVector]),
+      0,
+      1,
+    );
+    const raw = {
+      bb: quantumCore.magnitudeSquared(register.amplitudes[0]),
+      br: quantumCore.magnitudeSquared(register.amplitudes[1]),
+      rb: quantumCore.magnitudeSquared(register.amplitudes[2]),
+      rr: quantumCore.magnitudeSquared(register.amplitudes[3]),
+    };
+    const total = raw.bb + raw.br + raw.rb + raw.rr;
+    if (total <= 1e-12) {
+      return { bb: 0.25, br: 0.25, rb: 0.25, rr: 0.25 };
+    }
+    return {
+      bb: clamp(raw.bb / total, 0, 1),
+      br: clamp(raw.br / total, 0, 1),
+      rb: clamp(raw.rb / total, 0, 1),
+      rr: clamp(raw.rr / total, 0, 1),
+    };
+  }
   const control = normalizeVector2(controlVector);
   const target = normalizeVector2(targetVector);
 
@@ -17481,6 +17779,10 @@ function samplePairOutcomeFromProbabilities(probabilities) {
 
 // --- Two-qubit amplitude helpers ---
 function normalizeEntangledAmplitudes(amplitudes) {
+  const register = quantumRegisterForTourState(2, amplitudes);
+  if (register) {
+    return realAmplitudesFromQuantumRegister(register, 4);
+  }
   const total = amplitudes.reduce((acc, v) => acc + v * v, 0);
   if (!Number.isFinite(total) || total <= 1e-16) {
     return [1, 0, 0, 0];
@@ -17501,25 +17803,35 @@ function applySingleQubitGateToPair(state, qubitIndex, U) {
   }
   // state: {amplitudes: [a_bb,a_br,a_rb,a_rr]}
   const a = state.amplitudes || [0, 0, 0, 0];
-  const out = [0, 0, 0, 0];
-  if (qubitIndex === 0) {
-    // apply U to top qubit
-    // bottom = 0 -> indices 0(top0),2(top1)
-    out[0] = U[0][0] * a[0] + U[0][1] * a[2];
-    out[2] = U[1][0] * a[0] + U[1][1] * a[2];
-    // bottom = 1 -> indices 1,3
-    out[1] = U[0][0] * a[1] + U[0][1] * a[3];
-    out[3] = U[1][0] * a[1] + U[1][1] * a[3];
+  const register = quantumRegisterForTourState(2, a);
+  if (register && quantumCore?.applySingleQubitGate) {
+    const nextRegister = quantumCore.applySingleQubitGate(
+      register,
+      qubitIndex === 1 ? 1 : 0,
+      U,
+    );
+    state.amplitudes = realAmplitudesFromQuantumRegister(nextRegister, 4);
   } else {
-    // apply U to bottom qubit (qubitIndex === 1)
-    // top = 0 -> indices 0,1
-    out[0] = U[0][0] * a[0] + U[0][1] * a[1];
-    out[1] = U[1][0] * a[0] + U[1][1] * a[1];
-    // top = 1 -> indices 2,3
-    out[2] = U[0][0] * a[2] + U[0][1] * a[3];
-    out[3] = U[1][0] * a[2] + U[1][1] * a[3];
+    const out = [0, 0, 0, 0];
+    if (qubitIndex === 0) {
+      // apply U to top qubit
+      // bottom = 0 -> indices 0(top0),2(top1)
+      out[0] = U[0][0] * a[0] + U[0][1] * a[2];
+      out[2] = U[1][0] * a[0] + U[1][1] * a[2];
+      // bottom = 1 -> indices 1,3
+      out[1] = U[0][0] * a[1] + U[0][1] * a[3];
+      out[3] = U[1][0] * a[1] + U[1][1] * a[3];
+    } else {
+      // apply U to bottom qubit (qubitIndex === 1)
+      // top = 0 -> indices 0,1
+      out[0] = U[0][0] * a[0] + U[0][1] * a[1];
+      out[1] = U[1][0] * a[0] + U[1][1] * a[1];
+      // top = 1 -> indices 2,3
+      out[2] = U[0][0] * a[2] + U[0][1] * a[3];
+      out[3] = U[1][0] * a[2] + U[1][1] * a[3];
+    }
+    state.amplitudes = normalizeEntangledAmplitudes(out);
   }
-  state.amplitudes = normalizeEntangledAmplitudes(out);
   state.displayMode = "conditional";
 }
 
@@ -17582,7 +17894,19 @@ function setLinkedPairStateFromMemberVector(state, qubitIndex, vector) {
 
 function applyCNOTToPairWithControl(state, controlIndex = 0) {
   const a = state.amplitudes || [0, 0, 0, 0];
-  if (controlIndex === 1) {
+  const normalizedControlIndex = controlIndex === 1 ? 1 : 0;
+  const register = quantumRegisterForTourState(2, a);
+  if (register && quantumCore?.applyCnot) {
+    const nextRegister = quantumCore.applyCnot(
+      register,
+      normalizedControlIndex,
+      normalizedControlIndex === 0 ? 1 : 0,
+    );
+    state.amplitudes = realAmplitudesFromQuantumRegister(nextRegister, 4);
+    syncPairLinkRelation(state);
+    return;
+  }
+  if (normalizedControlIndex === 1) {
     // Bottom controls top: permute |01> and |11>.
     state.amplitudes = [a[0], a[3], a[2], a[1]];
     syncPairLinkRelation(state);
@@ -17598,22 +17922,9 @@ function applyCNOTToPair(state) {
 }
 
 function samplePairOutcomeFromEntangledState(state) {
-  const a = state.amplitudes || [0, 0, 0, 0];
-  const p = a.map((v) => v * v);
-  const total = p.reduce((acc, v) => acc + v, 0);
-  if (!Number.isFinite(total) || total <= 1e-12) {
-    return "bb";
-  }
-  const r = Math.random() * total;
-  let acc = 0;
-  const keys = ["bb", "br", "rb", "rr"];
-  for (let i = 0; i < 4; i += 1) {
-    acc += p[i];
-    if (r <= acc) {
-      return keys[i];
-    }
-  }
-  return "rr";
+  return samplePairOutcomeFromProbabilities(
+    pairOutcomeProbabilitiesFromState(state),
+  );
 }
 
 function deepCopyAmplitudes(amplitudes) {
@@ -17622,6 +17933,13 @@ function deepCopyAmplitudes(amplitudes) {
 
 function collapsePairStateToOutcome(state, outcomeKey) {
   const idx = { bb: 0, br: 1, rb: 2, rr: 3 }[outcomeKey] ?? 0;
+  if (quantumCore?.createBasisRegister) {
+    state.amplitudes = realAmplitudesFromQuantumRegister(
+      quantumCore.createBasisRegister(2, idx),
+      4,
+    );
+    return;
+  }
   state.amplitudes = [0, 0, 0, 0];
   state.amplitudes[idx] = 1;
 }
@@ -17761,6 +18079,27 @@ function conditionalVectorAfterPairMeasurement(
   measuredQubitIndex,
   measuredColor,
 ) {
+  const collapsed = forcedPairMeasurementRegister(
+    pairState,
+    measuredQubitIndex,
+    measuredColor,
+  );
+  if (collapsed) {
+    const amplitudes = realAmplitudesFromQuantumRegister(collapsed, 4);
+    const measuredBlue = measuredColor === "blue" || measuredColor === "b";
+    if (measuredQubitIndex === 0) {
+      return normalizeVector2(
+        measuredBlue
+          ? [amplitudes[0], amplitudes[1]]
+          : [amplitudes[2], amplitudes[3]],
+      );
+    }
+    return normalizeVector2(
+      measuredBlue
+        ? [amplitudes[0], amplitudes[2]]
+        : [amplitudes[1], amplitudes[3]],
+    );
+  }
   const a = normalizeEntangledAmplitudes(pairState?.amplitudes || []);
   const measuredBlue = measuredColor === "blue" || measuredColor === "b";
   if (measuredQubitIndex === 0) {
@@ -17774,6 +18113,15 @@ function collapsePairStateBySingleQubitMeasurement(
   measuredQubitIndex,
   measuredColor,
 ) {
+  const collapsed = forcedPairMeasurementRegister(
+    pairState,
+    measuredQubitIndex,
+    measuredColor,
+  );
+  if (collapsed) {
+    pairState.amplitudes = realAmplitudesFromQuantumRegister(collapsed, 4);
+    return;
+  }
   const measuredBlue = measuredColor === "blue" || measuredColor === "b";
   const source = normalizeEntangledAmplitudes(pairState?.amplitudes || []);
   const next = source.map((amplitude, index) => {
@@ -17802,8 +18150,12 @@ function sampleSingleQubitOutcomeFromPairState(pairState, qubitIndex) {
 }
 
 function pairOutcomeProbabilitiesFromState(state) {
-  const amplitudes = normalizeEntangledAmplitudes(state?.amplitudes || []);
-  const raw = amplitudes.map((value) => value * value);
+  const register = quantumRegisterForTourState(2, state?.amplitudes || []);
+  const raw = register?.amplitudes
+    ? register.amplitudes.map((value) => quantumCore.magnitudeSquared(value))
+    : normalizeEntangledAmplitudes(state?.amplitudes || []).map(
+        (value) => value * value,
+      );
   return {
     bb: raw[0],
     br: raw[1],
@@ -17813,6 +18165,21 @@ function pairOutcomeProbabilitiesFromState(state) {
 }
 
 function pairMarginalsFromEntangledState(state) {
+  const register = quantumRegisterForTourState(2, state?.amplitudes || []);
+  if (register && quantumCore?.marginalProbabilities) {
+    const top = quantumCore.marginalProbabilities(register, 0);
+    const bottom = quantumCore.marginalProbabilities(register, 1);
+    return {
+      top: {
+        blue: top.blue,
+        red: top.red,
+      },
+      bottom: {
+        blue: bottom.blue,
+        red: bottom.red,
+      },
+    };
+  }
   const probabilities = pairOutcomeProbabilitiesFromState(state);
   return {
     top: {
@@ -17827,6 +18194,12 @@ function pairMarginalsFromEntangledState(state) {
 }
 
 function entangledAmplitudesFromQubitVectors(topVector, bottomVector) {
+  if (quantumCore?.productRegister) {
+    return realAmplitudesFromQuantumRegister(
+      quantumCore.productRegister([topVector, bottomVector]),
+      4,
+    );
+  }
   const top = normalizeVector2(topVector);
   const bottom = normalizeVector2(bottomVector);
   return normalizeEntangledAmplitudes([
@@ -18079,8 +18452,10 @@ let qubitInspectorTitle = null;
 let qubitInspectorVector = null;
 let qubitSelectionMarquee = null;
 const qubitStateGetters = new Map();
+const gateStateGetters = new Map();
 const selectionContainers = new WeakSet();
 let selectedQubitElements = [];
+let delegatedGateInspectorInstalled = false;
 
 function ensureQubitInspector() {
   if (qubitInspectorRoot) {
@@ -18171,6 +18546,116 @@ function formatComplex(value) {
   }
 
   return formatComplexFromParts(0, 0);
+}
+
+function formatQuantumRegisterAmplitude(value) {
+  const entry = quantumCore?.cleanComplex
+    ? quantumCore.cleanComplex(value)
+    : value;
+  return formatComplex(entry);
+}
+
+function quantumRegisterKetLines(register, options = {}) {
+  if (
+    !quantumCore ||
+    !register ||
+    !Number.isInteger(register.numQubits) ||
+    !Array.isArray(register.amplitudes)
+  ) {
+    return [];
+  }
+  const state = quantumCore.createRegister(
+    register.numQubits,
+    register.amplitudes,
+  );
+  const basisCount = state.amplitudes.length;
+  const lines = [
+    `Register: ${state.numQubits} qubit${state.numQubits === 1 ? "" : "s"} (${basisCount} basis states)`,
+  ];
+  if (Number.isInteger(options.selectedIndex)) {
+    lines.push(`Selected member: q${options.selectedIndex}`);
+  }
+  if (Array.isArray(options.memberLabels) && options.memberLabels.length) {
+    lines.push(`Members: ${options.memberLabels.join(", ")}`);
+  }
+  lines.push(`Basis order: |${Array.from({ length: state.numQubits }, (_, index) => `q${index}`).join("")}>`);
+  lines.push("");
+  lines.push("|Psi> =");
+  state.amplitudes.forEach((amplitude, index) => {
+    const probability = quantumCore.magnitudeSquared(amplitude);
+    lines.push(
+      `  ${formatQuantumRegisterAmplitude(amplitude)} |${quantumCore.basisLabel(index, state.numQubits)}>    p=${probability.toFixed(6)}`,
+    );
+  });
+  return lines;
+}
+
+function memberLabelForQubit(item, fallback) {
+  const logicalId = normalizeQubitId(item?.dataset?.qubitId);
+  const itemId = item?.dataset?.generatedItemId || item?.dataset?.component || "";
+  if (logicalId) {
+    return `q${fallback}#${logicalId}`;
+  }
+  return itemId ? `q${fallback}:${itemId}` : `q${fallback}`;
+}
+
+function inspectorRegisterFromRuntimeState(item, state, fallbackLabel = "Qubit") {
+  if (!quantumCore || !state) {
+    return {
+      label: fallbackLabel,
+      vector: state?.vector || [1, 0],
+    };
+  }
+  if (
+    state.register &&
+    Number.isInteger(state.register.numQubits) &&
+    Array.isArray(state.register.amplitudes)
+  ) {
+    return {
+      label: fallbackLabel,
+      register: state.register,
+      selectedIndex: Number.isInteger(state.registerQubitIndex)
+        ? state.registerQubitIndex
+        : 0,
+    };
+  }
+  if (
+    state.pairState &&
+    Array.isArray(state.pairState.amplitudes) &&
+    Number.isFinite(state.pairQubitIndex)
+  ) {
+    const members = Array.isArray(state.pairState.members)
+      ? state.pairState.members
+      : [];
+    const memberLabels = [0, 1].map((index) => {
+      const member = members.find((entry) => entry.qubitIndex === index);
+      return memberLabelForQubit(member?.item, index);
+    });
+    return {
+      label: "Entangled Register Inspector",
+      register: quantumCore.createRegister(2, state.pairState.amplitudes),
+      selectedIndex: state.pairQubitIndex,
+      memberLabels,
+    };
+  }
+  return {
+    label: fallbackLabel,
+    register: quantumCore.createQubit(state.vector || [1, 0]),
+    selectedIndex: 0,
+    memberLabels: [memberLabelForQubit(item, 0)],
+  };
+}
+
+function cnotGateMatrixForInspector() {
+  if (quantumCore?.matrixForCnot) {
+    return quantumCore.matrixForCnot(2, 0, 1);
+  }
+  return [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 1],
+    [0, 0, 1, 0],
+  ];
 }
 
 function formatComplexReal(value) {
@@ -18363,6 +18848,18 @@ function handleShiftQubitSelection(event, element) {
 }
 
 function openQubitInspector({ label, blue, red, vector = null }) {
+  if (arguments[0]?.register) {
+    const state = arguments[0];
+    const lines = [state.label || "Register", ""].concat(
+      quantumRegisterKetLines(state.register, {
+        selectedIndex: state.selectedIndex,
+        memberLabels: state.memberLabels,
+      }),
+    );
+    openInspector("Register Inspector", lines);
+    return;
+  }
+
   let a = 0;
   let b = 0;
   let normalizedBlue = 0.5;
@@ -18460,26 +18957,124 @@ function openGateInspector({ label, matrix, tickIndex = null }) {
   openInspector("Gate Inspector", lines);
 }
 
+function registeredGateAtViewportPoint(clientX, clientY) {
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+    return null;
+  }
+  const candidates = Array.from(gateStateGetters.keys())
+    .filter((element) => {
+      if (!(element instanceof HTMLElement) || !element.isConnected) {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      );
+    })
+    .map((element, index) => {
+      const rect = element.getBoundingClientRect();
+      const zIndex = Number.parseInt(window.getComputedStyle(element).zIndex, 10);
+      return {
+        element,
+        index,
+        area: rect.width * rect.height,
+        zIndex: Number.isFinite(zIndex) ? zIndex : 0,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.zIndex - a.zIndex ||
+        a.area - b.area ||
+        b.index - a.index,
+    );
+  return candidates[0]?.element || null;
+}
+
+function openRegisteredGateInspector(element, event) {
+  const getGateState = gateStateGetters.get(element);
+  if (typeof getGateState !== "function") {
+    return false;
+  }
+  const gateState = getGateState();
+  if (!gateState || !gateState.matrix) {
+    return false;
+  }
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  openGateInspector(gateState);
+  return true;
+}
+
+function installDelegatedGateInspector() {
+  if (delegatedGateInspectorInstalled) {
+    return;
+  }
+  delegatedGateInspectorInstalled = true;
+  document.addEventListener(
+    "contextmenu",
+    (event) => {
+      if (!(event.target instanceof Element)) {
+        return;
+      }
+      if (
+        event.target.closest(
+          "input, select, textarea, button, .qubit-inspector",
+        )
+      ) {
+        return;
+      }
+      if (
+        event.target.closest(
+          ".playground-node[data-component='qubit'], .playground-qubit-shell, .qubit",
+        )
+      ) {
+        return;
+      }
+      const targetNode = event.target.closest(".playground-node");
+      if (targetNode instanceof HTMLElement && !gateStateGetters.has(targetNode)) {
+        return;
+      }
+      const gate = registeredGateAtViewportPoint(event.clientX, event.clientY);
+      if (gate) {
+        openRegisteredGateInspector(gate, event);
+      }
+    },
+    true,
+  );
+}
+
 function registerGateInspector(element, getGateState) {
   if (!element || typeof getGateState !== "function") {
     return;
   }
 
-  element.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const gateState = getGateState();
-    if (!gateState || !gateState.matrix) {
-      return;
-    }
-    openGateInspector(gateState);
-  });
+  gateStateGetters.set(element, getGateState);
+  installDelegatedGateInspector();
+
+  const openFromEvent = (event) => {
+    openRegisteredGateInspector(element, event);
+  };
+
+  if (element.dataset.gateInspectorRegistered === "true") {
+    return;
+  }
+  element.dataset.gateInspectorRegistered = "true";
+  element.addEventListener("contextmenu", openFromEvent);
 }
 
 function registerQubitInspector(element, getState) {
+  if (!element || typeof getState !== "function") {
+    return;
+  }
   qubitStateGetters.set(element, getState);
   applyQubitSelectionStyles();
-  element.addEventListener("contextmenu", (event) => {
+
+  const openFromEvent = (event) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -18498,8 +19093,2162 @@ function registerQubitInspector(element, getState) {
     }
 
     openQubitInspector(getState());
+  };
+
+  if (element.dataset.qubitInspectorRegistered === "true") {
+    return;
+  }
+  element.dataset.qubitInspectorRegistered = "true";
+  element.addEventListener("contextmenu", openFromEvent);
+}
+
+const LOCAL_LAB_DEFAULT_QUBITS = 3;
+const LOCAL_LAB_MAX_QUBITS = 8;
+const LOCAL_LAB_DEFAULT_BACKEND_URL = "http://127.0.0.1:8787";
+const LOCAL_LAB_ROOM_ID = "local-lab-room";
+const LOCAL_LAB_REGISTER_ID = "local-register";
+const LOCAL_LAB_SYNC_INTERVAL_MS = 1200;
+const LOCAL_LAB_SNAPSHOT_STORAGE_KEY = "qubit-lab.local-lab-snapshot.v1";
+const LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS = [
+  {
+    type: "distributed-teleportation",
+    label: "Distributed teleportation",
+    steps: [
+      { id: "bob-bell-mail", label: "Bob Bell + mail q1" },
+      { id: "alice-measure-send", label: "Alice measure + send bits" },
+      { id: "bob-correct-verify", label: "Bob correct + verify" },
+    ],
+  },
+  {
+    type: "bell-test",
+    label: "Bell test",
+    steps: [
+      { id: "prepare-bell-pair", label: "Prepare Bell pair" },
+      { id: "choose-bases", label: "Choose bases" },
+      { id: "compare-results", label: "Compare results" },
+    ],
+  },
+  {
+    type: "ghz-state",
+    label: "GHZ state",
+    steps: [
+      { id: "choose-qubits", label: "Choose qubits" },
+      { id: "hadamard-root", label: "Hadamard root" },
+      { id: "cascade-cnot", label: "Cascade C-NOT" },
+      { id: "inspect-correlations", label: "Inspect correlations" },
+    ],
+  },
+  {
+    type: "superdense-coding",
+    label: "Superdense coding",
+    steps: [
+      { id: "share-bell-pair", label: "Share Bell pair" },
+      { id: "encode-two-bits", label: "Encode two bits" },
+      { id: "decode-bell-basis", label: "Decode Bell basis" },
+    ],
+  },
+  {
+    type: "multi-user-entanglement",
+    label: "Multi-user entanglement",
+    steps: [
+      { id: "create-room", label: "Create room" },
+      { id: "invite-participants", label: "Invite participants" },
+      { id: "assign-qubits", label: "Assign qubits" },
+      { id: "run-measurements", label: "Run measurements" },
+    ],
+  },
+  {
+    type: "tour-introduction",
+    label: "Tour introduction",
+    steps: [
+      { id: "one-qubit", label: "One qubit" },
+      { id: "two-qubits", label: "Two qubits" },
+      { id: "entanglement-one", label: "Entanglement 1" },
+      { id: "entanglement-two", label: "Entanglement 2" },
+    ],
+  },
+];
+const localLabState = {
+  register: null,
+  selectedQubit: 0,
+  teleportation: null,
+  mailbox: {
+    lastToken: "",
+    lastLink: "",
+  },
+  distributedTeleportation: {
+    protocol: null,
+  },
+  protocolFramework: {
+    definitions: LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS,
+    definition: LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS[0],
+    protocol: null,
+  },
+  sync: {
+    connected: false,
+    lastVersion: null,
+    pollTimer: null,
+    pushTimer: null,
+    applyingRemote: false,
+  },
+};
+
+function localLabIsReady() {
+  return Boolean(localLabPanel && quantumCore?.createRegister);
+}
+
+function localLabSetStatus(message) {
+  if (localLabStatus instanceof HTMLElement) {
+    localLabStatus.textContent = message || "";
+  }
+}
+
+function localLabSetTeleportStatus(message) {
+  if (localLabTeleportStatus instanceof HTMLElement) {
+    localLabTeleportStatus.textContent = message || "";
+  }
+}
+
+function localLabSetMailboxStatus(message) {
+  if (localLabMailboxStatus instanceof HTMLElement) {
+    localLabMailboxStatus.textContent = message || "";
+  }
+}
+
+function localLabSetSyncStatus(message) {
+  if (localLabSyncStatus instanceof HTMLElement) {
+    localLabSyncStatus.textContent = message || "";
+  }
+}
+
+function localLabSetDistributedStatus(message) {
+  if (localLabDistributedStatus instanceof HTMLElement) {
+    localLabDistributedStatus.textContent = message || "";
+  }
+}
+
+function localLabSetProtocolFrameworkStatus(message) {
+  if (localLabProtocolStatus instanceof HTMLElement) {
+    localLabProtocolStatus.textContent = message || "";
+  }
+}
+
+function localLabClearTeleportation() {
+  localLabState.teleportation = null;
+  localLabSetTeleportStatus("");
+}
+
+function localLabSelectValue(select, fallback = 0) {
+  const parsed = Number.parseInt(select?.value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function localLabClampQubitIndex(index, numQubits) {
+  return Math.min(Math.max(Number.isFinite(index) ? index : 0, 0), numQubits - 1);
+}
+
+function localLabCurrentSize() {
+  const selected = localLabSelectValue(localLabQubitCount, LOCAL_LAB_DEFAULT_QUBITS);
+  return Math.min(Math.max(selected, 1), LOCAL_LAB_MAX_QUBITS);
+}
+
+function localLabFormatProbability(value) {
+  const normalized = clamp(Number.isFinite(value) ? value : 0, 0, 1);
+  if (normalized <= 1e-9) {
+    return "0";
+  }
+  if (normalized >= 1 - 1e-9) {
+    return "1";
+  }
+  return normalized.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function localLabPercent(value) {
+  return `${(clamp(value, 0, 1) * 100).toFixed(1)}%`;
+}
+
+function localLabMemberLabels(numQubits) {
+  return Array.from({ length: numQubits }, (_, index) => `q${index}`);
+}
+
+function localLabTeleportMessageKey() {
+  return typeof localLabTeleportMessage?.value === "string"
+    ? localLabTeleportMessage.value
+    : "plus";
+}
+
+function localLabTeleportMessageVector(key = localLabTeleportMessageKey()) {
+  const rootHalf = Math.SQRT1_2;
+  if (key === "blue") {
+    return [1, 0];
+  }
+  if (key === "red") {
+    return [0, 1];
+  }
+  if (key === "minus") {
+    return [rootHalf, -rootHalf];
+  }
+  if (key === "tilted") {
+    return [Math.sqrt(0.8), Math.sqrt(0.2)];
+  }
+  return [rootHalf, rootHalf];
+}
+
+function localLabTeleportLabel(key = localLabTeleportMessageKey()) {
+  return {
+    blue: "blue",
+    red: "red",
+    minus: "purple -",
+    tilted: "tilted",
+    plus: "purple +",
+  }[key] || "purple +";
+}
+
+function localLabComplex(value) {
+  return quantumCore?.complex ? quantumCore.complex(value) : { re: value || 0, im: 0 };
+}
+
+function localLabComplexConjugate(value) {
+  const entry = localLabComplex(value);
+  return { re: entry.re, im: -entry.im };
+}
+
+function localLabComplexAdd(left, right) {
+  return quantumCore?.add
+    ? quantumCore.add(left, right)
+    : {
+        re: localLabComplex(left).re + localLabComplex(right).re,
+        im: localLabComplex(left).im + localLabComplex(right).im,
+      };
+}
+
+function localLabComplexMultiply(left, right) {
+  return quantumCore?.multiply
+    ? quantumCore.multiply(left, right)
+    : {
+        re:
+          localLabComplex(left).re * localLabComplex(right).re -
+          localLabComplex(left).im * localLabComplex(right).im,
+        im:
+          localLabComplex(left).re * localLabComplex(right).im +
+          localLabComplex(left).im * localLabComplex(right).re,
+      };
+}
+
+function localLabNormalizeQubitVector(vector) {
+  if (!quantumCore?.createQubit) {
+    return vector;
+  }
+  return quantumCore.createQubit(vector).amplitudes;
+}
+
+function localLabTeleportRecord(messageKey = localLabTeleportMessageKey()) {
+  return {
+    messageKey,
+    messageVector: localLabNormalizeQubitVector(
+      localLabTeleportMessageVector(messageKey),
+    ),
+    aliceBits: null,
+    stage: "prepared",
+  };
+}
+
+function localLabTeleportCurrentRecord() {
+  if (!localLabState.teleportation) {
+    localLabState.teleportation = localLabTeleportRecord();
+  }
+  return localLabState.teleportation;
+}
+
+function localLabFillQubitSelect(select, numQubits, preferredIndex = 0) {
+  if (!(select instanceof HTMLSelectElement)) {
+    return;
+  }
+  const nextValue = localLabClampQubitIndex(preferredIndex, numQubits);
+  select.replaceChildren(
+    ...Array.from({ length: numQubits }, (_, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `q${index}`;
+      return option;
+    }),
+  );
+  select.value = String(nextValue);
+}
+
+function localLabRegister() {
+  if (!localLabIsReady()) {
+    return null;
+  }
+  if (
+    localLabState.register &&
+    Number.isInteger(localLabState.register.numQubits) &&
+    Array.isArray(localLabState.register.amplitudes)
+  ) {
+    localLabState.register = quantumCore.createRegister(
+      localLabState.register.numQubits,
+      localLabState.register.amplitudes,
+    );
+    return localLabState.register;
+  }
+  localLabState.register = quantumCore.createRegister(localLabCurrentSize());
+  return localLabState.register;
+}
+
+function localLabSyncControls(register = localLabRegister()) {
+  if (!register) {
+    return;
+  }
+  const numQubits = register.numQubits;
+  if (localLabQubitCount instanceof HTMLSelectElement) {
+    localLabQubitCount.value = String(numQubits);
+  }
+  const selected = localLabClampQubitIndex(
+    localLabState.selectedQubit,
+    numQubits,
+  );
+  localLabState.selectedQubit = selected;
+  localLabFillQubitSelect(
+    localLabTargetQubit,
+    numQubits,
+    selected,
+  );
+  localLabFillQubitSelect(
+    localLabControlQubit,
+    numQubits,
+    localLabSelectValue(localLabControlQubit, 0),
+  );
+  localLabFillQubitSelect(
+    localLabMeasureQubit,
+    numQubits,
+    selected,
+  );
+  if (localLabCnotButton instanceof HTMLButtonElement) {
+    localLabCnotButton.disabled = numQubits < 2;
+  }
+}
+
+function localLabSetRegister(register, statusMessage = "") {
+  if (!localLabIsReady() || !register) {
+    return;
+  }
+  localLabState.register = quantumCore.createRegister(
+    register.numQubits,
+    register.amplitudes,
+  );
+  localLabRender(statusMessage);
+  localLabScheduleAutoPush();
+}
+
+function localLabBasisIndexForBits(bits) {
+  return bits.reduce((index, bit) => index * 2 + (bit ? 1 : 0), 0);
+}
+
+function localLabQubitVectorForFixedBits(register, targetIndex, fixedBits) {
+  if (!register || !quantumCore?.bitValue || !quantumCore?.createQubit) {
+    return null;
+  }
+  const vector = [localLabComplex(0), localLabComplex(0)];
+  register.amplitudes.forEach((amplitude, index) => {
+    const matches = Object.entries(fixedBits || {}).every(
+      ([qubitKey, bit]) =>
+        quantumCore.bitValue(index, register.numQubits, Number(qubitKey)) ===
+        bit,
+    );
+    if (!matches) {
+      return;
+    }
+    const targetBit = quantumCore.bitValue(index, register.numQubits, targetIndex);
+    vector[targetBit] = localLabComplexAdd(vector[targetBit], amplitude);
+  });
+  return quantumCore.createQubit(vector).amplitudes;
+}
+
+function localLabQubitFidelity(expectedVector, actualVector) {
+  if (!quantumCore?.magnitudeSquared) {
+    return 0;
+  }
+  const expected = localLabNormalizeQubitVector(expectedVector || [1, 0]);
+  const actual = localLabNormalizeQubitVector(actualVector || [1, 0]);
+  const overlap = localLabComplexAdd(
+    localLabComplexMultiply(localLabComplexConjugate(expected[0]), actual[0]),
+    localLabComplexMultiply(localLabComplexConjugate(expected[1]), actual[1]),
+  );
+  return clamp(quantumCore.magnitudeSquared(overlap), 0, 1);
+}
+
+function localLabTeleportBobVector() {
+  const register = localLabRegister();
+  const aliceBits = localLabState.teleportation?.aliceBits;
+  if (!register || !aliceBits || register.numQubits !== 3) {
+    return null;
+  }
+  return localLabQubitVectorForFixedBits(register, 2, {
+    0: aliceBits.source,
+    1: aliceBits.pair,
   });
 }
+
+function localLabTeleportFidelity() {
+  const record = localLabState.teleportation;
+  const bobVector = localLabTeleportBobVector();
+  if (!record || !bobVector) {
+    return null;
+  }
+  return localLabQubitFidelity(record.messageVector, bobVector);
+}
+
+function localLabTeleportPrepare() {
+  if (!localLabIsReady() || !quantumCore?.productRegister) {
+    return;
+  }
+  const messageKey = localLabTeleportMessageKey();
+  const record = localLabTeleportRecord(messageKey);
+  localLabState.teleportation = record;
+  localLabState.selectedQubit = 0;
+  const register = quantumCore.productRegister([
+    record.messageVector,
+    [1, 0],
+    [1, 0],
+  ]);
+  localLabSetRegister(
+    register,
+    `Teleportation prepared: q0 ${localLabTeleportLabel(messageKey)}`,
+  );
+  localLabSetTeleportStatus("q0 ready; q1/q2 reset");
+}
+
+function localLabTeleportCreateBellPair() {
+  if (!localLabIsReady() || !quantumCore?.applySingleQubitGate || !quantumCore?.applyCnot) {
+    return;
+  }
+  if (
+    !localLabState.teleportation ||
+    localLabState.teleportation.stage !== "prepared" ||
+    localLabRegister()?.numQubits !== 3
+  ) {
+    localLabTeleportPrepare();
+  }
+  const record = localLabTeleportCurrentRecord();
+  let register = localLabRegister();
+  register = quantumCore.applySingleQubitGate(register, 1, quantumCore.gateMatrices.H);
+  register = quantumCore.applyCnot(register, 1, 2);
+  record.stage = "bell";
+  record.aliceBits = null;
+  localLabState.selectedQubit = 1;
+  localLabSetRegister(register, "Bob created Bell pair q1-q2");
+  localLabSetTeleportStatus("Bell pair ready");
+}
+
+function localLabTeleportAliceMeasure() {
+  if (!localLabIsReady() || !quantumCore?.applyCnot || !quantumCore?.measureQubit) {
+    return;
+  }
+  if (
+    !localLabState.teleportation ||
+    localLabState.teleportation.stage !== "bell"
+  ) {
+    localLabTeleportCreateBellPair();
+  }
+  const record = localLabTeleportCurrentRecord();
+  let register = localLabRegister();
+  if (!register || register.numQubits !== 3) {
+    localLabTeleportCreateBellPair();
+    register = localLabRegister();
+  }
+  register = quantumCore.applyCnot(register, 0, 1);
+  register = quantumCore.applySingleQubitGate(register, 0, quantumCore.gateMatrices.H);
+  const sourceMeasurement = quantumCore.measureQubit(register, 0);
+  const pairMeasurement = quantumCore.measureQubit(sourceMeasurement.register, 1);
+  record.aliceBits = {
+    source: sourceMeasurement.outcome,
+    pair: pairMeasurement.outcome,
+  };
+  record.stage = "alice-measured";
+  localLabState.selectedQubit = 2;
+  localLabSetRegister(
+    pairMeasurement.register,
+    `Alice measured q0=${record.aliceBits.source}, q1=${record.aliceBits.pair}`,
+  );
+  localLabSetTeleportStatus(
+    `Alice bits ${record.aliceBits.source}${record.aliceBits.pair}; send to Bob`,
+  );
+}
+
+function localLabTeleportBobCorrection() {
+  if (!localLabIsReady() || !quantumCore?.applySingleQubitGate) {
+    return;
+  }
+  const record = localLabTeleportCurrentRecord();
+  if (!record.aliceBits) {
+    localLabSetTeleportStatus("Alice measurement required");
+    return;
+  }
+  let register = localLabRegister();
+  const corrections = [];
+  if (record.aliceBits.pair === 1) {
+    register = quantumCore.applySingleQubitGate(register, 2, quantumCore.gateMatrices.X);
+    corrections.push("X");
+  }
+  if (record.aliceBits.source === 1) {
+    register = quantumCore.applySingleQubitGate(register, 2, quantumCore.gateMatrices.Z);
+    corrections.push("Z");
+  }
+  record.stage = "complete";
+  localLabState.selectedQubit = 2;
+  localLabSetRegister(
+    register,
+    `Bob correction ${corrections.join("+") || "none"} on q2`,
+  );
+  const fidelity = localLabTeleportFidelity();
+  localLabSetTeleportStatus(
+    `Complete: q2 has ${localLabTeleportLabel(record.messageKey)}; fidelity=${localLabFormatProbability(fidelity ?? 0)}`,
+  );
+}
+
+function localLabTeleportRunProtocol() {
+  localLabTeleportPrepare();
+  localLabTeleportCreateBellPair();
+  localLabTeleportAliceMeasure();
+  localLabTeleportBobCorrection();
+}
+
+function localLabDistributedProtocolId() {
+  const raw =
+    localLabDistributedProtocol instanceof HTMLInputElement
+      ? localLabDistributedProtocol.value.trim()
+      : "";
+  return raw || "teleport-demo";
+}
+
+function localLabDistributedProtocolPath(protocolId = localLabDistributedProtocolId()) {
+  return `/rooms/${encodeURIComponent(localLabRoomId())}/distributed-teleportation/${encodeURIComponent(protocolId)}`;
+}
+
+function localLabProtocolRunPath(protocolId = localLabDistributedProtocolId()) {
+  return `/rooms/${encodeURIComponent(localLabRoomId())}/protocols/${encodeURIComponent(protocolId)}`;
+}
+
+function localLabProtocolStepPath(stepId, protocolId = localLabDistributedProtocolId()) {
+  return `${localLabProtocolRunPath(protocolId)}/steps/${encodeURIComponent(stepId)}`;
+}
+
+function localLabProtocolRecipeType() {
+  const raw =
+    localLabProtocolRecipeSelect instanceof HTMLSelectElement
+      ? localLabProtocolRecipeSelect.value.trim()
+      : "";
+  return raw || "distributed-teleportation";
+}
+
+function localLabDefaultProtocolIdForType(type) {
+  return {
+    "distributed-teleportation": "teleport-demo",
+    "bell-test": "bell-test-demo",
+    "ghz-state": "ghz-demo",
+    "superdense-coding": "superdense-demo",
+    "multi-user-entanglement": "multi-user-demo",
+    "tour-introduction": "tour-demo",
+  }[type] || "protocol-demo";
+}
+
+function localLabAllDefaultProtocolIds() {
+  return new Set(
+    LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS.map((definition) =>
+      localLabDefaultProtocolIdForType(definition.type),
+    ),
+  );
+}
+
+function localLabSyncProtocolIdToRecipe() {
+  if (!(localLabDistributedProtocol instanceof HTMLInputElement)) {
+    return;
+  }
+  const current = localLabDistributedProtocol.value.trim();
+  if (!current || localLabAllDefaultProtocolIds().has(current)) {
+    localLabDistributedProtocol.value = localLabDefaultProtocolIdForType(
+      localLabProtocolRecipeType(),
+    );
+  }
+}
+
+function localLabProtocolDefinitionFor(type = localLabProtocolRecipeType()) {
+  return (
+    localLabState.protocolFramework.definitions.find(
+      (definition) => definition.type === type,
+    ) ||
+    LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS.find(
+      (definition) => definition.type === type,
+    ) ||
+    null
+  );
+}
+
+function localLabPopulateProtocolRecipeSelect(definitions) {
+  if (!(localLabProtocolRecipeSelect instanceof HTMLSelectElement)) {
+    return;
+  }
+  const selected = localLabProtocolRecipeType();
+  localLabProtocolRecipeSelect.replaceChildren(
+    ...definitions.map((definition) => {
+      const option = document.createElement("option");
+      option.value = definition.type;
+      option.textContent = definition.label;
+      return option;
+    }),
+  );
+  localLabProtocolRecipeSelect.value = definitions.some(
+    (definition) => definition.type === selected,
+  )
+    ? selected
+    : definitions[0]?.type || "distributed-teleportation";
+}
+
+function localLabProtocolCurrentStep(protocol, definition) {
+  const steps = Array.isArray(definition?.steps) ? definition.steps : [];
+  if (!steps.length) {
+    return "complete";
+  }
+  if (protocol?.currentStep && protocol.currentStep !== "complete") {
+    return protocol.currentStep;
+  }
+  const completed = new Set(protocol?.completedSteps || []);
+  return steps.find((step) => !completed.has(step.id))?.id || "complete";
+}
+
+function localLabRenderProtocolSteps(protocol, definition) {
+  const resolvedDefinition =
+    definition ||
+    localLabProtocolDefinitionFor(protocol?.type) ||
+    localLabProtocolDefinitionFor();
+  localLabState.protocolFramework.protocol = protocol || null;
+  localLabState.protocolFramework.definition = resolvedDefinition || null;
+  if (!(localLabProtocolStepList instanceof HTMLElement)) {
+    return;
+  }
+  const steps = Array.isArray(resolvedDefinition?.steps)
+    ? resolvedDefinition.steps
+    : [];
+  const completed = new Set(protocol?.completedSteps || []);
+  const currentStep = localLabProtocolCurrentStep(protocol, resolvedDefinition);
+  localLabProtocolStepList.replaceChildren(
+    ...steps.map((step, index) => {
+      const item = document.createElement("span");
+      item.className = "local-lab-protocol-step";
+      if (completed.has(step.id)) {
+        item.classList.add("complete");
+      }
+      if (currentStep === step.id && !completed.has(step.id)) {
+        item.classList.add("current");
+      }
+      item.textContent = `${index + 1}. ${step.label}`;
+      return item;
+    }),
+  );
+  const doneCount = steps.filter((step) => completed.has(step.id)).length;
+  const statusLabel = resolvedDefinition?.label || "Protocol";
+  const version = protocol?.version == null ? "" : ` v${protocol.version}`;
+  const currentLabel =
+    currentStep === "complete"
+      ? "complete"
+      : steps.find((step) => step.id === currentStep)?.label || "ready";
+  localLabSetProtocolFrameworkStatus(
+    `${statusLabel}${version}: ${doneCount}/${steps.length} complete; current ${currentLabel}`,
+  );
+}
+
+async function localLabLoadProtocolDefinitions({ quiet = false } = {}) {
+  if (window.location.protocol === "file:" || IS_GITHUB_PAGES_BUILD) {
+    localLabState.protocolFramework.definitions =
+      LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS;
+    localLabPopulateProtocolRecipeSelect(LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS);
+    localLabRenderProtocolSteps(null, localLabProtocolDefinitionFor());
+    if (!quiet) {
+      localLabSetProtocolFrameworkStatus("Built-in protocol recipes ready");
+    }
+    return LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS;
+  }
+  try {
+    const payload = await localLabRequest("/protocol-definitions");
+    const definitions = Array.isArray(payload.protocols) && payload.protocols.length
+      ? payload.protocols
+      : LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS;
+    localLabState.protocolFramework.definitions = definitions;
+    localLabPopulateProtocolRecipeSelect(definitions);
+    localLabRenderProtocolSteps(
+      localLabState.protocolFramework.protocol,
+      localLabProtocolDefinitionFor(),
+    );
+    return definitions;
+  } catch (_error) {
+    localLabState.protocolFramework.definitions =
+      LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS;
+    localLabPopulateProtocolRecipeSelect(LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS);
+    localLabRenderProtocolSteps(null, localLabProtocolDefinitionFor());
+    if (!quiet) {
+      localLabSetProtocolFrameworkStatus("Backend unavailable; showing built-in recipes");
+    }
+    return LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS;
+  }
+}
+
+async function localLabLoadProtocolRecipe() {
+  localLabSetProtocolFrameworkStatus("Loading recipe...");
+  try {
+    await localLabEnsureMailboxRoom();
+    const payload = await localLabRequest(localLabProtocolRunPath(), {
+      method: "PUT",
+      body: {
+        type: localLabProtocolRecipeType(),
+        createdBy: localLabParticipantName(),
+        updatedBy: localLabParticipantName(),
+        metadata: {
+          source: "local-lab",
+        },
+      },
+    });
+    localLabRenderProtocolSteps(payload.protocol || null, payload.definition || null);
+    return payload.protocol || null;
+  } catch (error) {
+    const fallbackDefinition = localLabProtocolDefinitionFor();
+    localLabRenderProtocolSteps(null, fallbackDefinition);
+    localLabSetProtocolFrameworkStatus(`Recipe load failed: ${error.message}`);
+    return null;
+  }
+}
+
+async function localLabRefreshProtocolRun({ quiet = false } = {}) {
+  if (!quiet) {
+    localLabSetProtocolFrameworkStatus("Refreshing protocol...");
+  }
+  try {
+    const payload = await localLabRequest(localLabProtocolRunPath());
+    localLabRenderProtocolSteps(payload.protocol || null, payload.definition || null);
+    return payload.protocol || null;
+  } catch (error) {
+    if (!quiet) {
+      localLabSetProtocolFrameworkStatus(`Protocol refresh failed: ${error.message}`);
+    }
+    return null;
+  }
+}
+
+async function localLabMarkProtocolStep() {
+  let protocol = localLabState.protocolFramework.protocol;
+  let definition =
+    localLabState.protocolFramework.definition ||
+    localLabProtocolDefinitionFor();
+  if (!protocol || protocol.type !== localLabProtocolRecipeType()) {
+    protocol = await localLabLoadProtocolRecipe();
+    definition = localLabState.protocolFramework.definition || definition;
+  }
+  const stepId = localLabProtocolCurrentStep(protocol, definition);
+  if (!stepId || stepId === "complete") {
+    localLabSetProtocolFrameworkStatus("Protocol already complete");
+    return null;
+  }
+  localLabSetProtocolFrameworkStatus("Marking step...");
+  try {
+    const payload = await localLabRequest(localLabProtocolStepPath(stepId), {
+      method: "POST",
+      body: {
+        completed: true,
+        updatedBy: localLabParticipantName(),
+      },
+    });
+    localLabRenderProtocolSteps(payload.protocol || null, payload.definition || null);
+    return payload.protocol || null;
+  } catch (error) {
+    localLabSetProtocolFrameworkStatus(`Mark step failed: ${error.message}`);
+    return null;
+  }
+}
+
+function localLabRenderDistributedProtocolFramework(protocol, definition = null) {
+  const resolvedDefinition =
+    definition ||
+    localLabProtocolDefinitionFor("distributed-teleportation") ||
+    LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS[0];
+  if (localLabProtocolRecipeSelect instanceof HTMLSelectElement) {
+    localLabProtocolRecipeSelect.value = "distributed-teleportation";
+  }
+  localLabRenderProtocolSteps(protocol, resolvedDefinition);
+}
+
+function localLabSetDistributedMailboxLink(link) {
+  if (localLabDistributedMailboxLink instanceof HTMLAnchorElement) {
+    localLabDistributedMailboxLink.hidden = !link;
+    localLabDistributedMailboxLink.href = link || "#";
+    localLabDistributedMailboxLink.title = link || "";
+  }
+}
+
+function localLabBackendUrlFromLocation() {
+  try {
+    return new URLSearchParams(window.location.search).get("backend") || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function localLabRoomFromLocation() {
+  try {
+    return new URLSearchParams(window.location.search).get("room") || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function localLabParticipantFromLocation() {
+  try {
+    return new URLSearchParams(window.location.search).get("participant") || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function localLabRoleFromLocation() {
+  try {
+    return new URLSearchParams(window.location.search).get("role") || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function localLabMailboxTokenFromLocation() {
+  try {
+    return (
+      new URLSearchParams(window.location.search).get("mailbox") ||
+      new URLSearchParams(window.location.search).get("mailboxToken") ||
+      ""
+    ).trim();
+  } catch (_error) {
+    return "";
+  }
+}
+
+function localLabBackendBaseUrl() {
+  const raw =
+    localLabBackendUrl instanceof HTMLInputElement
+      ? localLabBackendUrl.value.trim()
+      : "";
+  const value = raw || localLabBackendUrlFromLocation() || LOCAL_LAB_DEFAULT_BACKEND_URL;
+  return value.replace(/\/+$/, "");
+}
+
+function localLabRoomId() {
+  const raw =
+    localLabSyncRoom instanceof HTMLInputElement
+      ? localLabSyncRoom.value.trim()
+      : "";
+  return raw || localLabRoomFromLocation() || LOCAL_LAB_ROOM_ID;
+}
+
+function localLabParticipantName() {
+  const raw =
+    localLabSyncParticipant instanceof HTMLInputElement
+      ? localLabSyncParticipant.value.trim()
+      : "";
+  return raw || localLabParticipantFromLocation() || "local-lab";
+}
+
+function localLabParticipantRoleValue() {
+  const raw =
+    localLabParticipantRole instanceof HTMLSelectElement
+      ? localLabParticipantRole.value.trim()
+      : "";
+  const value = raw || localLabRoleFromLocation() || "editor";
+  return ["owner", "editor", "viewer"].includes(value) ? value : "editor";
+}
+
+function localLabParticipantId() {
+  const normalized = localLabParticipantName()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "local-lab";
+}
+
+function localLabSharedRegisterPath(roomId = localLabRoomId()) {
+  return `/rooms/${encodeURIComponent(roomId)}/registers/${encodeURIComponent(LOCAL_LAB_REGISTER_ID)}`;
+}
+
+function localLabParticipantPath(
+  roomId = localLabRoomId(),
+  participantId = localLabParticipantId(),
+) {
+  return `/rooms/${encodeURIComponent(roomId)}/participants/${encodeURIComponent(participantId)}`;
+}
+
+function localLabMailboxFrontendLink(token) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("mailbox", token);
+  url.searchParams.set("backend", localLabBackendBaseUrl());
+  url.hash = "local-lab";
+  return url.toString();
+}
+
+function localLabClassroomLink() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("mailbox");
+  url.searchParams.delete("mailboxToken");
+  url.searchParams.set("backend", localLabBackendBaseUrl());
+  url.searchParams.set("room", localLabRoomId());
+  url.searchParams.set("participant", localLabParticipantName());
+  url.searchParams.set("role", localLabParticipantRoleValue());
+  url.hash = "local-lab";
+  return url.toString();
+}
+
+async function localLabCopyText(text) {
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  return false;
+}
+
+function localLabSetMailboxLink(link, token = "") {
+  localLabState.mailbox.lastLink = link || "";
+  localLabState.mailbox.lastToken = token || "";
+  if (localLabMailboxToken instanceof HTMLInputElement && token) {
+    localLabMailboxToken.value = token;
+  }
+  if (localLabMailboxLink instanceof HTMLAnchorElement) {
+    localLabMailboxLink.hidden = !link;
+    localLabMailboxLink.href = link || "#";
+    localLabMailboxLink.title = link || "";
+  }
+}
+
+function localLabClearMailboxRouteParams() {
+  const url = new URL(window.location.href);
+  const hadMailboxParams =
+    url.searchParams.has("mailbox") ||
+    url.searchParams.has("mailboxToken");
+  if (!hadMailboxParams) {
+    return;
+  }
+  url.searchParams.delete("mailbox");
+  url.searchParams.delete("mailboxToken");
+  window.history.replaceState({}, "", url.toString());
+}
+
+function localLabMailboxFailureMessage(action, error) {
+  const message = error?.message || String(error || "Unknown error");
+  if (/no longer pending|already claimed|mailbox_transfer_closed/i.test(message)) {
+    return "Mailbox token already claimed. Send selected q to create a fresh link.";
+  }
+  return `Mailbox ${action} failed: ${message}`;
+}
+
+async function localLabReadJsonResponse(response) {
+  const text = await response.text();
+  if (!text.trim()) {
+    return {};
+  }
+  try {
+    return JSON.parse(text);
+  } catch (_error) {
+    return { error: { message: text } };
+  }
+}
+
+async function localLabRequest(path, options = {}) {
+  const body = options.body == null ? null : JSON.stringify(options.body);
+  const response = await fetch(`${localLabBackendBaseUrl()}${path}`, {
+    method: options.method || "GET",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body,
+  });
+  const payload = await localLabReadJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(
+      payload?.error?.message ||
+        payload?.message ||
+        `Backend request failed (${response.status})`,
+    );
+  }
+  return payload;
+}
+
+async function localLabEnsureMailboxRoom() {
+  const roomId = localLabRoomId();
+  const response = await fetch(`${localLabBackendBaseUrl()}/rooms`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: roomId,
+      label: "Local Lab mailbox",
+      ownerId: localLabParticipantName(),
+    }),
+  });
+  if (response.status === 409) {
+    return;
+  }
+  const payload = await localLabReadJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(
+      payload?.error?.message ||
+        payload?.message ||
+        `Unable to create mailbox room (${response.status})`,
+    );
+  }
+}
+
+async function localLabRegisterParticipant() {
+  await localLabEnsureMailboxRoom();
+  const payload = await localLabRequest(localLabParticipantPath(), {
+    method: "PUT",
+    body: {
+      displayName: localLabParticipantName(),
+      role: localLabParticipantRoleValue(),
+    },
+  });
+  return payload.participant || null;
+}
+
+function localLabSerializableRegister(register) {
+  return {
+    numQubits: register.numQubits,
+    amplitudes: register.amplitudes.map((entry) => {
+      const value = localLabComplex(entry);
+      return { re: value.re, im: value.im };
+    }),
+  };
+}
+
+async function localLabPutSharedRegisterSnapshot(
+  register,
+  metadata = {},
+  expectedVersion = undefined,
+) {
+  await localLabEnsureMailboxRoom();
+  const body = {
+    id: LOCAL_LAB_REGISTER_ID,
+    label: "Shared Local Lab register",
+    ownerId: localLabParticipantName(),
+    ...localLabSerializableRegister(register),
+    metadata: {
+      selectedQubit: localLabState.selectedQubit,
+      ...metadata,
+    },
+  };
+  if (expectedVersion != null) {
+    body.expectedVersion = expectedVersion;
+  }
+  const payload = await localLabRequest(localLabSharedRegisterPath(), {
+    method: "PUT",
+    body,
+  });
+  const version = payload.register?.version ?? null;
+  localLabState.sync.connected = true;
+  localLabState.sync.lastVersion = version;
+  return payload.register;
+}
+
+async function localLabSyncMailboxRegister() {
+  const register = localLabRegister();
+  if (!register) {
+    throw new Error("Local register unavailable");
+  }
+  return localLabPutSharedRegisterSnapshot(register, {
+    selectedQubit: localLabState.selectedQubit,
+  });
+}
+
+async function localLabSendMailboxTransfer() {
+  const register = localLabRegister();
+  if (!register) {
+    localLabSetMailboxStatus("Local register unavailable");
+    return;
+  }
+  const email =
+    localLabMailboxEmail instanceof HTMLInputElement
+      ? localLabMailboxEmail.value.trim()
+      : "";
+  if (!email) {
+    localLabSetMailboxStatus("Email required");
+    return;
+  }
+  const qubitIndex = localLabClampQubitIndex(
+    localLabState.selectedQubit,
+    register.numQubits,
+  );
+  localLabSetMailboxStatus("Sending...");
+  try {
+    await localLabSyncMailboxRegister();
+    const payload = await localLabRequest(
+      `/rooms/${encodeURIComponent(localLabRoomId())}/mailbox-transfers`,
+      {
+        method: "POST",
+        body: {
+          registerId: LOCAL_LAB_REGISTER_ID,
+          qubitIndex,
+          email,
+          createdBy: "local-lab",
+          metadata: {
+            appLinkBase: window.location.origin,
+          },
+        },
+      },
+    );
+    const transfer = payload.transfer;
+    if (!transfer?.token) {
+      throw new Error("Backend did not return a mailbox token");
+    }
+    const link = localLabMailboxFrontendLink(transfer.token);
+    localLabSetMailboxLink(link, transfer.token);
+    localLabSetMailboxStatus(`Mailbox link ready for q${qubitIndex}`);
+  } catch (error) {
+    localLabSetMailboxStatus(localLabMailboxFailureMessage("send", error));
+  }
+}
+
+async function localLabReceiveMailboxTransfer() {
+  const token =
+    localLabMailboxToken instanceof HTMLInputElement
+      ? localLabMailboxToken.value.trim()
+      : "";
+  if (!token) {
+    localLabSetMailboxStatus("Token required");
+    return;
+  }
+  localLabSetMailboxStatus("Receiving...");
+  try {
+    const payload = await localLabRequest(
+      `/mailbox-transfers/${encodeURIComponent(token)}/claim`,
+      {
+        method: "POST",
+        body: {
+          claimedBy: "local-lab",
+        },
+      },
+    );
+    const transfer = payload.transfer;
+    const snapshot = transfer?.payload?.register;
+    if (
+      !snapshot ||
+      !Number.isInteger(snapshot.numQubits) ||
+      !Array.isArray(snapshot.amplitudes)
+    ) {
+      throw new Error("Mailbox payload did not include a register snapshot");
+    }
+    const selectedQubit = localLabClampQubitIndex(
+      Number.isInteger(transfer.payload.selectedQubit)
+        ? transfer.payload.selectedQubit
+        : transfer.qubitIndex,
+      snapshot.numQubits,
+    );
+    localLabClearTeleportation();
+    localLabState.selectedQubit = selectedQubit;
+    localLabSetRegister(
+      quantumCore.createRegister(snapshot.numQubits, snapshot.amplitudes),
+      `Received mailbox q${selectedQubit}`,
+    );
+    localLabSetMailboxLink("", token);
+    localLabClearMailboxRouteParams();
+    localLabSetMailboxStatus(`Received q${selectedQubit}; token claimed`);
+  } catch (error) {
+    localLabSetMailboxStatus(localLabMailboxFailureMessage("receive", error));
+  }
+}
+
+function localLabSetRegisterFromRemote(register, statusMessage, selectedQubit = 0) {
+  if (!register || !quantumCore?.createRegister) {
+    return;
+  }
+  localLabState.sync.applyingRemote = true;
+  try {
+    localLabState.selectedQubit = localLabClampQubitIndex(
+      selectedQubit,
+      register.numQubits,
+    );
+    localLabSetRegister(
+      quantumCore.createRegister(register.numQubits, register.amplitudes),
+      statusMessage,
+    );
+  } finally {
+    localLabState.sync.applyingRemote = false;
+  }
+}
+
+function localLabRegisterMetadata() {
+  return {
+    selectedQubit: localLabState.selectedQubit,
+    participant: localLabParticipantName(),
+    updatedFrom: "local-lab",
+  };
+}
+
+async function localLabPushSharedRegister({ silent = false } = {}) {
+  const register = localLabRegister();
+  if (!register) {
+    localLabSetSyncStatus("Local register unavailable");
+    return null;
+  }
+  if (!localLabState.sync.connected && !silent) {
+    localLabSetSyncStatus("Connect first");
+  }
+  try {
+    await localLabEnsureMailboxRoom();
+    const body = {
+      id: LOCAL_LAB_REGISTER_ID,
+      label: "Shared Local Lab register",
+      ownerId: localLabParticipantName(),
+      ...localLabSerializableRegister(register),
+      metadata: localLabRegisterMetadata(),
+    };
+    if (localLabState.sync.lastVersion != null) {
+      body.expectedVersion = localLabState.sync.lastVersion;
+    }
+    const payload = await localLabRequest(localLabSharedRegisterPath(), {
+      method: "PUT",
+      body,
+    });
+    const version = payload.register?.version ?? null;
+    localLabState.sync.connected = true;
+    localLabState.sync.lastVersion = version;
+    if (!silent) {
+      localLabSetSyncStatus(`Pushed v${version ?? "?"}`);
+    }
+    return payload.register;
+  } catch (error) {
+    if (/version conflict|register_version_conflict/i.test(error.message || "")) {
+      localLabSetSyncStatus("Shared register changed; pull first");
+    } else if (!silent) {
+      localLabSetSyncStatus(`Push failed: ${error.message}`);
+    }
+    return null;
+  }
+}
+
+async function localLabPullSharedRegister({ silent = false } = {}) {
+  try {
+    const payload = await localLabRequest(localLabSharedRegisterPath());
+    const register = payload.register;
+    if (!register) {
+      throw new Error("Backend did not return a register");
+    }
+    localLabState.sync.connected = true;
+    localLabState.sync.lastVersion = register.version ?? null;
+    localLabClearTeleportation();
+    localLabSetRegisterFromRemote(
+      register,
+      silent ? "" : `Pulled shared register v${register.version ?? "?"}`,
+      Number.isInteger(register.metadata?.selectedQubit)
+        ? register.metadata.selectedQubit
+        : localLabState.selectedQubit,
+    );
+    if (!silent) {
+      localLabSetSyncStatus(`Pulled v${register.version ?? "?"}`);
+    }
+    return register;
+  } catch (error) {
+    if (!silent) {
+      localLabSetSyncStatus(`Pull failed: ${error.message}`);
+    }
+    return null;
+  }
+}
+
+async function localLabConnectSharedRegister() {
+  localLabSetSyncStatus("Connecting...");
+  localLabState.sync.connected = false;
+  try {
+    const participant = await localLabRegisterParticipant();
+    const pulled = await localLabPullSharedRegister({ silent: true });
+    if (pulled) {
+      localLabSetSyncStatus(
+        `Connected ${participant?.role || localLabParticipantRoleValue()} v${pulled.version ?? "?"}`,
+      );
+      localLabUpdateSyncPolling();
+      return;
+    }
+    const pushed = await localLabPushSharedRegister({ silent: true });
+    if (pushed) {
+      localLabSetSyncStatus(
+        `Connected ${participant?.role || localLabParticipantRoleValue()} v${pushed.version ?? "?"}`,
+      );
+      localLabUpdateSyncPolling();
+      return;
+    }
+    localLabSetSyncStatus("Connect failed");
+  } catch (error) {
+    localLabSetSyncStatus(`Connect failed: ${error.message}`);
+  }
+}
+
+async function localLabPollSharedRegister() {
+  if (!localLabState.sync.connected) {
+    return;
+  }
+  try {
+    const payload = await localLabRequest(localLabSharedRegisterPath());
+    const register = payload.register;
+    if (!register) {
+      return;
+    }
+    const version = register.version ?? null;
+    if (
+      version != null &&
+      localLabState.sync.lastVersion != null &&
+      version <= localLabState.sync.lastVersion
+    ) {
+      return;
+    }
+    localLabState.sync.lastVersion = version;
+    localLabClearTeleportation();
+    localLabSetRegisterFromRemote(
+      register,
+      `Synced shared register v${version ?? "?"}`,
+      Number.isInteger(register.metadata?.selectedQubit)
+        ? register.metadata.selectedQubit
+        : localLabState.selectedQubit,
+    );
+    localLabSetSyncStatus(`Synced v${version ?? "?"}`);
+  } catch (error) {
+    localLabSetSyncStatus(`Sync paused: ${error.message}`);
+  }
+}
+
+function localLabLiveSyncEnabled() {
+  return Boolean(
+    localLabSyncLiveToggle instanceof HTMLInputElement &&
+      localLabSyncLiveToggle.checked,
+  );
+}
+
+function localLabUpdateSyncPolling() {
+  if (localLabState.sync.pollTimer) {
+    window.clearInterval(localLabState.sync.pollTimer);
+    localLabState.sync.pollTimer = null;
+  }
+  if (localLabState.sync.connected && localLabLiveSyncEnabled()) {
+    localLabState.sync.pollTimer = window.setInterval(() => {
+      void localLabPollSharedRegister();
+    }, LOCAL_LAB_SYNC_INTERVAL_MS);
+  }
+}
+
+function localLabScheduleAutoPush() {
+  if (
+    localLabState.sync.applyingRemote ||
+    !localLabState.sync.connected ||
+    !localLabLiveSyncEnabled()
+  ) {
+    return;
+  }
+  if (localLabState.sync.pushTimer) {
+    window.clearTimeout(localLabState.sync.pushTimer);
+  }
+  localLabState.sync.pushTimer = window.setTimeout(() => {
+    localLabState.sync.pushTimer = null;
+    void localLabPushSharedRegister({ silent: true }).then((register) => {
+      if (register) {
+        localLabSetSyncStatus(`Shared v${register.version ?? "?"}`);
+      }
+    });
+  }, 150);
+}
+
+async function localLabSaveDistributedProtocol(update) {
+  const payload = await localLabRequest(localLabDistributedProtocolPath(), {
+    method: "PUT",
+    body: {
+      registerId: LOCAL_LAB_REGISTER_ID,
+      updatedBy: localLabParticipantName(),
+      ...update,
+    },
+  });
+  localLabState.distributedTeleportation.protocol = payload.protocol || null;
+  localLabRenderDistributedProtocolFramework(
+    payload.protocol || null,
+    payload.definition || null,
+  );
+  return payload.protocol;
+}
+
+async function localLabFetchDistributedProtocol() {
+  const payload = await localLabRequest(localLabDistributedProtocolPath());
+  localLabState.distributedTeleportation.protocol = payload.protocol || null;
+  localLabRenderDistributedProtocolFramework(
+    payload.protocol || null,
+    payload.definition || null,
+  );
+  return payload.protocol;
+}
+
+function localLabProtocolMessageVector(protocol) {
+  return Array.isArray(protocol?.messageVector)
+    ? protocol.messageVector
+    : localLabTeleportRecord().messageVector;
+}
+
+async function localLabDistributedBobStart() {
+  if (!localLabIsReady() || !quantumCore?.productRegister) {
+    return;
+  }
+  const email =
+    localLabMailboxEmail instanceof HTMLInputElement
+      ? localLabMailboxEmail.value.trim()
+      : "";
+  if (!email) {
+    localLabSetDistributedStatus("Email required for Alice mailbox link");
+    return;
+  }
+  localLabSetDistributedStatus("Bob preparing Bell pair...");
+  try {
+    const messageKey = localLabTeleportMessageKey();
+    const messageVector = localLabNormalizeQubitVector(
+      localLabTeleportMessageVector(messageKey),
+    );
+    let register = quantumCore.productRegister([
+      messageVector,
+      [1, 0],
+      [1, 0],
+    ]);
+    register = quantumCore.applySingleQubitGate(register, 1, quantumCore.gateMatrices.H);
+    register = quantumCore.applyCnot(register, 1, 2);
+    localLabState.selectedQubit = 1;
+    localLabClearTeleportation();
+    localLabSetRegister(register, "Distributed: Bob created Bell pair q1-q2");
+    const savedRegister = await localLabPutSharedRegisterSnapshot(register, {
+      protocolId: localLabDistributedProtocolId(),
+      protocolStage: "bell-sent",
+      selectedQubit: 1,
+    });
+    try {
+      await localLabRequest(
+        `/rooms/${encodeURIComponent(localLabRoomId())}/entanglement-groups`,
+        {
+          method: "POST",
+          body: {
+            id: `${localLabDistributedProtocolId()}-bell`,
+            label: "Distributed teleportation Bell pair",
+            qubits: [
+              { registerId: LOCAL_LAB_REGISTER_ID, qubitIndex: 1 },
+              { registerId: LOCAL_LAB_REGISTER_ID, qubitIndex: 2 },
+            ],
+            metadata: {
+              protocolId: localLabDistributedProtocolId(),
+            },
+          },
+        },
+      );
+    } catch (_error) {
+      // Existing entanglement group is fine when rerunning the same protocol.
+    }
+    const transferPayload = await localLabRequest(
+      `/rooms/${encodeURIComponent(localLabRoomId())}/mailbox-transfers`,
+      {
+        method: "POST",
+        body: {
+          registerId: LOCAL_LAB_REGISTER_ID,
+          qubitIndex: 1,
+          email,
+          createdBy: localLabParticipantName(),
+          metadata: {
+            protocolId: localLabDistributedProtocolId(),
+            role: "alice-pair-qubit",
+          },
+        },
+      },
+    );
+    const token = transferPayload.transfer?.token || "";
+    const link = token ? localLabMailboxFrontendLink(token) : "";
+    localLabSetDistributedMailboxLink(link);
+    if (token) {
+      localLabSetMailboxLink(link, token);
+    }
+    const protocol = await localLabSaveDistributedProtocol({
+      stage: "bell-sent",
+      createdBy: localLabParticipantName(),
+      messageKey,
+      messageVector,
+      mailboxToken: token,
+      aliceBits: null,
+      bobCorrection: [],
+      fidelity: null,
+      metadata: {
+        aliceMessageQubit: 0,
+        alicePairQubit: 1,
+        bobQubit: 2,
+        registerVersion: savedRegister?.version ?? null,
+      },
+    });
+    localLabSetDistributedStatus(
+      `Bob mailed q1; protocol v${protocol?.version ?? "?"}`,
+    );
+  } catch (error) {
+    localLabSetDistributedStatus(`Distributed start failed: ${error.message}`);
+  }
+}
+
+async function localLabDistributedAliceMeasure() {
+  if (!localLabIsReady() || !quantumCore?.applyCnot || !quantumCore?.measureQubit) {
+    return;
+  }
+  localLabSetDistributedStatus("Alice measuring...");
+  try {
+    const protocol = await localLabFetchDistributedProtocol();
+    if (!protocol?.registerId) {
+      throw new Error("Bob must start the protocol first");
+    }
+    const registerPayload = await localLabRequest(localLabSharedRegisterPath());
+    let register = quantumCore.createRegister(
+      registerPayload.register.numQubits,
+      registerPayload.register.amplitudes,
+    );
+    if (register.numQubits !== 3) {
+      throw new Error("Distributed teleportation needs a 3-qubit register");
+    }
+    register = quantumCore.applyCnot(register, 0, 1);
+    register = quantumCore.applySingleQubitGate(register, 0, quantumCore.gateMatrices.H);
+    const sourceMeasurement = quantumCore.measureQubit(register, 0);
+    const pairMeasurement = quantumCore.measureQubit(sourceMeasurement.register, 1);
+    const aliceBits = {
+      source: sourceMeasurement.outcome,
+      pair: pairMeasurement.outcome,
+    };
+    localLabState.selectedQubit = 2;
+    localLabClearTeleportation();
+    localLabSetRegister(
+      pairMeasurement.register,
+      `Distributed: Alice measured q0=${aliceBits.source}, q1=${aliceBits.pair}`,
+    );
+    const savedRegister = await localLabPutSharedRegisterSnapshot(
+      pairMeasurement.register,
+      {
+        protocolId: localLabDistributedProtocolId(),
+        protocolStage: "alice-measured",
+        selectedQubit: 2,
+      },
+      registerPayload.register.version,
+    );
+    const savedProtocol = await localLabSaveDistributedProtocol({
+      stage: "alice-measured",
+      aliceBits,
+      metadata: {
+        ...(protocol.metadata || {}),
+        registerVersion: savedRegister?.version ?? null,
+      },
+    });
+    localLabSetDistributedStatus(
+      `Alice sent bits ${aliceBits.source}${aliceBits.pair}; protocol v${savedProtocol?.version ?? "?"}`,
+    );
+  } catch (error) {
+    localLabSetDistributedStatus(`Alice step failed: ${error.message}`);
+  }
+}
+
+async function localLabDistributedBobCorrect() {
+  if (!localLabIsReady() || !quantumCore?.applySingleQubitGate) {
+    return;
+  }
+  localLabSetDistributedStatus("Bob correcting...");
+  try {
+    const protocol = await localLabFetchDistributedProtocol();
+    if (!protocol?.aliceBits) {
+      throw new Error("Alice measurement bits are required");
+    }
+    const registerPayload = await localLabRequest(localLabSharedRegisterPath());
+    let register = quantumCore.createRegister(
+      registerPayload.register.numQubits,
+      registerPayload.register.amplitudes,
+    );
+    const corrections = [];
+    if (protocol.aliceBits.pair === 1) {
+      register = quantumCore.applySingleQubitGate(register, 2, quantumCore.gateMatrices.X);
+      corrections.push("X");
+    }
+    if (protocol.aliceBits.source === 1) {
+      register = quantumCore.applySingleQubitGate(register, 2, quantumCore.gateMatrices.Z);
+      corrections.push("Z");
+    }
+    const bobVector = localLabQubitVectorForFixedBits(register, 2, {
+      0: protocol.aliceBits.source,
+      1: protocol.aliceBits.pair,
+    });
+    const fidelity = localLabQubitFidelity(
+      localLabProtocolMessageVector(protocol),
+      bobVector,
+    );
+    localLabState.selectedQubit = 2;
+    localLabSetRegister(
+      register,
+      `Distributed: Bob correction ${corrections.join("+") || "none"} on q2`,
+    );
+    const savedRegister = await localLabPutSharedRegisterSnapshot(
+      register,
+      {
+        protocolId: localLabDistributedProtocolId(),
+        protocolStage: "complete",
+        selectedQubit: 2,
+      },
+      registerPayload.register.version,
+    );
+    const savedProtocol = await localLabSaveDistributedProtocol({
+      stage: "complete",
+      bobCorrection: corrections,
+      fidelity,
+      metadata: {
+        ...(protocol.metadata || {}),
+        registerVersion: savedRegister?.version ?? null,
+      },
+    });
+    localLabSetDistributedStatus(
+      `Complete: fidelity=${localLabFormatProbability(fidelity)}; protocol v${savedProtocol?.version ?? "?"}`,
+    );
+  } catch (error) {
+    localLabSetDistributedStatus(`Bob correction failed: ${error.message}`);
+  }
+}
+
+async function localLabDistributedRefresh() {
+  localLabSetDistributedStatus("Refreshing protocol...");
+  try {
+    const protocol = await localLabFetchDistributedProtocol();
+    if (protocol?.registerId) {
+      const payload = await localLabRequest(localLabSharedRegisterPath());
+      const register = payload.register || null;
+      if (register) {
+        localLabState.sync.lastVersion = register.version ?? localLabState.sync.lastVersion;
+        localLabSetRegisterFromRemote(
+          register,
+          `Distributed: refreshed ${protocol.stage}`,
+          Number.isInteger(register.metadata?.selectedQubit)
+            ? register.metadata.selectedQubit
+            : localLabState.selectedQubit,
+        );
+      }
+    }
+    if (protocol?.mailboxToken) {
+      localLabSetDistributedMailboxLink(localLabMailboxFrontendLink(protocol.mailboxToken));
+    }
+    const bits = protocol?.aliceBits
+      ? ` bits ${protocol.aliceBits.source}${protocol.aliceBits.pair}`
+      : "";
+    const fidelity =
+      protocol?.fidelity == null
+        ? ""
+        : ` fidelity=${localLabFormatProbability(protocol.fidelity)}`;
+    localLabSetDistributedStatus(
+      `${protocol?.stage || "No protocol"}${bits}${fidelity}`,
+    );
+  } catch (error) {
+    localLabSetDistributedStatus(`Refresh failed: ${error.message}`);
+  }
+}
+
+function localLabInitializeMailboxControls() {
+  const backendFromLocation = localLabBackendUrlFromLocation();
+  if (localLabBackendUrl instanceof HTMLInputElement) {
+    localLabBackendUrl.value =
+      backendFromLocation ||
+      localLabBackendUrl.value.trim() ||
+      LOCAL_LAB_DEFAULT_BACKEND_URL;
+  }
+  const roomFromLocation = localLabRoomFromLocation();
+  if (localLabSyncRoom instanceof HTMLInputElement && roomFromLocation) {
+    localLabSyncRoom.value = roomFromLocation;
+  }
+  const participantFromLocation = localLabParticipantFromLocation();
+  if (
+    localLabSyncParticipant instanceof HTMLInputElement &&
+    participantFromLocation
+  ) {
+    localLabSyncParticipant.value = participantFromLocation;
+  }
+  const roleFromLocation = localLabRoleFromLocation();
+  if (
+    localLabParticipantRole instanceof HTMLSelectElement &&
+    ["owner", "editor", "viewer"].includes(roleFromLocation)
+  ) {
+    localLabParticipantRole.value = roleFromLocation;
+  }
+  const token = localLabMailboxTokenFromLocation();
+  if (localLabMailboxToken instanceof HTMLInputElement && token) {
+    localLabMailboxToken.value = token;
+    localLabSetMailboxLink(localLabMailboxFrontendLink(token), token);
+  }
+}
+
+async function localLabCopyClassroomLink() {
+  const link = localLabClassroomLink();
+  if (localLabClassroomLinkButton instanceof HTMLButtonElement) {
+    localLabClassroomLinkButton.title = link;
+  }
+  localLabSetSyncStatus("Classroom link ready");
+  try {
+    const copied = await localLabCopyText(link);
+    if (copied) {
+      localLabSetSyncStatus("Classroom link copied");
+    }
+  } catch (_error) {
+    localLabSetSyncStatus("Classroom link ready");
+  }
+}
+
+function localLabHandleMailboxRoute() {
+  const token = localLabMailboxTokenFromLocation();
+  if (!token || IS_GITHUB_PAGES_BUILD) {
+    return;
+  }
+  if (localLabMailboxToken instanceof HTMLInputElement) {
+    localLabMailboxToken.value = token;
+  }
+  setActiveTab("local-lab");
+  window.requestAnimationFrame(() => {
+    void localLabReceiveMailboxTransfer();
+  });
+}
+
+function localLabSnapshotPayload() {
+  const register = localLabRegister();
+  if (!register) {
+    return null;
+  }
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    selectedQubit: localLabState.selectedQubit,
+    roomId: localLabRoomId(),
+    participantName: localLabParticipantName(),
+    participantRole: localLabParticipantRoleValue(),
+    register: localLabSerializableRegister(register),
+  };
+}
+
+function localLabSaveSnapshot() {
+  const snapshot = localLabSnapshotPayload();
+  if (!snapshot) {
+    localLabSetStatus("Nothing to save");
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      LOCAL_LAB_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+    localLabSetStatus(`Saved lab: ${snapshot.register.numQubits} qubits`);
+  } catch (error) {
+    localLabSetStatus(`Save failed: ${error.message}`);
+  }
+}
+
+function localLabApplySnapshot(snapshot) {
+  if (
+    !snapshot ||
+    typeof snapshot !== "object" ||
+    !snapshot.register ||
+    !Number.isInteger(snapshot.register.numQubits) ||
+    !Array.isArray(snapshot.register.amplitudes)
+  ) {
+    throw new Error("Saved lab snapshot is not valid");
+  }
+  const register = quantumCore.createRegister(
+    snapshot.register.numQubits,
+    snapshot.register.amplitudes,
+  );
+  localLabClearTeleportation();
+  localLabState.selectedQubit = localLabClampQubitIndex(
+    Number.isInteger(snapshot.selectedQubit) ? snapshot.selectedQubit : 0,
+    register.numQubits,
+  );
+  if (localLabSyncRoom instanceof HTMLInputElement && snapshot.roomId) {
+    localLabSyncRoom.value = snapshot.roomId;
+  }
+  if (localLabSyncParticipant instanceof HTMLInputElement && snapshot.participantName) {
+    localLabSyncParticipant.value = snapshot.participantName;
+  }
+  if (
+    localLabParticipantRole instanceof HTMLSelectElement &&
+    ["owner", "editor", "viewer"].includes(snapshot.participantRole)
+  ) {
+    localLabParticipantRole.value = snapshot.participantRole;
+  }
+  localLabSetRegister(register, `Loaded lab: ${register.numQubits} qubits`);
+}
+
+function localLabLoadSnapshot() {
+  try {
+    const raw = window.localStorage.getItem(LOCAL_LAB_SNAPSHOT_STORAGE_KEY);
+    if (!raw) {
+      localLabSetStatus("No saved lab yet");
+      return;
+    }
+    localLabApplySnapshot(JSON.parse(raw));
+  } catch (error) {
+    localLabSetStatus(`Load failed: ${error.message}`);
+  }
+}
+
+function localLabReset(numQubits = localLabCurrentSize()) {
+  if (!localLabIsReady()) {
+    localLabSetStatus("QuantumCore unavailable");
+    return;
+  }
+  const size = Math.min(Math.max(numQubits, 1), LOCAL_LAB_MAX_QUBITS);
+  localLabState.selectedQubit = 0;
+  localLabState.teleportation = null;
+  localLabState.register = quantumCore.createRegister(size);
+  localLabRender(`Ready: ${size} local qubit${size === 1 ? "" : "s"}`);
+  localLabSetTeleportStatus("");
+  localLabScheduleAutoPush();
+}
+
+function localLabSelectQubit(index) {
+  const register = localLabRegister();
+  if (!register) {
+    return;
+  }
+  localLabState.selectedQubit = localLabClampQubitIndex(
+    index,
+    register.numQubits,
+  );
+  if (localLabTargetQubit instanceof HTMLSelectElement) {
+    localLabTargetQubit.value = String(localLabState.selectedQubit);
+  }
+  if (localLabMeasureQubit instanceof HTMLSelectElement) {
+    localLabMeasureQubit.value = String(localLabState.selectedQubit);
+  }
+  localLabRender();
+}
+
+function localLabApplySingleGate(gateKey) {
+  const register = localLabRegister();
+  const matrix = quantumCore?.gateMatrices?.[gateKey];
+  if (!register || !matrix || !quantumCore?.applySingleQubitGate) {
+    return;
+  }
+  localLabClearTeleportation();
+  const target = localLabClampQubitIndex(
+    localLabSelectValue(localLabTargetQubit, localLabState.selectedQubit),
+    register.numQubits,
+  );
+  localLabState.selectedQubit = target;
+  localLabSetRegister(
+    quantumCore.applySingleQubitGate(register, target, matrix),
+    `${gateKey} applied to q${target}`,
+  );
+}
+
+function localLabApplyCnot() {
+  const register = localLabRegister();
+  if (!register || !quantumCore?.applyCnot) {
+    return;
+  }
+  localLabClearTeleportation();
+  const control = localLabClampQubitIndex(
+    localLabSelectValue(localLabControlQubit, 0),
+    register.numQubits,
+  );
+  const target = localLabClampQubitIndex(
+    localLabSelectValue(localLabTargetQubit, localLabState.selectedQubit),
+    register.numQubits,
+  );
+  if (control === target) {
+    localLabSetStatus("C-NOT needs different control and target qubits");
+    return;
+  }
+  localLabState.selectedQubit = target;
+  localLabSetRegister(
+    quantumCore.applyCnot(register, control, target),
+    `C-NOT q${control} -> q${target}`,
+  );
+}
+
+function localLabMeasureSelectedQubit() {
+  const register = localLabRegister();
+  if (!register || !quantumCore?.measureQubit) {
+    return;
+  }
+  localLabClearTeleportation();
+  const target = localLabClampQubitIndex(
+    localLabSelectValue(localLabMeasureQubit, localLabState.selectedQubit),
+    register.numQubits,
+  );
+  const result = quantumCore.measureQubit(register, target);
+  localLabState.selectedQubit = target;
+  localLabSetRegister(
+    result.register,
+    `Measured q${target}: ${result.color} (p=${localLabFormatProbability(result.probability)})`,
+  );
+}
+
+function localLabMeasureAllQubits() {
+  let register = localLabRegister();
+  if (!register || !quantumCore?.measureQubit) {
+    return;
+  }
+  localLabClearTeleportation();
+  const bits = [];
+  let probability = 1;
+  for (let qubitIndex = 0; qubitIndex < register.numQubits; qubitIndex += 1) {
+    const result = quantumCore.measureQubit(register, qubitIndex);
+    bits.push(String(result.outcome));
+    probability *= result.probability;
+    register = result.register;
+  }
+  localLabSetRegister(
+    register,
+    `Measured |${bits.join("")}> (p=${localLabFormatProbability(probability)})`,
+  );
+}
+
+function localLabGateMatrixForInspector(gateKey) {
+  const register = localLabRegister();
+  const matrix = quantumCore?.gateMatrices?.[gateKey];
+  if (!register || !matrix || !quantumCore?.matrixForSingleQubitGate) {
+    return matrix || null;
+  }
+  const target = localLabClampQubitIndex(
+    localLabSelectValue(localLabTargetQubit, localLabState.selectedQubit),
+    register.numQubits,
+  );
+  return quantumCore.matrixForSingleQubitGate(register.numQubits, target, matrix);
+}
+
+function localLabCnotMatrixForInspector() {
+  const register = localLabRegister();
+  if (!register || !quantumCore?.matrixForCnot || register.numQubits < 2) {
+    return null;
+  }
+  const control = localLabClampQubitIndex(
+    localLabSelectValue(localLabControlQubit, 0),
+    register.numQubits,
+  );
+  const target = localLabClampQubitIndex(
+    localLabSelectValue(localLabTargetQubit, localLabState.selectedQubit),
+    register.numQubits,
+  );
+  if (control === target) {
+    return null;
+  }
+  return quantumCore.matrixForCnot(register.numQubits, control, target);
+}
+
+function localLabRenderQubits(register) {
+  if (!(localLabQubitRail instanceof HTMLElement)) {
+    return;
+  }
+  localLabQubitRail
+    .querySelectorAll(".local-lab-qubit")
+    .forEach((element) => qubitStateGetters.delete(element));
+  localLabQubitRail.replaceChildren(
+    ...Array.from({ length: register.numQubits }, (_, index) => {
+      const marginal = quantumCore.marginalProbabilities(register, index);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "local-lab-qubit";
+      button.classList.toggle("active", index === localLabState.selectedQubit);
+      button.dataset.localLabQubitIndex = String(index);
+      button.addEventListener("click", () => localLabSelectQubit(index));
+
+      const core = document.createElement("span");
+      core.className = "local-lab-qubit-core";
+      core.style.setProperty(
+        "--qubit-fill",
+        blendBlueRed(marginal.blue, marginal.red),
+      );
+
+      const label = document.createElement("span");
+      label.className = "local-lab-qubit-label";
+      label.textContent = `q${index}`;
+
+      const probabilities = document.createElement("span");
+      probabilities.className = "local-lab-qubit-probability";
+      probabilities.textContent = `B ${localLabPercent(marginal.blue)} / R ${localLabPercent(marginal.red)}`;
+
+      button.append(core, label, probabilities);
+      registerQubitInspector(button, () => ({
+        label: "Local Register Inspector",
+        register: localLabRegister(),
+        selectedIndex: index,
+        memberLabels: localLabMemberLabels(register.numQubits),
+      }));
+      return button;
+    }),
+  );
+}
+
+function localLabRenderProbabilities(register) {
+  if (!(localLabProbabilityGrid instanceof HTMLElement)) {
+    return;
+  }
+  localLabProbabilityGrid.replaceChildren(
+    ...register.amplitudes.map((amplitude, index) => {
+      const probability = quantumCore.magnitudeSquared(amplitude);
+      const cell = document.createElement("div");
+      cell.className = "local-lab-basis-state";
+      cell.dataset.basisIndex = String(index);
+      cell.dataset.active = probability > 1e-9 ? "true" : "false";
+
+      const label = document.createElement("span");
+      label.className = "local-lab-basis-label";
+      label.textContent = `|${quantumCore.basisLabel(index, register.numQubits)}>`;
+
+      const probabilityText = document.createElement("span");
+      probabilityText.className = "local-lab-basis-probability";
+      probabilityText.textContent = `p=${localLabFormatProbability(probability)}`;
+
+      cell.append(label, probabilityText);
+      return cell;
+    }),
+  );
+}
+
+function localLabRenderKet(register) {
+  if (!(localLabKetVector instanceof HTMLElement)) {
+    return;
+  }
+  const lines = quantumRegisterKetLines(register, {
+    selectedIndex: localLabState.selectedQubit,
+    memberLabels: localLabMemberLabels(register.numQubits),
+  });
+  localLabKetVector.textContent = lines.join("\n");
+}
+
+function localLabRender(statusMessage = "") {
+  const register = localLabRegister();
+  if (!register) {
+    localLabSetStatus("QuantumCore unavailable");
+    return;
+  }
+  localLabSyncControls(register);
+  localLabRenderQubits(register);
+  localLabRenderProbabilities(register);
+  localLabRenderKet(register);
+  if (statusMessage) {
+    localLabSetStatus(statusMessage);
+  }
+}
+
+function setupLocalMultiQubitLab() {
+  if (!(localLabPanel instanceof HTMLElement)) {
+    return;
+  }
+  if (!localLabIsReady()) {
+    localLabSetStatus("QuantumCore unavailable");
+    return;
+  }
+
+  localLabInitializeMailboxControls();
+  localLabQubitCount?.addEventListener("change", () => {
+    localLabReset(localLabCurrentSize());
+  });
+  localLabResetButton?.addEventListener("click", () => {
+    localLabReset(localLabCurrentSize());
+  });
+  localLabSaveSnapshotButton?.addEventListener("click", localLabSaveSnapshot);
+  localLabLoadSnapshotButton?.addEventListener("click", localLabLoadSnapshot);
+  localLabTargetQubit?.addEventListener("change", () => {
+    localLabSelectQubit(localLabSelectValue(localLabTargetQubit, 0));
+  });
+  localLabMeasureQubit?.addEventListener("change", () => {
+    localLabSelectQubit(localLabSelectValue(localLabMeasureQubit, 0));
+  });
+  localLabPanel
+    .querySelectorAll("[data-local-lab-gate]")
+    .forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+      const gateKey = button.dataset.localLabGate || "";
+      button.addEventListener("click", () => localLabApplySingleGate(gateKey));
+      registerGateInspector(button, () => ({
+        label: `${gateKey} Gate`,
+        matrix: localLabGateMatrixForInspector(gateKey),
+      }));
+    });
+  localLabCnotButton?.addEventListener("click", localLabApplyCnot);
+  registerGateInspector(localLabCnotButton, () => ({
+    label: "C-NOT Gate",
+    matrix: localLabCnotMatrixForInspector(),
+  }));
+  localLabMeasureButton?.addEventListener("click", localLabMeasureSelectedQubit);
+  localLabMeasureAllButton?.addEventListener("click", localLabMeasureAllQubits);
+  localLabTeleportMessage?.addEventListener("change", () => {
+    localLabTeleportPrepare();
+  });
+  localLabTeleportPrepareButton?.addEventListener(
+    "click",
+    localLabTeleportPrepare,
+  );
+  localLabTeleportBellButton?.addEventListener(
+    "click",
+    localLabTeleportCreateBellPair,
+  );
+  localLabTeleportAliceButton?.addEventListener(
+    "click",
+    localLabTeleportAliceMeasure,
+  );
+  localLabTeleportBobButton?.addEventListener(
+    "click",
+    localLabTeleportBobCorrection,
+  );
+  localLabTeleportRunButton?.addEventListener(
+    "click",
+    localLabTeleportRunProtocol,
+  );
+  localLabDistributedBobStartButton?.addEventListener("click", () => {
+    void localLabDistributedBobStart();
+  });
+  localLabDistributedAliceMeasureButton?.addEventListener("click", () => {
+    void localLabDistributedAliceMeasure();
+  });
+  localLabDistributedBobCorrectButton?.addEventListener("click", () => {
+    void localLabDistributedBobCorrect();
+  });
+  localLabDistributedRefreshButton?.addEventListener("click", () => {
+    void localLabDistributedRefresh();
+  });
+  localLabProtocolRecipeSelect?.addEventListener("change", () => {
+    localLabSyncProtocolIdToRecipe();
+    localLabRenderProtocolSteps(null, localLabProtocolDefinitionFor());
+  });
+  localLabProtocolLoadButton?.addEventListener("click", () => {
+    void localLabLoadProtocolRecipe();
+  });
+  localLabProtocolStepButton?.addEventListener("click", () => {
+    void localLabMarkProtocolStep();
+  });
+  localLabProtocolRefreshButton?.addEventListener("click", () => {
+    void localLabRefreshProtocolRun();
+  });
+  localLabMailboxSendButton?.addEventListener("click", () => {
+    void localLabSendMailboxTransfer();
+  });
+  localLabMailboxReceiveButton?.addEventListener("click", () => {
+    void localLabReceiveMailboxTransfer();
+  });
+  localLabSyncConnectButton?.addEventListener("click", () => {
+    void localLabConnectSharedRegister();
+  });
+  localLabSyncPushButton?.addEventListener("click", () => {
+    void localLabPushSharedRegister();
+  });
+  localLabSyncPullButton?.addEventListener("click", () => {
+    void localLabPullSharedRegister();
+  });
+  localLabClassroomLinkButton?.addEventListener("click", () => {
+    void localLabCopyClassroomLink();
+  });
+  localLabSyncLiveToggle?.addEventListener("change", () => {
+    if (localLabLiveSyncEnabled() && !localLabState.sync.connected) {
+      void localLabConnectSharedRegister();
+      return;
+    }
+    localLabUpdateSyncPolling();
+  });
+
+  localLabPopulateProtocolRecipeSelect(localLabState.protocolFramework.definitions);
+  localLabRenderProtocolSteps(null, localLabProtocolDefinitionFor());
+  localLabReset(LOCAL_LAB_DEFAULT_QUBITS);
+}
+
+setupLocalMultiQubitLab();
 
 playgroundComponentDefaultsCache = readPlaygroundComponentDefaultsPayload();
 playgroundGroupComponentsCache = readPlaygroundGroupComponentsPayload();
@@ -18598,7 +21347,7 @@ function removeAuthoringTabsForGithubPages() {
     return;
   }
   document.body.classList.add("github-pages-build");
-  ["plaground", "doc-editor"].forEach((tabTarget) => {
+  ["plaground", "doc-editor", "local-lab"].forEach((tabTarget) => {
     const button = document.querySelector(
       `.tab-btn[data-tab-target="${tabTarget}"]`,
     );
@@ -18640,6 +21389,11 @@ function initialGithubPagesTabTarget() {
   );
 }
 
+function initialLocalTabTarget() {
+  return localLabMailboxTokenFromLocation() ? "local-lab" : "plaground";
+}
+
 setActiveTab(
-  IS_GITHUB_PAGES_BUILD ? initialGithubPagesTabTarget() : "plaground",
+  IS_GITHUB_PAGES_BUILD ? initialGithubPagesTabTarget() : initialLocalTabTarget(),
 );
+localLabHandleMailboxRoute();

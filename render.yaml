@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: qubit-lab-backend
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run backend
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: PUBLIC_APP_URL
+        sync: false

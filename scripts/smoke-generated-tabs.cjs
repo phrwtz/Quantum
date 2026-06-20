@@ -4,6 +4,7 @@ const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { chromium } = require("playwright");
+const { createServer: createBackendServer } = require("../backend/server.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const expectedGeneratedTabLabels = [
@@ -16,6 +17,7 @@ const expectedGeneratedTabLabels = [
 const expectedLocalFileTabLabels = [
   "Editor",
   "Doc Editor",
+  "Local Lab",
   ...expectedGeneratedTabLabels,
 ];
 const contentFilePaths = new Map([
@@ -37,6 +39,12 @@ const mimeTypes = {
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isIgnorableBrowserConsoleError(message) {
+  return /Failed to load resource: net::ERR_(CONNECTION_CLOSED|ABORTED)/.test(
+    message || "",
+  );
 }
 
 function cloneJson(value) {
@@ -160,6 +168,20 @@ function startServer() {
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+function startBackendServer() {
+  const server = createBackendServer();
+  return new Promise((resolve, reject) => {
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      resolve({
+        server,
+        baseUrl: `http://127.0.0.1:${address.port}`,
+      });
+    });
   });
 }
 
@@ -2906,6 +2928,73 @@ async function runDocEditorTextPersistenceSmoke(page) {
 }
 
 async function runEntangledMathSmoke(page) {
+  const coreUsage = await page.evaluate(() => {
+    if (!window.QuantumCore) {
+      return null;
+    }
+    const methodNames = [
+      "createQubit",
+      "createRegister",
+      "productRegister",
+      "applySingleQubitGate",
+      "applyCnot",
+      "marginalProbabilities",
+    ];
+    const originals = {};
+    const calls = {};
+    methodNames.forEach((name) => {
+      originals[name] = window.QuantumCore[name];
+      calls[name] = 0;
+      window.QuantumCore[name] = function wrappedCoreMethod(...args) {
+        calls[name] += 1;
+        return originals[name].apply(this, args);
+      };
+    });
+    try {
+      const rootHalf = Math.SQRT1_2;
+      const pair = {
+        amplitudes: entangledAmplitudesFromQubitVectors(
+          [rootHalf, rootHalf],
+          [0, 1],
+        ),
+      };
+      applyCNOTToPair(pair);
+      pairOutcomeProbabilitiesFromState(pair);
+      pairMarginalsFromEntangledState(pair);
+      applySingleQubitGateToPair(pair, 0, gateMatrixForTick(9));
+      collapsePairStateBySingleQubitMeasurement(pair, 0, "blue");
+      conditionalVectorAfterPairMeasurement(pair, 1, "red");
+      vectorTimesMatrix2([1, 0], gateMatrixForTick(6));
+      probabilitiesFromVector2([rootHalf, rootHalf]);
+      cnotOutcomeProbabilitiesFromQubitVectors(
+        [rootHalf, rootHalf],
+        [0, 1],
+      );
+      cnotMarginalProbabilitiesFromQubitVectors(
+        [rootHalf, rootHalf],
+        [0, 1],
+      );
+    } finally {
+      methodNames.forEach((name) => {
+        window.QuantumCore[name] = originals[name];
+      });
+    }
+    return calls;
+  });
+  if (
+    !coreUsage ||
+    coreUsage.createQubit <= 0 ||
+    coreUsage.createRegister <= 0 ||
+    coreUsage.productRegister <= 0 ||
+    coreUsage.applySingleQubitGate <= 0 ||
+    coreUsage.applyCnot <= 0 ||
+    coreUsage.marginalProbabilities <= 0
+  ) {
+    throw new Error(
+      `Entangled tour helpers did not use QuantumCore: ${JSON.stringify(coreUsage)}`,
+    );
+  }
+
   const result = await page.evaluate(async () => {
     const rootHalf = Math.SQRT1_2;
     const pair = {
@@ -3624,7 +3713,9 @@ async function runDocEditorLandingIntroTextSmoke(page) {
     });
     if (
       !initial.text.includes("Welcome to Qubit Lab") ||
-      !initial.text.includes("buttons below") ||
+      !initial.text.includes("preview of coming attractions") ||
+      !initial.text.includes("a demonstration") ||
+      initial.text.includes("an demonstration") ||
       initial.text.includes("tabs above") ||
       !initial.editable ||
       !initial.resizable
@@ -3748,8 +3839,9 @@ async function runFileModeRepositoryContentSmoke(browser) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "error") {
-      errors.push(message.text());
+    const text = message.text();
+    if (message.type() === "error" && !isIgnorableBrowserConsoleError(text)) {
+      errors.push(text);
     }
   });
   try {
@@ -3795,6 +3887,45 @@ async function runFileModeRepositoryContentSmoke(browser) {
       const landingToolbar = document.querySelector(
         "#panel-editor-introduction [data-generated-document-action='whats-this']",
       );
+      const landingTourSignLabel = document.querySelector(
+        "#panel-editor-introduction .landing-tour-sign .landing-sign-label",
+      );
+      const landingClosedSign = document.querySelector(
+        "#panel-editor-introduction .landing-lab-sign-closed",
+      );
+      const tourPanelIds = [
+        "custom-one-qubit",
+        "custom-two-qubits",
+        "custom-entanglement-2",
+        "custom-entanglement-3",
+      ];
+      const tourCanvasStyles = tourPanelIds.map((tabId) => {
+        const canvas = document.querySelector(
+          `#panel-${CSS.escape(tabId)} .generated-layout-viewport > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)`,
+        );
+        if (!canvas) {
+          return null;
+        }
+        const style = getComputedStyle(canvas);
+        return {
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+        };
+      });
+      const oneQubitResetButton = document.querySelector(
+        "#panel-custom-one-qubit [data-generated-experiment-action='reset']",
+      );
+      const oneQubitWhatsThisButton = document.querySelector(
+        "#panel-custom-one-qubit [data-generated-document-action='whats-this']",
+      );
+      const oneQubitStatus = document.querySelector(
+        "#panel-custom-one-qubit .generated-experiment-status",
+      );
+      const fontSizeOf = (element) =>
+        element ? Number.parseFloat(getComputedStyle(element).fontSize) : null;
+      const oneQubitStatusFont = fontSizeOf(oneQubitStatus);
+      const oneQubitResetFont = fontSizeOf(oneQubitResetButton);
+      const oneQubitWhatsThisFont = fontSizeOf(oneQubitWhatsThisButton);
       return {
         labels,
         generatedLabels: tabs.map((tab) => tab.label),
@@ -3821,6 +3952,21 @@ async function runFileModeRepositoryContentSmoke(browser) {
         ),
         hasOneQubitToolbar: Boolean(oneQubitToolbar),
         hasLandingToolbar: Boolean(landingToolbar),
+        landingTourSignText: landingTourSignLabel?.textContent?.trim() || "",
+        landingClosedSignText: landingClosedSign?.textContent?.trim() || "",
+        tourCanvasesPaleGreen:
+          tourCanvasStyles.length === tourPanelIds.length &&
+          tourCanvasStyles.every(
+            (style) =>
+              style?.backgroundColor === "rgb(230, 255, 204)" &&
+              style?.backgroundImage === "none",
+          ),
+        oneQubitStatusMatchesButtonFonts:
+          Number.isFinite(oneQubitStatusFont) &&
+          Number.isFinite(oneQubitResetFont) &&
+          Number.isFinite(oneQubitWhatsThisFont) &&
+          Math.abs(oneQubitStatusFont - oneQubitResetFont) < 0.01 &&
+          Math.abs(oneQubitStatusFont - oneQubitWhatsThisFont) < 0.01,
       };
     });
     if (
@@ -3829,6 +3975,10 @@ async function runFileModeRepositoryContentSmoke(browser) {
       !result.hasAuthoringTabs ||
       !result.hasOneQubitToolbar ||
       result.hasLandingToolbar ||
+      result.landingTourSignText !== "To the Tour" ||
+      result.landingClosedSignText !== "Closed" ||
+      !result.tourCanvasesPaleGreen ||
+      !result.oneQubitStatusMatchesButtonFonts ||
       !result.oneQubitLastSceneHasMarker ||
       !result.oneQubitLastSceneHasEnding ||
       result.oneQubitLastSceneHasClue ||
@@ -3845,9 +3995,783 @@ async function runFileModeRepositoryContentSmoke(browser) {
         })}`,
       );
     }
+    await page.locator("#tab-editor-introduction").click();
+    await page.locator("#panel-editor-introduction .landing-tour-sign").click();
+    const tourSignClick = await page.evaluate(() => ({
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      onePanelVisible: Boolean(
+        document.querySelector("#panel-custom-one-qubit:not([hidden])"),
+      ),
+    }));
+    if (
+      tourSignClick.activeTab !== "custom-one-qubit" ||
+      !tourSignClick.onePanelVisible
+    ) {
+      throw new Error(
+        `Landing tour sign did not open One qubit: ${JSON.stringify(tourSignClick)}`,
+      );
+    }
+
+    await page.locator("#tab-editor-introduction").click();
+    await page.locator("#panel-editor-introduction .landing-info-link").click();
+    const landingInfo = await page.evaluate(() => {
+      const generatedTabs =
+        window.__QUANTUM_REPOSITORY_CONTENT__?.files?.["data/generated-tabs.json"] ||
+        window.readQuantumContentState?.("generated-tabs") ||
+        {};
+      const intro = (generatedTabs.tabs || []).find(
+        (entry) => entry.id === "editor-introduction",
+      );
+      const introText = ((intro?.layout?.items || []).find(
+        (item) => item.type === "text-box",
+      )?.text || "").trim();
+      const card = document.querySelector("#panel-editor-introduction .landing-info-card");
+      const body = document.querySelector("#panel-editor-introduction .landing-info-body");
+      const background = card ? getComputedStyle(card).backgroundColor : "";
+      return {
+        visible: Boolean(card && !card.hidden),
+        cardText: body?.textContent?.trim() || "",
+        introText,
+        background,
+      };
+    });
+    if (
+      !landingInfo.visible ||
+      !landingInfo.introText ||
+      landingInfo.cardText !== landingInfo.introText ||
+      !/^rgb\(248,\s*253,\s*255\)$/.test(landingInfo.background)
+    ) {
+      throw new Error(
+        `Landing What's this card failed: ${JSON.stringify(landingInfo)}`,
+      );
+    }
     return result;
   } finally {
     await page.close();
+  }
+}
+
+async function runLocalMultiQubitLabSmoke(page) {
+  await page.locator("#tab-local-lab").click();
+  await page.waitForSelector("#panel-local-lab:not([hidden])");
+
+  const initial = await page.evaluate(() => ({
+    qubitCount: document.querySelectorAll(".local-lab-qubit").length,
+    basisCount: document.querySelectorAll(".local-lab-basis-state").length,
+    ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+    status: document.querySelector("#localLabStatus")?.textContent || "",
+  }));
+  if (
+    initial.qubitCount !== 3 ||
+    initial.basisCount !== 8 ||
+    !initial.ketText.includes("Register: 3 qubits (8 basis states)") ||
+    !initial.status.includes("Ready: 3 local qubits")
+  ) {
+    throw new Error(
+      `Local lab initial state failed: ${JSON.stringify(initial)}`,
+    );
+  }
+
+  await page.locator("#localLabQubitCount").selectOption("8");
+  const expanded = await page.evaluate(() => ({
+    qubitCount: document.querySelectorAll(".local-lab-qubit").length,
+    basisCount: document.querySelectorAll(".local-lab-basis-state").length,
+    status: document.querySelector("#localLabStatus")?.textContent || "",
+    ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+  }));
+  if (
+    expanded.qubitCount !== 8 ||
+    expanded.basisCount !== 256 ||
+    !expanded.status.includes("Ready: 8 local qubits") ||
+    !expanded.ketText.includes("Register: 8 qubits (256 basis states)")
+  ) {
+    throw new Error(
+      `Local lab expanded register failed: ${JSON.stringify(expanded)}`,
+    );
+  }
+
+  await page.locator("#panel-local-lab [data-local-lab-gate='Y']").click();
+  await page.locator("#panel-local-lab [data-local-lab-gate='S']").click();
+  await page.locator("#panel-local-lab [data-local-lab-gate='T']").click();
+  const expandedGates = await page.evaluate(() => ({
+    status: document.querySelector("#localLabStatus")?.textContent || "",
+    q0Text:
+      document.querySelector(
+        ".local-lab-qubit[data-local-lab-qubit-index='0'] .local-lab-qubit-probability",
+      )?.textContent || "",
+    activeBasis: Array.from(
+      document.querySelectorAll(".local-lab-basis-state[data-active='true']"),
+    ).map((cell) => cell.querySelector(".local-lab-basis-label")?.textContent || ""),
+  }));
+  if (
+    expandedGates.status !== "T applied to q0" ||
+    expandedGates.q0Text !== "B 0.0% / R 100.0%" ||
+    expandedGates.activeBasis.join(",") !== "|10000000>"
+  ) {
+    throw new Error(
+      `Local lab expanded gates failed: ${JSON.stringify(expandedGates)}`,
+    );
+  }
+
+  await page.locator("#localLabSyncRoom").fill("classroom-smoke");
+  await page.locator("#localLabSyncParticipant").fill("Bob");
+  await page.locator("#localLabParticipantRole").selectOption("viewer");
+  await page.locator("#localLabSaveSnapshotButton").click();
+  await page.locator("#localLabQubitCount").selectOption("3");
+  await page.locator("#localLabLoadSnapshotButton").click();
+  const loadedSnapshot = await page.evaluate(() => ({
+    qubitCount: document.querySelectorAll(".local-lab-qubit").length,
+    status: document.querySelector("#localLabStatus")?.textContent || "",
+    room: document.querySelector("#localLabSyncRoom")?.value || "",
+    participant: document.querySelector("#localLabSyncParticipant")?.value || "",
+    role: document.querySelector("#localLabParticipantRole")?.value || "",
+    q0Text:
+      document.querySelector(
+        ".local-lab-qubit[data-local-lab-qubit-index='0'] .local-lab-qubit-probability",
+      )?.textContent || "",
+  }));
+  if (
+    loadedSnapshot.qubitCount !== 8 ||
+    loadedSnapshot.status !== "Loaded lab: 8 qubits" ||
+    loadedSnapshot.room !== "classroom-smoke" ||
+    loadedSnapshot.participant !== "Bob" ||
+    loadedSnapshot.role !== "viewer" ||
+    loadedSnapshot.q0Text !== "B 0.0% / R 100.0%"
+  ) {
+    throw new Error(
+      `Local lab snapshot load failed: ${JSON.stringify(loadedSnapshot)}`,
+    );
+  }
+
+  await page.locator("#localLabClassroomLinkButton").click();
+  const classroomLink = await page.evaluate(() => ({
+    status: document.querySelector("#localLabSyncStatus")?.textContent || "",
+    title: document.querySelector("#localLabClassroomLinkButton")?.title || "",
+  }));
+  if (
+    !classroomLink.status.includes("Classroom link") ||
+    !classroomLink.title.includes("room=classroom-smoke") ||
+    !classroomLink.title.includes("participant=Bob") ||
+    !classroomLink.title.includes("role=viewer") ||
+    !classroomLink.title.includes("backend=")
+  ) {
+    throw new Error(
+      `Local lab classroom link failed: ${JSON.stringify(classroomLink)}`,
+    );
+  }
+
+  await page.locator("#localLabQubitCount").selectOption("3");
+
+  await page.locator("#panel-local-lab [data-local-lab-gate='H']").click();
+  await page.locator("#localLabTargetQubit").selectOption("1");
+  await page.locator("#localLabCnotButton").click();
+
+  const entangled = await page.evaluate(() => {
+    const activeBasis = Array.from(
+      document.querySelectorAll(".local-lab-basis-state[data-active='true']"),
+    ).map((cell) => ({
+      label: cell.querySelector(".local-lab-basis-label")?.textContent || "",
+      probability:
+        cell.querySelector(".local-lab-basis-probability")?.textContent || "",
+    }));
+    return {
+      ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+      activeBasis,
+      q0Text:
+        document.querySelector(
+          ".local-lab-qubit[data-local-lab-qubit-index='0'] .local-lab-qubit-probability",
+        )?.textContent || "",
+      q1Text:
+        document.querySelector(
+          ".local-lab-qubit[data-local-lab-qubit-index='1'] .local-lab-qubit-probability",
+        )?.textContent || "",
+      q2Text:
+        document.querySelector(
+          ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+        )?.textContent || "",
+      status: document.querySelector("#localLabStatus")?.textContent || "",
+    };
+  });
+  const activeBasisLabels = entangled.activeBasis.map((entry) => entry.label);
+  if (
+    !entangled.ketText.includes("|000>") ||
+    !entangled.ketText.includes("|110>") ||
+    !entangled.ketText.includes("p=0.500000") ||
+    activeBasisLabels.join(",") !== "|000>,|110>" ||
+    !entangled.activeBasis.every((entry) => entry.probability === "p=0.5") ||
+    !entangled.q0Text.includes("B 50.0% / R 50.0%") ||
+    !entangled.q1Text.includes("B 50.0% / R 50.0%") ||
+    !entangled.q2Text.includes("B 100.0% / R 0.0%") ||
+    entangled.status !== "C-NOT q0 -> q1"
+  ) {
+    throw new Error(
+      `Local lab entanglement state failed: ${JSON.stringify(entangled)}`,
+    );
+  }
+
+  await page
+    .locator(".local-lab-qubit[data-local-lab-qubit-index='1']")
+    .click({ button: "right" });
+  const qubitInspectorText = await page
+    .locator(".qubit-inspector-vector")
+    .textContent();
+  if (
+    !qubitInspectorText ||
+    !qubitInspectorText.includes("Register: 3 qubits (8 basis states)") ||
+    !qubitInspectorText.includes("Selected member: q1") ||
+    !qubitInspectorText.includes("|110>")
+  ) {
+    throw new Error(
+      `Local lab qubit inspector failed: ${JSON.stringify(qubitInspectorText)}`,
+    );
+  }
+  await page.locator(".qubit-inspector-close").click();
+
+  await page
+    .locator("#panel-local-lab [data-local-lab-gate='H']")
+    .click({ button: "right" });
+  const gateInspectorText = await page
+    .locator(".qubit-inspector-vector")
+    .textContent();
+  if (
+    !gateInspectorText ||
+    !gateInspectorText.includes("H Gate") ||
+    !gateInspectorText.includes("U (8 x 8)")
+  ) {
+    throw new Error(
+      `Local lab gate inspector failed: ${JSON.stringify(gateInspectorText)}`,
+    );
+  }
+  await page.locator(".qubit-inspector-close").click();
+
+  await page.locator("#localLabMeasureQubit").selectOption("2");
+  await page.locator("#localLabMeasureButton").click();
+  const afterMeasure = await page.evaluate(() => ({
+    status: document.querySelector("#localLabStatus")?.textContent || "",
+    ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+  }));
+  if (
+    afterMeasure.status !== "Measured q2: blue (p=1)" ||
+    !afterMeasure.ketText.includes("Register: 3 qubits (8 basis states)") ||
+    !afterMeasure.ketText.includes("|000>") ||
+    !afterMeasure.ketText.includes("|110>")
+  ) {
+    throw new Error(
+      `Local lab single measurement failed: ${JSON.stringify(afterMeasure)}`,
+    );
+  }
+
+  await page.locator("#localLabTeleportMessage").selectOption("tilted");
+  await page.locator("#localLabTeleportRunButton").click();
+  const teleport = await page.evaluate(() => {
+    const activeBasis = Array.from(
+      document.querySelectorAll(".local-lab-basis-state[data-active='true']"),
+    ).map((cell) => ({
+      label: cell.querySelector(".local-lab-basis-label")?.textContent || "",
+      probability:
+        cell.querySelector(".local-lab-basis-probability")?.textContent || "",
+    }));
+    return {
+      labStatus: document.querySelector("#localLabStatus")?.textContent || "",
+      teleportStatus:
+        document.querySelector("#localLabTeleportStatus")?.textContent || "",
+      q2Text:
+        document.querySelector(
+          ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+        )?.textContent || "",
+      ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+      activeBasis,
+    };
+  });
+  const teleportProbabilities = teleport.activeBasis
+    .map((entry) => entry.probability)
+    .sort()
+    .join(",");
+  if (
+    !teleport.labStatus.startsWith("Bob correction ") ||
+    !teleport.teleportStatus.includes("Complete: q2 has tilted") ||
+    !teleport.teleportStatus.includes("fidelity=1") ||
+    teleport.q2Text !== "B 80.0% / R 20.0%" ||
+    teleport.activeBasis.length !== 2 ||
+    teleportProbabilities !== "p=0.2,p=0.8" ||
+    !teleport.ketText.includes("p=0.800000") ||
+    !teleport.ketText.includes("p=0.200000")
+  ) {
+    throw new Error(
+      `Local teleportation protocol failed: ${JSON.stringify(teleport)}`,
+    );
+  }
+
+  const backend = await startBackendServer();
+  try {
+    await page.locator("#localLabBackendUrl").fill(backend.baseUrl);
+    await page.locator("#localLabMailboxEmail").fill("alice@example.com");
+    await page.locator("#localLabMailboxSendButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabMailboxStatus")
+          ?.textContent?.includes("Mailbox link ready"),
+      null,
+      { timeout: 5000 },
+    );
+    const mailboxSent = await page.evaluate(() => ({
+      token: document.querySelector("#localLabMailboxToken")?.value || "",
+      href: document.querySelector("#localLabMailboxLink")?.href || "",
+      hidden: document.querySelector("#localLabMailboxLink")?.hidden ?? true,
+      status: document.querySelector("#localLabMailboxStatus")?.textContent || "",
+    }));
+    if (
+      !mailboxSent.token.startsWith("mbx_") ||
+      !mailboxSent.href.includes(`mailbox=${encodeURIComponent(mailboxSent.token)}`) ||
+      !mailboxSent.href.includes("backend=") ||
+      mailboxSent.hidden ||
+      !mailboxSent.status.includes("q2")
+    ) {
+      throw new Error(
+        `Local mailbox send failed: ${JSON.stringify(mailboxSent)}`,
+      );
+    }
+
+    await page.locator("#localLabQubitCount").selectOption("1");
+    await page.locator("#localLabMailboxReceiveButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabMailboxStatus")
+          ?.textContent?.includes("Received q2"),
+      null,
+      { timeout: 5000 },
+    );
+    const mailboxReceived = await page.evaluate(() => ({
+      qubitCount: document.querySelectorAll(".local-lab-qubit").length,
+      activeQubit:
+        document.querySelector(".local-lab-qubit.active")?.dataset
+          ?.localLabQubitIndex || "",
+      linkHidden: document.querySelector("#localLabMailboxLink")?.hidden ?? false,
+      status: document.querySelector("#localLabStatus")?.textContent || "",
+      mailboxStatus:
+        document.querySelector("#localLabMailboxStatus")?.textContent || "",
+      q2Text:
+        document.querySelector(
+          ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+        )?.textContent || "",
+      ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+    }));
+    if (
+      mailboxReceived.qubitCount !== 3 ||
+      mailboxReceived.activeQubit !== "2" ||
+      !mailboxReceived.linkHidden ||
+      mailboxReceived.status !== "Received mailbox q2" ||
+      !mailboxReceived.mailboxStatus.includes("token claimed") ||
+      mailboxReceived.q2Text !== "B 80.0% / R 20.0%" ||
+      !mailboxReceived.ketText.includes("Register: 3 qubits (8 basis states)")
+    ) {
+      throw new Error(
+        `Local mailbox receive failed: ${JSON.stringify(mailboxReceived)}`,
+      );
+    }
+
+    await page.locator("#localLabDistributedProtocol").fill("smoke-teleport");
+    await page.locator("#localLabProtocolRecipeSelect").selectOption("distributed-teleportation");
+    await page.locator("#localLabProtocolLoadButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabProtocolStatus")
+          ?.textContent?.includes("Distributed teleportation"),
+      null,
+      { timeout: 5000 },
+    );
+    const recipeLoaded = await page.evaluate(() => ({
+      status: document.querySelector("#localLabProtocolStatus")?.textContent || "",
+      steps: Array.from(
+        document.querySelectorAll("#localLabProtocolStepList .local-lab-protocol-step"),
+      ).map((step) => step.textContent || ""),
+    }));
+    if (
+      !recipeLoaded.status.includes("0/3 complete") ||
+      recipeLoaded.steps.length !== 3 ||
+      !recipeLoaded.steps.join(" ").includes("Bob Bell + mail q1") ||
+      !recipeLoaded.steps.join(" ").includes("Alice measure + send bits") ||
+      !recipeLoaded.steps.join(" ").includes("Bob correct + verify")
+    ) {
+      throw new Error(
+        `Protocol framework recipe load failed: ${JSON.stringify(recipeLoaded)}`,
+      );
+    }
+
+    await page.locator("#localLabTeleportMessage").selectOption("tilted");
+    await page.locator("#localLabDistributedBobStartButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabDistributedStatus")
+          ?.textContent?.includes("Bob mailed q1"),
+      null,
+      { timeout: 5000 },
+    );
+    const distributedStarted = await page.evaluate(() => ({
+      status:
+        document.querySelector("#localLabDistributedStatus")?.textContent || "",
+      protocolStatus:
+        document.querySelector("#localLabProtocolStatus")?.textContent || "",
+      linkHidden:
+        document.querySelector("#localLabDistributedMailboxLink")?.hidden ?? true,
+      href: document.querySelector("#localLabDistributedMailboxLink")?.href || "",
+    }));
+    if (
+      distributedStarted.linkHidden ||
+      !distributedStarted.href.includes("mailbox=mbx_") ||
+      !distributedStarted.status.includes("protocol v") ||
+      !distributedStarted.protocolStatus.includes("1/3 complete")
+    ) {
+      throw new Error(
+        `Distributed teleportation start failed: ${JSON.stringify(distributedStarted)}`,
+      );
+    }
+
+    await page.locator("#localLabDistributedAliceMeasureButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabDistributedStatus")
+          ?.textContent?.includes("Alice sent bits"),
+      null,
+      { timeout: 5000 },
+    );
+    const distributedMeasured = await page.evaluate(() => ({
+      status:
+        document.querySelector("#localLabDistributedStatus")?.textContent || "",
+      protocolStatus:
+        document.querySelector("#localLabProtocolStatus")?.textContent || "",
+      labStatus: document.querySelector("#localLabStatus")?.textContent || "",
+    }));
+    if (
+      !distributedMeasured.status.includes("Alice sent bits") ||
+      !distributedMeasured.protocolStatus.includes("2/3 complete") ||
+      !distributedMeasured.labStatus.startsWith("Distributed: Alice measured")
+    ) {
+      throw new Error(
+        `Distributed teleportation Alice step failed: ${JSON.stringify(distributedMeasured)}`,
+      );
+    }
+
+    await page.locator("#localLabDistributedBobCorrectButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabDistributedStatus")
+          ?.textContent?.includes("fidelity=1"),
+      null,
+      { timeout: 5000 },
+    );
+    const distributedComplete = await page.evaluate(() => ({
+      status:
+        document.querySelector("#localLabDistributedStatus")?.textContent || "",
+      protocolStatus:
+        document.querySelector("#localLabProtocolStatus")?.textContent || "",
+      completeSteps: Array.from(
+        document.querySelectorAll(
+          "#localLabProtocolStepList .local-lab-protocol-step.complete",
+        ),
+      ).length,
+      labStatus: document.querySelector("#localLabStatus")?.textContent || "",
+      q2Text:
+        document.querySelector(
+          ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+        )?.textContent || "",
+      ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+    }));
+    if (
+      !distributedComplete.status.includes("Complete: fidelity=1") ||
+      !distributedComplete.protocolStatus.includes("3/3 complete") ||
+      distributedComplete.completeSteps !== 3 ||
+      !distributedComplete.labStatus.startsWith("Distributed: Bob correction") ||
+      distributedComplete.q2Text !== "B 80.0% / R 20.0%" ||
+      !distributedComplete.ketText.includes("Register: 3 qubits (8 basis states)")
+    ) {
+      throw new Error(
+        `Distributed teleportation complete failed: ${JSON.stringify(distributedComplete)}`,
+      );
+    }
+
+    await page.locator("#localLabDistributedProtocol").fill("smoke-ghz");
+    await page.locator("#localLabProtocolRecipeSelect").selectOption("ghz-state");
+    await page.locator("#localLabProtocolLoadButton").click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#localLabProtocolStatus")
+          ?.textContent?.includes("GHZ state"),
+      null,
+      { timeout: 5000 },
+    );
+    const ghzRecipe = await page.evaluate(() => ({
+      status: document.querySelector("#localLabProtocolStatus")?.textContent || "",
+      steps: Array.from(
+        document.querySelectorAll("#localLabProtocolStepList .local-lab-protocol-step"),
+      ).map((step) => step.textContent || ""),
+    }));
+    if (
+      !ghzRecipe.status.includes("0/4 complete") ||
+      ghzRecipe.steps.length !== 4 ||
+      !ghzRecipe.steps.join(" ").includes("Hadamard root")
+    ) {
+      throw new Error(
+        `GHZ protocol recipe load failed: ${JSON.stringify(ghzRecipe)}`,
+      );
+    }
+  } finally {
+    await closeServer(backend.server);
+  }
+
+  await page.locator("#localLabQubitCount").selectOption("4");
+  const resized = await page.evaluate(() => ({
+    qubitCount: document.querySelectorAll(".local-lab-qubit").length,
+    basisCount: document.querySelectorAll(".local-lab-basis-state").length,
+    ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+  }));
+  if (
+    resized.qubitCount !== 4 ||
+    resized.basisCount !== 16 ||
+    !resized.ketText.includes("Register: 4 qubits (16 basis states)")
+  ) {
+    throw new Error(`Local lab resize failed: ${JSON.stringify(resized)}`);
+  }
+}
+
+async function openSyncedLocalLabPage(browser, baseUrl, backendBaseUrl, roomId, participant) {
+  const page = await browser.newPage({ viewport: { width: 1040, height: 760 } });
+  await installContentApiHelpers(page);
+  await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+  await page.locator("#tab-local-lab").click();
+  await page.waitForSelector("#panel-local-lab:not([hidden])");
+  await page.locator("#localLabBackendUrl").fill(backendBaseUrl);
+  await page.locator("#localLabSyncRoom").fill(roomId);
+  await page.locator("#localLabSyncParticipant").fill(participant);
+  await page.locator("#localLabSyncConnectButton").click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector("#localLabSyncStatus")
+        ?.textContent?.includes("Connected"),
+    null,
+    { timeout: 5000 },
+  );
+  await page.locator("#localLabSyncLiveToggle").setChecked(true);
+  return page;
+}
+
+async function runLocalLabSharedSyncSmoke(browser, baseUrl) {
+  const backend = await startBackendServer();
+  const roomId = `sync-smoke-${Date.now()}`;
+  let alice = null;
+  let bob = null;
+  try {
+    alice = await openSyncedLocalLabPage(
+      browser,
+      baseUrl,
+      backend.baseUrl,
+      roomId,
+      "Alice",
+    );
+    bob = await openSyncedLocalLabPage(
+      browser,
+      baseUrl,
+      backend.baseUrl,
+      roomId,
+      "Bob",
+    );
+
+    await alice.locator("#panel-local-lab [data-local-lab-gate='H']").click();
+    await bob.waitForFunction(
+      () =>
+        document
+          .querySelector(
+            ".local-lab-qubit[data-local-lab-qubit-index='0'] .local-lab-qubit-probability",
+          )
+          ?.textContent?.includes("B 50.0% / R 50.0%"),
+      null,
+      { timeout: 8000 },
+    );
+
+    await bob.locator("#localLabTargetQubit").selectOption("2");
+    await bob.locator("#panel-local-lab [data-local-lab-gate='X']").click();
+    await alice.waitForFunction(
+      () =>
+        document
+          .querySelector(
+            ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+          )
+          ?.textContent?.includes("B 0.0% / R 100.0%"),
+      null,
+      { timeout: 8000 },
+    );
+
+    const result = await Promise.all([
+      alice.evaluate(() => ({
+        syncStatus: document.querySelector("#localLabSyncStatus")?.textContent || "",
+        q0:
+          document.querySelector(
+            ".local-lab-qubit[data-local-lab-qubit-index='0'] .local-lab-qubit-probability",
+          )?.textContent || "",
+        q2:
+          document.querySelector(
+            ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+          )?.textContent || "",
+        ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+      })),
+      bob.evaluate(() => ({
+        syncStatus: document.querySelector("#localLabSyncStatus")?.textContent || "",
+        q0:
+          document.querySelector(
+            ".local-lab-qubit[data-local-lab-qubit-index='0'] .local-lab-qubit-probability",
+          )?.textContent || "",
+        q2:
+          document.querySelector(
+            ".local-lab-qubit[data-local-lab-qubit-index='2'] .local-lab-qubit-probability",
+          )?.textContent || "",
+        ketText: document.querySelector("#localLabKetVector")?.textContent || "",
+      })),
+    ]);
+
+    const [aliceState, bobState] = result;
+    if (
+      aliceState.q0 !== "B 50.0% / R 50.0%" ||
+      bobState.q0 !== "B 50.0% / R 50.0%" ||
+      aliceState.q2 !== "B 0.0% / R 100.0%" ||
+      bobState.q2 !== "B 0.0% / R 100.0%" ||
+      !aliceState.ketText.includes("Register: 3 qubits (8 basis states)") ||
+      !bobState.ketText.includes("Register: 3 qubits (8 basis states)")
+    ) {
+      throw new Error(
+        `Local shared sync failed: ${JSON.stringify({ aliceState, bobState })}`,
+      );
+    }
+  } finally {
+    await alice?.close();
+    await bob?.close();
+    await closeServer(backend.server);
+  }
+}
+
+async function runQuantumInspectorSmoke(page) {
+  const originalGeneratedTabs = await page.evaluate(() =>
+    JSON.parse(JSON.stringify(window.readQuantumContentState("generated-tabs"))),
+  );
+  try {
+    await page.evaluate(() => {
+      window.writeQuantumContentState("generated-tabs", {
+        tabs: [
+          {
+            id: "inspector-smoke",
+            label: "Inspector Smoke",
+            layout: {
+              items: [
+                {
+                  id: "inspector-q",
+                  type: "qubit",
+                  left: 80,
+                  top: 120,
+                  width: 54,
+                  height: 54,
+                  vector: [Math.SQRT1_2, Math.SQRT1_2],
+                },
+                {
+                  id: "inspector-gate",
+                  type: "single-gate",
+                  left: 190,
+                  top: 55,
+                  width: 300,
+                  height: 180,
+                  singleGateTick: 3,
+                },
+                {
+                  id: "inspector-cnot",
+                  type: "cnot-gate",
+                  left: 560,
+                  top: 80,
+                  width: 373,
+                  height: 209,
+                },
+              ],
+              canvasWidth: 1000,
+              canvasHeight: 420,
+            },
+          },
+        ],
+      });
+      window.applyGeneratedTabsState(window.readQuantumContentState("generated-tabs"));
+      window.setActiveTab("inspector-smoke");
+    });
+    await page.waitForSelector("#panel-inspector-smoke .generated-layout-canvas");
+
+    await page
+      .locator("#panel-inspector-smoke [data-generated-item-id='inspector-q']")
+      .click({ button: "right" });
+    const qubitInspectorText = await page
+      .locator(".qubit-inspector-vector")
+      .textContent();
+    if (
+      !qubitInspectorText ||
+      !qubitInspectorText.includes("Register: 1 qubit (2 basis states)") ||
+      !qubitInspectorText.includes("|0>") ||
+      !qubitInspectorText.includes("|1>")
+    ) {
+      throw new Error(
+        `Qubit register inspector failed: ${JSON.stringify(qubitInspectorText)}`,
+      );
+    }
+
+    await page.locator(".qubit-inspector-close").click();
+    const singleGateBox = await page
+      .locator("#panel-inspector-smoke [data-generated-item-id='inspector-gate']")
+      .boundingBox();
+    if (!singleGateBox) {
+      throw new Error("Single-gate inspector smoke failed: missing gate box");
+    }
+    await page.mouse.click(
+      singleGateBox.x + singleGateBox.width / 2,
+      singleGateBox.y + singleGateBox.height / 2,
+      { button: "right" },
+    );
+    const singleGateText = await page
+      .locator(".qubit-inspector-vector")
+      .textContent();
+    if (
+      !singleGateText ||
+      !singleGateText.includes("U (2 x 2)") ||
+      !singleGateText.includes("theta = 3π/6 radians")
+    ) {
+      throw new Error(
+        `Single-gate matrix inspector failed: ${JSON.stringify(singleGateText)}`,
+      );
+    }
+
+    await page.locator(".qubit-inspector-close").click();
+    const cnotBox = await page
+      .locator("#panel-inspector-smoke [data-generated-item-id='inspector-cnot']")
+      .boundingBox();
+    if (!cnotBox) {
+      throw new Error("C-NOT inspector smoke failed: missing gate box");
+    }
+    await page.mouse.click(
+      cnotBox.x + cnotBox.width / 2,
+      cnotBox.y + cnotBox.height / 2,
+      { button: "right" },
+    );
+    const cnotText = await page.locator(".qubit-inspector-vector").textContent();
+    if (!cnotText || !cnotText.includes("U (4 x 4)") || !cnotText.includes("C-NOT Gate")) {
+      throw new Error(
+        `C-NOT matrix inspector failed: ${JSON.stringify(cnotText)}`,
+      );
+    }
+  } finally {
+    await page.evaluate((state) => {
+      window.writeQuantumContentState("generated-tabs", state);
+      window.applyGeneratedTabsState(state);
+    }, originalGeneratedTabs);
   }
 }
 
@@ -3861,12 +4785,16 @@ async function runSmokeTest(baseUrl) {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
-      if (message.type() === "error") {
-        errors.push(message.text());
+      const text = message.text();
+      if (message.type() === "error" && !isIgnorableBrowserConsoleError(text)) {
+        errors.push(text);
       }
     });
 
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await runLocalMultiQubitLabSmoke(page);
+    await runLocalLabSharedSyncSmoke(browser, baseUrl);
+    await runQuantumInspectorSmoke(page);
     await runDocEditorLandingIntroTextSmoke(page);
     await runEntangledMathSmoke(page);
     await runEditorDoubleMeasurementSmoke(page);

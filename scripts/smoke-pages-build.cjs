@@ -101,6 +101,18 @@ async function runSmoke(baseUrl) {
           ".landing-tab-links .landing-tab-link",
         ) || [],
       ).map((button) => button.textContent.trim());
+      const landingTourSignText =
+        landingPanel
+          ?.querySelector(".landing-tour-sign .landing-sign-label")
+          ?.textContent?.trim() || "";
+      const landingClosedSignText =
+        landingPanel
+          ?.querySelector(".landing-lab-sign-closed")
+          ?.textContent?.trim() || "";
+      const landingAboutText =
+        landingPanel
+          ?.querySelector(".landing-about-link")
+          ?.textContent?.trim() || "";
       const tabStrip = document.querySelector(".tab-strip");
       const landingHero = landingPanel?.querySelector(".landing-hero");
       const landingHeroStyle = landingHero
@@ -199,6 +211,9 @@ async function runSmoke(baseUrl) {
         labels,
         publicTargets,
         landingButtonLabels,
+        landingTourSignText,
+        landingClosedSignText,
+        landingAboutText,
         topTabsVisible: Boolean(
           tabStrip &&
             window.getComputedStyle(tabStrip).display !== "none" &&
@@ -260,8 +275,10 @@ async function runSmoke(baseUrl) {
       !result.entanglementOneLastSceneHasMarker ||
       result.entanglementOneLastSceneHasOldText ||
       result.cnotLayoutAudit.bad.length > 0 ||
-      result.landingButtonLabels.includes("Reset") ||
-      result.landingButtonLabels[0] !== "What's this?"
+      result.landingButtonLabels.length !== 0 ||
+      result.landingTourSignText !== "To the Tour" ||
+      result.landingClosedSignText !== "Closed" ||
+      result.landingAboutText !== "(About...)"
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
     }
@@ -281,7 +298,9 @@ async function runSmoke(baseUrl) {
     if (
       !landingInfoState.visible ||
       !landingInfoState.text.includes("Welcome to Qubit Lab") ||
-      !landingInfoState.text.includes("buttons below") ||
+      !landingInfoState.text.includes("preview of coming attractions") ||
+      !landingInfoState.text.includes("a demonstration") ||
+      landingInfoState.text.includes("an demonstration") ||
       landingInfoState.text.includes("tabs above")
     ) {
       throw new Error(
@@ -291,15 +310,76 @@ async function runSmoke(baseUrl) {
 
     const targetForLabel = (label) =>
       result.publicTargets[result.labels.indexOf(label)] || "";
+    const tourStyleState = await page.evaluate((targets) => {
+      const backgrounds = targets.map((target) => {
+        const canvas = document.querySelector(
+          `#panel-${CSS.escape(target)} .generated-layout-viewport > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)`,
+        );
+        if (!canvas) {
+          return null;
+        }
+        const style = getComputedStyle(canvas);
+        return {
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+        };
+      });
+      const oneQubitTarget = targets[0] || "";
+      const resetButton = document.querySelector(
+        `#panel-${CSS.escape(oneQubitTarget)} [data-generated-experiment-action='reset']`,
+      );
+      const whatsThisButton = document.querySelector(
+        `#panel-${CSS.escape(oneQubitTarget)} [data-generated-document-action='whats-this']`,
+      );
+      const status = document.querySelector(
+        `#panel-${CSS.escape(oneQubitTarget)} .generated-experiment-status`,
+      );
+      const fontSizeOf = (element) =>
+        element ? Number.parseFloat(getComputedStyle(element).fontSize) : null;
+      const statusFont = fontSizeOf(status);
+      const resetFont = fontSizeOf(resetButton);
+      const whatsThisFont = fontSizeOf(whatsThisButton);
+      return {
+        targets,
+        paleGreen:
+          backgrounds.length === targets.length &&
+          backgrounds.every(
+            (background) =>
+              background?.backgroundColor === "rgb(230, 255, 204)" &&
+              background?.backgroundImage === "none",
+          ),
+        statusMatchesButtonFonts:
+          Number.isFinite(statusFont) &&
+          Number.isFinite(resetFont) &&
+          Number.isFinite(whatsThisFont) &&
+          Math.abs(statusFont - resetFont) < 0.01 &&
+          Math.abs(statusFont - whatsThisFont) < 0.01,
+      };
+    }, [
+      targetForLabel("One qubit"),
+      targetForLabel("Two qubits"),
+      targetForLabel("Entanglement 1"),
+      targetForLabel("Entanglement 2"),
+    ]);
+    if (
+      tourStyleState.targets.some((target) => !target) ||
+      !tourStyleState.paleGreen ||
+      !tourStyleState.statusMatchesButtonFonts
+    ) {
+      throw new Error(
+        `GitHub Pages tour styling failed: ${JSON.stringify(tourStyleState)}`,
+      );
+    }
     const entanglementTwoTarget = targetForLabel("Entanglement 2");
     if (!entanglementTwoTarget) {
       throw new Error("GitHub Pages smoke failed: missing Entanglement 2 tab");
     }
     await page.locator(`#panel-${landingTarget} .landing-info-close`).click();
-    await page
-      .locator(`#panel-${landingTarget} .landing-tab-link`)
-      .filter({ hasText: "Entanglement 2" })
-      .click();
+    await page.evaluate((target) => {
+      document
+        .querySelector(`#tab-${CSS.escape(target)}`)
+        ?.click();
+    }, entanglementTwoTarget);
     await page.waitForSelector(
       `#panel-${entanglementTwoTarget} .generated-layout-canvas`,
     );
