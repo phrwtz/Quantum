@@ -8848,6 +8848,38 @@
         }
       ],
       "updatedAt": 1780942231456
+    },
+    {
+      "version": 1,
+      "tabId": "editor-entanglement-3",
+      "title": "What's this?",
+      "scenes": [
+        {
+          "id": "scene-mqr0opvc-5kl8j",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mqr0r705-1q",
+              "type": "text-box",
+              "left": 224,
+              "top": 127,
+              "width": 447,
+              "height": 212,
+              "z": 2,
+              "text": "This tab is under construction.",
+              "buttons": [
+                "done"
+              ],
+              "buttonMode": "done"
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": null,
+          "savedAt": 1782241901945
+        }
+      ],
+      "updatedAt": 1782241901945
     }
   ]
 }

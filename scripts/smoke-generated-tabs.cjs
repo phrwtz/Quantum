@@ -1907,6 +1907,152 @@ async function runEditorDocumentWorkflowSmoke(page) {
     throw new Error("Editor still renders the redundant Open button");
   }
 
+  await page.locator("#playgroundComponentSelect").selectOption("single-gate");
+  const gateCanvasBox = await page.locator("#playgroundCanvas").boundingBox();
+  if (!gateCanvasBox) {
+    throw new Error("Missing editor canvas for single-gate dial smoke");
+  }
+  await page.mouse.click(gateCanvasBox.x + 380, gateCanvasBox.y + 210);
+  await wait(150);
+  await page.waitForSelector(
+    '#playgroundCanvas > .playground-node[data-component="single-gate"]',
+  );
+  const dragEditorGateArrowToTick = async (targetTick) => {
+    const points = await page.evaluate((tickIndex) => {
+      const gate = document.querySelector(
+        '#playgroundCanvas > .playground-node[data-component="single-gate"]',
+      );
+      const ticks = gate?.querySelector('[data-role="ticks"]');
+      if (!gate || !ticks) {
+        return null;
+      }
+      const rect = ticks.getBoundingClientRect();
+      const activeTick = Array.from(ticks.querySelectorAll(".tick")).findIndex(
+        (tick) => tick.classList.contains("active"),
+      );
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const startRadius = Math.min(rect.width, rect.height) * 0.22;
+      const endRadius = Math.min(rect.width, rect.height) * 0.36;
+      const pointForTick = (tick, radius) => {
+        const angle = ((tick % 12) * 30 * Math.PI) / 180;
+        return {
+          x: centerX + Math.sin(angle) * radius,
+          y: centerY - Math.cos(angle) * radius,
+        };
+      };
+      const start = pointForTick(activeTick >= 0 ? activeTick : 0, startRadius);
+      const end = pointForTick(tickIndex, endRadius);
+      return { start, end };
+    }, targetTick);
+    if (!points) {
+      throw new Error("Missing editor gate dial points");
+    }
+    await page.mouse.move(points.start.x, points.start.y);
+    await page.mouse.down();
+    await page.mouse.move(points.end.x, points.end.y, { steps: 10 });
+    await page.mouse.up();
+    await wait(250);
+  };
+  const editorGateState = () =>
+    page.evaluate(() => {
+      const gate = document.querySelector(
+        '#playgroundCanvas > .playground-node[data-component="single-gate"]',
+      );
+      const ticks = Array.from(gate?.querySelectorAll(".tick") || []);
+      return {
+        left: Number.parseFloat(gate?.style.left || "0"),
+        top: Number.parseFloat(gate?.style.top || "0"),
+        activeTick: ticks.findIndex((tick) => tick.classList.contains("active")),
+      };
+    });
+  const editorGateTargetTick = 4;
+  const editorGateBefore = await editorGateState();
+  await dragEditorGateArrowToTick(editorGateTargetTick);
+  const editorGateAfter = await editorGateState();
+  if (
+    editorGateAfter.activeTick !== editorGateTargetTick ||
+    Math.abs(editorGateAfter.left - editorGateBefore.left) > 2 ||
+    Math.abs(editorGateAfter.top - editorGateBefore.top) > 2
+  ) {
+    throw new Error(
+      `Editor gate dial drag moved the gate or missed the tick: before=${JSON.stringify(
+        editorGateBefore,
+      )} after=${JSON.stringify(editorGateAfter)}`,
+    );
+  }
+
+  await page.locator("#playgroundComponentSelect").selectOption("qubit");
+  const newTabCanvasBox = await page.locator("#playgroundCanvas").boundingBox();
+  if (!newTabCanvasBox) {
+    throw new Error("Missing editor canvas for Teleportation save smoke");
+  }
+  await page.mouse.click(newTabCanvasBox.x + 160, newTabCanvasBox.y + 160);
+  await wait(150);
+  await page.locator("#editorNewTabName").fill("Teleportation");
+  await page.locator("#playgroundSaveButton").click();
+  await wait(250);
+  const teleportationCreated = await page.evaluate(() => {
+    const state = JSON.parse(
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
+    );
+    const entry = (state.tabs || []).find((tab) => tab.label === "Teleportation");
+    return {
+      id: entry?.id || "",
+      itemCount: entry?.layout?.items?.length || 0,
+      gateTick: entry?.layout?.items?.find((item) => item.type === "single-gate")
+        ?.singleGateTick,
+      tabExists: Boolean(entry?.id && document.querySelector(`#tab-${entry.id}`)),
+      status: document.querySelector("#playgroundStatus")?.textContent || "",
+      editorStatus: document.querySelector("#editorDocumentStatus")?.textContent || "",
+      renameDisabled:
+        document.querySelector("#editorRenameTabButton")?.disabled ?? true,
+      deleteDisabled:
+        document.querySelector("#editorDeleteTabButton")?.disabled ?? true,
+    };
+  });
+  if (
+    !teleportationCreated.id ||
+    teleportationCreated.itemCount < 1 ||
+    teleportationCreated.gateTick !== editorGateTargetTick ||
+    !teleportationCreated.tabExists ||
+    !/Saved to Teleportation/.test(teleportationCreated.status) ||
+    !/Editing: Teleportation/.test(teleportationCreated.editorStatus) ||
+    teleportationCreated.renameDisabled ||
+    teleportationCreated.deleteDisabled
+  ) {
+    throw new Error(
+      `Editor Save did not create a new Teleportation tab: ${JSON.stringify(teleportationCreated)}`,
+    );
+  }
+  page.once("dialog", async (dialog) => {
+    if (dialog.type() !== "confirm") {
+      throw new Error(`Expected Delete Tab confirm, saw ${dialog.type()}`);
+    }
+    await dialog.accept();
+  });
+  await page.locator("#editorDeleteTabButton").click();
+  await wait(250);
+  const teleportationDeleted = await page.evaluate((tabId) => {
+    const state = JSON.parse(
+      JSON.stringify(window.readQuantumContentState("generated-tabs")),
+    );
+    return {
+      stillStored: (state.tabs || []).some((tab) => tab.id === tabId),
+      stillInDom: Boolean(document.querySelector(`#tab-${tabId}`)),
+      editorStatus: document.querySelector("#editorDocumentStatus")?.textContent || "",
+    };
+  }, teleportationCreated.id);
+  if (
+    teleportationDeleted.stillStored ||
+    teleportationDeleted.stillInDom ||
+    !/Untitled/.test(teleportationDeleted.editorStatus)
+  ) {
+    throw new Error(
+      `Editor Delete did not remove temporary Teleportation tab: ${JSON.stringify(teleportationDeleted)}`,
+    );
+  }
+
   await page.locator("#editorTargetTabSelect").selectOption(saved.id);
   await wait(250);
   const reopenedCount = await page.locator("#playgroundCanvas > .playground-node").count();
@@ -4311,7 +4457,7 @@ async function runLocalMultiQubitLabSmoke(page) {
       () =>
         document
           .querySelector("#localLabMailboxStatus")
-          ?.textContent?.includes("Mailbox link ready"),
+          ?.textContent?.includes("Link ready"),
       null,
       { timeout: 5000 },
     );

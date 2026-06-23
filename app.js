@@ -29,6 +29,17 @@ const editorTargetTabSelect = document.getElementById("editorTargetTabSelect");
 const editorNewTabName = document.getElementById("editorNewTabName");
 const editorOpenTabButton = document.getElementById("editorOpenTabButton");
 const editorNewTabButton = document.getElementById("editorNewTabButton");
+const editorNewTabPanel = document.getElementById("editorNewTabPanel");
+const editorCloseNewTabButton = document.getElementById(
+  "editorCloseNewTabButton",
+);
+const editorOpenTabPanel = document.getElementById("editorOpenTabPanel");
+const editorAddComponentButton = document.getElementById(
+  "editorAddComponentButton",
+);
+const editorAddComponentPanel = document.getElementById(
+  "editorAddComponentPanel",
+);
 const editorRenameTabButton = document.getElementById("editorRenameTabButton");
 const editorDeleteTabButton = document.getElementById("editorDeleteTabButton");
 const editorDocumentStatus = document.getElementById("editorDocumentStatus");
@@ -79,6 +90,20 @@ const docRuntimeTitle = document.getElementById("docRuntimeTitle");
 const docRuntimeSceneLabel = document.getElementById("docRuntimeSceneLabel");
 const docRuntimeCloseButton = document.getElementById("docRuntimeCloseButton");
 const docRuntimeCanvas = document.getElementById("docRuntimeCanvas");
+const workshopPasswordOverlay = document.getElementById(
+  "workshopPasswordOverlay",
+);
+const workshopPasswordForm = document.getElementById("workshopPasswordForm");
+const workshopPasswordInput = document.getElementById("workshopPasswordInput");
+const workshopPasswordStatus = document.getElementById(
+  "workshopPasswordStatus",
+);
+const workshopPasswordCancelButton = document.getElementById(
+  "workshopPasswordCancelButton",
+);
+const workshopModeButtons = Array.from(
+  document.querySelectorAll("[data-workshop-mode]"),
+);
 const quantumCore = window.QuantumCore || null;
 const localLabPanel = document.querySelector("[data-local-lab]");
 const localLabQubitCount = document.getElementById("localLabQubitCount");
@@ -250,6 +275,16 @@ const PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY =
   "quantum_playground_group_components_v1";
 const LOCAL_CONTENT_API_PORT = "8124";
 const LOCAL_CONTENT_API_ROOT = "/__quantum-content";
+const BROWSER_CONTENT_STORAGE_PREFIX = "quantum_editor_content_state_v1";
+const WORKSHOP_PASSWORD = "142857";
+const MAILBOX_DEFAULT_MESSAGE =
+  "Paul is sending you an entangled qubit. Click on the link below to get it. You can modify it before you measure it if you want to. As soon as you measure it you will break the entanglement.";
+const MAILBOX_LINK_PLACEHOLDER = "__MAILBOX_LINK__";
+const MAILBOX_WINDOW_OVERLAP_THRESHOLD = 0.35;
+const MAILBOX_ROOM_STORAGE_KEY = "quantum_mailbox_room_v1";
+const MAILBOX_ROOM_DEFAULT_ID = "qubit-lab-demo";
+const MAILBOX_ROOM_POLL_MS = 2500;
+const MAILBOX_ROOM_ACTIVE_MS = 15000;
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
 const IS_GITHUB_PAGES_BUILD =
@@ -304,6 +339,11 @@ const PLAYGROUND_COMPONENT_LIBRARY = {
     label: "Iteration Count Menu",
     width: 110,
     height: 62,
+  },
+  mailbox: {
+    label: "Qubit Mailbox",
+    width: 373,
+    height: 240,
   },
   "text-box": {
     label: "Text Box",
@@ -496,6 +536,8 @@ let documentsState = {
 let legacyGroupComponentIdRedirects = new Map();
 let draggedGeneratedTabId = "";
 let generatedTabPointerDrag = null;
+let workshopUnlocked = false;
+let workshopEditorMode = "tab";
 const generatedSingleGateRuntimes = new Map();
 const generatedQubitRuntimes = new Map();
 const generatedSingleMeasurementRuntimes = new Map();
@@ -1988,6 +2030,37 @@ function writeJsonResourceSync(url, payload) {
   }
 }
 
+function browserContentStorageKey(contentName) {
+  return `${BROWSER_CONTENT_STORAGE_PREFIX}_${String(contentName || "").replace(/[^a-z-]/g, "")}`;
+}
+
+function readBrowserContentState(contentName) {
+  try {
+    const serialized = window.localStorage.getItem(
+      browserContentStorageKey(contentName),
+    );
+    if (!serialized) {
+      return null;
+    }
+    const state = JSON.parse(serialized);
+    return state && typeof state === "object" ? state : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function writeBrowserContentState(contentName, state) {
+  try {
+    window.localStorage.setItem(
+      browserContentStorageKey(contentName),
+      JSON.stringify(state),
+    );
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function readLocalContentState(contentName) {
   const endpoints = localContentApiEndpoints(contentName);
   for (const endpoint of endpoints) {
@@ -2006,7 +2079,7 @@ function writeLocalContentState(contentName, state) {
 }
 
 function contentFileSaveFailureMessage() {
-  return "Save failed. Start the local server with npm run serve.";
+  return "Save failed. Start the local server with npm run serve, or enable browser storage.";
 }
 
 function readBundledContentState(relativePath) {
@@ -2037,9 +2110,13 @@ function readContentFileState(relativePath) {
 function readRepositoryContentState(contentName, relativePath) {
   const bundledState = readBundledContentState(relativePath);
   if (window.location.protocol === "file:" && bundledState) {
-    return bundledState;
+    return readBrowserContentState(contentName) || bundledState;
   }
-  return readLocalContentState(contentName) || readContentFileState(relativePath);
+  return (
+    readLocalContentState(contentName) ||
+    readBrowserContentState(contentName) ||
+    readContentFileState(relativePath)
+  );
 }
 
 function readGeneratedTabsState() {
@@ -2065,7 +2142,7 @@ function writeGeneratedTabsState(state) {
   if (writeLocalContentState("generated-tabs", normalized)) {
     return true;
   }
-  return false;
+  return writeBrowserContentState("generated-tabs", normalized);
 }
 
 function createDocumentScene(overrides = {}) {
@@ -3983,6 +4060,857 @@ function createMeasurementPieceNode(type) {
   return wrapper;
 }
 
+function createMailboxElement() {
+  const node = document.createElement("section");
+  node.className = "qubit-mailbox";
+  node.setAttribute("aria-label", "Qubit mailbox");
+  node.innerHTML = [
+    '<div class="mailbox-shell" aria-hidden="true"></div>',
+    '<div class="mailbox-window" data-role="mailbox-window"></div>',
+    '<div class="mailbox-status" data-role="mailbox-status" aria-live="polite"></div>',
+    '<a class="mailbox-email-link" data-role="mailbox-email-link" href="#" hidden>Open email</a>',
+  ].join("");
+  node.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openMailboxSendDialog({ mailboxItem: node });
+  });
+  return node;
+}
+
+function applyMailboxSnapshotToElement(item, snapshot = {}) {
+  void item;
+  void snapshot;
+}
+
+function captureMailboxSnapshot(item) {
+  void item;
+  return null;
+}
+
+let mailboxSendDialog = null;
+let activeMailboxSendContext = null;
+let mailboxRoomState = {
+  joined: false,
+  roomId: "",
+  participantId: "",
+  displayName: "",
+  participants: [],
+  events: [],
+  pollTimer: null,
+};
+
+function mailboxMessageBodyWithLinkPlaceholder(message) {
+  const trimmed = String(message || "").trim() || MAILBOX_DEFAULT_MESSAGE;
+  return `${trimmed}\n\n${MAILBOX_LINK_PLACEHOLDER}`;
+}
+
+function setMailboxComponentStatus(mailboxItem, message) {
+  const status = mailboxItem?.querySelector?.('[data-role="mailbox-status"]');
+  if (status instanceof HTMLElement) {
+    status.textContent = message || "";
+  }
+}
+
+function setMailboxComponentLink(mailboxItem, link, token = "") {
+  const anchor = mailboxItem?.querySelector?.('[data-role="mailbox-email-link"]');
+  if (anchor instanceof HTMLAnchorElement) {
+    anchor.hidden = !link;
+    anchor.href = link || "#";
+    anchor.title = link || token || "";
+  }
+}
+
+function readMailboxRoomStorage() {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(MAILBOX_ROOM_STORAGE_KEY) || "null",
+    );
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function writeMailboxRoomStorage(update = {}) {
+  const next = {
+    ...readMailboxRoomStorage(),
+    ...update,
+  };
+  try {
+    window.localStorage.setItem(MAILBOX_ROOM_STORAGE_KEY, JSON.stringify(next));
+  } catch (_error) {
+    // Local storage is a convenience only; the joined room still works in memory.
+  }
+  return next;
+}
+
+function mailboxRoomSlug(value, fallback = "guest") {
+  const slug = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || fallback;
+}
+
+function mailboxRoomStorageParticipantKey(roomId, name) {
+  return `${mailboxRoomSlug(roomId, MAILBOX_ROOM_DEFAULT_ID)}:${mailboxRoomSlug(name)}`;
+}
+
+function mailboxRoomCreateParticipantId(name, roomId) {
+  const stored = readMailboxRoomStorage();
+  const participantKey = mailboxRoomStorageParticipantKey(roomId, name);
+  const rememberedParticipants =
+    stored.participants && typeof stored.participants === "object"
+      ? stored.participants
+      : {};
+  if (rememberedParticipants[participantKey]) {
+    return rememberedParticipants[participantKey];
+  }
+  if (
+    stored.participantId &&
+    stored.roomId === roomId &&
+    String(stored.displayName || "").trim() === String(name || "").trim()
+  ) {
+    return stored.participantId;
+  }
+  return `${mailboxRoomSlug(name)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function mailboxRoomDefaultRoomId() {
+  const stored = readMailboxRoomStorage();
+  return (
+    localLabRoomFromLocation() ||
+    stored.roomId ||
+    (localLabSyncRoom instanceof HTMLInputElement
+      ? localLabSyncRoom.value.trim()
+      : "") ||
+    MAILBOX_ROOM_DEFAULT_ID
+  );
+}
+
+function mailboxRoomDefaultDisplayName() {
+  const stored = readMailboxRoomStorage();
+  return (
+    localLabParticipantFromLocation() ||
+    stored.displayName ||
+    (localLabSyncParticipant instanceof HTMLInputElement
+      ? localLabSyncParticipant.value.trim()
+      : "")
+  );
+}
+
+function mailboxRoomQubitLabel(context = activeMailboxSendContext) {
+  return Number.isInteger(context?.qubitIndex)
+    ? `q${context.qubitIndex}`
+    : "a qubit";
+}
+
+function mailboxRoomSerializeQubit(context = activeMailboxSendContext) {
+  const qubitItem = context?.qubitItem;
+  if (!(qubitItem instanceof HTMLElement)) {
+    return null;
+  }
+  let vector = null;
+  let paired = false;
+  if (isGeneratedQubitItem(qubitItem)) {
+    const state = ensureGeneratedQubitRuntimeState(qubitItem);
+    vector = Array.isArray(state?.vector) ? normalizeVector2(state.vector) : null;
+    paired = Boolean(state?.pairState);
+  } else {
+    try {
+      const parsed = JSON.parse(qubitItem.dataset.initialVector || "null");
+      vector = Array.isArray(parsed) ? normalizeVector2(parsed) : null;
+    } catch (_error) {
+      vector = null;
+    }
+  }
+  return {
+    kind: "single-qubit",
+    version: 1,
+    vector: vector || [1, 0],
+    sourceQubitLabel: mailboxRoomQubitLabel(context),
+    paired,
+  };
+}
+
+function mailboxRoomTransferIsForThisParticipant(payload = {}) {
+  return (
+    !payload.toParticipantId ||
+    payload.toParticipantId === mailboxRoomState.participantId
+  );
+}
+
+function mailboxRoomReceivedTransferIds() {
+  const stored = readMailboxRoomStorage();
+  return Array.isArray(stored.receivedTransfers)
+    ? new Set(stored.receivedTransfers)
+    : new Set();
+}
+
+function mailboxRoomMarkTransferReceived(eventId) {
+  if (!eventId) {
+    return;
+  }
+  const received = mailboxRoomReceivedTransferIds();
+  received.add(eventId);
+  writeMailboxRoomStorage({
+    receivedTransfers: Array.from(received).slice(-200),
+  });
+}
+
+function mailboxRoomTransferReceived(eventId) {
+  return mailboxRoomReceivedTransferIds().has(eventId);
+}
+
+function mailboxRoomImportTargetCanvas() {
+  return activeGeneratedLayoutCanvas();
+}
+
+function mailboxRoomImportMailboxWindow(canvas) {
+  if (!canvas) {
+    return null;
+  }
+  const contextMailbox = activeMailboxSendContext?.mailboxItem;
+  if (
+    contextMailbox instanceof HTMLElement &&
+    contextMailbox.closest(".generated-layout-canvas") === canvas
+  ) {
+    const contextWindow = contextMailbox.querySelector(
+      '[data-role="mailbox-window"]',
+    );
+    if (contextWindow instanceof HTMLElement) {
+      return contextWindow;
+    }
+  }
+  const mailboxWindow = canvas.querySelector(
+    ':scope > .playground-node[data-component="mailbox"] [data-role="mailbox-window"]',
+  );
+  return mailboxWindow instanceof HTMLElement ? mailboxWindow : null;
+}
+
+function mailboxRoomImportPoint(canvas) {
+  if (!canvas) {
+    return { x: 66, y: 66 };
+  }
+  const mailboxWindow = mailboxRoomImportMailboxWindow(canvas);
+  if (mailboxWindow) {
+    return generatedCanvasPointForElementCenter(canvas, mailboxWindow);
+  }
+  return {
+    x: canvas.scrollLeft + Math.max(66, Math.round(canvas.clientWidth / 2)),
+    y: canvas.scrollTop + Math.max(66, Math.round(canvas.clientHeight / 2)),
+  };
+}
+
+function mailboxRoomReceiveQubitEvent(event) {
+  const payload = event?.payload || {};
+  const transfer = payload.transfer;
+  if (!transfer || transfer.kind !== "single-qubit") {
+    throw new Error("No transferable qubit payload");
+  }
+  if (!mailboxRoomTransferIsForThisParticipant(payload)) {
+    throw new Error("This qubit was addressed to someone else");
+  }
+  const canvas = mailboxRoomImportTargetCanvas();
+  if (!canvas) {
+    throw new Error("Open a tour tab before receiving the qubit");
+  }
+  const point = mailboxRoomImportPoint(canvas);
+  const item = createGeneratedLayoutItemNode("qubit", {
+    left: point.x - 36,
+    top: point.y - 36,
+    width: 72,
+    height: 72,
+    vector: Array.isArray(transfer.vector) ? transfer.vector : [1, 0],
+  });
+  item.dataset.mailboxReceivedEventId = event.id || "";
+  item.dataset.mailboxReceivedFrom = payload.fromName || "";
+  canvas.appendChild(item);
+  prepareGeneratedLayoutCanvas(canvas);
+  ensureGeneratedQubitRuntimeState(item);
+  setGeneratedQubitCenter(canvas, item, point.x, point.y);
+  mailboxRoomMarkTransferReceived(event.id);
+  return item;
+}
+
+function mailboxRoomIsJoined() {
+  return Boolean(
+    mailboxRoomState.joined &&
+      mailboxRoomState.roomId &&
+      mailboxRoomState.participantId,
+  );
+}
+
+function mailboxRoomActiveParticipants() {
+  const now = Date.now();
+  return mailboxRoomState.participants.filter((participant) => {
+    if (participant.id === mailboxRoomState.participantId) {
+      return true;
+    }
+    const updatedAt = Date.parse(participant.updatedAt || "");
+    return Number.isFinite(updatedAt) && now - updatedAt <= MAILBOX_ROOM_ACTIVE_MS;
+  });
+}
+
+function mailboxRoomVisibleEvents() {
+  return mailboxRoomState.events
+    .filter(
+      (event) =>
+        event?.type === "room.message" || event?.type === "roomMailbox.sent",
+    )
+    .slice(-60);
+}
+
+function mailboxRoomParticipantName(participantId) {
+  if (!participantId) {
+    return "";
+  }
+  return (
+    mailboxRoomState.participants.find(
+      (participant) => participant.id === participantId,
+    )?.displayName || participantId
+  );
+}
+
+function mailboxRoomEventText(event) {
+  const payload = event?.payload || {};
+  if (event?.type === "room.message") {
+    return `${payload.displayName || "Guest"}: ${payload.message || ""}`;
+  }
+  if (event?.type === "roomMailbox.sent") {
+    const fromName = payload.fromName || "Guest";
+    const target = payload.toName
+      ? ` to ${payload.toName}`
+      : payload.toParticipantId
+      ? ` to ${mailboxRoomParticipantName(payload.toParticipantId)}`
+      : " to the room";
+    const note = payload.message ? ` - ${payload.message}` : "";
+    return `${fromName} sent ${payload.qubitLabel || "a qubit"}${target}${note}`;
+  }
+  return "";
+}
+
+function createMailboxRoomEventElement(event) {
+  const payload = event?.payload || {};
+  const row = document.createElement("div");
+  row.className = `mailbox-room-event mailbox-room-event-${event.type.replace(/[^a-z]/gi, "-").toLowerCase()}`;
+  const text = document.createElement("span");
+  text.textContent = mailboxRoomEventText(event);
+  row.appendChild(text);
+  if (
+    event?.type === "roomMailbox.sent" &&
+    payload.transfer &&
+    payload.fromParticipantId !== mailboxRoomState.participantId &&
+    mailboxRoomTransferIsForThisParticipant(payload)
+  ) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mailbox-room-receive-button";
+    button.textContent = mailboxRoomTransferReceived(event.id)
+      ? "Received"
+      : "Receive";
+    button.disabled = mailboxRoomTransferReceived(event.id);
+    button.addEventListener("click", async () => {
+      try {
+        mailboxRoomReceiveQubitEvent(event);
+        button.textContent = "Received";
+        button.disabled = true;
+        if (mailboxSendDialog?.status instanceof HTMLElement) {
+          mailboxSendDialog.status.textContent = `Received ${payload.qubitLabel || "qubit"} from ${payload.fromName || "sender"}`;
+        }
+      } catch (error) {
+        if (mailboxSendDialog?.status instanceof HTMLElement) {
+          mailboxSendDialog.status.textContent =
+            localLabMailboxFailureMessage("receive", error);
+        }
+      }
+    });
+    row.appendChild(button);
+  }
+  return row;
+}
+
+async function mailboxRoomRefresh({ render = true } = {}) {
+  if (!mailboxRoomIsJoined()) {
+    return;
+  }
+  const roomPath = `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}`;
+  await localLabRequest(
+    `${roomPath}/participants/${encodeURIComponent(mailboxRoomState.participantId)}/heartbeat`,
+    { method: "POST" },
+  );
+  const [participantsPayload, eventsPayload] = await Promise.all([
+    localLabRequest(`${roomPath}/participants`),
+    localLabRequest(`${roomPath}/events`),
+  ]);
+  mailboxRoomState.participants = Array.isArray(participantsPayload.participants)
+    ? participantsPayload.participants
+    : [];
+  mailboxRoomState.events = Array.isArray(eventsPayload.events)
+    ? eventsPayload.events
+    : [];
+  if (render) {
+    renderMailboxRoomDialog();
+  }
+}
+
+function mailboxRoomStartPolling() {
+  if (mailboxRoomState.pollTimer) {
+    window.clearInterval(mailboxRoomState.pollTimer);
+  }
+  mailboxRoomState.pollTimer = window.setInterval(() => {
+    if (!mailboxRoomIsJoined()) {
+      return;
+    }
+    mailboxRoomRefresh().catch(() => {});
+  }, MAILBOX_ROOM_POLL_MS);
+}
+
+async function mailboxRoomJoin({ roomId, displayName }) {
+  const normalizedRoomId = mailboxRoomSlug(roomId, MAILBOX_ROOM_DEFAULT_ID);
+  const normalizedName = String(displayName || "").trim();
+  if (!normalizedName) {
+    throw new Error("Name is required");
+  }
+  const participantId = mailboxRoomCreateParticipantId(
+    normalizedName,
+    normalizedRoomId,
+  );
+  await localLabRequest("/rooms", {
+    method: "POST",
+    body: {
+      id: normalizedRoomId,
+      label: `Qubit Lab ${normalizedRoomId}`,
+    },
+  });
+  const participantPayload = await localLabRequest(
+    `/rooms/${encodeURIComponent(normalizedRoomId)}/participants/${encodeURIComponent(participantId)}`,
+    {
+      method: "PUT",
+      body: {
+        displayName: normalizedName,
+        role: "editor",
+      },
+    },
+  );
+  mailboxRoomState.joined = true;
+  mailboxRoomState.roomId = normalizedRoomId;
+  mailboxRoomState.participantId = participantPayload.participant?.id || participantId;
+  mailboxRoomState.displayName =
+    participantPayload.participant?.displayName || normalizedName;
+  writeMailboxRoomStorage({
+    roomId: mailboxRoomState.roomId,
+    participantId: mailboxRoomState.participantId,
+    displayName: mailboxRoomState.displayName,
+    participants: {
+      ...(readMailboxRoomStorage().participants || {}),
+      [mailboxRoomStorageParticipantKey(
+        mailboxRoomState.roomId,
+        mailboxRoomState.displayName,
+      )]: mailboxRoomState.participantId,
+    },
+  });
+  mailboxRoomStartPolling();
+  await mailboxRoomRefresh({ render: false });
+}
+
+async function mailboxRoomSendChat(message) {
+  const text = String(message || "").trim();
+  if (!text) {
+    return;
+  }
+  await localLabRequest(
+    `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/messages`,
+    {
+      method: "POST",
+      body: {
+        participantId: mailboxRoomState.participantId,
+        displayName: mailboxRoomState.displayName,
+        message: text,
+      },
+    },
+  );
+  await mailboxRoomRefresh();
+}
+
+async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
+  if (!mailboxRoomIsJoined()) {
+    throw new Error("Join a room first");
+  }
+  const toName = toParticipantId
+    ? mailboxRoomParticipantName(toParticipantId)
+    : "";
+  const qubitLabel = mailboxRoomQubitLabel(context);
+  const transfer = mailboxRoomSerializeQubit(context);
+  await localLabRequest(
+    `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/mailbox-notifications`,
+    {
+      method: "POST",
+      body: {
+        fromParticipantId: mailboxRoomState.participantId,
+        fromName: mailboxRoomState.displayName,
+        toParticipantId: toParticipantId || null,
+        toName: toName || null,
+        qubitLabel,
+        message: String(message || "").trim(),
+        transfer,
+      },
+    },
+  );
+  setMailboxComponentStatus(
+    context?.mailboxItem,
+    `Sent ${qubitLabel}${toName ? ` to ${toName}` : " to the room"}`,
+  );
+  mailboxRoomConsumeSentQubit(context);
+  await mailboxRoomRefresh();
+}
+
+function mailboxRoomConsumeSentQubit(context) {
+  const qubitItem = context?.qubitItem;
+  if (!(qubitItem instanceof HTMLElement) || !qubitItem.isConnected) {
+    return;
+  }
+  generatedQubitRuntimes.delete(qubitItem);
+  qubitItem.remove();
+}
+
+function handleMailboxQubitPlaced(context) {
+  if (!context?.mailboxItem) {
+    return;
+  }
+  activeMailboxSendContext = context;
+  if (!mailboxRoomIsJoined()) {
+    openMailboxSendDialog(context);
+    return;
+  }
+  setMailboxComponentStatus(
+    context.mailboxItem,
+    `Sending ${mailboxRoomQubitLabel(context)}...`,
+  );
+  mailboxRoomSendQubit(context, {
+    toParticipantId: "",
+    message: "",
+  })
+    .then(() => {
+      openMailboxSendDialog({ mailboxItem: context.mailboxItem });
+    })
+    .catch((error) => {
+      setMailboxComponentStatus(
+        context.mailboxItem,
+        localLabMailboxFailureMessage("send", error),
+      );
+      openMailboxSendDialog(context);
+      if (mailboxSendDialog?.status instanceof HTMLElement) {
+        mailboxSendDialog.status.textContent = localLabMailboxFailureMessage(
+          "send",
+          error,
+        );
+      }
+    });
+}
+
+function renderMailboxRoomDialog() {
+  const dialog = mailboxSendDialog;
+  if (!dialog) {
+    return;
+  }
+  const joined = mailboxRoomIsJoined();
+  const activeParticipants = mailboxRoomActiveParticipants();
+  dialog.joinPanel.hidden = joined;
+  dialog.roomPanel.hidden = !joined;
+  dialog.sendPanel.hidden = !joined || !activeMailboxSendContext?.qubitItem;
+  if (dialog.summary instanceof HTMLElement) {
+    dialog.summary.textContent = joined
+      ? `Room ${mailboxRoomState.roomId} - ${activeParticipants.length} occupant${activeParticipants.length === 1 ? "" : "s"}`
+      : "";
+  }
+  if (dialog.occupants instanceof HTMLElement) {
+    dialog.occupants.replaceChildren();
+    activeParticipants.forEach((participant) => {
+      const item = document.createElement("li");
+      item.textContent =
+        participant.id === mailboxRoomState.participantId
+          ? `${participant.displayName} (you)`
+          : participant.displayName;
+      dialog.occupants.appendChild(item);
+    });
+  }
+  if (dialog.recipient instanceof HTMLSelectElement) {
+    dialog.recipient.replaceChildren();
+    const everyone = document.createElement("option");
+    everyone.value = "";
+    everyone.textContent = "Everyone in room";
+    dialog.recipient.appendChild(everyone);
+    activeParticipants
+      .filter((participant) => participant.id !== mailboxRoomState.participantId)
+      .forEach((participant) => {
+        const option = document.createElement("option");
+        option.value = participant.id;
+        option.textContent = participant.displayName;
+        dialog.recipient.appendChild(option);
+      });
+  }
+  if (dialog.feed instanceof HTMLElement) {
+    dialog.feed.replaceChildren();
+    const events = mailboxRoomVisibleEvents();
+    if (!events.length) {
+      const empty = document.createElement("p");
+      empty.className = "mailbox-room-empty";
+      empty.textContent = "No room activity yet.";
+      dialog.feed.appendChild(empty);
+    } else {
+      events.forEach((event) => {
+        dialog.feed.appendChild(createMailboxRoomEventElement(event));
+      });
+      dialog.feed.scrollTop = dialog.feed.scrollHeight;
+    }
+  }
+  if (
+    dialog.sendMessage instanceof HTMLTextAreaElement &&
+    activeMailboxSendContext?.qubitItem &&
+    !dialog.sendMessage.value.trim()
+  ) {
+    dialog.sendMessage.value = `${mailboxRoomState.displayName || "Someone"} is sending ${mailboxRoomQubitLabel()} through the mailbox.`;
+  }
+}
+
+function ensureMailboxSendDialog() {
+  if (mailboxSendDialog) {
+    return mailboxSendDialog;
+  }
+  const overlay = document.createElement("div");
+  overlay.className = "mailbox-send-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = [
+    '<section class="mailbox-send-form" aria-label="Qubit Lab room">',
+    '<h2 class="mailbox-send-title">Mailbox room</h2>',
+    '<div class="mailbox-room-join" data-role="mailbox-room-join">',
+    '<label class="mailbox-send-field">',
+    "<span>Name</span>",
+    '<input class="mailbox-room-name" type="text" autocomplete="name" />',
+    "</label>",
+    '<label class="mailbox-send-field">',
+    "<span>Room</span>",
+    '<input class="mailbox-room-id" type="text" autocomplete="off" spellcheck="false" />',
+    "</label>",
+    '<button class="mailbox-room-join-button" type="button">Join Room</button>',
+    "</div>",
+    '<div class="mailbox-room-panel" data-role="mailbox-room-panel" hidden>',
+    '<div class="mailbox-room-summary"></div>',
+    '<div class="mailbox-room-columns">',
+    '<section><h3>Occupants</h3><ul class="mailbox-room-occupants"></ul></section>',
+    '<section><h3>Room Activity</h3><div class="mailbox-room-feed"></div></section>',
+    "</div>",
+    '<div class="mailbox-room-send-panel" hidden>',
+    '<label class="mailbox-send-field">',
+    "<span>Send to</span>",
+    '<select class="mailbox-room-recipient"></select>',
+    "</label>",
+    '<label class="mailbox-send-field">',
+    "<span>Message</span>",
+    '<textarea class="mailbox-room-send-message" rows="3"></textarea>',
+    "</label>",
+    '<button class="mailbox-room-send-button" type="button">Send Qubit</button>',
+    "</div>",
+    '<div class="mailbox-room-chat-row">',
+    '<input class="mailbox-room-chat-input" type="text" placeholder="Message the room" />',
+    '<button class="mailbox-room-chat-button" type="button">Chat</button>',
+    "</div>",
+    "</div>",
+    '<div class="mailbox-send-status" aria-live="polite"></div>',
+    '<div class="mailbox-send-actions">',
+    '<button class="mailbox-send-cancel" type="button">Close</button>',
+    "</div>",
+    "</section>",
+  ].join("");
+  const cancelButton = overlay.querySelector(".mailbox-send-cancel");
+  const status = overlay.querySelector(".mailbox-send-status");
+  const joinPanel = overlay.querySelector(".mailbox-room-join");
+  const roomPanel = overlay.querySelector(".mailbox-room-panel");
+  const nameInput = overlay.querySelector(".mailbox-room-name");
+  const roomInput = overlay.querySelector(".mailbox-room-id");
+  const joinButton = overlay.querySelector(".mailbox-room-join-button");
+  const summary = overlay.querySelector(".mailbox-room-summary");
+  const occupants = overlay.querySelector(".mailbox-room-occupants");
+  const feed = overlay.querySelector(".mailbox-room-feed");
+  const sendPanel = overlay.querySelector(".mailbox-room-send-panel");
+  const recipient = overlay.querySelector(".mailbox-room-recipient");
+  const sendMessage = overlay.querySelector(".mailbox-room-send-message");
+  const sendButton = overlay.querySelector(".mailbox-room-send-button");
+  const chatInput = overlay.querySelector(".mailbox-room-chat-input");
+  const chatButton = overlay.querySelector(".mailbox-room-chat-button");
+
+  const close = () => {
+    overlay.hidden = true;
+    activeMailboxSendContext = null;
+    if (status instanceof HTMLElement) {
+      status.textContent = "";
+    }
+  };
+  const showStatus = (message) => {
+    if (status instanceof HTMLElement) {
+      status.textContent = message || "";
+    }
+  };
+
+  cancelButton?.addEventListener("click", close);
+  overlay.addEventListener("mousedown", (event) => {
+    if (event.target === overlay) {
+      close();
+    }
+  });
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      close();
+    }
+  });
+  joinButton?.addEventListener("click", async () => {
+    if (!(nameInput instanceof HTMLInputElement) || !(roomInput instanceof HTMLInputElement)) {
+      return;
+    }
+    showStatus("Joining...");
+    if (joinButton instanceof HTMLButtonElement) {
+      joinButton.disabled = true;
+    }
+    try {
+      await mailboxRoomJoin({
+        roomId: roomInput.value,
+        displayName: nameInput.value,
+      });
+      showStatus("Joined room");
+      renderMailboxRoomDialog();
+    } catch (error) {
+      showStatus(localLabMailboxFailureMessage("join", error));
+    } finally {
+      if (joinButton instanceof HTMLButtonElement) {
+        joinButton.disabled = false;
+      }
+    }
+  });
+  sendButton?.addEventListener("click", async () => {
+    if (!activeMailboxSendContext?.mailboxItem) {
+      return;
+    }
+    showStatus("Sending...");
+    if (sendButton instanceof HTMLButtonElement) {
+      sendButton.disabled = true;
+    }
+    try {
+      await mailboxRoomSendQubit(activeMailboxSendContext, {
+        toParticipantId:
+          recipient instanceof HTMLSelectElement ? recipient.value : "",
+        message:
+          sendMessage instanceof HTMLTextAreaElement ? sendMessage.value : "",
+      });
+      showStatus("Qubit notification sent");
+      if (sendMessage instanceof HTMLTextAreaElement) {
+        sendMessage.value = "";
+      }
+      activeMailboxSendContext = { mailboxItem: activeMailboxSendContext.mailboxItem };
+      renderMailboxRoomDialog();
+    } catch (error) {
+      showStatus(localLabMailboxFailureMessage("send", error));
+    } finally {
+      if (sendButton instanceof HTMLButtonElement) {
+        sendButton.disabled = false;
+      }
+    }
+  });
+  const sendChat = async () => {
+    if (!(chatInput instanceof HTMLInputElement)) {
+      return;
+    }
+    const message = chatInput.value.trim();
+    if (!message) {
+      return;
+    }
+    showStatus("Posting...");
+    if (chatButton instanceof HTMLButtonElement) {
+      chatButton.disabled = true;
+    }
+    try {
+      await mailboxRoomSendChat(message);
+      chatInput.value = "";
+      showStatus("Message posted");
+    } catch (error) {
+      showStatus(localLabMailboxFailureMessage("chat", error));
+    } finally {
+      if (chatButton instanceof HTMLButtonElement) {
+        chatButton.disabled = false;
+      }
+    }
+  };
+  chatButton?.addEventListener("click", () => {
+    void sendChat();
+  });
+  chatInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void sendChat();
+    }
+  });
+
+  document.body.appendChild(overlay);
+  mailboxSendDialog = {
+    overlay,
+    joinPanel,
+    roomPanel,
+    nameInput,
+    roomInput,
+    summary,
+    occupants,
+    feed,
+    sendPanel,
+    recipient,
+    sendMessage,
+    chatInput,
+    status,
+    close,
+  };
+  return mailboxSendDialog;
+}
+
+function openMailboxSendDialog(context) {
+  if (!context?.mailboxItem) {
+    return;
+  }
+  const dialog = ensureMailboxSendDialog();
+  activeMailboxSendContext = context;
+  if (dialog.nameInput instanceof HTMLInputElement) {
+    dialog.nameInput.value =
+      mailboxRoomState.displayName || mailboxRoomDefaultDisplayName();
+  }
+  if (dialog.roomInput instanceof HTMLInputElement) {
+    dialog.roomInput.value = mailboxRoomState.roomId || mailboxRoomDefaultRoomId();
+  }
+  if (dialog.status instanceof HTMLElement) {
+    dialog.status.textContent = "";
+  }
+  if (dialog.sendMessage instanceof HTMLTextAreaElement) {
+    dialog.sendMessage.value = activeMailboxSendContext?.qubitItem
+      ? `${mailboxRoomState.displayName || "Someone"} is sending ${mailboxRoomQubitLabel(context)} through the mailbox.`
+      : "";
+  }
+  renderMailboxRoomDialog();
+  dialog.overlay.hidden = false;
+  if (mailboxRoomIsJoined()) {
+    mailboxRoomRefresh().catch(() => {});
+  }
+  window.setTimeout(() => {
+    if (!mailboxRoomIsJoined() && dialog.nameInput instanceof HTMLInputElement) {
+      dialog.nameInput.focus();
+    } else if (
+      activeMailboxSendContext?.qubitItem &&
+      dialog.sendMessage instanceof HTMLTextAreaElement
+    ) {
+      dialog.sendMessage.focus();
+    } else if (dialog.chatInput instanceof HTMLInputElement) {
+      dialog.chatInput.focus();
+    }
+  }, 0);
+}
+
 function isSeparatedPairMeasurementGroupElement(item) {
   if (
     !(item instanceof HTMLElement) ||
@@ -4297,6 +5225,8 @@ function createPlaygroundComponentNode(type, geometry = {}) {
     );
   } else if (type === "cnot-gate") {
     node = createCnotGateElement();
+  } else if (type === "mailbox") {
+    node = createMailboxElement();
   } else if (type === "single-measurement") {
     node = clonePlaygroundSourceElement(
       cloneSingleQubitBlueprint(".measurement-stage"),
@@ -4525,15 +5455,24 @@ function isGeneratedCnotItem(item) {
   return isGeneratedLayoutItem(item) && item.dataset.component === "cnot-gate";
 }
 
+function isGeneratedMailboxItem(item) {
+  return isGeneratedLayoutItem(item) && item.dataset.component === "mailbox";
+}
+
 function activeGeneratedLayoutCanvas() {
-  const panel = document.querySelector(
-    '[data-generated-layout-panel="true"]:not([hidden])',
+  const panels = Array.from(
+    document.querySelectorAll('[data-generated-layout-panel="true"]:not([hidden])'),
   );
-  if (!(panel instanceof HTMLElement)) {
-    return null;
+  for (const panel of panels) {
+    if (!(panel instanceof HTMLElement)) {
+      continue;
+    }
+    const canvas = panel.querySelector(".generated-layout-canvas");
+    if (canvas instanceof HTMLElement) {
+      return canvas;
+    }
   }
-  const canvas = panel.querySelector(".generated-layout-canvas");
-  return canvas instanceof HTMLElement ? canvas : null;
+  return null;
 }
 
 function generatedCanvasForItem(item) {
@@ -4785,6 +5724,28 @@ function resetGeneratedTabForCanvas(canvas) {
     resetDocumentRuntimeState();
   }
   clearGeneratedTransientStateForCanvas(canvas);
+  renderGeneratedLayoutPanel(panel, entry);
+  pruneGeneratedRuntimeState();
+  return true;
+}
+
+function refreshGeneratedTabPanelFromState(tabId, state = generatedTabsState) {
+  const normalizedTabId = storageIdentifierKey(tabId);
+  if (!normalizedTabId) {
+    return false;
+  }
+  const entry =
+    (state?.tabs || []).find(
+      (candidate) => storageIdentifierKey(candidate?.id) === normalizedTabId,
+    ) || null;
+  const panel = document.getElementById(`panel-${normalizedTabId}`);
+  if (!entry || !(panel instanceof HTMLElement)) {
+    return false;
+  }
+  const existingCanvas = panel.querySelector(".generated-layout-canvas");
+  if (existingCanvas instanceof HTMLElement) {
+    clearGeneratedTransientStateForCanvas(existingCanvas);
+  }
   renderGeneratedLayoutPanel(panel, entry);
   pruneGeneratedRuntimeState();
   return true;
@@ -6631,6 +7592,12 @@ function serializeGeneratedLayoutItem(item) {
   if (item.dataset.component === "text-box") {
     Object.assign(serialized, captureTextBoxSnapshot(item));
   }
+  if (item.dataset.component === "mailbox") {
+    const mailbox = captureMailboxSnapshot(item);
+    if (mailbox) {
+      serialized.mailbox = mailbox;
+    }
+  }
   const measurementLayout = captureGeneratedMeasurementLayoutSnapshot(item);
   if (measurementLayout) {
     serialized.measurementLayout = measurementLayout;
@@ -6787,6 +7754,9 @@ function createGeneratedLayoutItemNode(type, geometry = {}) {
         { includeGroupGeometry: false },
       );
     }
+  }
+  if (type === "mailbox") {
+    applyMailboxSnapshotToElement(item, geometry.mailbox);
   }
   if (type === "single-gate") {
     if (
@@ -7336,6 +8306,97 @@ function persistLandingDocumentEditorDocument() {
   return true;
 }
 
+function syncWorkshopModeButtons() {
+  workshopModeButtons.forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    if (button.dataset.workshopMode === "back") {
+      button.classList.remove("active");
+      button.removeAttribute("aria-selected");
+      button.tabIndex = 0;
+      return;
+    }
+    const isActive = button.dataset.workshopMode === workshopEditorMode;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+    button.tabIndex = isActive ? 0 : -1;
+  });
+}
+
+function introductionLandingTabId() {
+  return (
+    (generatedTabsState.tabs || []).find((entry) =>
+      isGeneratedLandingPageTab(entry),
+    )?.id || ""
+  );
+}
+
+function returnToIntroductionLandingPage() {
+  workshopUnlocked = false;
+  document.body.classList.remove("workshop-unlocked");
+  workshopEditorMode = "tab";
+  document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
+  syncWorkshopModeButtons();
+  setActiveTab(introductionLandingTabId() || initialLocalTabTarget());
+}
+
+function setWorkshopEditorMode(mode, { activate = true } = {}) {
+  if (mode === "back") {
+    returnToIntroductionLandingPage();
+    return;
+  }
+  const normalized =
+    mode === "component" || mode === "whats-this" || mode === "local-lab"
+      ? mode
+      : "tab";
+  workshopEditorMode = normalized;
+  document.documentElement.dataset.workshopEditorMode = normalized;
+  syncWorkshopModeButtons();
+  if (!activate) {
+    return;
+  }
+  if (normalized === "local-lab") {
+    setActiveTab("local-lab");
+  } else if (normalized === "whats-this") {
+    setActiveTab("doc-editor");
+  } else {
+    setActiveTab("plaground");
+  }
+  plagroundComposer?.handleWorkshopModeChanged?.(normalized);
+}
+
+function openWorkshopPasswordDialog() {
+  if (workshopUnlocked) {
+    setWorkshopEditorMode("tab");
+    return;
+  }
+  if (!(workshopPasswordOverlay instanceof HTMLElement)) {
+    return;
+  }
+  workshopPasswordOverlay.hidden = false;
+  if (workshopPasswordStatus instanceof HTMLElement) {
+    workshopPasswordStatus.textContent = "";
+  }
+  if (workshopPasswordInput instanceof HTMLInputElement) {
+    workshopPasswordInput.value = "";
+    window.requestAnimationFrame(() => workshopPasswordInput.focus());
+  }
+}
+
+function closeWorkshopPasswordDialog() {
+  if (workshopPasswordOverlay instanceof HTMLElement) {
+    workshopPasswordOverlay.hidden = true;
+  }
+}
+
+function unlockWorkshop() {
+  workshopUnlocked = true;
+  document.body.classList.add("workshop-unlocked");
+  closeWorkshopPasswordDialog();
+  setWorkshopEditorMode("tab");
+}
+
 function createGeneratedLandingPanel(entry) {
   const gatePanel = document.createElement("section");
   gatePanel.className = "gate-panel generated-tab-panel generated-landing-panel";
@@ -7360,6 +8421,16 @@ function createGeneratedLandingPanel(entry) {
   const signs = document.createElement("div");
   signs.className = "landing-signs";
   signs.setAttribute("aria-label", "Qubit Lab signs");
+  const workshopSign = document.createElement("button");
+  workshopSign.className = "landing-sign landing-workshop-sign";
+  workshopSign.type = "button";
+  const workshopSignLabel = document.createElement("span");
+  workshopSignLabel.className = "landing-sign-label";
+  workshopSignLabel.textContent = "Workshop";
+  workshopSign.appendChild(workshopSignLabel);
+  workshopSign.addEventListener("click", () => {
+    openWorkshopPasswordDialog();
+  });
   const tourSign = document.createElement("button");
   tourSign.className = "landing-sign landing-tour-sign";
   tourSign.type = "button";
@@ -7395,54 +8466,8 @@ function createGeneratedLandingPanel(entry) {
     labSignHanger,
     labSignClosed,
   );
-  signs.append(tourSign, labSign);
+  signs.append(tourSign, workshopSign, labSign);
   hero.appendChild(signs);
-
-  const introText = generatedLandingIntroText(entry);
-  const infoCard = document.createElement("section");
-  infoCard.className = "landing-info-card";
-  infoCard.id = `landing-info-${entry.id || "introduction"}`;
-  infoCard.hidden = true;
-  infoCard.setAttribute("aria-label", "About Qubit Lab");
-  const infoBody = document.createElement("div");
-  infoBody.className = "landing-info-body";
-  infoBody.textContent = introText;
-  const infoCloseButton = document.createElement("button");
-  infoCloseButton.className = "landing-info-close";
-  infoCloseButton.type = "button";
-  infoCloseButton.textContent = "Close";
-  infoCard.append(infoBody, infoCloseButton);
-  hero.appendChild(infoCard);
-
-  if (introText) {
-    const aboutButton = document.createElement("button");
-    aboutButton.className = "landing-about-link landing-info-link";
-    aboutButton.type = "button";
-    aboutButton.textContent = "(About...)";
-    aboutButton.setAttribute("aria-controls", infoCard.id);
-    aboutButton.setAttribute("aria-expanded", "false");
-    const closeInfo = () => {
-      infoCard.hidden = true;
-      aboutButton.setAttribute("aria-expanded", "false");
-    };
-    const openInfo = () => {
-      infoCard.hidden = false;
-      aboutButton.setAttribute("aria-expanded", "true");
-      infoCloseButton.focus();
-    };
-    aboutButton.addEventListener("click", () => {
-      if (infoCard.hidden) {
-        openInfo();
-      } else {
-        closeInfo();
-      }
-    });
-    infoCloseButton.addEventListener("click", () => {
-      closeInfo();
-      aboutButton.focus();
-    });
-    hero.appendChild(aboutButton);
-  }
 
   gatePanel.appendChild(hero);
   return gatePanel;
@@ -9394,6 +10419,78 @@ function maybeSnapGeneratedQubitToSingleMeasurement(qubitItem) {
   runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime).catch(
     () => {},
   );
+  return true;
+}
+
+function generatedMailboxQubitIndex(qubitItem) {
+  const canvas = generatedCanvasForItem(qubitItem);
+  if (!canvas) {
+    return 0;
+  }
+  const qubits = Array.from(
+    canvas.querySelectorAll(':scope > .playground-node[data-component="qubit"]'),
+  );
+  const index = qubits.indexOf(qubitItem);
+  return index >= 0 ? index : 0;
+}
+
+function findBestGeneratedMailboxForQubit(canvas, qubitItem) {
+  if (!isGeneratedLayoutCanvas(canvas) || !isGeneratedQubitItem(qubitItem)) {
+    return null;
+  }
+  let bestMailbox = null;
+  let bestOverlap = MAILBOX_WINDOW_OVERLAP_THRESHOLD;
+  canvas
+    .querySelectorAll(':scope > .playground-node[data-component="mailbox"]')
+    .forEach((mailboxItem) => {
+      if (!isGeneratedMailboxItem(mailboxItem)) {
+        return;
+      }
+      const mailboxWindow = mailboxItem.querySelector(
+        '[data-role="mailbox-window"]',
+      );
+      if (!(mailboxWindow instanceof HTMLElement)) {
+        return;
+      }
+      const overlap = generatedQubitOverlapRatioWithRect(
+        qubitItem,
+        mailboxWindow,
+      );
+      if (overlap >= bestOverlap) {
+        bestOverlap = overlap;
+        bestMailbox = mailboxItem;
+      }
+    });
+  return bestMailbox;
+}
+
+function maybeSnapGeneratedQubitToMailbox(qubitItem) {
+  if (!isGeneratedQubitItem(qubitItem)) {
+    return false;
+  }
+  const canvas = generatedCanvasForItem(qubitItem);
+  if (!generatedCanvasAllowsRuntime(canvas)) {
+    return false;
+  }
+  const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
+  if (!canvas || !qubitState || qubitState.transiting) {
+    return false;
+  }
+  const mailboxItem = findBestGeneratedMailboxForQubit(canvas, qubitItem);
+  if (!mailboxItem) {
+    return false;
+  }
+  const mailboxWindow = mailboxItem.querySelector('[data-role="mailbox-window"]');
+  if (mailboxWindow instanceof HTMLElement) {
+    const center = generatedCanvasPointForElementCenter(canvas, mailboxWindow);
+    setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
+  }
+  setMailboxComponentStatus(mailboxItem, "");
+  handleMailboxQubitPlaced({
+    mailboxItem,
+    qubitItem,
+    qubitIndex: generatedMailboxQubitIndex(qubitItem),
+  });
   return true;
 }
 
@@ -12213,7 +13310,10 @@ function continueGeneratedRuntimeGesture(event) {
   if (maybeSnapGeneratedQubitToSeparatedPairMeasurement(gesture.item)) {
     return;
   }
-  maybeSnapGeneratedQubitToSingleMeasurement(gesture.item);
+  if (maybeSnapGeneratedQubitToSingleMeasurement(gesture.item)) {
+    return;
+  }
+  maybeSnapGeneratedQubitToMailbox(gesture.item);
 }
 
 function endGeneratedRuntimeGesture() {
@@ -12238,7 +13338,9 @@ function endGeneratedRuntimeGesture() {
       if (!maybeSnapGeneratedQubitToCnot(gesture.item)) {
         if (!maybeSnapGeneratedQubitToDoubleMeasurement(gesture.item)) {
           if (!maybeSnapGeneratedQubitToSeparatedPairMeasurement(gesture.item)) {
-            maybeSnapGeneratedQubitToSingleMeasurement(gesture.item);
+            if (!maybeSnapGeneratedQubitToSingleMeasurement(gesture.item)) {
+              maybeSnapGeneratedQubitToMailbox(gesture.item);
+            }
           }
         }
       }
@@ -13171,6 +14273,8 @@ function setupPlagroundComposer() {
   const isPlaygroundDoubleMeasurementItem = (item) =>
     item instanceof HTMLElement &&
     item.dataset.component === "double-measurement";
+  const isPlaygroundMailboxItem = (item) =>
+    item instanceof HTMLElement && item.dataset.component === "mailbox";
   const isPlaygroundEditableSavedGroupItem = (item) =>
     isSeparatedPairMeasurementGroupElement(item);
   const isPlaygroundMeasurementItem = (item) =>
@@ -13571,6 +14675,9 @@ function setupPlagroundComposer() {
     return panel instanceof HTMLElement && !panel.hidden;
   };
 
+  const isWorkshopTabMode = () => workshopEditorMode === "tab";
+  const isWorkshopComponentMode = () => workshopEditorMode === "component";
+
   const snapValue = (value) => {
     if (!isSnapEnabled()) {
       return value;
@@ -13624,6 +14731,7 @@ function setupPlagroundComposer() {
   const updateActionButtons = () => {
     const selectionCount = selectedComponentItems().length;
     const hasSelection = selectionCount > 0;
+    const componentMode = isWorkshopComponentMode();
     if (playgroundDuplicateButton) {
       playgroundDuplicateButton.disabled = !hasSelection;
     }
@@ -13631,8 +14739,11 @@ function setupPlagroundComposer() {
       playgroundDeleteButton.disabled = !hasSelection;
     }
     if (playgroundSaveComponentButton) {
-      playgroundSaveComponentButton.disabled = !hasSelection;
-      playgroundSaveComponentButton.classList.toggle("active", hasSelection);
+      playgroundSaveComponentButton.disabled = !componentMode || !hasSelection;
+      playgroundSaveComponentButton.classList.toggle(
+        "active",
+        componentMode && hasSelection,
+      );
     }
     if (playgroundSaveGroupButton) {
       playgroundSaveGroupButton.disabled = selectionCount < 2;
@@ -13996,7 +15107,7 @@ function setupPlagroundComposer() {
         : runtime.activeTick,
       tickAriaLabelPrefix: "Tick",
       orbitInset: 10,
-      canInteract: () => !layoutEditorState.enabled && !runtime.busy,
+      canInteract: () => !runtime.busy,
       onTickChange: (tick) => {
         runtime.activeTick = normalizeTickIndex(tick);
       },
@@ -14007,7 +15118,13 @@ function setupPlagroundComposer() {
     alignPlaygroundGateSpring(runtime);
 
     const gateArrowLayer = gateArrow.closest(".arrow-layer");
-    const beginDialDrag = (event) => runtime.dial?.beginDrag(event);
+    const beginDialDrag = (event) => {
+      if (!isPrimaryMouseButton(event)) {
+        return;
+      }
+      event.stopPropagation();
+      runtime.dial?.beginDrag(event);
+    };
     gateArrow.addEventListener("mousedown", beginDialDrag);
     gateArrow.addEventListener(
       "touchstart",
@@ -14814,6 +15931,66 @@ function setupPlagroundComposer() {
     return true;
   };
 
+  const playgroundMailboxQubitIndex = (qubitItem) => {
+    const qubits = Array.from(
+      playgroundCanvas.querySelectorAll(
+        ':scope > .playground-node[data-component="qubit"]',
+      ),
+    );
+    const index = qubits.indexOf(qubitItem);
+    return index >= 0 ? index : 0;
+  };
+
+  const findBestPlaygroundMailboxForQubit = (qubitItem) => {
+    let bestMailbox = null;
+    let bestOverlap = MAILBOX_WINDOW_OVERLAP_THRESHOLD;
+    playgroundCanvas
+      .querySelectorAll(':scope > .playground-node[data-component="mailbox"]')
+      .forEach((mailboxItem) => {
+        if (!isPlaygroundMailboxItem(mailboxItem)) {
+          return;
+        }
+        const mailboxWindow = mailboxItem.querySelector(
+          '[data-role="mailbox-window"]',
+        );
+        if (!(mailboxWindow instanceof HTMLElement)) {
+          return;
+        }
+        const overlap = qubitOverlapRatioWithRect(qubitItem, mailboxWindow);
+        if (overlap >= bestOverlap) {
+          bestOverlap = overlap;
+          bestMailbox = mailboxItem;
+        }
+      });
+    return bestMailbox;
+  };
+
+  const maybeSnapPlaygroundQubitToMailbox = (qubitItem) => {
+    if (layoutEditorState.enabled || !isPlaygroundQubitItem(qubitItem)) {
+      return false;
+    }
+    const qubitState = ensurePlaygroundQubitRuntimeState(qubitItem);
+    if (!qubitState || qubitState.transiting) {
+      return false;
+    }
+    const mailboxItem = findBestPlaygroundMailboxForQubit(qubitItem);
+    if (!mailboxItem) {
+      return false;
+    }
+    const mailboxWindow = mailboxItem.querySelector('[data-role="mailbox-window"]');
+    if (mailboxWindow instanceof HTMLElement) {
+      const center = canvasPointForElementCenter(mailboxWindow);
+      setPlaygroundQubitCenter(qubitItem, center.x, center.y);
+    }
+    setMailboxComponentStatus(mailboxItem, "");
+    handleMailboxQubitPlaced({
+      mailboxItem,
+      qubitItem,
+      qubitIndex: playgroundMailboxQubitIndex(qubitItem),
+    });
+    return true;
+  };
+
   const updatePlaygroundDoubleMeasurementTubeFills = (runtime) => {
     Object.entries(runtime.tubeCounts).forEach(([key, count]) => {
       const countElement = runtime.countElements[key];
@@ -15534,6 +16711,26 @@ function setupPlagroundComposer() {
     }
     if (
       layoutEditorState.enabled &&
+      isWorkshopComponentMode() &&
+      item.dataset.component === "single-gate" &&
+      !pointerIsOnResizeCorner(item, point)
+    ) {
+      const gateDialControl = origin.closest(
+        '[data-role="gate-arrow"], [data-role="ticks"], .arrow-layer, .tick',
+      );
+      if (
+        gateDialControl instanceof Element ||
+        pointerInsideGeneratedGateDial(item, point)
+      ) {
+        bringToFront(item);
+        setSelectedItem(item);
+        const runtime = ensurePlaygroundSingleGateRuntime(item);
+        runtime?.dial?.beginDrag(event);
+        return;
+      }
+    }
+    if (
+      layoutEditorState.enabled &&
       item.dataset.component === "double-measurement" &&
       !pointerIsOnResizeCorner(item, point)
     ) {
@@ -15551,21 +16748,23 @@ function setupPlagroundComposer() {
       }
     }
     if (layoutEditorState.enabled) {
-      preparePlaygroundMeasurementParts(item);
-      preparePlaygroundCnotParts(item);
-      const measurementPart = findPlaygroundMeasurementPartFromEvent(
-        item,
-        event,
-      );
-      if (
-        measurementPart &&
-        beginPlaygroundMeasurementPartGesture(item, measurementPart, event)
-      ) {
-        return;
-      }
-      const cnotPart = findPlaygroundCnotPartFromEvent(item, event);
-      if (cnotPart && beginPlaygroundCnotPartGesture(item, cnotPart, event)) {
-        return;
+      if (isWorkshopComponentMode()) {
+        preparePlaygroundMeasurementParts(item);
+        preparePlaygroundCnotParts(item);
+        const measurementPart = findPlaygroundMeasurementPartFromEvent(
+          item,
+          event,
+        );
+        if (
+          measurementPart &&
+          beginPlaygroundMeasurementPartGesture(item, measurementPart, event)
+        ) {
+          return;
+        }
+        const cnotPart = findPlaygroundCnotPartFromEvent(item, event);
+        if (cnotPart && beginPlaygroundCnotPartGesture(item, cnotPart, event)) {
+          return;
+        }
       }
     }
     if (layoutEditorState.enabled && pointerIsOnResizeCorner(item, point)) {
@@ -15806,6 +17005,7 @@ function setupPlagroundComposer() {
       if (maybeSnapPlaygroundQubitToSingleMeasurement(dragState.item)) {
         return;
       }
+      maybeSnapPlaygroundQubitToMailbox(dragState.item);
     }
   };
 
@@ -15845,6 +17045,10 @@ function setupPlagroundComposer() {
         return;
       }
       if (maybeSnapPlaygroundQubitToSingleMeasurement(dragState.item)) {
+        dragState = null;
+        return;
+      }
+      if (maybeSnapPlaygroundQubitToMailbox(dragState.item)) {
         dragState = null;
         return;
       }
@@ -15934,6 +17138,9 @@ function setupPlagroundComposer() {
           },
         );
       }
+    }
+    if (type === "mailbox") {
+      applyMailboxSnapshotToElement(item, geometry?.mailbox);
     }
     if (type === "single-gate" && Number.isFinite(geometry?.singleGateTick)) {
       item.dataset.playgroundSingleGateTick = `${normalizeTickIndex(geometry.singleGateTick)}`;
@@ -16030,6 +17237,12 @@ function setupPlagroundComposer() {
     if (item.dataset.component === "text-box") {
       Object.assign(serialized, captureTextBoxSnapshot(item));
     }
+    if (item.dataset.component === "mailbox") {
+      const mailbox = captureMailboxSnapshot(item);
+      if (mailbox) {
+        serialized.mailbox = mailbox;
+      }
+    }
     if (item.dataset.measurementGroupId) {
       serialized.measurementGroupId = item.dataset.measurementGroupId;
     }
@@ -16064,6 +17277,26 @@ function setupPlagroundComposer() {
 
   let currentEditorTabId = null;
   let currentEditorTabLabel = "";
+  let currentEditorDraftActive = false;
+
+  const editorHasEditableTab = () =>
+    Boolean(currentEditorTabId || currentEditorDraftActive);
+
+  const setEditorPanelOpen = (panel, open) => {
+    if (panel instanceof HTMLElement) {
+      panel.hidden = !open;
+    }
+  };
+
+  const closeTransientTabEditorPanels = ({ keepNew = false } = {}) => {
+    if (!keepNew) {
+      setEditorPanelOpen(editorNewTabPanel, false);
+    }
+    setEditorPanelOpen(editorOpenTabPanel, false);
+    if (isWorkshopTabMode()) {
+      setEditorPanelOpen(editorAddComponentPanel, false);
+    }
+  };
 
   const selectedOpenTargetId = () =>
     editorTargetTabSelect instanceof HTMLSelectElement &&
@@ -16090,6 +17323,7 @@ function setupPlagroundComposer() {
     }
     if (playgroundSaveButton instanceof HTMLButtonElement) {
       playgroundSaveButton.textContent = "Save";
+      playgroundSaveButton.disabled = !editorHasEditableTab();
     }
     if (editorRenameTabButton) {
       editorRenameTabButton.disabled = !currentEditorTabId;
@@ -16097,13 +17331,21 @@ function setupPlagroundComposer() {
     if (editorDeleteTabButton) {
       editorDeleteTabButton.disabled = !currentEditorTabId;
     }
+    if (editorAddComponentButton instanceof HTMLButtonElement) {
+      editorAddComponentButton.disabled = !editorHasEditableTab();
+    }
   };
 
-  const setCurrentEditorDocument = (targetId, label = "", { syncName = true } = {}) => {
+  const setCurrentEditorDocument = (
+    targetId,
+    label = "",
+    { syncName = true, draft = false } = {},
+  ) => {
     currentEditorTabId = targetId || null;
+    currentEditorDraftActive = !currentEditorTabId && Boolean(draft);
     currentEditorTabLabel = currentEditorTabId ? label : "";
     if (syncName && editorNewTabName instanceof HTMLInputElement) {
-      editorNewTabName.value = currentEditorTabLabel;
+      editorNewTabName.value = currentEditorTabId ? currentEditorTabLabel : label;
     }
     syncEditorDocumentChrome();
   };
@@ -16171,7 +17413,10 @@ function setupPlagroundComposer() {
   };
 
   const saveLayout = async () => {
-    persistVisiblePlaygroundComponentDefaultsFromDom();
+    if (!editorHasEditableTab()) {
+      setStatus("New or open a tab first");
+      return false;
+    }
     const payload = buildLayoutPayload();
     const layout = cloneJson(payload);
     if (!layout) {
@@ -16221,17 +17466,37 @@ function setupPlagroundComposer() {
         (entry) => entry.id === targetId,
       );
       if (!editorEntry) {
-        setStatus(contentFileSaveFailureMessage());
-        return false;
+        nextState.tabs.push({
+          id: targetId,
+          label: target.label,
+          layout,
+        });
+      } else {
+        editorEntry.layout = layout;
       }
-      editorEntry.layout = layout;
     }
 
     if (!writeGeneratedTabsState(nextState)) {
       setStatus(contentFileSaveFailureMessage());
       return false;
     }
-    applyGeneratedTabsState(nextState);
+    const persistedState =
+      window.location.protocol === "file:" ? nextState : readGeneratedTabsState();
+    const persistedEntry = (persistedState.tabs || []).find(
+      (entry) => entry?.id === savedTargetId,
+    );
+    if (persistedEntry?.layout?.savedAt !== layout.savedAt) {
+      setStatus(contentFileSaveFailureMessage());
+      return false;
+    }
+    savedLabel =
+      typeof persistedEntry.label === "string" && persistedEntry.label.trim()
+        ? persistedEntry.label
+        : savedLabel;
+    applyGeneratedTabsState(persistedState);
+    refreshGeneratedTabPanelFromState(savedTargetId, persistedState);
+    plagroundComposer?.handleGeneratedTabsChanged?.();
+    documentEditorComposer?.handleGeneratedTabsChanged?.();
     setCurrentEditorDocument(savedTargetId, savedLabel);
     refreshEditorTabControls(savedTargetId);
     try {
@@ -16243,6 +17508,7 @@ function setupPlagroundComposer() {
       // Keep tab save successful even if local draft persistence fails.
     }
     setStatus(`Saved to ${savedLabel}`);
+    returnToIntroductionLandingPage();
     return true;
   };
 
@@ -16287,14 +17553,17 @@ function setupPlagroundComposer() {
     if (applied) {
       setCurrentEditorDocument(target.id, target.label);
       refreshEditorTabControls(target.id);
+      closeTransientTabEditorPanels();
     }
     return applied;
   };
 
   const startNewBlankTabDraft = () => {
     clearLayout({ clearStorage: true });
-    setCurrentEditorDocument(null, "");
+    setCurrentEditorDocument(null, "", { draft: true });
     refreshEditorTabControls("__none__");
+    closeTransientTabEditorPanels({ keepNew: true });
+    setEditorPanelOpen(editorNewTabPanel, true);
     editorNewTabName?.focus();
     setStatus("New blank tab ready");
   };
@@ -16690,7 +17959,45 @@ function setupPlagroundComposer() {
     return selectedItem;
   };
 
+  const loadSelectedComponentForEditing = () => {
+    if (!isWorkshopComponentMode()) {
+      return false;
+    }
+    const selectedType = playgroundComponentSelect.value;
+    if (!selectedType) {
+      return false;
+    }
+    clearLayout({ clearStorage: true });
+    const item = createItem(selectedType);
+    appendItemToCanvas(item);
+    bringToFront(item);
+    const left = Math.max(
+      PLAYGROUND_GRID_SIZE,
+      Math.round((playgroundCanvas.clientWidth - item.offsetWidth) / 2),
+    );
+    const top = Math.max(
+      PLAYGROUND_GRID_SIZE,
+      Math.round((playgroundCanvas.clientHeight - item.offsetHeight) / 2),
+    );
+    const clamped = clampItemPosition(item, left, top);
+    item.style.left = `${Math.round(clamped.left)}px`;
+    item.style.top = `${Math.round(clamped.top)}px`;
+    setSelectedItem(item);
+    if (isPlaygroundCnotItem(item)) {
+      preparePlaygroundCnotParts(item);
+    }
+    if (isMeasurementComponentType(item.dataset.component)) {
+      preparePlaygroundMeasurementParts(item);
+    }
+    playgroundComponentSelect.value = selectedType;
+    setStatus("Component ready");
+    return true;
+  };
+
   playgroundCanvas.addEventListener("click", (event) => {
+    if (!isWorkshopTabMode()) {
+      return;
+    }
     const selectedType = playgroundComponentSelect.value;
     if (!selectedType) {
       return;
@@ -16751,6 +18058,25 @@ function setupPlagroundComposer() {
       saveSelectedGroupComponent();
     });
   }
+  playgroundComponentSelect.addEventListener("change", () => {
+    loadSelectedComponentForEditing();
+  });
+  if (editorAddComponentButton) {
+    editorAddComponentButton.addEventListener("click", () => {
+      if (!editorHasEditableTab()) {
+        setStatus("New or open a tab first");
+        return;
+      }
+      const nextOpen = editorAddComponentPanel instanceof HTMLElement
+        ? editorAddComponentPanel.hidden
+        : false;
+      closeTransientTabEditorPanels();
+      setEditorPanelOpen(editorAddComponentPanel, nextOpen);
+      if (nextOpen) {
+        playgroundComponentSelect?.focus();
+      }
+    });
+  }
   if (playgroundSaveButton) {
     playgroundSaveButton.addEventListener("click", () => {
       saveLayout().catch(() => {
@@ -16775,7 +18101,15 @@ function setupPlagroundComposer() {
   }
   if (editorOpenTabButton) {
     editorOpenTabButton.addEventListener("click", () => {
-      openSelectedEditorTab();
+      const nextOpen = editorOpenTabPanel instanceof HTMLElement
+        ? editorOpenTabPanel.hidden
+        : false;
+      closeTransientTabEditorPanels();
+      refreshEditorTabControls(editorTargetTabSelect?.value || "__none__");
+      setEditorPanelOpen(editorOpenTabPanel, nextOpen);
+      if (nextOpen) {
+        editorTargetTabSelect?.focus();
+      }
     });
   }
   if (editorNewTabButton) {
@@ -16783,8 +18117,21 @@ function setupPlagroundComposer() {
       startNewBlankTabDraft();
     });
   }
+  if (editorCloseNewTabButton) {
+    editorCloseNewTabButton.addEventListener("click", () => {
+      setEditorPanelOpen(editorNewTabPanel, false);
+      setStatus("");
+    });
+  }
   if (editorRenameTabButton) {
     editorRenameTabButton.addEventListener("click", () => {
+      if (editorNewTabPanel instanceof HTMLElement && editorNewTabPanel.hidden) {
+        setEditorPanelOpen(editorNewTabPanel, true);
+        editorNewTabName?.focus();
+        editorNewTabName?.select?.();
+        setStatus("Edit the name, then click Rename");
+        return;
+      }
       renameSelectedEditorTab();
     });
   }
@@ -16814,13 +18161,11 @@ function setupPlagroundComposer() {
       return;
     }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
-      if (duplicateSelected()) {
-        event.preventDefault();
-      }
+      event.preventDefault();
       return;
     }
     if (event.key === "Delete" || event.key === "Backspace") {
-      if (deleteSelected()) {
+      if (isWorkshopComponentMode() && deleteSelected()) {
         event.preventDefault();
       }
       return;
@@ -16895,6 +18240,20 @@ function setupPlagroundComposer() {
     },
     handleGeneratedTabsChanged: () => {
       refreshEditorTabControls();
+    },
+    handleWorkshopModeChanged: () => {
+      setSelectedItem(null);
+      endItemDrag();
+      endPlaygroundGateDialDrag();
+      if (isWorkshopTabMode()) {
+        playgroundComponentSelect.value = "";
+        closeTransientTabEditorPanels();
+      } else if (isWorkshopComponentMode()) {
+        setEditorPanelOpen(editorAddComponentPanel, true);
+      } else {
+        setEditorPanelOpen(editorAddComponentPanel, false);
+      }
+      updateActionButtons();
     },
   };
 }
@@ -17044,6 +18403,32 @@ function createSingleQubitGateDial({
   let dragStartTick = activeTick;
   const ticks = [];
 
+  function continueWindowDrag(event) {
+    continueDrag(event);
+  }
+
+  function endWindowDrag() {
+    endDrag();
+  }
+
+  function bindWindowDragEvents() {
+    window.addEventListener("mousemove", continueWindowDrag);
+    window.addEventListener("touchmove", continueWindowDrag, {
+      passive: false,
+    });
+    window.addEventListener("mouseup", endWindowDrag);
+    window.addEventListener("touchend", endWindowDrag);
+    window.addEventListener("touchcancel", endWindowDrag);
+  }
+
+  function unbindWindowDragEvents() {
+    window.removeEventListener("mousemove", continueWindowDrag);
+    window.removeEventListener("touchmove", continueWindowDrag);
+    window.removeEventListener("mouseup", endWindowDrag);
+    window.removeEventListener("touchend", endWindowDrag);
+    window.removeEventListener("touchcancel", endWindowDrag);
+  }
+
   function renderDialAtCurrentTick() {
     arrow.style.transform = `rotate(${activeTick * STEP_DEG}deg) scale(${ARROW_SCALE})`;
     ticks.forEach((tick, index) => {
@@ -17091,6 +18476,7 @@ function createSingleQubitGateDial({
       dragCenter.y,
     );
     arrow.style.transform = `rotate(${dragAngle}deg) scale(${ARROW_SCALE})`;
+    bindWindowDragEvents();
   }
 
   function continueDrag(event) {
@@ -17114,6 +18500,7 @@ function createSingleQubitGateDial({
     if (!dragCenter) {
       return;
     }
+    unbindWindowDragEvents();
     const snappedTick =
       dragAngle === null
         ? activeTick
@@ -20039,6 +21426,9 @@ function localLabMailboxFailureMessage(action, error) {
   if (/no longer pending|already claimed|mailbox_transfer_closed/i.test(message)) {
     return "Mailbox token already claimed. Send selected q to create a fresh link.";
   }
+  if (/Failed to fetch|not reachable|NetworkError|Load failed/i.test(message)) {
+    return `Mailbox ${action} failed: backend at ${localLabBackendBaseUrl()} is not reachable. Start it with npm run backend and try again.`;
+  }
   return `Mailbox ${action} failed: ${message}`;
 }
 
@@ -20056,11 +21446,18 @@ async function localLabReadJsonResponse(response) {
 
 async function localLabRequest(path, options = {}) {
   const body = options.body == null ? null : JSON.stringify(options.body);
-  const response = await fetch(`${localLabBackendBaseUrl()}${path}`, {
-    method: options.method || "GET",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body,
-  });
+  let response = null;
+  try {
+    response = await fetch(`${localLabBackendBaseUrl()}${path}`, {
+      method: options.method || "GET",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body,
+    });
+  } catch (_error) {
+    throw new Error(
+      `backend at ${localLabBackendBaseUrl()} is not reachable`,
+    );
+  }
   const payload = await localLabReadJsonResponse(response);
   if (!response.ok) {
     throw new Error(
@@ -20074,15 +21471,22 @@ async function localLabRequest(path, options = {}) {
 
 async function localLabEnsureMailboxRoom() {
   const roomId = localLabRoomId();
-  const response = await fetch(`${localLabBackendBaseUrl()}/rooms`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id: roomId,
-      label: "Local Lab mailbox",
-      ownerId: localLabParticipantName(),
-    }),
-  });
+  let response = null;
+  try {
+    response = await fetch(`${localLabBackendBaseUrl()}/rooms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: roomId,
+        label: "Local Lab mailbox",
+        ownerId: localLabParticipantName(),
+      }),
+    });
+  } catch (_error) {
+    throw new Error(
+      `backend at ${localLabBackendBaseUrl()} is not reachable`,
+    );
+  }
   if (response.status === 409) {
     return;
   }
@@ -20157,27 +21561,51 @@ async function localLabSyncMailboxRegister() {
   });
 }
 
-async function localLabSendMailboxTransfer() {
+async function localLabSendMailboxTransfer(options = {}) {
+  const setStatus =
+    typeof options.setStatus === "function"
+      ? options.setStatus
+      : localLabSetMailboxStatus;
+  const setLink =
+    typeof options.setLink === "function" ? options.setLink : localLabSetMailboxLink;
   const register = localLabRegister();
   if (!register) {
-    localLabSetMailboxStatus("Local register unavailable");
+    setStatus("Local register unavailable");
+    if (options.throwOnFailure) {
+      throw new Error("Local register unavailable");
+    }
     return;
   }
   const email =
-    localLabMailboxEmail instanceof HTMLInputElement
+    typeof options.email === "string"
+      ? options.email.trim()
+      : localLabMailboxEmail instanceof HTMLInputElement
       ? localLabMailboxEmail.value.trim()
       : "";
   if (!email) {
-    localLabSetMailboxStatus("Email required");
+    setStatus("Email required");
+    if (options.throwOnFailure) {
+      throw new Error("Email required");
+    }
     return;
   }
   const qubitIndex = localLabClampQubitIndex(
-    localLabState.selectedQubit,
+    Number.isInteger(options.qubitIndex)
+      ? options.qubitIndex
+      : localLabState.selectedQubit,
     register.numQubits,
   );
-  localLabSetMailboxStatus("Sending...");
+  setStatus("Sending...");
   try {
     await localLabSyncMailboxRegister();
+    const metadata = {
+      appLinkBase: window.location.origin,
+      frontendLinkTemplate: localLabMailboxFrontendLink("__TOKEN__"),
+    };
+    if (typeof options.message === "string" && options.message.trim()) {
+      metadata.emailSubject = "Paul sent you an entangled qubit";
+      metadata.emailBody = mailboxMessageBodyWithLinkPlaceholder(options.message);
+    }
     const payload = await localLabRequest(
       `/rooms/${encodeURIComponent(localLabRoomId())}/mailbox-transfers`,
       {
@@ -20186,10 +21614,9 @@ async function localLabSendMailboxTransfer() {
           registerId: LOCAL_LAB_REGISTER_ID,
           qubitIndex,
           email,
-          createdBy: "local-lab",
-          metadata: {
-            appLinkBase: window.location.origin,
-          },
+          from: localLabParticipantName(),
+          createdBy: localLabParticipantName(),
+          metadata,
         },
       },
     );
@@ -20197,11 +21624,26 @@ async function localLabSendMailboxTransfer() {
     if (!transfer?.token) {
       throw new Error("Backend did not return a mailbox token");
     }
-    const link = localLabMailboxFrontendLink(transfer.token);
-    localLabSetMailboxLink(link, transfer.token);
-    localLabSetMailboxStatus(`Mailbox link ready for q${qubitIndex}`);
+    const link = transfer.delivery?.link || localLabMailboxFrontendLink(transfer.token);
+    setLink(link, transfer.token);
+    if (transfer.delivery?.status === "sent") {
+      setStatus(`Mailbox email sent for q${qubitIndex}`);
+    } else if (transfer.delivery?.status === "send-failed") {
+      setStatus(`Mailbox email failed; link ready for q${qubitIndex}`);
+    } else if (transfer.delivery?.status === "queued-local") {
+      setStatus(
+        `Email not sent: mail delivery is not configured. Link ready for q${qubitIndex}`,
+      );
+    } else {
+      setStatus(`Mailbox link ready for q${qubitIndex}`);
+    }
+    return transfer;
   } catch (error) {
-    localLabSetMailboxStatus(localLabMailboxFailureMessage("send", error));
+    setStatus(localLabMailboxFailureMessage("send", error));
+    if (options.throwOnFailure) {
+      throw error;
+    }
+    return null;
   }
 }
 
@@ -20547,16 +21989,19 @@ async function localLabDistributedBobStart() {
           registerId: LOCAL_LAB_REGISTER_ID,
           qubitIndex: 1,
           email,
+          from: localLabParticipantName(),
           createdBy: localLabParticipantName(),
           metadata: {
             protocolId: localLabDistributedProtocolId(),
             role: "alice-pair-qubit",
+            frontendLinkTemplate: localLabMailboxFrontendLink("__TOKEN__"),
           },
         },
       },
     );
     const token = transferPayload.transfer?.token || "";
-    const link = token ? localLabMailboxFrontendLink(token) : "";
+    const link = transferPayload.transfer?.delivery?.link ||
+      (token ? localLabMailboxFrontendLink(token) : "");
     localLabSetDistributedMailboxLink(link);
     if (token) {
       localLabSetMailboxLink(link, token);
@@ -21285,10 +22730,32 @@ function setActiveTab(tabTarget) {
     return;
   }
 
+  if (tabTarget === "doc-editor" && workshopEditorMode !== "whats-this") {
+    workshopEditorMode = "whats-this";
+    document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
+    syncWorkshopModeButtons();
+  } else if (tabTarget === "local-lab" && workshopEditorMode !== "local-lab") {
+    workshopEditorMode = "local-lab";
+    document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
+    syncWorkshopModeButtons();
+  } else if (
+    tabTarget === "plaground" &&
+    (workshopEditorMode === "whats-this" || workshopEditorMode === "local-lab")
+  ) {
+    workshopEditorMode = "tab";
+    document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
+    syncWorkshopModeButtons();
+  }
+
   document.documentElement.dataset.activeTabTarget = tabTarget;
+  const isLandingPage = Boolean(generatedLandingPageEntryForTabId(tabTarget));
+  document.documentElement.classList.toggle(
+    "landing-page-active",
+    isLandingPage,
+  );
   document.documentElement.classList.toggle(
     "github-pages-experiment-active",
-    IS_GITHUB_PAGES_BUILD && !generatedLandingPageEntryForTabId(tabTarget),
+    IS_GITHUB_PAGES_BUILD && !isLandingPage,
   );
 
   const previousActiveTarget =
@@ -21371,6 +22838,53 @@ function removeAuthoringTabsForGithubPages() {
 }
 
 removeAuthoringTabsForGithubPages();
+document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
+syncWorkshopModeButtons();
+workshopModeButtons.forEach((button) => {
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+  button.addEventListener("click", () => {
+    setWorkshopEditorMode(button.dataset.workshopMode || "tab");
+  });
+});
+if (workshopPasswordForm instanceof HTMLFormElement) {
+  workshopPasswordForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const password =
+      workshopPasswordInput instanceof HTMLInputElement
+        ? workshopPasswordInput.value.trim()
+        : "";
+    if (password === WORKSHOP_PASSWORD) {
+      unlockWorkshop();
+      return;
+    }
+    if (workshopPasswordStatus instanceof HTMLElement) {
+      workshopPasswordStatus.textContent = "Try again";
+    }
+    if (workshopPasswordInput instanceof HTMLInputElement) {
+      workshopPasswordInput.select();
+      workshopPasswordInput.focus();
+    }
+  });
+}
+workshopPasswordCancelButton?.addEventListener("click", () => {
+  closeWorkshopPasswordDialog();
+});
+workshopPasswordOverlay?.addEventListener("click", (event) => {
+  if (event.target === workshopPasswordOverlay) {
+    closeWorkshopPasswordDialog();
+  }
+});
+window.addEventListener("keydown", (event) => {
+  if (
+    event.key === "Escape" &&
+    workshopPasswordOverlay instanceof HTMLElement &&
+    !workshopPasswordOverlay.hidden
+  ) {
+    closeWorkshopPasswordDialog();
+  }
+});
 tabButtons.forEach((button) => registerTabButton(button));
 restoreGeneratedTabs();
 plagroundComposer?.handleGeneratedTabsChanged?.();
@@ -21390,7 +22904,17 @@ function initialGithubPagesTabTarget() {
 }
 
 function initialLocalTabTarget() {
-  return localLabMailboxTokenFromLocation() ? "local-lab" : "plaground";
+  if (localLabMailboxTokenFromLocation()) {
+    return "local-lab";
+  }
+  const hashTarget = window.location.hash.replace(/^#/, "");
+  if (hashTarget && document.getElementById(`panel-${hashTarget}`)) {
+    return hashTarget;
+  }
+  const introductionEntry = (generatedTabsState.tabs || []).find(
+    (entry) => isGeneratedLandingPageTab(entry),
+  );
+  return introductionEntry?.id || "plaground";
 }
 
 setActiveTab(

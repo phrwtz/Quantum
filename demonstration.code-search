@@ -1,0 +1,15 @@
+# Query: demonstration
+# Flags: CaseSensitive
+# ContextLines: 1
+
+2 results - 2 files
+
+data/generated-tabs.json:
+  15              "z": 657,
+  16: ⟪ 506 characters skipped ⟫ bizarre properties. Each room can be accessed through tabs in your browser, and each comes with a Reset button and a What's this? button. We strongly suggest that you click on What's this? to get a demonstration of the functioning of the tab and a brief description of the physics behind it.",
+  17              "buttons": [
+
+data/repository-content.js:
+  2    window.__QUANTUM_REPOSITORY_CONTENT__ = {
+  3: ⟪ 710 characters skipped ⟫ bizarre properties. Each room can be accessed through tabs in your browser, and each comes with a Reset button and a What's this? button. We strongly suggest that you click on What's this? to get a demonstration of the functioning of the tab and a brief description of the physics behind it.","buttons":["done"],"buttonMode":"done"}],"gridSnap":true,"canvasWidth":1600,"canvasHeight":760,"savedAt":1781546338603}},{"id":"custom-one-qubit","label":"One qubit","layout":{"items":[{"type":"single-gate","left":234,"top":312,"width":338,"height":208,"z":929,"singleGateTick":3},{"type":"single-measurement","left":780,"top":26,"width":442,"height":520,"z":899,"measurementLayout":{"parts":{"capacity":{"tx":-3,"ty":5,"width":"","height":"","deleted":false},"blueTube":{"tx":-15,"ty":45,"width":"","height":"","deleted":false},"redTube":{"tx":13,"ty":43,"width":"","height":"","deleted":false},"blueTubeCount":0,"redTubeCount":0,"magnifier":{"tx":-2,"ty":47,"width":"","height":"","deleted":false},"measurementCount":{"tx":0,"ty":46,"width":"74px","height":"28px","deleted":false}}}},{"type":"qubit","left":105,"top":353,"width":65,"height":65,"z":1073,"qubitId":351}],"gridSnap":false,"canvasWidth":159
+  4    };

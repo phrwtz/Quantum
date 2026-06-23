@@ -12,6 +12,7 @@ const expectedPublishedTabLabels = [
   "Two qubits",
   "Entanglement 1",
   "Entanglement 2",
+  "Teleportation",
 ];
 
 const mimeTypes = {

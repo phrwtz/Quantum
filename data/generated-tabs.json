@@ -238,11 +238,10 @@
                 "height": "209px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "416px",
-                  "top": "208px",
+                  "left": "350px",
+                  "top": "76px",
                   "width": "373px",
-                  "height": "209px",
-                  "translate": "0px"
+                  "height": "209px"
                 }
               },
               "body": {
@@ -412,7 +411,7 @@
         "gridSnap": true,
         "canvasWidth": 1598,
         "canvasHeight": 760,
-        "savedAt": 1781547297097
+        "savedAt": 1782070411670
       }
     },
     {
@@ -471,11 +470,10 @@
                 "height": "209px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "416px",
-                  "top": "208px",
+                  "left": "350px",
+                  "top": "76px",
                   "width": "373px",
-                  "height": "209px",
-                  "translate": "0px"
+                  "height": "209px"
                 }
               },
               "body": {
@@ -648,7 +646,36 @@
         "gridSnap": false,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1781547297097
+        "savedAt": 1782070411670
+      }
+    },
+    {
+      "id": "editor-test",
+      "label": "test",
+      "layout": {
+        "items": [
+          {
+            "type": "qubit",
+            "left": 104,
+            "top": 208,
+            "width": 72,
+            "height": 72,
+            "z": 20,
+            "qubitId": 129890
+          },
+          {
+            "type": "mailbox",
+            "left": 390,
+            "top": 130,
+            "width": 373,
+            "height": 240,
+            "z": 17
+          }
+        ],
+        "gridSnap": true,
+        "canvasWidth": 1354,
+        "canvasHeight": 760,
+        "savedAt": 1782237880370
       }
     }
   ]

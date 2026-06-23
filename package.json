@@ -6,10 +6,10 @@
   "scripts": {
     "backend": "node backend/server.cjs",
     "build:pages": "node scripts/build-pages.cjs",
-    "check": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs",
+    "check": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs",
     "serve": "node scripts/serve-local.cjs",
     "sync:content": "node scripts/sync-content-bundle.cjs",
-    "test": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node scripts/test-quantum-core.cjs && node scripts/test-backend.cjs && node scripts/smoke-generated-tabs.cjs",
+    "test": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs && node scripts/test-quantum-core.cjs && node scripts/test-backend.cjs && node scripts/smoke-generated-tabs.cjs",
     "test:backend": "node scripts/test-backend.cjs",
     "test:pages": "node scripts/build-pages.cjs && node scripts/smoke-pages-build.cjs",
     "test:smoke": "node scripts/smoke-generated-tabs.cjs"

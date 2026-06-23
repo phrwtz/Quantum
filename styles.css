@@ -192,7 +192,22 @@ html[data-quantum-target="github-pages"] .generated-editor-toolbar {
   display: none;
 }
 
+#tab-doc-editor,
+body:not(.workshop-unlocked) #tab-plaground,
+body:not(.workshop-unlocked) #panel-plaground,
+body:not(.workshop-unlocked) #panel-doc-editor {
+  display: none;
+}
+
 html[data-quantum-target="github-pages"] .tab-strip {
+  display: none;
+}
+
+html.landing-page-active .tab-strip {
+  display: none;
+}
+
+body.workshop-unlocked .tab-strip {
   display: none;
 }
 
@@ -236,6 +251,46 @@ html[data-quantum-target="github-pages"] .tabs-shell {
   padding: 1rem 1rem 1.2rem;
 }
 
+.workshop-mode-strip {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 0 0.55rem;
+}
+
+.workshop-mode-btn {
+  appearance: none;
+  min-width: 116px;
+  height: 2rem;
+  padding: 0 0.8rem;
+  border: 1px solid #6e8799;
+  border-radius: 0.45rem;
+  color: #18374f;
+  background: linear-gradient(165deg, #f8fdff, #d9e8f2);
+  box-shadow: 0 2px 4px rgba(16, 41, 63, 0.14);
+  font:
+    700 0.78rem/1 "Aldrich",
+    sans-serif;
+  cursor: pointer;
+}
+
+.workshop-mode-btn.active {
+  border-color: #376b8f;
+  color: #0f2c43;
+  background: linear-gradient(165deg, #fff3d8, #ffdcae);
+  box-shadow:
+    0 0 0 2px rgba(255, 188, 93, 0.26),
+    0 2px 4px rgba(16, 41, 63, 0.18);
+}
+
+.workshop-mode-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(58, 109, 147, 0.24),
+    0 2px 4px rgba(16, 41, 63, 0.18);
+}
+
 .playground-toolbar {
   display: grid;
   align-items: stretch;
@@ -245,6 +300,50 @@ html[data-quantum-target="github-pages"] .tabs-shell {
   font:
     600 0.9rem/1 "Chakra Petch",
     sans-serif;
+}
+
+html[data-workshop-editor-mode="tab"]
+  #playgroundDuplicateButton,
+html[data-workshop-editor-mode="tab"] #playgroundDeleteButton,
+html[data-workshop-editor-mode="tab"] #playgroundSaveComponentButton,
+html[data-workshop-editor-mode="tab"] #playgroundSaveGroupButton,
+html[data-workshop-editor-mode="tab"] #panel-plaground .playground-hint,
+html[data-workshop-editor-mode="component"]
+  #panel-plaground
+  .editor-document-tools,
+html[data-workshop-editor-mode="component"]
+  #panel-plaground
+  .playground-snap-label,
+html[data-workshop-editor-mode="component"] #playgroundDuplicateButton,
+html[data-workshop-editor-mode="component"] #playgroundSaveGroupButton,
+html[data-workshop-editor-mode="component"] #playgroundLoadButton,
+html[data-workshop-editor-mode="component"] #panel-plaground .playground-hint {
+  display: none;
+}
+
+html[data-workshop-editor-mode="tab"]
+  #panel-plaground
+  [data-layout-edit-target="true"] {
+  outline: none;
+  cursor: inherit;
+}
+
+html[data-workshop-editor-mode="tab"]
+  #panel-plaground
+  [data-layout-edit-target="true"]
+  .layout-resize-handle {
+  display: none;
+}
+
+.editor-action-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.editor-action-panel[hidden] {
+  display: none;
 }
 
 .editor-toolbar-group {
@@ -792,6 +891,69 @@ html[data-quantum-target="github-pages"] .tabs-shell {
   color: #14344d;
 }
 
+.workshop-password-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 16, 29, 0.54);
+}
+
+.workshop-password-overlay[hidden] {
+  display: none;
+}
+
+.workshop-password-modal {
+  width: min(360px, calc(100vw - 2rem));
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 0.5rem;
+  color: #13334c;
+  background: linear-gradient(165deg, #f8fdff, #d9e8f2);
+  box-shadow:
+    0 22px 44px rgba(1, 15, 30, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  font:
+    700 0.82rem/1.2 "Aldrich",
+    sans-serif;
+}
+
+.workshop-password-modal h2 {
+  margin: 0;
+  color: #0f2c43;
+  font-size: 1.18rem;
+}
+
+.workshop-password-modal input {
+  height: 2.2rem;
+  border: 1px solid #6e8799;
+  border-radius: 0.42rem;
+  padding: 0 0.6rem;
+  color: #17344f;
+  background: #ffffff;
+  font:
+    700 1rem/1 "Aldrich",
+    sans-serif;
+}
+
+.workshop-password-status {
+  min-height: 1rem;
+  color: #9c2630;
+  font:
+    700 0.72rem/1.2 "Aldrich",
+    sans-serif;
+}
+
+.workshop-password-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .playground-canvas {
   position: relative;
   width: min(94vw, 1600px);
@@ -1159,7 +1321,7 @@ body.layout-edit-active #panel-plaground .playground-node.component-group * {
 
 #panel-plaground .playground-node .pair-capacity {
   box-sizing: border-box;
-  width: 314px;
+  width: 397px;
   min-width: 0;
   max-width: 100%;
   justify-self: center;
@@ -1180,12 +1342,13 @@ body.layout-edit-active #panel-plaground .playground-node.component-group * {
 }
 
 #panel-plaground .playground-node .pair-magnifier {
-  width: 314px;
+  width: 397px;
   max-width: none;
   min-width: 0;
   border: 0;
   border-radius: 0;
-  background: url("New magnifying glass.png") center / 100% 100% no-repeat;
+  background: url("Wide%20magnifying%20glass%20transparent.png") center / 100%
+    100% no-repeat;
   box-shadow: none;
 }
 
@@ -1480,6 +1643,31 @@ body.layout-edit-active .saved-component-group .pair-ejection-site {
 }
 
 .landing-tour-sign:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(255, 245, 174, 0.82),
+    0 9px 18px rgba(28, 20, 11, 0.32);
+}
+
+.landing-workshop-sign {
+  position: absolute;
+  right: 0;
+  top: 0;
+  appearance: none;
+  min-width: clamp(7rem, 12vw, 10rem);
+  min-height: clamp(2.25rem, 4.8vw, 3.25rem);
+  padding: 0.62rem 0.95rem 0.55rem;
+  cursor: pointer;
+  transform: rotate(2deg);
+}
+
+.landing-workshop-sign:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 248, 196, 1), rgba(255, 194, 95, 1)),
+    linear-gradient(90deg, rgba(88, 54, 21, 0.12), transparent 32%, rgba(88, 54, 21, 0.1));
+}
+
+.landing-workshop-sign:focus-visible {
   outline: none;
   box-shadow:
     0 0 0 3px rgba(255, 245, 174, 0.82),
@@ -1987,6 +2175,20 @@ body:not(.layout-edit-active)
   pointer-events: auto;
 }
 
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.qubit-mailbox
+  .mailbox-window,
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.qubit-mailbox,
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.qubit-mailbox
+  .mailbox-email-link {
+  pointer-events: auto;
+}
+
 .doc-runtime-canvas .playground-node,
 .doc-runtime-canvas .playground-node * {
   pointer-events: none !important;
@@ -2089,6 +2291,7 @@ body.layout-edit-active
 #panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.cnot-gate,
+.generated-layout-canvas .playground-node.qubit-mailbox,
 .generated-layout-canvas .playground-node.measurement-stage,
 .generated-layout-canvas .playground-node.pair-measurement,
 .generated-layout-canvas .playground-node.measurement-piece,
@@ -2103,6 +2306,7 @@ body.layout-edit-active
 #panel-plaground .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.cnot-gate,
+.generated-layout-canvas .playground-node.qubit-mailbox,
 .generated-layout-canvas .playground-node.playground-text-box {
   width: 100%;
   height: 100%;
@@ -2136,7 +2340,7 @@ body.layout-edit-active
 
 .generated-layout-canvas .playground-node .pair-capacity {
   box-sizing: border-box;
-  width: 314px;
+  width: 397px;
   min-width: 0;
   max-width: 100%;
   justify-self: center;
@@ -2157,12 +2361,13 @@ body.layout-edit-active
 }
 
 .generated-layout-canvas .playground-node .pair-magnifier {
-  width: 314px;
+  width: 397px;
   max-width: none;
   min-width: 0;
   border: 0;
   border-radius: 0;
-  background: url("New magnifying glass.png") center / 100% 100% no-repeat;
+  background: url("Wide%20magnifying%20glass%20transparent.png") center / 100%
+    100% no-repeat;
   box-shadow: none;
 }
 
@@ -2190,6 +2395,341 @@ body.layout-edit-active
 .generated-layout-canvas
   .playground-node.measurement-piece-measurement-count-menu {
   padding: 0;
+}
+
+.qubit-mailbox {
+  position: relative;
+  box-sizing: border-box;
+  width: 373px;
+  height: 240px;
+  min-width: 260px;
+  min-height: 170px;
+  overflow: visible;
+  font-family: inherit;
+}
+
+.mailbox-shell {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 10%;
+  bottom: 8%;
+  border: 3px solid #5f6f7f;
+  border-radius: 48% 48% 12px 12px / 42% 42% 12px 12px;
+  background:
+    linear-gradient(
+      90deg,
+      #73818e 0%,
+      #a8b6c3 34%,
+      #eef4fa 50%,
+      #a2b1bf 66%,
+      #6f7d8b 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(244, 249, 253, 0.95) 0%,
+      rgba(183, 197, 211, 0.94) 48%,
+      rgba(122, 137, 151, 0.97) 100%
+    );
+  box-shadow:
+    inset 0 10px 14px rgba(255, 255, 255, 0.42),
+    inset 0 -12px 16px rgba(35, 52, 69, 0.28),
+    0 4px 8px rgba(16, 35, 52, 0.25);
+}
+
+.mailbox-shell::after {
+  content: "";
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  bottom: -12px;
+  height: 18px;
+  border-radius: 0 0 12px 12px;
+  border: 2px solid rgba(78, 94, 109, 0.82);
+  background: linear-gradient(180deg, #9aa9b7, #697887);
+  box-shadow: 0 3px 5px rgba(16, 35, 52, 0.22);
+}
+
+.mailbox-window {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  z-index: 4;
+  width: min(28%, 82px);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px solid rgba(53, 80, 102, 0.78);
+  background: radial-gradient(
+    circle at 34% 30%,
+    rgba(255, 255, 255, 0.82),
+    rgba(206, 228, 247, 0.46) 56%,
+    rgba(169, 198, 220, 0.58)
+  );
+  box-shadow:
+    inset 0 8px 16px rgba(255, 255, 255, 0.45),
+    inset 0 -10px 16px rgba(53, 80, 102, 0.25),
+    0 2px 4px rgba(20, 38, 55, 0.22);
+}
+
+.mailbox-status {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  bottom: -34px;
+  z-index: 5;
+  min-height: 1rem;
+  color: #233545;
+  font-size: 0.7rem;
+  font-weight: 750;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.mailbox-email-link {
+  position: absolute;
+  left: 50%;
+  bottom: -58px;
+  z-index: 5;
+  transform: translateX(-50%);
+  color: #0d4e8a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.mailbox-send-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(17, 29, 40, 0.36);
+}
+
+.mailbox-send-overlay[hidden] {
+  display: none;
+}
+
+.mailbox-send-form {
+  box-sizing: border-box;
+  width: min(480px, 100%);
+  border: 2px solid #4f5f6e;
+  border-radius: 8px;
+  background: #fffdf5;
+  color: #233545;
+  padding: 1rem;
+  box-shadow: 0 18px 34px rgba(20, 38, 55, 0.28);
+}
+
+.mailbox-send-title {
+  margin: 0 0 0.85rem;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.mailbox-send-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-weight: 800;
+}
+
+.mailbox-send-field input,
+.mailbox-send-field textarea,
+.mailbox-send-field select {
+  box-sizing: border-box;
+  width: 100%;
+  border: 2px solid rgba(62, 84, 104, 0.72);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #233545;
+  font: inherit;
+  font-weight: 650;
+  padding: 0.45rem 0.55rem;
+}
+
+.mailbox-send-field textarea {
+  min-height: 8rem;
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.mailbox-send-field input:focus,
+.mailbox-send-field textarea:focus,
+.mailbox-send-field select:focus {
+  outline: 2px solid rgba(69, 145, 217, 0.75);
+  outline-offset: 1px;
+}
+
+.mailbox-room-join {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mailbox-room-join[hidden],
+.mailbox-room-panel[hidden],
+.mailbox-room-send-panel[hidden] {
+  display: none;
+}
+
+.mailbox-room-join-button,
+.mailbox-room-send-button,
+.mailbox-room-chat-button {
+  justify-self: end;
+  min-width: 6.5rem;
+}
+
+.mailbox-room-summary {
+  margin-bottom: 0.65rem;
+  color: #365067;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.mailbox-room-columns {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.75fr) minmax(0, 1.4fr);
+  gap: 0.8rem;
+}
+
+.mailbox-room-columns h3 {
+  margin: 0 0 0.35rem;
+  color: #233545;
+  font-size: 0.82rem;
+}
+
+.mailbox-room-occupants {
+  min-height: 5rem;
+  max-height: 9.5rem;
+  margin: 0;
+  padding: 0.45rem 0.55rem 0.45rem 1.2rem;
+  overflow: auto;
+  border: 1px solid rgba(79, 95, 110, 0.45);
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.mailbox-room-feed {
+  min-height: 5rem;
+  max-height: 9.5rem;
+  overflow: auto;
+  border: 1px solid rgba(79, 95, 110, 0.45);
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0.45rem 0.55rem;
+}
+
+.mailbox-room-event,
+.mailbox-room-empty {
+  margin: 0 0 0.35rem;
+  color: #233545;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.mailbox-room-event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mailbox-room-event-roommailbox-sent {
+  color: #0d4e8a;
+  font-weight: 800;
+}
+
+.mailbox-room-receive-button {
+  flex: 0 0 auto;
+  min-width: 4.8rem !important;
+  padding: 0.25rem 0.45rem !important;
+  font-size: 0.72rem !important;
+}
+
+.mailbox-room-send-panel {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(79, 95, 110, 0.35);
+}
+
+.mailbox-room-send-panel .mailbox-send-field textarea {
+  min-height: 4.4rem;
+}
+
+.mailbox-room-chat-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.mailbox-room-chat-input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 2px solid rgba(62, 84, 104, 0.72);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #233545;
+  font: inherit;
+  font-weight: 650;
+  padding: 0.45rem 0.55rem;
+}
+
+.mailbox-send-status {
+  min-height: 1.1rem;
+  color: #365067;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.mailbox-send-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+}
+
+.mailbox-send-form button,
+.mailbox-send-actions button {
+  min-width: 5.5rem;
+  border: 2px solid #4f5f6e;
+  border-radius: 6px;
+  background: #f7fafc;
+  color: #233545;
+  font: inherit;
+  font-weight: 850;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.mailbox-send-actions button[type="submit"],
+.mailbox-room-join-button,
+.mailbox-room-send-button,
+.mailbox-room-chat-button {
+  background: #2f6f9f;
+  border-color: #255c84;
+  color: #ffffff;
+}
+
+.mailbox-send-form button:disabled,
+.mailbox-send-actions button:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+@media (max-width: 560px) {
+  .mailbox-room-columns,
+  .mailbox-room-chat-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cnot-gate {
@@ -2487,7 +3027,7 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   position: relative;
   flex: 0 0 auto;
   width: max-content;
-  min-width: 314px;
+  min-width: 397px;
   margin-left: auto;
   margin-right: calc(220px - 0.7rem);
   margin-top: 0;
@@ -2498,7 +3038,7 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 
 .pair-capacity {
   width: max-content;
-  min-width: 314px;
+  min-width: 397px;
   min-height: 32px;
   border-radius: 0.45rem;
   border: 1px solid #869bae;
@@ -2538,16 +3078,35 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   display: grid;
   place-items: center;
   text-align: center;
-  color: #1f3e57;
-  font:
-    600 0.75rem/1.02 "Aldrich",
-    sans-serif;
-  letter-spacing: 0.01em;
   row-gap: 0.02rem;
 }
 
-.pair-tube-label span {
+.tube-label {
+  order: 2;
+  width: 42px;
+  min-height: 0.56rem;
+  display: grid;
+  place-items: center;
+  margin: -0.08rem 0 -0.12rem;
+}
+
+.measurement-dot {
   display: block;
+  width: 0.56rem;
+  height: 0.56rem;
+  border-radius: 50%;
+  border: 1px solid rgba(18, 38, 55, 0.28);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.46),
+    0 1px 2px rgba(12, 32, 50, 0.2);
+}
+
+.measurement-dot-blue {
+  background: rgb(38, 111, 247);
+}
+
+.measurement-dot-red {
+  background: rgb(225, 54, 56);
 }
 
 .pair-tube {
@@ -2555,37 +3114,17 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
   height: 126px;
 }
 
-.pair-liquid-br,
-.pair-liquid-rb {
-  background: rgba(122, 84, 177, 0.9);
-}
-
 .pair-magnifier {
   position: relative;
   justify-self: center;
-  width: 100%;
-  max-width: 314px;
+  width: 397px;
+  max-width: none;
   height: 188px;
   border-radius: 999px;
-  border: 3px solid #5f6f7f;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(239, 245, 251, 0.95) 0%,
-      rgba(186, 199, 212, 0.92) 38%,
-      rgba(122, 137, 151, 0.96) 50%,
-      rgba(171, 185, 198, 0.94) 66%,
-      rgba(212, 222, 232, 0.95) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.14) 0 2px,
-      rgba(255, 255, 255, 0) 2px 8px
-    );
-  box-shadow:
-    inset 0 8px 10px rgba(255, 255, 255, 0.5),
-    inset 0 -10px 12px rgba(38, 58, 76, 0.28),
-    0 3px 7px rgba(16, 35, 52, 0.25);
+  border: 0;
+  background: url("Wide%20magnifying%20glass%20transparent.png") center / 100%
+    100% no-repeat;
+  box-shadow: none;
 }
 
 .pair-magnifier::before {
@@ -3367,6 +3906,7 @@ body.layout-edit-active .pair-ejection-site {
 }
 
 .tube-count {
+  order: 1;
   width: 42px;
   min-height: 26px;
   border-radius: 0.38rem;
@@ -3382,6 +3922,7 @@ body.layout-edit-active .pair-ejection-site {
 }
 
 .tube {
+  order: 3;
   width: 42px;
   height: 150px;
   border-radius: 0 0 14px 14px;
@@ -3407,15 +3948,15 @@ body.layout-edit-active .pair-ejection-site {
   right: 0;
   bottom: 0;
   height: 0%;
+  background: #a8a9a0;
   transition: height 360ms ease-out;
 }
 
-.tube-liquid-blue {
-  background: rgba(38, 111, 247, 0.9);
-}
-
-.tube-liquid-red {
-  background: rgba(225, 54, 56, 0.9);
+.tube-liquid-blue,
+.tube-liquid-red,
+.pair-liquid-br,
+.pair-liquid-rb {
+  background: #a8a9a0;
 }
 
 .magnifier {

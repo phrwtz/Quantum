@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const { createMailboxMailer } = require("../backend/mail.cjs");
 const { createServer } = require("../backend/server.cjs");
 
 function listen(server) {
@@ -21,8 +22,8 @@ function close(server) {
   });
 }
 
-async function withBackend(callback) {
-  const server = createServer();
+async function withBackend(callback, options = {}) {
+  const server = createServer(options);
   const baseUrl = await listen(server);
   try {
     await callback(baseUrl);
@@ -161,7 +162,11 @@ test("backend creates and claims mailbox transfers with register snapshots", asy
         registerId: "source-register",
         qubitIndex: 1,
         email: "alice@example.com",
+        from: "bob@example.com",
         createdBy: "bob",
+        metadata: {
+          frontendLinkTemplate: "http://lab.test/?tourMailbox=__TOKEN__",
+        },
       },
     });
     assert.equal(transfer.response.status, 201);
@@ -171,6 +176,15 @@ test("backend creates and claims mailbox transfers with register snapshots", asy
     assert.equal(transfer.body.transfer.payload.register.numQubits, 2);
     assert.match(transfer.body.transfer.token, /^mbx_/);
     assert.match(transfer.body.transfer.url, /\/mailbox\/mbx_/);
+    assert.equal(transfer.body.transfer.from, "bob@example.com");
+    assert.equal(transfer.body.transfer.delivery.status, "queued-local");
+    assert.equal(transfer.body.transfer.delivery.to, "alice@example.com");
+    assert.equal(transfer.body.transfer.delivery.from, "bob@example.com");
+    assert.match(
+      transfer.body.transfer.delivery.link,
+      /^http:\/\/lab\.test\/\?tourMailbox=mbx_/,
+    );
+    assert.match(transfer.body.transfer.delivery.mailto, /^mailto:alice%40example\.com\?/);
 
     const token = transfer.body.transfer.token;
     const fetched = await api(baseUrl, `/mailbox-transfers/${token}`);
@@ -200,6 +214,115 @@ test("backend creates and claims mailbox transfers with register snapshots", asy
     assert.equal(duplicateClaim.response.status, 409);
     assert.equal(duplicateClaim.body.error.code, "mailbox_transfer_closed");
   });
+});
+
+test("mailbox mailer sends transfer email through Resend", async () => {
+  const requests = [];
+  const mailer = createMailboxMailer({
+    env: {
+      MAIL_DELIVERY_PROVIDER: "resend",
+      MAIL_FROM: "Qubit Lab <send@example.com>",
+      RESEND_API_KEY: "test_api_key",
+      RESEND_API_URL: "https://resend.test/emails",
+    },
+    fetchImpl: async (url, options) => {
+      requests.push({
+        url,
+        headers: options.headers,
+        body: JSON.parse(options.body),
+      });
+      return new Response(JSON.stringify({ id: "eml_test_123" }), {
+        status: 200,
+      });
+    },
+  });
+
+  assert.equal(mailer.isConfigured(), true);
+  const delivery = await mailer.sendMailboxTransfer({
+    email: "alice@example.com",
+    delivery: {
+      status: "queued-local",
+      to: "alice@example.com",
+      from: "bob@example.com",
+      subject: "A qubit is waiting for you in Qubit Lab",
+      body: "Bob sent you a qubit.\nhttp://lab.test/?tourMailbox=mbx_demo",
+      link: "http://lab.test/?tourMailbox=mbx_demo",
+      mailto: "mailto:alice@example.com",
+    },
+  });
+
+  assert.equal(delivery.status, "sent");
+  assert.equal(delivery.provider, "resend");
+  assert.equal(delivery.providerMessageId, "eml_test_123");
+  assert.equal(delivery.mailFrom, "Qubit Lab <send@example.com>");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://resend.test/emails");
+  assert.equal(requests[0].headers.Authorization, "Bearer test_api_key");
+  assert.deepEqual(requests[0].body.to, ["alice@example.com"]);
+  assert.equal(requests[0].body.from, "Qubit Lab <send@example.com>");
+  assert.equal(requests[0].body.text.includes("mbx_demo"), true);
+});
+
+test("backend records configured mailbox mail delivery", async () => {
+  const sentTransfers = [];
+  const mailer = {
+    provider: "test-mail",
+    isConfigured() {
+      return true;
+    },
+    async sendMailboxTransfer(transfer) {
+      sentTransfers.push(transfer);
+      return {
+        ...transfer.delivery,
+        status: "sent",
+        provider: "test-mail",
+        providerMessageId: "msg_123",
+        mailFrom: "Qubit Lab <send@example.com>",
+      };
+    },
+  };
+
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "mail-room",
+        label: "Mail delivery verification",
+      },
+    });
+    await api(baseUrl, "/rooms/mail-room/registers/source-register", {
+      method: "PUT",
+      body: {
+        label: "Source register",
+        numQubits: 1,
+        amplitudes: [1, 0],
+      },
+    });
+    const transfer = await api(baseUrl, "/rooms/mail-room/mailbox-transfers", {
+      method: "POST",
+      body: {
+        registerId: "source-register",
+        qubitIndex: 0,
+        email: "alice@example.com",
+        from: "bob@example.com",
+        metadata: {
+          frontendLinkTemplate: "http://lab.test/?tourMailbox=__TOKEN__",
+          emailBody: "A custom qubit message.\n\n__MAILBOX_LINK__",
+        },
+      },
+    });
+    assert.equal(transfer.response.status, 201);
+    assert.equal(transfer.body.transfer.delivery.status, "sent");
+    assert.equal(transfer.body.transfer.delivery.provider, "test-mail");
+    assert.equal(transfer.body.transfer.delivery.providerMessageId, "msg_123");
+    assert.equal(sentTransfers.length, 1);
+    assert.match(sentTransfers[0].delivery.link, /^http:\/\/lab\.test\/\?tourMailbox=mbx_/);
+    assert.match(sentTransfers[0].delivery.body, /^A custom qubit message\.\n\nhttp:\/\/lab\.test\/\?tourMailbox=mbx_/);
+
+    const fetched = await api(baseUrl, `/mailbox-transfers/${transfer.body.transfer.token}`);
+    assert.equal(fetched.body.transfer.delivery.status, "sent");
+    assert.equal(fetched.body.transfer.delivery.mailFrom, "Qubit Lab <send@example.com>");
+  }, { mailer });
 });
 
 test("backend versions shared registers and rejects stale writes", async () => {
@@ -296,6 +419,20 @@ test("backend stores room participants with roles and permissions", async () => 
       listed.body.participants.map((participant) => participant.id).sort(),
       ["alice", "bob", "teacher"],
     );
+    const aliceBeforeHeartbeat = listed.body.participants.find(
+      (participant) => participant.id === "alice",
+    );
+    const heartbeat = await api(
+      baseUrl,
+      "/rooms/participant-room/participants/alice/heartbeat",
+      { method: "POST" },
+    );
+    assert.equal(heartbeat.response.status, 200);
+    assert.equal(heartbeat.body.participant.id, "alice");
+    assert.ok(
+      Date.parse(heartbeat.body.participant.updatedAt) >=
+        Date.parse(aliceBeforeHeartbeat.updatedAt),
+    );
 
     const invalid = await api(baseUrl, "/rooms/participant-room/participants/eve", {
       method: "PUT",
@@ -305,6 +442,62 @@ test("backend stores room participants with roles and permissions", async () => 
     });
     assert.equal(invalid.response.status, 400);
     assert.equal(invalid.body.error.code, "invalid_participant_role");
+  });
+});
+
+test("backend records room chat and mailbox notification events", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "demo-room",
+        label: "Demo room",
+      },
+    });
+    await api(baseUrl, "/rooms/demo-room/participants/alice", {
+      method: "PUT",
+      body: {
+        displayName: "Alice",
+        role: "editor",
+      },
+    });
+    const message = await api(baseUrl, "/rooms/demo-room/messages", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        message: "Ready for qubits.",
+      },
+    });
+    assert.equal(message.response.status, 201);
+    assert.equal(message.body.event.type, "room.message");
+    assert.equal(message.body.event.payload.displayName, "Alice");
+
+    const notification = await api(baseUrl, "/rooms/demo-room/mailbox-notifications", {
+      method: "POST",
+      body: {
+        fromParticipantId: "alice",
+        qubitLabel: "q0",
+        message: "Here comes q0.",
+        transfer: {
+          kind: "single-qubit",
+          version: 1,
+          vector: [Math.SQRT1_2, Math.SQRT1_2],
+        },
+      },
+    });
+    assert.equal(notification.response.status, 201);
+    assert.equal(notification.body.event.type, "roomMailbox.sent");
+    assert.equal(notification.body.event.payload.fromName, "Alice");
+    assert.equal(notification.body.event.payload.qubitLabel, "q0");
+    assert.deepEqual(notification.body.event.payload.transfer.vector, [
+      Math.SQRT1_2,
+      Math.SQRT1_2,
+    ]);
+
+    const events = await api(baseUrl, "/rooms/demo-room/events");
+    assert.equal(events.response.status, 200);
+    assert.ok(events.body.events.some((event) => event.type === "room.message"));
+    assert.ok(events.body.events.some((event) => event.type === "roomMailbox.sent"));
   });
 });
 

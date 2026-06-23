@@ -71,6 +71,55 @@
           aria-labelledby="tab-plaground"
         >
           <section class="gate-panel playground-panel">
+            <div
+              class="workshop-mode-strip"
+              role="tablist"
+              aria-label="Workshop editor modes"
+            >
+              <button
+                class="workshop-mode-btn active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-workshop-mode="tab"
+              >
+                Tab
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="component"
+              >
+                Component
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="whats-this"
+              >
+                What's this?
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="local-lab"
+              >
+                Local Lab
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                data-workshop-mode="back"
+              >
+                Back
+              </button>
+            </div>
             <div class="playground-toolbar">
               <div
                 class="editor-toolbar-group editor-document-tools"
@@ -88,24 +137,57 @@
                   class="playground-tool-btn"
                   type="button"
                 >
-                  New
+                  New tab
                 </button>
-                <label for="editorTargetTabSelect">Open</label>
-                <select
-                  id="editorTargetTabSelect"
-                  class="playground-component-select editor-open-select"
-                  aria-label="Open tab"
-                ></select>
-                <label for="editorNewTabName">Name</label>
-                <input
-                  id="editorNewTabName"
-                  class="playground-component-select editor-tab-name-input"
-                  type="text"
-                  maxlength="48"
-                  autocomplete="off"
-                  placeholder="Tab name"
-                  aria-label="Tab name"
-                />
+                <span
+                  id="editorNewTabPanel"
+                  class="editor-action-panel"
+                  hidden
+                >
+                  <label for="editorNewTabName">Name:</label>
+                  <input
+                    id="editorNewTabName"
+                    class="playground-component-select editor-tab-name-input"
+                    type="text"
+                    maxlength="48"
+                    autocomplete="off"
+                    placeholder="Tab name"
+                    aria-label="Tab name"
+                  />
+                  <button
+                    id="editorCloseNewTabButton"
+                    class="playground-tool-btn"
+                    type="button"
+                  >
+                    Close
+                  </button>
+                </span>
+                <button
+                  id="editorOpenTabButton"
+                  class="playground-tool-btn"
+                  type="button"
+                >
+                  Open tab
+                </button>
+                <span
+                  id="editorOpenTabPanel"
+                  class="editor-action-panel"
+                  hidden
+                >
+                  <select
+                    id="editorTargetTabSelect"
+                    class="playground-component-select editor-open-select"
+                    aria-label="Open tab"
+                  ></select>
+                </span>
+                <button
+                  id="editorAddComponentButton"
+                  class="playground-tool-btn"
+                  type="button"
+                  disabled
+                >
+                  Add component
+                </button>
                 <button
                   id="playgroundSaveButton"
                   class="playground-tool-btn"
@@ -132,41 +214,48 @@
                 class="editor-toolbar-group editor-component-tools"
                 aria-label="Editor component actions"
               >
-                <label for="playgroundComponentSelect">Component</label>
-                <select
-                  id="playgroundComponentSelect"
-                  class="playground-component-select"
-                  aria-label="Plaground component picker"
+                <span
+                  id="editorAddComponentPanel"
+                  class="editor-action-panel"
+                  hidden
                 >
-                  <option value="" selected>Click here</option>
-                  <option value="qubit">Qubit</option>
-                  <option value="single-gate">Single Qubit Gate</option>
-                  <option value="cnot-gate">C-NOT Gate</option>
-                  <option value="single-measurement">
-                    Single-Qubit Magnifier + Tubes
-                  </option>
-                  <option value="double-measurement">
-                    Double-Qubit Magnifier + Tubes
-                  </option>
-                  <option value="measurement-capacity">
-                    Capacity Text Box
-                  </option>
-                  <option value="single-tube-array">
-                    Two Testtube Array
-                  </option>
-                  <option value="double-tube-array">
-                    Four Testtube Array
-                  </option>
-                  <option value="single-magnifier">
-                    Single-Qubit Magnifier
-                  </option>
-                  <option value="double-magnifier">
-                    Double-Qubit Magnifier
-                  </option>
-                  <option value="measurement-count-menu">
-                    Iteration Count Menu
-                  </option>
-                </select>
+                  <label for="playgroundComponentSelect">Component</label>
+                  <select
+                    id="playgroundComponentSelect"
+                    class="playground-component-select"
+                    aria-label="Plaground component picker"
+                  >
+                    <option value="" selected>Click here</option>
+                    <option value="qubit">Qubit</option>
+                    <option value="single-gate">Single Qubit Gate</option>
+                    <option value="cnot-gate">C-NOT Gate</option>
+                    <option value="single-measurement">
+                      Single-Qubit Magnifier + Tubes
+                    </option>
+                    <option value="double-measurement">
+                      Double-Qubit Magnifier + Tubes
+                    </option>
+                    <option value="measurement-capacity">
+                      Capacity Text Box
+                    </option>
+                    <option value="single-tube-array">
+                      Two Testtube Array
+                    </option>
+                    <option value="double-tube-array">
+                      Four Testtube Array
+                    </option>
+                    <option value="single-magnifier">
+                      Single-Qubit Magnifier
+                    </option>
+                    <option value="double-magnifier">
+                      Double-Qubit Magnifier
+                    </option>
+                    <option value="measurement-count-menu">
+                      Iteration Count Menu
+                    </option>
+                    <option value="mailbox">Qubit Mailbox</option>
+                  </select>
+                </span>
                 <label class="playground-snap-label">
                   <input id="playgroundSnapToggle" type="checkbox" checked />
                   Snap to Grid
@@ -236,6 +325,55 @@
           hidden
         >
           <section class="gate-panel doc-editor-panel">
+            <div
+              class="workshop-mode-strip"
+              role="tablist"
+              aria-label="Workshop editor modes"
+            >
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="tab"
+              >
+                Tab
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="component"
+              >
+                Component
+              </button>
+              <button
+                class="workshop-mode-btn active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-workshop-mode="whats-this"
+              >
+                What's this?
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="local-lab"
+              >
+                Local Lab
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                data-workshop-mode="back"
+              >
+                Back
+              </button>
+            </div>
             <div class="playground-toolbar doc-editor-toolbar">
               <div
                 class="editor-toolbar-group doc-document-tools"
@@ -419,6 +557,55 @@
           hidden
         >
           <section class="gate-panel local-lab-panel" data-local-lab>
+            <div
+              class="workshop-mode-strip"
+              role="tablist"
+              aria-label="Workshop editor modes"
+            >
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="tab"
+              >
+                Tab
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="component"
+              >
+                Component
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workshop-mode="whats-this"
+              >
+                What's this?
+              </button>
+              <button
+                class="workshop-mode-btn active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-workshop-mode="local-lab"
+              >
+                Local Lab
+              </button>
+              <button
+                class="workshop-mode-btn"
+                type="button"
+                data-workshop-mode="back"
+              >
+                Back
+              </button>
+            </div>
             <div class="playground-toolbar local-lab-toolbar">
               <div
                 class="editor-toolbar-group local-lab-toolbar-group"
@@ -937,6 +1124,42 @@
       </section>
     </div>
 
+    <div
+      id="workshopPasswordOverlay"
+      class="workshop-password-overlay"
+      aria-modal="true"
+      role="dialog"
+      aria-labelledby="workshopPasswordTitle"
+      hidden
+    >
+      <form id="workshopPasswordForm" class="workshop-password-modal">
+        <h2 id="workshopPasswordTitle">Workshop</h2>
+        <label for="workshopPasswordInput">Password</label>
+        <input
+          id="workshopPasswordInput"
+          type="password"
+          autocomplete="off"
+          inputmode="numeric"
+          aria-describedby="workshopPasswordStatus"
+        />
+        <span
+          id="workshopPasswordStatus"
+          class="workshop-password-status"
+          aria-live="polite"
+        ></span>
+        <div class="workshop-password-actions">
+          <button
+            id="workshopPasswordCancelButton"
+            class="playground-tool-btn"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button class="playground-tool-btn" type="submit">Open</button>
+        </div>
+      </form>
+    </div>
+
     <template id="simulatorTemplate">
       <section class="quantum-sim" aria-label="Quantum gate control panel">
         <div class="top-controls" data-role="top-controls">
@@ -1006,6 +1229,9 @@
             <div class="tube-capacity" data-role="tube-capacity"></div>
             <div class="tube-rack" data-role="tube-rack" aria-hidden="true">
               <div class="tube-column">
+                <div class="tube-label">
+                  <span class="measurement-dot measurement-dot-blue"></span>
+                </div>
                 <div class="tube-count" data-role="tube-blue-count">0</div>
                 <div class="tube" data-role="tube-blue">
                   <div
@@ -1015,6 +1241,9 @@
                 </div>
               </div>
               <div class="tube-column">
+                <div class="tube-label">
+                  <span class="measurement-dot measurement-dot-red"></span>
+                </div>
                 <div class="tube-count" data-role="tube-red-count">0</div>
                 <div class="tube" data-role="tube-red">
                   <div
@@ -1057,7 +1286,10 @@
       <div class="pair-capacity" data-role="pair-capacity"></div>
       <div class="pair-tube-rack">
         <div class="pair-tube-column" data-key="bb">
-          <div class="pair-tube-label"><span>Blue</span><span>Blue</span></div>
+          <div class="pair-tube-label">
+            <span class="measurement-dot measurement-dot-blue"></span>
+            <span class="measurement-dot measurement-dot-blue"></span>
+          </div>
           <div class="tube-count" data-role="pair-count-bb">0</div>
           <div class="tube pair-tube" data-role="pair-tube-bb">
             <div
@@ -1067,7 +1299,10 @@
           </div>
         </div>
         <div class="pair-tube-column" data-key="rb">
-          <div class="pair-tube-label"><span>Red</span><span>Blue</span></div>
+          <div class="pair-tube-label">
+            <span class="measurement-dot measurement-dot-red"></span>
+            <span class="measurement-dot measurement-dot-blue"></span>
+          </div>
           <div class="tube-count" data-role="pair-count-rb">0</div>
           <div class="tube pair-tube" data-role="pair-tube-rb">
             <div
@@ -1077,7 +1312,10 @@
           </div>
         </div>
         <div class="pair-tube-column" data-key="br">
-          <div class="pair-tube-label"><span>Blue</span><span>Red</span></div>
+          <div class="pair-tube-label">
+            <span class="measurement-dot measurement-dot-blue"></span>
+            <span class="measurement-dot measurement-dot-red"></span>
+          </div>
           <div class="tube-count" data-role="pair-count-br">0</div>
           <div class="tube pair-tube" data-role="pair-tube-br">
             <div
@@ -1087,7 +1325,10 @@
           </div>
         </div>
         <div class="pair-tube-column" data-key="rr">
-          <div class="pair-tube-label"><span>Red</span><span>Red</span></div>
+          <div class="pair-tube-label">
+            <span class="measurement-dot measurement-dot-red"></span>
+            <span class="measurement-dot measurement-dot-red"></span>
+          </div>
           <div class="tube-count" data-role="pair-count-rr">0</div>
           <div class="tube pair-tube" data-role="pair-tube-rr">
             <div

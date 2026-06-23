@@ -1,6 +1,10 @@
 "use strict";
 
 const http = require("node:http");
+const {
+  createMailboxMailer,
+  deliveryFailureForError,
+} = require("./mail.cjs");
 const { BackendError, createMemoryStore } = require("./store.cjs");
 const packageJson = require("../package.json");
 
@@ -101,6 +105,39 @@ function parsePath(req) {
 
 function createApp(options = {}) {
   const store = options.store || createMemoryStore();
+  const mailer = options.mailer || createMailboxMailer();
+
+  function mailerIsConfigured() {
+    if (!mailer?.sendMailboxTransfer) {
+      return false;
+    }
+    if (typeof mailer.isConfigured === "function") {
+      return Boolean(mailer.isConfigured());
+    }
+    return true;
+  }
+
+  async function deliverMailboxTransfer(req, transfer) {
+    if (!mailerIsConfigured()) {
+      return transfer;
+    }
+    const transferWithUrl = withTransferUrl(req, transfer);
+    try {
+      const delivery = await mailer.sendMailboxTransfer(transferWithUrl);
+      return delivery
+        ? store.updateMailboxTransferDelivery(transfer.token, delivery)
+        : transfer;
+    } catch (error) {
+      const provider =
+        typeof mailer.provider === "string" && mailer.provider
+          ? mailer.provider
+          : "mail";
+      return store.updateMailboxTransferDelivery(
+        transfer.token,
+        deliveryFailureForError(transfer.delivery, error, provider),
+      );
+    }
+  }
 
   return async function app(req, res) {
     if (req.method === "OPTIONS") {
@@ -182,6 +219,35 @@ function createApp(options = {}) {
       if (method === "PUT" && segments.length === 4 && segments[0] === "rooms" && segments[2] === "participants") {
         const participant = store.upsertParticipant(segments[1], segments[3], await readJson(req));
         sendJson(res, 200, { participant });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 5 &&
+        segments[0] === "rooms" &&
+        segments[2] === "participants" &&
+        segments[4] === "heartbeat"
+      ) {
+        const participant = store.touchParticipant(segments[1], segments[3]);
+        sendJson(res, 200, { participant });
+        return;
+      }
+
+      if (method === "POST" && segments.length === 3 && segments[0] === "rooms" && segments[2] === "messages") {
+        const event = store.createRoomMessage(segments[1], await readJson(req));
+        sendJson(res, 201, { event });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
+        segments[2] === "mailbox-notifications"
+      ) {
+        const event = store.createRoomMailboxNotification(segments[1], await readJson(req));
+        sendJson(res, 201, { event });
         return;
       }
 
@@ -301,7 +367,8 @@ function createApp(options = {}) {
         segments[0] === "rooms" &&
         segments[2] === "mailbox-transfers"
       ) {
-        const transfer = store.createMailboxTransfer(segments[1], await readJson(req));
+        const createdTransfer = store.createMailboxTransfer(segments[1], await readJson(req));
+        const transfer = await deliverMailboxTransfer(req, createdTransfer);
         sendJson(res, 201, { transfer: withTransferUrl(req, transfer) });
         return;
       }

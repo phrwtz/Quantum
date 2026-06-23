@@ -56,6 +56,68 @@ function validateEmail(value) {
   return email;
 }
 
+function fillTokenTemplate(value, token) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .replaceAll("__TOKEN__", token)
+    .replaceAll("{token}", token);
+}
+
+function fillMailboxBodyTemplate(value, { link, token }) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .replaceAll("__MAILBOX_LINK__", link || "(link unavailable)")
+    .replaceAll("{mailboxLink}", link || "(link unavailable)")
+    .replaceAll("__TOKEN__", token)
+    .replaceAll("{token}", token);
+}
+
+function mailtoUrl({ to, subject, body }) {
+  const query = new URLSearchParams({
+    subject,
+    body,
+  });
+  return `mailto:${encodeURIComponent(to)}?${query.toString()}`;
+}
+
+function mailboxDelivery({ email, from, token, metadata }) {
+  const link = fillTokenTemplate(metadata.frontendLinkTemplate, token);
+  const sender = from || metadata.from || "A Qubit Lab user";
+  const subject =
+    validateString(metadata.emailSubject, "metadata.emailSubject", {
+      required: false,
+      maxLength: 160,
+    }) || "A qubit is waiting for you in Qubit Lab";
+  const customBody = validateString(metadata.emailBody, "metadata.emailBody", {
+      required: false,
+      maxLength: 4000,
+    });
+  const body =
+    fillMailboxBodyTemplate(customBody, { link, token }) ||
+    [
+      `${sender} sent you a qubit in Qubit Lab.`,
+      "",
+      "Open this link to receive it on the Teleportation tab:",
+      link || "(link unavailable)",
+      "",
+      "This prototype uses the sender's local Qubit Lab backend, so the link works while that backend is running and reachable.",
+    ].join("\n");
+  return {
+    channel: "email",
+    status: "queued-local",
+    to: email,
+    from: from || null,
+    subject,
+    body,
+    link,
+    mailto: mailtoUrl({ to: email, subject, body }),
+  };
+}
+
 function validateQubitCount(value) {
   if (!Number.isInteger(value) || value < 1 || value > 16) {
     throw new BackendError(400, "invalid_qubit_count", "numQubits must be an integer from 1 through 16");
@@ -535,6 +597,44 @@ function createMemoryStore(options = {}) {
     return clone(participant);
   }
 
+  function touchParticipant(roomId, participantId) {
+    const room = requireRoom(roomId);
+    const id = validateString(participantId, "participantId", {
+      maxLength: 80,
+    });
+    const participant = room.participants[id];
+    if (!participant) {
+      throw new BackendError(404, "participant_not_found", "participant not found");
+    }
+    participant.updatedAt = timestamp();
+    return clone(participant);
+  }
+
+  function createRoomMessage(roomId, input = {}) {
+    const room = requireRoom(roomId);
+    const participantId = validateString(input.participantId, "participantId", {
+      required: false,
+      maxLength: 80,
+    });
+    const displayName =
+      validateString(input.displayName, "displayName", {
+        required: false,
+        maxLength: 160,
+      }) ||
+      (participantId ? room.participants[participantId]?.displayName : null) ||
+      "Guest";
+    const message = validateString(input.message, "message", {
+      maxLength: 1000,
+    });
+    return clone(
+      appendEvent(room, "room.message", {
+        participantId: participantId || null,
+        displayName,
+        message,
+      }),
+    );
+  }
+
   function upsertRegister(roomId, input = {}) {
     const room = requireRoom(roomId);
     const id = validateString(input.id, "id", { required: false, maxLength: 80 }) || `reg_${createToken(9)}`;
@@ -900,6 +1000,8 @@ function createMemoryStore(options = {}) {
     const register = requireRegister(room, registerId);
     const qubitIndex = validateQubitIndex(input.qubitIndex, register.numQubits);
     const email = validateEmail(input.email);
+    const from = validateString(input.from, "from", { required: false, maxLength: 254 });
+    const metadata = validateMetadata(input.metadata);
     const token = `mbx_${createToken(18)}`;
     const at = timestamp();
     const transfer = {
@@ -908,23 +1010,20 @@ function createMemoryStore(options = {}) {
       registerId,
       qubitIndex,
       email,
+      from,
       createdBy: validateString(input.createdBy, "createdBy", { required: false }) || null,
       status: "pending",
       path: `/mailbox/${token}`,
       createdAt: at,
       claimedAt: null,
       claimedBy: null,
-      delivery: {
-        channel: "email",
-        status: "stubbed",
-        to: email,
-      },
+      delivery: mailboxDelivery({ email, from, token, metadata }),
       payload: {
         kind: "register-snapshot",
         selectedQubit: qubitIndex,
         register: clone(register),
       },
-      metadata: validateMetadata(input.metadata),
+      metadata,
     };
     mailboxTransfers.set(token, transfer);
     appendEvent(room, "mailboxTransfer.created", {
@@ -935,6 +1034,55 @@ function createMemoryStore(options = {}) {
       createdBy: transfer.createdBy,
     });
     return clone(transfer);
+  }
+
+  function createRoomMailboxNotification(roomId, input = {}) {
+    const room = requireRoom(roomId);
+    const fromParticipantId = validateString(
+      input.fromParticipantId,
+      "fromParticipantId",
+      { required: false, maxLength: 80 },
+    );
+    const fromName =
+      validateString(input.fromName, "fromName", {
+        required: false,
+        maxLength: 160,
+      }) ||
+      (fromParticipantId ? room.participants[fromParticipantId]?.displayName : null) ||
+      "Guest";
+    const toParticipantId = validateString(
+      input.toParticipantId,
+      "toParticipantId",
+      { required: false, maxLength: 80 },
+    );
+    const toName =
+      validateString(input.toName, "toName", {
+        required: false,
+        maxLength: 160,
+      }) ||
+      (toParticipantId ? room.participants[toParticipantId]?.displayName : null) ||
+      null;
+    const message = validateString(input.message, "message", {
+      required: false,
+      maxLength: 1000,
+    });
+    const qubitLabel =
+      validateString(input.qubitLabel, "qubitLabel", {
+        required: false,
+        maxLength: 80,
+      }) || "a qubit";
+    const transfer = input.transfer == null ? null : validateMetadata(input.transfer);
+    const notification = {
+      id: `room_mbx_${createToken(12)}`,
+      fromParticipantId: fromParticipantId || null,
+      fromName,
+      toParticipantId: toParticipantId || null,
+      toName,
+      message: message || "",
+      qubitLabel,
+      transfer,
+    };
+    return clone(appendEvent(room, "roomMailbox.sent", notification));
   }
 
   function getTeleportInvite(token) {
@@ -950,6 +1098,21 @@ function createMemoryStore(options = {}) {
     if (!transfer) {
       throw new BackendError(404, "mailbox_transfer_not_found", "mailbox transfer not found");
     }
+    return clone(transfer);
+  }
+
+  function updateMailboxTransferDelivery(token, delivery = {}) {
+    const transfer = mailboxTransfers.get(token);
+    if (!transfer) {
+      throw new BackendError(404, "mailbox_transfer_not_found", "mailbox transfer not found");
+    }
+    transfer.delivery = clone(delivery);
+    const room = requireRoom(transfer.roomId);
+    appendEvent(room, "mailboxTransfer.delivery", {
+      token,
+      status: transfer.delivery.status || null,
+      provider: transfer.delivery.provider || null,
+    });
     return clone(transfer);
   }
 
@@ -1002,6 +1165,8 @@ function createMemoryStore(options = {}) {
     listRooms,
     listParticipants,
     upsertParticipant,
+    touchParticipant,
+    createRoomMessage,
     upsertRegister,
     createEntanglementGroup,
     listProtocolDefinitions,
@@ -1014,6 +1179,8 @@ function createMemoryStore(options = {}) {
     getDistributedTeleportationProtocol,
     createTeleportInvite,
     createMailboxTransfer,
+    createRoomMailboxNotification,
+    updateMailboxTransferDelivery,
     getTeleportInvite,
     getMailboxTransfer,
     acceptTeleportInvite,

@@ -10,3 +10,11 @@ services:
         value: 22
       - key: PUBLIC_APP_URL
         sync: false
+      - key: MAIL_DELIVERY_PROVIDER
+        value: resend
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_REPLY_TO
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
