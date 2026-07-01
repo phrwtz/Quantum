@@ -283,6 +283,10 @@ const MAILBOX_DEFAULT_MESSAGE =
 const MAILBOX_LINK_PLACEHOLDER = "__MAILBOX_LINK__";
 const MAILBOX_WINDOW_OVERLAP_THRESHOLD = 0.35;
 const MAILBOX_ROOM_STORAGE_KEY = "quantum_mailbox_room_v1";
+const ENTANGLEMENT_THREE_SESSION_STORAGE_KEY =
+  "quantum_entanglement_three_session_v1";
+const ENTANGLEMENT_THREE_SESSION_CHANNEL =
+  "quantum_entanglement_three_sessions_v1";
 const MAILBOX_ROOM_DEFAULT_ID = "qubit-lab-demo";
 const ENTANGLEMENT_THREE_ROOM_ID = "send-receive-room";
 const MAILBOX_ROOM_POLL_MS = 2500;
@@ -4433,6 +4437,10 @@ let mailboxRoomState = {
 let mailboxRoomBootCleanupPromise = Promise.resolve();
 const mailboxRoomSeenSharedMeasurementControlIds = new Set();
 const mailboxRoomSeenSharedMeasurementCompletionIds = new Set();
+let entanglementThreeSessionChannel = null;
+const entanglementThreeWindowId = `ent3-window-${Date.now().toString(36)}-${Math.random()
+  .toString(36)
+  .slice(2, 10)}`;
 
 function mailboxMessageBodyWithLinkPlaceholder(message) {
   const trimmed = String(message || "").trim() || MAILBOX_DEFAULT_MESSAGE;
@@ -4477,6 +4485,122 @@ function writeMailboxRoomStorage(update = {}) {
     // Local storage is a convenience only; the joined room still works in memory.
   }
   return next;
+}
+
+function entanglementThreeNewClientSessionId() {
+  return typeof window.crypto?.randomUUID === "function"
+    ? window.crypto.randomUUID()
+    : `ent3-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+}
+
+function entanglementThreeStoredClientSessionId() {
+  try {
+    const existing = window.sessionStorage.getItem(
+      ENTANGLEMENT_THREE_SESSION_STORAGE_KEY,
+    );
+    if (existing) {
+      return existing;
+    }
+    const next = entanglementThreeNewClientSessionId();
+    window.sessionStorage.setItem(ENTANGLEMENT_THREE_SESSION_STORAGE_KEY, next);
+    return next;
+  } catch (_error) {
+    return entanglementThreeNewClientSessionId();
+  }
+}
+
+function entanglementThreeSetClientSessionId(sessionId) {
+  try {
+    window.sessionStorage.setItem(
+      ENTANGLEMENT_THREE_SESSION_STORAGE_KEY,
+      sessionId,
+    );
+  } catch (_error) {
+    // A volatile session id is still enough to keep this page load distinct.
+  }
+  return sessionId;
+}
+
+function entanglementThreeEnsureSessionChannel() {
+  if (entanglementThreeSessionChannel || typeof BroadcastChannel !== "function") {
+    return entanglementThreeSessionChannel;
+  }
+  entanglementThreeSessionChannel = new BroadcastChannel(
+    ENTANGLEMENT_THREE_SESSION_CHANNEL,
+  );
+  entanglementThreeSessionChannel.addEventListener("message", (event) => {
+    const data = event?.data || {};
+    if (
+      data.type !== "entanglement-three-session-probe" ||
+      data.senderId === entanglementThreeWindowId ||
+      !data.sessionId
+    ) {
+      return;
+    }
+    if (data.sessionId !== entanglementThreeStoredClientSessionId()) {
+      return;
+    }
+    entanglementThreeSessionChannel.postMessage({
+      type: "entanglement-three-session-claimed",
+      sessionId: data.sessionId,
+      probeId: data.probeId || "",
+      senderId: entanglementThreeWindowId,
+    });
+  });
+  return entanglementThreeSessionChannel;
+}
+
+async function entanglementThreeClientSessionId() {
+  let sessionId = entanglementThreeStoredClientSessionId();
+  const channel = entanglementThreeEnsureSessionChannel();
+  if (!channel) {
+    return sessionId;
+  }
+  const probeId = entanglementThreeNewClientSessionId();
+  const sessionIsAlreadyActive = await new Promise((resolve) => {
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      channel.removeEventListener("message", onMessage);
+      resolve(false);
+    }, 120);
+    function onMessage(event) {
+      const data = event?.data || {};
+      if (
+        data.type !== "entanglement-three-session-claimed" ||
+        data.senderId === entanglementThreeWindowId ||
+        data.sessionId !== sessionId ||
+        data.probeId !== probeId
+      ) {
+        return;
+      }
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(timeout);
+      channel.removeEventListener("message", onMessage);
+      resolve(true);
+    }
+    channel.addEventListener("message", onMessage);
+    channel.postMessage({
+      type: "entanglement-three-session-probe",
+      sessionId,
+      probeId,
+      senderId: entanglementThreeWindowId,
+    });
+  });
+  if (sessionIsAlreadyActive) {
+    sessionId = entanglementThreeSetClientSessionId(
+      entanglementThreeNewClientSessionId(),
+    );
+  }
+  return sessionId;
 }
 
 async function mailboxRoomCleanupOwnedRoomOnBoot() {
@@ -6167,7 +6291,7 @@ function mailboxRoomImportPoint(canvas) {
   };
 }
 
-function mailboxRoomReceiveQubitEvent(event) {
+function mailboxRoomReceiveQubitEvent(event, options = {}) {
   const payload = event?.payload || {};
   const transfer = payload.transfer;
   if (!transfer || transfer.kind !== "single-qubit") {
@@ -6176,7 +6300,10 @@ function mailboxRoomReceiveQubitEvent(event) {
   if (!mailboxRoomTransferIsForThisParticipant(payload)) {
     throw new Error("This qubit was addressed to someone else");
   }
-  const canvas = mailboxRoomImportTargetCanvas();
+  const canvas =
+    options.canvas instanceof HTMLElement
+      ? options.canvas
+      : mailboxRoomImportTargetCanvas();
   if (!canvas) {
     throw new Error("Open a tour tab before receiving the qubit");
   }
@@ -6232,8 +6359,21 @@ function mailboxRoomReceiveQubitEvent(event) {
   return item;
 }
 
+function mailboxRoomPendingReceiveCanvas() {
+  const contextCanvas = mailboxRoomCanvasForCurrentContext();
+  if (contextCanvas instanceof HTMLElement) {
+    return contextCanvas;
+  }
+  const entanglementCanvas = entanglementThreeCanvasForTab();
+  if (entanglementCanvas instanceof HTMLElement) {
+    return entanglementCanvas;
+  }
+  return activeGeneratedLayoutCanvas();
+}
+
 function mailboxRoomReceivePendingQubits() {
-  if (!activeMailboxSendContext?.mailboxItem) {
+  const receiveCanvas = mailboxRoomPendingReceiveCanvas();
+  if (!(receiveCanvas instanceof HTMLElement)) {
     return [];
   }
   const received = [];
@@ -6248,7 +6388,10 @@ function mailboxRoomReceivePendingQubits() {
     ) {
       return;
     }
-    received.push({ event, item: mailboxRoomReceiveQubitEvent(event) });
+    received.push({
+      event,
+      item: mailboxRoomReceiveQubitEvent(event, { canvas: receiveCanvas }),
+    });
   });
   if (received.length) {
     const latest = received.at(-1).event.payload || {};
@@ -6259,7 +6402,9 @@ function mailboxRoomReceivePendingQubits() {
     const senderLabel =
       received.length === 1 && latest.fromName ? ` from ${latest.fromName}` : "";
     const message = `Received ${countLabel}${senderLabel} - close mailbox to use ${received.length === 1 ? "it" : "them"}`;
-    setMailboxComponentStatus(activeMailboxSendContext.mailboxItem, message);
+    if (activeMailboxSendContext?.mailboxItem) {
+      setMailboxComponentStatus(activeMailboxSendContext.mailboxItem, message);
+    }
     if (mailboxSendDialog?.status instanceof HTMLElement) {
       mailboxSendDialog.status.textContent = message;
     }
@@ -6549,12 +6694,14 @@ async function autoJoinEntanglementThreeRoom(canvas) {
   mailboxRoomState.entanglementThreeBackendStatus = "starting";
   updateEntanglementThreeRoomReviewToolbars();
   try {
+    const clientSessionId = await entanglementThreeClientSessionId();
     const payload = await localLabRequest(
       `/rooms/${encodeURIComponent(ENTANGLEMENT_THREE_ROOM_ID)}/auto-join`,
       {
         method: "POST",
         body: {
-          participantId: entanglementThreeStoredParticipantId() || null,
+          participantId: null,
+          clientSessionId,
           label: ENTANGLEMENT_THREE_ROOM_ID,
         },
       },
@@ -6798,6 +6945,11 @@ async function mailboxRoomRefresh({ render = true } = {}) {
       : [];
   mailboxRoomApplyRoomMeasurements(mailboxRoomState.measurements);
   await mailboxRoomRefreshSharedEntanglements();
+  try {
+    mailboxRoomReceivePendingQubits();
+  } catch (error) {
+    console.warn?.("[Qubit Lab] mailbox receive failed", error);
+  }
   updateEntanglementThreeRoomReviewToolbars();
   if (render) {
     renderMailboxRoomDialog();

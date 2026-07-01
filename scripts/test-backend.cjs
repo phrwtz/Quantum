@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { createMailboxMailer } = require("../backend/mail.cjs");
 const { createServer } = require("../backend/server.cjs");
+const { createMemoryStore } = require("../backend/store.cjs");
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -564,7 +565,7 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
   await withBackend(async (baseUrl) => {
     const bob = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
       method: "POST",
-      body: {},
+      body: { clientSessionId: "bob-screen" },
     });
     assert.equal(bob.response.status, 200);
     assert.equal(bob.body.participant.id, "bob");
@@ -573,7 +574,7 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
 
     const alice = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
       method: "POST",
-      body: {},
+      body: { clientSessionId: "alice-screen" },
     });
     assert.equal(alice.response.status, 200);
     assert.equal(alice.body.participant.id, "alice");
@@ -583,6 +584,7 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
       method: "POST",
       body: {
         participantId: "bob",
+        clientSessionId: "bob-screen",
       },
     });
     assert.equal(bobAgain.response.status, 200);
@@ -595,6 +597,41 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
     assert.equal(third.response.status, 409);
     assert.equal(third.body.error.code, "room_full");
   });
+});
+
+test("backend clears stale send-receive-room before a new Bob joins", async () => {
+  let nowMs = Date.parse("2026-01-01T00:00:00.000Z");
+  const store = createMemoryStore({
+    now: () => nowMs,
+    sendReceiveRoomStaleMs: 1000,
+  });
+  await withBackend(async (baseUrl) => {
+    const bob = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: { clientSessionId: "old-bob-screen" },
+    });
+    assert.equal(bob.response.status, 200);
+    await api(baseUrl, "/rooms/send-receive-room/messages", {
+      method: "POST",
+      body: {
+        participantId: "bob",
+        displayName: "Bob",
+        message: "Old message",
+      },
+    });
+
+    nowMs += 2000;
+    const freshBob = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: { clientSessionId: "fresh-bob-screen" },
+    });
+    assert.equal(freshBob.response.status, 200);
+    assert.equal(freshBob.body.participant.id, "bob");
+    assert.equal(freshBob.body.room.events.length, 1);
+    assert.equal(freshBob.body.room.events[0].type, "participant.created");
+    assert.equal(freshBob.body.room.events[0].payload.displayName, "Bob");
+    assert.deepEqual(Object.keys(freshBob.body.room.participants), ["bob"]);
+  }, { store });
 });
 
 test("backend allocates room-wide qubit identities", async () => {

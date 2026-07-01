@@ -616,6 +616,11 @@ function normalizeCompletedSteps(definition, completedSteps) {
 function createMemoryStore(options = {}) {
   const now = options.now || Date.now;
   const createToken = options.randomToken || randomToken;
+  const sendReceiveStaleMs =
+    Number.isFinite(options.sendReceiveRoomStaleMs) &&
+    options.sendReceiveRoomStaleMs >= 0
+      ? options.sendReceiveRoomStaleMs
+      : 15000;
   const rooms = new Map();
   const teleportInvites = new Map();
   const mailboxTransfers = new Map();
@@ -662,6 +667,32 @@ function createMemoryStore(options = {}) {
     }
     room.updatedAt = event.at;
     return event;
+  }
+
+  function clearRoomCollaborationState(room) {
+    room.registers = {};
+    room.entanglementGroups = {};
+    room.sharedEntanglements = {};
+    room.roomMeasurements = {};
+    room.qubitIdentities = {};
+    room.nextQubitIndex = 0;
+    room.protocols = {};
+    room.events = [];
+    room.participants = {};
+    room.ownerId = null;
+    room.resetVersion = Math.max(0, Number(room.resetVersion) || 0) + 1;
+    room.lastReset = {
+      id: `room_reset_${createToken(10)}`,
+      version: room.resetVersion,
+      requestedBy: null,
+      at: timestamp(),
+    };
+    room.updatedAt = room.lastReset.at;
+  }
+
+  function participantHasActiveSession(participant, nowMs = now()) {
+    const updatedAt = Date.parse(participant?.updatedAt || "");
+    return Number.isFinite(updatedAt) && nowMs - updatedAt <= sendReceiveStaleMs;
   }
 
   function createRoom(input = {}) {
@@ -927,26 +958,59 @@ function createMemoryStore(options = {}) {
       });
       room = rooms.get(id);
     }
+    if (
+      id === "send-receive-room" &&
+      Object.keys(room.participants).length > 0 &&
+      !Object.values(room.participants).some((participant) =>
+        participantHasActiveSession(participant),
+      )
+    ) {
+      clearRoomCollaborationState(room);
+    }
     const requestedId = validateString(input.participantId, "participantId", {
       required: false,
       maxLength: 80,
+    });
+    const clientSessionId = validateString(input.clientSessionId, "clientSessionId", {
+      required: false,
+      maxLength: 120,
     });
     const seats = [
       { id: "bob", displayName: "Bob", role: "owner" },
       { id: "alice", displayName: "Alice", role: "editor" },
     ];
-    const requestedSeat = seats.find((seat) => seat.id === requestedId);
+    const matchingSessionSeat =
+      clientSessionId &&
+      seats.find(
+        (seat) =>
+          room.participants[seat.id]?.metadata?.clientSessionId ===
+          clientSessionId,
+      );
+    const requestedSeat =
+      requestedId && clientSessionId
+        ? seats.find(
+            (seat) =>
+              seat.id === requestedId &&
+              room.participants[seat.id]?.metadata?.clientSessionId ===
+                clientSessionId,
+          )
+        : null;
     const seat =
-      (requestedSeat && room.participants[requestedSeat.id]
-        ? requestedSeat
-        : null) || seats.find((candidate) => !room.participants[candidate.id]);
+      matchingSessionSeat ||
+      requestedSeat ||
+      seats.find((candidate) => !room.participants[candidate.id]);
     if (!seat) {
       throw new BackendError(409, "room_full", "send-receive-room already has Bob and Alice");
     }
     const participant = upsertParticipant(id, seat.id, {
       displayName: seat.displayName,
       role: seat.role,
+      metadata: {
+        ...(room.participants[seat.id]?.metadata || {}),
+        ...(clientSessionId ? { clientSessionId } : {}),
+      },
     });
+    room.ownerId = room.ownerId || "bob";
     return {
       room: clone(requireRoom(id)),
       participant,
