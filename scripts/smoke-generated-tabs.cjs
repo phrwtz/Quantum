@@ -13,6 +13,7 @@ const expectedGeneratedTabLabels = [
   "Two qubits",
   "Entanglement 1",
   "Entanglement 2",
+  "Entanglement 3",
 ];
 const expectedLocalFileTabLabels = [
   "Editor",
@@ -4070,6 +4071,7 @@ async function runFileModeRepositoryContentSmoke(browser) {
         "custom-two-qubits",
         "custom-entanglement-2",
         "custom-entanglement-3",
+        "editor-entanglement-3",
       ];
       const tourCanvasStyles = tourPanelIds.map((tabId) => {
         const canvas = document.querySelector(

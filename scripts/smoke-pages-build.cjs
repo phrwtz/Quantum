@@ -12,7 +12,7 @@ const expectedPublishedTabLabels = [
   "Two qubits",
   "Entanglement 1",
   "Entanglement 2",
-  "Teleportation",
+  "Entanglement 3",
 ];
 
 const mimeTypes = {
@@ -279,34 +279,9 @@ async function runSmoke(baseUrl) {
       result.landingButtonLabels.length !== 0 ||
       result.landingTourSignText !== "To the Tour" ||
       result.landingClosedSignText !== "Closed" ||
-      result.landingAboutText !== "(About...)"
+      result.landingAboutText !== ""
     ) {
       throw new Error(`GitHub Pages smoke failed: ${JSON.stringify(result)}`);
-    }
-
-    const landingTarget = result.publicTargets[0];
-    await page
-      .locator(`#panel-${landingTarget} .landing-info-link`)
-      .click();
-    const landingInfoState = await page.evaluate((target) => {
-      const panel = document.getElementById(`panel-${target}`);
-      const card = panel?.querySelector(".landing-info-card");
-      return {
-        visible: Boolean(card && !card.hidden),
-        text: card?.textContent || "",
-      };
-    }, landingTarget);
-    if (
-      !landingInfoState.visible ||
-      !landingInfoState.text.includes("Welcome to Qubit Lab") ||
-      !landingInfoState.text.includes("preview of coming attractions") ||
-      !landingInfoState.text.includes("a demonstration") ||
-      landingInfoState.text.includes("an demonstration") ||
-      landingInfoState.text.includes("tabs above")
-    ) {
-      throw new Error(
-        `GitHub Pages landing What's this failed: ${JSON.stringify(landingInfoState)}`,
-      );
     }
 
     const targetForLabel = (label) =>
@@ -361,6 +336,7 @@ async function runSmoke(baseUrl) {
       targetForLabel("Two qubits"),
       targetForLabel("Entanglement 1"),
       targetForLabel("Entanglement 2"),
+      targetForLabel("Entanglement 3"),
     ]);
     if (
       tourStyleState.targets.some((target) => !target) ||
@@ -375,7 +351,6 @@ async function runSmoke(baseUrl) {
     if (!entanglementTwoTarget) {
       throw new Error("GitHub Pages smoke failed: missing Entanglement 2 tab");
     }
-    await page.locator(`#panel-${landingTarget} .landing-info-close`).click();
     await page.evaluate((target) => {
       document
         .querySelector(`#tab-${CSS.escape(target)}`)

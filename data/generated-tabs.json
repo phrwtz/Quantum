@@ -650,32 +650,84 @@
       }
     },
     {
-      "id": "editor-test",
-      "label": "test",
+      "id": "editor-entanglement-3",
+      "label": "Entanglement 3",
       "layout": {
         "items": [
           {
+            "id": "entanglement-3-q0",
             "type": "qubit",
-            "left": 104,
-            "top": 208,
+            "left": 64,
+            "top": 164,
             "width": 72,
             "height": 72,
             "z": 20,
-            "qubitId": 129890
+            "qubitId": 1,
+            "vector": [
+              1,
+              0
+            ]
           },
           {
+            "id": "entanglement-3-q1",
+            "type": "qubit",
+            "left": 64,
+            "top": 424,
+            "width": 72,
+            "height": 72,
+            "z": 21,
+            "qubitId": 2,
+            "vector": [
+              1,
+              0
+            ]
+          },
+          {
+            "id": "entanglement-3-gate-0",
+            "type": "single-gate",
+            "left": 190,
+            "top": 96,
+            "width": 338,
+            "height": 208,
+            "z": 15,
+            "singleGateTick": 0
+          },
+          {
+            "id": "entanglement-3-gate-1",
+            "type": "single-gate",
+            "left": 190,
+            "top": 356,
+            "width": 338,
+            "height": 208,
+            "z": 16,
+            "singleGateTick": 0
+          },
+          {
+            "id": "entanglement-3-mailbox",
             "type": "mailbox",
-            "left": 390,
-            "top": 130,
-            "width": 373,
-            "height": 240,
-            "z": 17
+            "left": 510,
+            "top": 250,
+            "width": 240,
+            "height": 180,
+            "z": 12
+          },
+          {
+            "id": "entanglement-3-register-measurement",
+            "type": "component-group",
+            "left": 640,
+            "top": 150,
+            "width": 920,
+            "height": 438,
+            "z": 10,
+            "groupComponentId": "four-qubit-register-measurement",
+            "measurementGroupId": "entanglement-3-register-measurement",
+            "measurementRegisterQubitCount": 4
           }
         ],
-        "gridSnap": true,
-        "canvasWidth": 1354,
+        "gridSnap": false,
+        "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1782237880370
+        "savedAt": 1782241901945
       }
     }
   ]
