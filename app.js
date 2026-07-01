@@ -4646,6 +4646,14 @@ function mailboxRoomDefaultRoomId() {
   );
 }
 
+function mailboxRoomIdForSendContext(context = null) {
+  const canvas = generatedCanvasForItem(context?.mailboxItem);
+  if (isEntanglementThreeCanvas(canvas)) {
+    return ENTANGLEMENT_THREE_ROOM_ID;
+  }
+  return mailboxRoomDefaultRoomId();
+}
+
 function mailboxRoomDefaultDisplayName() {
   const stored = readMailboxRoomStorage();
   return (
@@ -7290,7 +7298,8 @@ function openMailboxSendDialog(context) {
     }
   }
   if (dialog.roomInput instanceof HTMLInputElement) {
-    dialog.roomInput.value = mailboxRoomState.roomId || mailboxRoomDefaultRoomId();
+    dialog.roomInput.value =
+      mailboxRoomState.roomId || mailboxRoomIdForSendContext(context);
   }
   void refreshMailboxRoomNameSuggestion(dialog);
   if (dialog.status instanceof HTMLElement) {
@@ -25006,6 +25015,9 @@ function localLabMailboxFailureMessage(action, error) {
     return "Mailbox token already claimed. Send selected q to create a fresh link.";
   }
   if (/Failed to fetch|not reachable|NetworkError|Load failed/i.test(message)) {
+    if (IS_GITHUB_PAGES_BUILD) {
+      return `Mailbox ${action} failed: back end at ${localLabBackendBaseUrl()} is not available. Check that the Render backend service is deployed and awake, then reload Entanglement 3.`;
+    }
     return `Mailbox ${action} failed: backend at ${localLabBackendBaseUrl()} is not reachable. Start it with npm run backend and try again.`;
   }
   return `Mailbox ${action} failed: ${message}`;
