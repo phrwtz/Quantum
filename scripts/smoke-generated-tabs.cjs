@@ -185,6 +185,19 @@ function startBackendServer() {
   });
 }
 
+async function api(baseUrl, pathName, options = {}) {
+  const response = await fetch(`${baseUrl}${pathName}`, {
+    method: options.method || "GET",
+    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const text = await response.text();
+  return {
+    response,
+    body: text ? JSON.parse(text) : {},
+  };
+}
+
 async function rectCenter(locator) {
   const box = await locator.boundingBox();
   if (!box) {
@@ -1902,10 +1915,21 @@ async function runEditorDocumentWorkflowSmoke(page) {
     );
   }
 
-  const openButtonCount = await page.locator("#editorOpenTabButton").count();
-  if (openButtonCount !== 0) {
-    throw new Error("Editor still renders the redundant Open button");
+  const openButton = page.locator("#editorOpenTabButton");
+  const openButtonCount = await openButton.count();
+  const openButtonEnabled =
+    openButtonCount === 1 ? await openButton.isEnabled() : false;
+  if (openButtonCount !== 1 || !openButtonEnabled) {
+    throw new Error(
+      `Editor Open tab button is missing or disabled: count=${openButtonCount}, enabled=${openButtonEnabled}`,
+    );
   }
+  await openButton.click();
+  const openPanelVisible = await page.locator("#editorOpenTabPanel").isVisible();
+  if (!openPanelVisible) {
+    throw new Error("Editor Open tab button did not reveal the saved-tab selector");
+  }
+  await openButton.click();
 
   await page.locator("#playgroundComponentSelect").selectOption("single-gate");
   const gateCanvasBox = await page.locator("#playgroundCanvas").boundingBox();
@@ -2053,6 +2077,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     );
   }
 
+  await openButton.click();
   await page.locator("#editorTargetTabSelect").selectOption(saved.id);
   await wait(250);
   const reopenedCount = await page.locator("#playgroundCanvas > .playground-node").count();
@@ -2742,6 +2767,7 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
       };
     } finally {
       canvas.remove();
+      pruneGeneratedRuntimeState();
       generatedExperimentPlaybackSpeed = previousSpeed;
       if (layoutEditorState.enabled !== previousLayoutEditEnabled) {
         setLayoutEditEnabled(previousLayoutEditEnabled);
@@ -4802,6 +4828,1091 @@ async function runLocalLabSharedSyncSmoke(browser, baseUrl) {
   }
 }
 
+async function openMailboxDeliverySmokePage(
+  browser,
+  baseUrl,
+  backendUrl,
+  roomId,
+  displayName = "",
+  expectedDefaultName = "",
+) {
+  const context = await browser.newContext({
+    viewport: { width: 1200, height: 820 },
+  });
+  const page = await context.newPage();
+  await installContentApiHelpers(page);
+  await page.goto(
+    `${baseUrl}/index.html?backend=${encodeURIComponent(backendUrl)}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.evaluate(() => {
+    window.applyGeneratedTabsState({
+      tabs: [
+        {
+          id: "mailbox-delivery-smoke",
+          label: "Mailbox Delivery Smoke",
+          layout: {
+            items: [
+              {
+                id: "mailbox-smoke-qubit",
+                type: "qubit",
+                left: 90,
+                top: 210,
+                width: 72,
+                height: 72,
+                z: 2,
+                vector: [1, 0],
+              },
+              {
+                id: "mailbox-smoke-qubit-b",
+                type: "qubit",
+                left: 90,
+                top: 340,
+                width: 72,
+                height: 72,
+                z: 2,
+                vector: [1, 0],
+              },
+              {
+                id: "mailbox-smoke-mailbox",
+                type: "mailbox",
+                left: 410,
+                top: 125,
+                width: 373,
+                height: 240,
+                z: 12,
+              },
+            ],
+            canvasWidth: 1100,
+            canvasHeight: 620,
+          },
+        },
+      ],
+    });
+  });
+  await page.evaluate(() => {
+    document.querySelector("#tab-mailbox-delivery-smoke")?.click();
+  });
+  await page.waitForFunction(
+    () => !document.querySelector("#panel-mailbox-delivery-smoke")?.hidden,
+  );
+  const mailbox = page.locator(
+    '#panel-mailbox-delivery-smoke [data-component="mailbox"]',
+  );
+  await mailbox.click();
+  await page.locator(".mailbox-room-id").fill(roomId);
+  if (displayName) {
+    await page.locator(".mailbox-room-name").fill(displayName);
+  } else if (expectedDefaultName) {
+    await page.waitForFunction(
+      (expected) =>
+        document.querySelector(".mailbox-room-name")?.value.trim() === expected,
+      expectedDefaultName,
+      { timeout: 5000 },
+    );
+  } else {
+    await page.waitForFunction(
+      () => document.querySelector(".mailbox-room-name")?.value.trim(),
+      null,
+      { timeout: 5000 },
+    );
+  }
+  await page.locator(".mailbox-room-join-button").click();
+  await page.waitForFunction(
+    () =>
+      !document.querySelector(".mailbox-room-panel")?.hasAttribute("hidden"),
+    null,
+    { timeout: 5000 },
+  );
+  await page.locator(".mailbox-send-cancel").click();
+  return { context, page };
+}
+
+async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
+  const backend = await startBackendServer();
+  const roomId = `mailbox-smoke-${Date.now()}`;
+  let alice = null;
+  let bob = null;
+  try {
+    bob = await openMailboxDeliverySmokePage(
+      browser,
+      baseUrl,
+      backend.baseUrl,
+      roomId,
+      "",
+      "Bob",
+    );
+    alice = await openMailboxDeliverySmokePage(
+      browser,
+      baseUrl,
+      backend.baseUrl,
+      roomId,
+      "",
+      "Alice",
+    );
+
+    const joinedDefaults = await Promise.all([
+      bob.page.evaluate(() => {
+        const qubits = Array.from(
+          document.querySelectorAll(
+            '#panel-mailbox-delivery-smoke [data-component="qubit"]',
+          ),
+        ).map((qubit) => ({
+          itemId: qubit.dataset.generatedItemId || "",
+          roomQubitIndex: qubit.dataset.roomQubitIndex || "",
+          qubitId: qubit.dataset.qubitId || "",
+          label: qubit.dataset.qubitLabel || "",
+          coreLabel:
+            qubit.querySelector(".playground-qubit-core")?.dataset.qubitLabel ||
+            "",
+        }));
+        return {
+          name: mailboxRoomState.displayName,
+          qubits,
+        };
+      }),
+      alice.page.evaluate(() => {
+        const qubits = Array.from(
+          document.querySelectorAll(
+            '#panel-mailbox-delivery-smoke [data-component="qubit"]',
+          ),
+        ).map((qubit) => ({
+          itemId: qubit.dataset.generatedItemId || "",
+          roomQubitIndex: qubit.dataset.roomQubitIndex || "",
+          qubitId: qubit.dataset.qubitId || "",
+          label: qubit.dataset.qubitLabel || "",
+          coreLabel:
+            qubit.querySelector(".playground-qubit-core")?.dataset.qubitLabel ||
+            "",
+        }));
+        return {
+          name: mailboxRoomState.displayName,
+          qubits,
+        };
+      }),
+    ]);
+    const bobQubits = joinedDefaults[0].qubits;
+    const aliceQubits = joinedDefaults[1].qubits;
+    if (
+      joinedDefaults[0].name !== "Bob" ||
+      bobQubits.length !== 2 ||
+      bobQubits[0].roomQubitIndex !== "0" ||
+      bobQubits[0].qubitId !== "1" ||
+      bobQubits[0].label !== "q0" ||
+      bobQubits[0].coreLabel !== "q0" ||
+      bobQubits[1].roomQubitIndex !== "1" ||
+      bobQubits[1].qubitId !== "2" ||
+      bobQubits[1].label !== "q1" ||
+      bobQubits[1].coreLabel !== "q1" ||
+      joinedDefaults[1].name !== "Alice" ||
+      aliceQubits.length !== 2 ||
+      aliceQubits[0].roomQubitIndex !== "2" ||
+      aliceQubits[0].qubitId !== "3" ||
+      aliceQubits[0].label !== "q2" ||
+      aliceQubits[0].coreLabel !== "q2" ||
+      aliceQubits[1].roomQubitIndex !== "3" ||
+      aliceQubits[1].qubitId !== "4" ||
+      aliceQubits[1].label !== "q3" ||
+      aliceQubits[1].coreLabel !== "q3"
+    ) {
+      throw new Error(
+        `Mailbox room defaults did not namespace participants correctly: ${JSON.stringify(joinedDefaults)}`,
+      );
+    }
+
+    const fourQubitMeasurement = await bob.page.evaluate(async () => {
+      const canvas = document.createElement("div");
+      canvas.className = "generated-layout-canvas";
+      canvas.dataset.generatedTabId = "four-qubit-measurement-smoke";
+      Object.assign(canvas.style, {
+        position: "relative",
+        width: "1280px",
+        height: "760px",
+      });
+      const measure = createGeneratedLayoutItemNode(
+        savedGroupComponentType(REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID),
+        {
+          id: "four-qubit-measure",
+          left: 300,
+          top: 30,
+          width: 940,
+          height: 438,
+          measurementRegisterQubitCount: 4,
+        },
+      );
+      const qubits = Array.from({ length: 4 }, (_item, index) =>
+        createGeneratedLayoutItemNode("qubit", {
+          id: `four-measure-q${index}`,
+          left: 60,
+          top: 74 + index * 118,
+          width: 58,
+          height: 58,
+          roomQubitIndex: index,
+          qubitId: index + 1,
+          vector: [Math.SQRT1_2, Math.SQRT1_2],
+        }),
+      );
+      canvas.append(measure, ...qubits);
+      document.body.appendChild(canvas);
+      prepareGeneratedLayoutCanvas(canvas);
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+      if (!runtime || runtime.registerQubitCount !== 4) {
+        canvas.remove();
+        pruneGeneratedRuntimeState();
+        return {
+          ok: false,
+          reason: "runtime",
+          registerQubitCount: runtime?.registerQubitCount || null,
+          outcomeKeys: runtime?.outcomeKeys || null,
+        };
+      }
+
+      const states = qubits.map((qubit) => ensureGeneratedQubitRuntimeState(qubit));
+      const registerState = {
+        numQubits: 4,
+        amplitudes: Array.from({ length: 16 }, (_item, index) =>
+          index === 0 || index === 15 ? Math.SQRT1_2 : 0,
+        ),
+        displayMode: "conditional",
+        members: qubits.map((item, index) => ({
+          item,
+          state: states[index],
+          qubitIndex: index,
+        })),
+      };
+      registerState.members.forEach((member) =>
+        assignRuntimeStateToRegisterMember(member, registerState, member.qubitIndex),
+      );
+      syncGeneratedPairStateVisuals(registerState);
+
+      const snapshots = [];
+      const countTotal = () => {
+        const current =
+          generatedSeparatedPairMeasurementRuntimes.get(measure) ||
+          initializeGeneratedSeparatedPairMeasurementItem(measure);
+        return {
+          registerQubitCount: current?.registerQubitCount || null,
+          pending: current?.pendingMeasurements?.length || 0,
+          total: Object.values(current?.tubeCounts || {}).reduce(
+            (sum, count) => sum + Number(count || 0),
+            0,
+          ),
+          counts: { ...(current?.tubeCounts || {}) },
+        };
+      };
+
+      for (let index = 0; index < qubits.length; index += 1) {
+        const completed = await runGeneratedSeparatedPairMeasurementTransit(
+          canvas,
+          qubits[index],
+          runtime,
+          0,
+        );
+        snapshots.push({ index, completed, ...countTotal() });
+      }
+      canvas.remove();
+      return {
+        ok:
+          snapshots.length === 4 &&
+          snapshots.slice(0, 3).every((entry, index) =>
+            entry.completed &&
+            entry.index === index &&
+            entry.total === 0 &&
+            entry.pending === index + 1,
+          ) &&
+          snapshots[3].completed &&
+          snapshots[3].pending === 0 &&
+          snapshots[3].total === 1,
+        snapshots,
+      };
+    });
+    if (!fourQubitMeasurement.ok) {
+      throw new Error(
+        `Four-qubit measurement tubes did not wait for all four qubits and count once: ${JSON.stringify(fourQubitMeasurement)}`,
+      );
+    }
+
+    const independentFourQubitMeasurement = await bob.page.evaluate(async () => {
+      const runScenario = async (scenarioId, configureQubits) => {
+        const canvas = document.createElement("div");
+        canvas.className = "generated-layout-canvas";
+        canvas.dataset.generatedTabId = scenarioId;
+        Object.assign(canvas.style, {
+          position: "relative",
+          width: "1280px",
+          height: "760px",
+        });
+        const measure = createGeneratedLayoutItemNode(
+          savedGroupComponentType(REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID),
+          {
+            id: `${scenarioId}-measure`,
+            left: 300,
+            top: 30,
+            width: 940,
+            height: 438,
+            measurementRegisterQubitCount: 4,
+          },
+        );
+        const qubits = Array.from({ length: 4 }, (_item, index) =>
+          createGeneratedLayoutItemNode("qubit", {
+            id: `${scenarioId}-q${index}`,
+            left: 60,
+            top: 74 + index * 118,
+            width: 58,
+            height: 58,
+            roomQubitIndex: index,
+            qubitId: index + 1,
+            vector: [Math.SQRT1_2, Math.SQRT1_2],
+          }),
+        );
+        canvas.append(measure, ...qubits);
+        document.body.appendChild(canvas);
+        prepareGeneratedLayoutCanvas(canvas);
+        const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+        await configureQubits(qubits);
+
+        const countTotal = () => {
+          const current =
+            generatedSeparatedPairMeasurementRuntimes.get(measure) ||
+            initializeGeneratedSeparatedPairMeasurementItem(measure);
+          return {
+            registerQubitCount: current?.registerQubitCount || null,
+            pending: current?.pendingMeasurements?.length || 0,
+            total: Object.values(current?.tubeCounts || {}).reduce(
+              (sum, count) => sum + Number(count || 0),
+              0,
+            ),
+            counts: { ...(current?.tubeCounts || {}) },
+          };
+        };
+
+        const snapshots = [];
+        for (let index = 0; index < qubits.length; index += 1) {
+          const completed = await runGeneratedSeparatedPairMeasurementTransit(
+            canvas,
+            qubits[index],
+            runtime,
+            0,
+          );
+          snapshots.push({ index, completed, ...countTotal() });
+        }
+        canvas.remove();
+        return {
+          ok:
+            runtime?.registerQubitCount === 4 &&
+            snapshots.length === 4 &&
+            snapshots.slice(0, 3).every((entry, index) =>
+              entry.completed &&
+              entry.index === index &&
+              entry.total === 0 &&
+              entry.pending === index + 1,
+            ) &&
+            snapshots[3].completed &&
+            snapshots[3].pending === 0 &&
+            snapshots[3].total === 1,
+          snapshots,
+        };
+      };
+
+      const independent = await runScenario(
+        "four-independent-measurement-smoke",
+        async (qubits) => {
+          qubits.forEach((qubit) => {
+            const state = ensureGeneratedQubitRuntimeState(qubit);
+            state.pairState = null;
+            state.pairQubitIndex = null;
+          });
+        },
+      );
+      const mixed = await runScenario(
+        "three-entangled-plus-independent-measurement-smoke",
+        async (qubits) => {
+          const states = qubits.map((qubit) => ensureGeneratedQubitRuntimeState(qubit));
+          const registerState = {
+            numQubits: 3,
+            amplitudes: Array.from({ length: 8 }, (_item, index) =>
+              index === 0 || index === 7 ? Math.SQRT1_2 : 0,
+            ),
+            displayMode: "conditional",
+            members: qubits.slice(0, 3).map((item, index) => ({
+              item,
+              state: states[index],
+              qubitIndex: index,
+            })),
+          };
+          registerState.members.forEach((member) =>
+            assignRuntimeStateToRegisterMember(
+              member,
+              registerState,
+              member.qubitIndex,
+            ),
+          );
+          states[3].pairState = null;
+          states[3].pairQubitIndex = null;
+          syncGeneratedPairStateVisuals(registerState);
+        },
+      );
+      const legacyIds = await runScenario(
+        "four-legacy-id-measurement-smoke",
+        async (qubits) => {
+          qubits.forEach((qubit, index) => {
+            delete qubit.dataset.roomQubitIndex;
+            qubit.dataset.qubitId = String(145000 + index * 7);
+            delete qubit.dataset.generatedMeasurementSlotIndex;
+            updateQubitDisplayLabel(qubit, index);
+            const state = ensureGeneratedQubitRuntimeState(qubit);
+            state.pairState = null;
+            state.pairQubitIndex = null;
+          });
+        },
+      );
+      const docRecordingIndependent = await runScenario(
+        "four-doc-recording-independent-measurement-smoke",
+        async (qubits) => {
+          const canvas = qubits[0]?.closest(".generated-layout-canvas");
+          if (canvas instanceof HTMLElement) {
+            canvas.classList.add("doc-editor-canvas");
+            canvas.dataset.docEditorCanvas = "true";
+            beginGeneratedExperimentRecording(canvas);
+          }
+          qubits.forEach((qubit, index) => {
+            delete qubit.dataset.roomQubitIndex;
+            qubit.dataset.qubitId = String(180000 + index * 11);
+            delete qubit.dataset.generatedMeasurementSlotIndex;
+            updateQubitDisplayLabel(qubit, index);
+            const state = ensureGeneratedQubitRuntimeState(qubit);
+            state.pairState = null;
+            state.pairQubitIndex = null;
+          });
+        },
+      );
+      const lostConfiguredCount = await runScenario(
+        "four-lost-configured-count-measurement-smoke",
+        async (qubits) => {
+          const canvas = qubits[0]?.closest(".generated-layout-canvas");
+          const measure = canvas?.querySelector(
+            '[data-generated-item-id="four-lost-configured-count-measurement-smoke-measure"]',
+          );
+          const runtime =
+            measure instanceof HTMLElement
+              ? generatedSeparatedPairMeasurementRuntimes.get(measure)
+              : null;
+          if (measure instanceof HTMLElement) {
+            delete measure.dataset.measurementRegisterQubitCount;
+          }
+          if (runtime) {
+            runtime.configuredRegisterQubitCount = 0;
+            runtime.registerQubitCount = 4;
+          }
+          qubits.forEach((qubit, index) => {
+            delete qubit.dataset.roomQubitIndex;
+            qubit.dataset.qubitId = String(210000 + index * 13);
+            delete qubit.dataset.generatedMeasurementSlotIndex;
+            updateQubitDisplayLabel(qubit, index);
+            const state = ensureGeneratedQubitRuntimeState(qubit);
+            state.pairState = null;
+            state.pairQubitIndex = null;
+          });
+        },
+      );
+      const duplicateSlots = await runScenario(
+        "four-duplicate-slot-measurement-smoke",
+        async (qubits) => {
+          qubits.forEach((qubit, index) => {
+            delete qubit.dataset.roomQubitIndex;
+            qubit.dataset.qubitId = String(240000 + index * 17);
+            qubit.dataset.generatedMeasurementSlotIndex = "0";
+            updateQubitDisplayLabel(qubit, index);
+            const state = ensureGeneratedQubitRuntimeState(qubit);
+            state.pairState = null;
+            state.pairQubitIndex = null;
+          });
+        },
+      );
+      return {
+        independent,
+        mixed,
+        legacyIds,
+        docRecordingIndependent,
+        lostConfiguredCount,
+        duplicateSlots,
+      };
+    });
+    if (
+      !independentFourQubitMeasurement.independent.ok ||
+      !independentFourQubitMeasurement.mixed.ok ||
+      !independentFourQubitMeasurement.legacyIds.ok ||
+      !independentFourQubitMeasurement.docRecordingIndependent.ok ||
+      !independentFourQubitMeasurement.lostConfiguredCount.ok ||
+      !independentFourQubitMeasurement.duplicateSlots.ok
+    ) {
+      throw new Error(
+        `Four-qubit measurement tubes did not count independent or mixed qubits correctly: ${JSON.stringify(independentFourQubitMeasurement)}`,
+      );
+    }
+
+    await bob.page.evaluate(() => {
+      const canvas = document.querySelector(
+        "#panel-mailbox-delivery-smoke .generated-layout-canvas",
+      );
+      const retained = canvas?.querySelector(
+        '[data-generated-item-id="mailbox-smoke-qubit"]',
+      );
+      const sent = canvas?.querySelector(
+        '[data-generated-item-id="mailbox-smoke-qubit-b"]',
+      );
+      if (
+        !(canvas instanceof HTMLElement) ||
+        !(retained instanceof HTMLElement) ||
+        !(sent instanceof HTMLElement)
+      ) {
+        throw new Error("Missing entanglement smoke canvas or retained qubit");
+      }
+      prepareGeneratedLayoutCanvas(canvas);
+      const pairState = createGeneratedPairState(retained, sent);
+      pairState.amplitudes = [Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+      pairState.displayMode = "linked";
+      pairState.linkRelation = "correlated";
+      syncGeneratedPairStateVisuals(pairState);
+    });
+
+    const bobQubit = bob.page.locator(
+      '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit-b"]',
+    );
+    const bobMailboxWindow = bob.page.locator(
+      '#panel-mailbox-delivery-smoke [data-component="mailbox"] [data-role="mailbox-window"]',
+    );
+    const [qubitCenter, mailboxCenter] = await Promise.all([
+      rectCenter(bobQubit),
+      rectCenter(bobMailboxWindow),
+    ]);
+    await bob.page.mouse.move(qubitCenter.x, qubitCenter.y);
+    await bob.page.mouse.down();
+    await bob.page.mouse.move(mailboxCenter.x, mailboxCenter.y, { steps: 12 });
+    await bob.page.mouse.up();
+    await bob.page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          '#panel-mailbox-delivery-smoke [data-component="qubit"]',
+        ).length === 1,
+      null,
+      { timeout: 6000 },
+    );
+
+    const aliceMailbox = alice.page.locator(
+      '#panel-mailbox-delivery-smoke [data-component="mailbox"]',
+    );
+    await aliceMailbox.click();
+    await alice.page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          '#panel-mailbox-delivery-smoke [data-component="qubit"]',
+        ).length === 3,
+      null,
+      { timeout: 8000 },
+    );
+    await wait(950);
+
+    const delivery = await alice.page.evaluate(() => {
+      const panel = document.querySelector("#panel-mailbox-delivery-smoke");
+      const received = panel?.querySelector(
+        '[data-component="qubit"][data-mailbox-received-event-id]',
+      );
+      const mailbox = panel?.querySelector('[data-component="mailbox"]');
+      const receivedRect = received?.getBoundingClientRect();
+      const mailboxRect = mailbox?.getBoundingClientRect();
+      const overlapWidth =
+        receivedRect && mailboxRect
+          ? Math.max(
+              0,
+              Math.min(receivedRect.right, mailboxRect.right) -
+                Math.max(receivedRect.left, mailboxRect.left),
+            )
+          : Infinity;
+      const overlapHeight =
+        receivedRect && mailboxRect
+          ? Math.max(
+              0,
+              Math.min(receivedRect.bottom, mailboxRect.bottom) -
+                Math.max(receivedRect.top, mailboxRect.top),
+            )
+          : Infinity;
+      return {
+        received: Boolean(received),
+        receivedFrom: received?.dataset.mailboxReceivedFrom || "",
+        vector: JSON.parse(received?.dataset.initialVector || "null"),
+        receivedZ: Number(received?.style.zIndex || 0),
+        mailboxZ: Number(mailbox?.style.zIndex || 0),
+        overlapArea: overlapWidth * overlapHeight,
+        status: document.querySelector(".mailbox-send-status")?.textContent || "",
+      };
+    });
+    if (
+      !delivery.received ||
+      delivery.receivedFrom !== "Bob" ||
+      !Array.isArray(delivery.vector) ||
+      Math.abs(delivery.vector[0] - Math.SQRT1_2) > 1e-9 ||
+      Math.abs(delivery.vector[1] - Math.SQRT1_2) > 1e-9 ||
+      delivery.receivedZ <= delivery.mailboxZ ||
+      delivery.overlapArea !== 0 ||
+      !delivery.status.includes("Received q1 from Bob")
+    ) {
+      throw new Error(
+        `Mailbox delivery did not materialize a visible qubit: ${JSON.stringify(delivery)}`,
+      );
+    }
+
+    await alice.page.locator(".mailbox-send-cancel").click();
+    await aliceMailbox.click();
+    await wait(500);
+    const duplicateCount = await alice.page
+      .locator('#panel-mailbox-delivery-smoke [data-component="qubit"]')
+      .count();
+    if (duplicateCount !== 3) {
+      throw new Error(
+        `Mailbox delivery was imported more than once: qubits=${duplicateCount}`,
+      );
+    }
+
+    const remotePair = await Promise.all([
+      alice.page.evaluate(() => {
+        const item = document.querySelector(
+          '#panel-mailbox-delivery-smoke [data-mailbox-received-event-id]',
+        );
+        const state = generatedQubitRuntimes.get(item);
+        return {
+          id: item?.dataset.remoteEntanglementId || "",
+          index: state?.pairQubitIndex,
+          amplitudes: state?.pairState?.amplitudes || null,
+        };
+      }),
+      bob.page.evaluate(() => {
+        const item = document.querySelector(
+          '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+        );
+        const state = generatedQubitRuntimes.get(item);
+        return {
+          id: item?.dataset.remoteEntanglementId || "",
+          index: state?.pairQubitIndex,
+          amplitudes: state?.pairState?.amplitudes || null,
+        };
+      }),
+    ]);
+    const [alicePair, bobPair] = remotePair;
+    if (
+      !alicePair.id ||
+      alicePair.id !== bobPair.id ||
+      alicePair.index !== 1 ||
+      bobPair.index !== 0 ||
+      Math.abs(alicePair.amplitudes?.[0] - Math.SQRT1_2) > 1e-9 ||
+      Math.abs(bobPair.amplitudes?.[3] - Math.SQRT1_2) > 1e-9
+    ) {
+      throw new Error(
+        `Mailbox qubits did not share entanglement: ${JSON.stringify(remotePair)}`,
+      );
+    }
+
+    const aliceBottomExistingOrientation = await alice.page.evaluate(async () => {
+      const panel = document.querySelector("#panel-mailbox-delivery-smoke");
+      const canvas = panel?.querySelector(".generated-layout-canvas");
+      if (!(canvas instanceof HTMLElement)) {
+        return null;
+      }
+      const retained = createGeneratedLayoutItemNode("qubit", {
+        left: 30,
+        top: 30,
+        width: 40,
+        height: 40,
+        z: 30,
+        vector: [1, 0],
+        id: "orientation-retained",
+      });
+      const received = createGeneratedLayoutItemNode("qubit", {
+        left: 80,
+        top: 30,
+        width: 40,
+        height: 40,
+        z: 31,
+        vector: [1, 0],
+        id: "orientation-received",
+      });
+      const local = createGeneratedLayoutItemNode("qubit", {
+        left: 130,
+        top: 30,
+        width: 40,
+        height: 40,
+        z: 32,
+        vector: [1, 0],
+        id: "orientation-local",
+      });
+      const cnot = createGeneratedLayoutItemNode("cnot-gate", {
+        left: 200,
+        top: 10,
+        width: 240,
+        height: 190,
+        z: 33,
+        id: "orientation-cnot",
+      });
+      canvas.append(retained, received, local, cnot);
+      prepareGeneratedLayoutCanvas(canvas);
+      const pairState = createGeneratedPairState(retained, received);
+      pairState.amplitudes = [Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+      pairState.displayMode = "linked";
+      pairState.linkRelation = "correlated";
+      syncGeneratedPairStateVisuals(pairState);
+      local.dataset.qubitId = received.dataset.qubitId;
+      const cnotRuntime = initializeGeneratedCnotItem(cnot);
+      await runGeneratedCnotIngress(canvas, local, cnotRuntime, "top");
+      await runGeneratedCnotIngress(canvas, received, cnotRuntime, "bottom");
+      if (cnotRuntime.cyclePromise) {
+        await cnotRuntime.cyclePromise;
+      }
+      const retainedState = generatedQubitRuntimes.get(retained);
+      const receivedState = generatedQubitRuntimes.get(received);
+      const localState = generatedQubitRuntimes.get(local);
+      const memberLogicalIds = Array.from(
+        localState?.pairState?.members || [],
+        (member) => qubitLogicalIdForItem(member.item),
+      );
+      const result = {
+        retainedIndex: retainedState?.pairQubitIndex,
+        receivedIndex: receivedState?.pairQubitIndex,
+        localIndex: localState?.pairQubitIndex,
+        sameRegister:
+          retainedState?.pairState === receivedState?.pairState &&
+          receivedState?.pairState === localState?.pairState,
+        numQubits: receivedState?.pairState?.numQubits || null,
+        amplitudes: receivedState?.pairState?.amplitudes || null,
+        retainedLogicalId: qubitLogicalIdForItem(retained),
+        receivedLogicalId: qubitLogicalIdForItem(received),
+        localLogicalId: qubitLogicalIdForItem(local),
+        memberLogicalIds,
+        uniqueMemberLogicalIds: new Set(memberLogicalIds).size,
+      };
+      [retained, received, local].forEach((item) => {
+        generatedQubitRuntimes.delete(item);
+        item.remove();
+      });
+      cnot.remove();
+      return result;
+    });
+    if (
+      !aliceBottomExistingOrientation ||
+      aliceBottomExistingOrientation.retainedIndex !== 0 ||
+      aliceBottomExistingOrientation.receivedIndex !== 1 ||
+      aliceBottomExistingOrientation.localIndex !== 2 ||
+      !aliceBottomExistingOrientation.sameRegister ||
+      aliceBottomExistingOrientation.numQubits !== 3 ||
+      aliceBottomExistingOrientation.receivedLogicalId ===
+        aliceBottomExistingOrientation.localLogicalId ||
+      aliceBottomExistingOrientation.uniqueMemberLogicalIds !== 3 ||
+      Math.abs(aliceBottomExistingOrientation.amplitudes?.[0] - Math.SQRT1_2) >
+        1e-9 ||
+      Math.abs(aliceBottomExistingOrientation.amplitudes?.[6] - Math.SQRT1_2) >
+        1e-9
+    ) {
+      throw new Error(
+        `C-NOT with existing register in bottom slot did not append q2 correctly: ${JSON.stringify(aliceBottomExistingOrientation)}`,
+      );
+    }
+
+    const aliceExpanded = await alice.page.evaluate(() => {
+      const panel = document.querySelector("#panel-mailbox-delivery-smoke");
+      const canvas = panel?.querySelector(".generated-layout-canvas");
+      const received = panel?.querySelector("[data-mailbox-received-event-id]");
+      const local = panel?.querySelector(
+        '[data-generated-item-id="mailbox-smoke-qubit"]',
+      );
+      if (!canvas || !received || !(local instanceof HTMLElement)) {
+        return null;
+      }
+      prepareGeneratedLayoutCanvas(canvas);
+      ensureGeneratedQubitRuntimeState(local);
+      applyGeneratedCnotToQubitStates(received, local);
+      const receivedState = generatedQubitRuntimes.get(received);
+      const localState = generatedQubitRuntimes.get(local);
+      return {
+        receivedIndex: receivedState?.pairQubitIndex,
+        localIndex: localState?.pairQubitIndex,
+        sameRegister: receivedState?.pairState === localState?.pairState,
+        numQubits: receivedState?.pairState?.numQubits,
+        amplitudes: receivedState?.pairState?.amplitudes || null,
+        receivedLogicalId: qubitLogicalIdForItem(received),
+        localLogicalId: qubitLogicalIdForItem(local),
+        localLabel: local.dataset.qubitLabel || "",
+      };
+    });
+    if (
+      !aliceExpanded ||
+      aliceExpanded.receivedIndex !== 1 ||
+      aliceExpanded.localIndex !== 2 ||
+      !aliceExpanded.sameRegister ||
+      aliceExpanded.numQubits !== 3 ||
+      aliceExpanded.receivedLogicalId === aliceExpanded.localLogicalId ||
+      aliceExpanded.localLabel !== "q2" ||
+      Math.abs(aliceExpanded.amplitudes?.[0] - Math.SQRT1_2) > 1e-9 ||
+      Math.abs(aliceExpanded.amplitudes?.[7] - Math.SQRT1_2) > 1e-9
+    ) {
+      throw new Error(
+        `Alice did not expand the shared register to three qubits: ${JSON.stringify(aliceExpanded)}`,
+      );
+    }
+
+    await bob.page.waitForFunction(
+      (sharedId) => {
+        const item = document.querySelector(
+          '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+        );
+        const state = generatedQubitRuntimes.get(item);
+        return (
+          item?.dataset.remoteEntanglementId === sharedId &&
+          state?.pairState?.numQubits === 3 &&
+          state.pairState.amplitudes?.length === 8 &&
+          Math.abs(state.pairState.amplitudes[7] - Math.SQRT1_2) < 1e-9
+        );
+      },
+      alicePair.id,
+      { timeout: 9000 },
+    );
+
+    await alice.page.evaluate(async () => {
+      const panel = document.querySelector("#panel-mailbox-delivery-smoke");
+      const mailboxItem = panel?.querySelector('[data-component="mailbox"]');
+      const q2 = panel?.querySelector(
+        '[data-generated-item-id="mailbox-smoke-qubit"]',
+      );
+      if (!(mailboxItem instanceof HTMLElement) || !(q2 instanceof HTMLElement)) {
+        throw new Error("Alice q2 return setup is missing");
+      }
+      await mailboxRoomSendQubit(
+        { mailboxItem, qubitItem: q2, qubitIndex: 2 },
+        { toParticipantId: "", message: "return q2" },
+      );
+    });
+
+    const returnedRegister = await bob.page.evaluate(async () => {
+      await mailboxRoomRefresh({ render: false });
+      const event = mailboxRoomVisibleEvents()
+        .slice()
+        .reverse()
+        .find(
+          (entry) =>
+            entry?.type === "roomMailbox.sent" &&
+            entry.payload?.fromName === "Alice" &&
+            entry.payload?.qubitLabel === "q2",
+        );
+      if (!event) {
+        return { received: false, reason: "missing return event" };
+      }
+      const returned = mailboxRoomReceiveQubitEvent(event);
+      const retained = document.querySelector(
+        '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+      );
+      const retainedState = generatedQubitRuntimes.get(retained);
+      const returnedState = generatedQubitRuntimes.get(returned);
+      return {
+        received: Boolean(returned),
+        retainedIndex: retainedState?.pairQubitIndex,
+        returnedIndex: returnedState?.pairQubitIndex,
+        retainedNumQubits: retainedState?.pairState?.numQubits || null,
+        returnedNumQubits: returnedState?.pairState?.numQubits || null,
+        sameRegister: retainedState?.pairState === returnedState?.pairState,
+        retainedMembers: retainedState?.pairState?.members?.length || 0,
+        returnedMembers: returnedState?.pairState?.members?.length || 0,
+      };
+    });
+    if (
+      !returnedRegister.received ||
+      returnedRegister.retainedIndex !== 0 ||
+      returnedRegister.returnedIndex !== 2 ||
+      returnedRegister.retainedNumQubits !== 3 ||
+      returnedRegister.returnedNumQubits !== 3 ||
+      !returnedRegister.sameRegister
+    ) {
+      throw new Error(
+        `Returned q2 did not rebind Bob's retained q0 to the three-qubit register: ${JSON.stringify(returnedRegister)}`,
+      );
+    }
+
+    await alice.page.evaluate(() => {
+      const item = document.querySelector(
+        '#panel-mailbox-delivery-smoke [data-mailbox-received-event-id]',
+      );
+      applyGeneratedSingleGateToQubitState(item, 6);
+    });
+    try {
+      await bob.page.waitForFunction(
+        () => {
+          const item = document.querySelector(
+            '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+          );
+          const pairState = generatedQubitRuntimes.get(item)?.pairState;
+          return (
+            pairState?.remoteVersion >= 3 &&
+            pairState.numQubits === 3 &&
+            Math.abs(pairState.amplitudes?.[2] + Math.SQRT1_2) < 1e-9 &&
+            Math.abs(pairState.amplitudes?.[5] - Math.SQRT1_2) < 1e-9
+          );
+        },
+        null,
+        { timeout: 9000 },
+      );
+    } catch (error) {
+      const [bobState, sharedState] = await Promise.all([
+        bob.page.evaluate(() => {
+          const item = document.querySelector(
+            '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+          );
+          const pairState = generatedQubitRuntimes.get(item)?.pairState;
+          return {
+            remoteId: item?.dataset.remoteEntanglementId || "",
+            remoteVersion: pairState?.remoteVersion || null,
+            numQubits: pairState?.numQubits || null,
+            amplitudes: pairState?.amplitudes || null,
+          };
+        }),
+        api(
+          backend.baseUrl,
+          `/rooms/${encodeURIComponent(roomId)}/shared-entanglements/${encodeURIComponent(alicePair.id)}`,
+        ),
+      ]);
+      throw new Error(
+        `Remote three-qubit gate update did not arrive: bob=${JSON.stringify(bobState)} shared=${JSON.stringify(sharedState.body)}`,
+      );
+    }
+
+    const measuredColor = await alice.page.evaluate(() => {
+      const item = document.querySelector(
+        '#panel-mailbox-delivery-smoke [data-mailbox-received-event-id]',
+      );
+      return collapseGeneratedQubitState(item);
+    });
+    const separationDeadline = Date.now() + 5000;
+    let sharedPairPayload = await api(
+      backend.baseUrl,
+      `/rooms/${encodeURIComponent(roomId)}/shared-entanglements/${encodeURIComponent(alicePair.id)}`,
+    );
+    while (
+      !(
+        sharedPairPayload.body.sharedEntanglement?.status === "active" &&
+        sharedPairPayload.body.sharedEntanglement?.numQubits === 3 &&
+        sharedPairPayload.body.sharedEntanglement?.version >= 4
+      ) &&
+      Date.now() < separationDeadline
+    ) {
+      await wait(100);
+      sharedPairPayload = await api(
+        backend.baseUrl,
+        `/rooms/${encodeURIComponent(roomId)}/shared-entanglements/${encodeURIComponent(alicePair.id)}`,
+      );
+    }
+    if (
+      sharedPairPayload.body.sharedEntanglement?.status !== "active" ||
+      sharedPairPayload.body.sharedEntanglement?.numQubits !== 3
+    ) {
+      throw new Error(
+        `Mailbox register measurement was not published: ${JSON.stringify(sharedPairPayload.body)}`,
+      );
+    }
+    try {
+      await bob.page.waitForFunction(
+        (expectedColor) => {
+          const item = document.querySelector(
+            '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+          );
+          const state = generatedQubitRuntimes.get(item);
+          const expectedProbabilities =
+            expectedColor === "blue" ? [0, 1] : [1, 0];
+          return (
+            state?.pairState?.numQubits === 3 &&
+            Math.abs((state?.vector?.[0] ?? 0) ** 2 - expectedProbabilities[0]) <
+              1e-9 &&
+            Math.abs((state?.vector?.[1] ?? 0) ** 2 - expectedProbabilities[1]) <
+              1e-9
+          );
+        },
+        measuredColor,
+        { timeout: 12000 },
+      );
+    } catch (error) {
+      const bobState = await bob.page.evaluate(() => {
+        const item = document.querySelector(
+          '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit"]',
+        );
+        const state = generatedQubitRuntimes.get(item);
+        return {
+          vector: state?.vector || null,
+          pairVersion: state?.pairState?.remoteVersion || null,
+          paired: Boolean(state?.pairState),
+        };
+      });
+      throw new Error(
+        `Remote mailbox measurement did not arrive: expected=${measuredColor}, bob=${JSON.stringify(bobState)}, shared=${JSON.stringify(sharedPairPayload.body)}`,
+      );
+    }
+
+    await alice.page.reload({ waitUntil: "domcontentloaded" });
+    await wait(400);
+    const afterRecipientReboot = await api(
+      backend.baseUrl,
+      `/rooms/${encodeURIComponent(roomId)}`,
+    );
+    if (afterRecipientReboot.response.status !== 200) {
+      throw new Error("Recipient reboot incorrectly deleted the sender's room");
+    }
+
+    await bob.page.reload({ waitUntil: "domcontentloaded" });
+    await wait(400);
+    const afterSenderReboot = await api(
+      backend.baseUrl,
+      `/rooms/${encodeURIComponent(roomId)}`,
+    );
+    if (afterSenderReboot.response.status !== 200) {
+      throw new Error("Sender reboot incorrectly deleted the shared room");
+    }
+  } finally {
+    await alice?.context.close();
+    await bob?.context.close();
+    await closeServer(backend.server);
+  }
+}
+
+async function runEditorOpenTabSmoke(browser, baseUrl) {
+  const page = await browser.newPage({ viewport: { width: 1200, height: 820 } });
+  try {
+    await installContentApiHelpers(page);
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => unlockWorkshop());
+    await page.waitForSelector("#panel-plaground:not([hidden])");
+
+    const openButton = page.locator("#editorOpenTabButton");
+    if (!(await openButton.isEnabled())) {
+      throw new Error("Editor Open tab button is disabled with saved tabs available");
+    }
+    await openButton.click();
+    if (!(await page.locator("#editorOpenTabPanel").isVisible())) {
+      throw new Error("Editor Open tab button did not reveal the tab selector");
+    }
+    await page
+      .locator("#editorTargetTabSelect")
+      .selectOption("custom-one-qubit");
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#editorDocumentStatus")
+          ?.textContent?.includes("Editing: One qubit"),
+    );
+    const itemCount = await page
+      .locator("#playgroundCanvas > .playground-node")
+      .count();
+    if (itemCount === 0) {
+      throw new Error("Editor opened One qubit without loading its layout");
+    }
+  } finally {
+    await page.close();
+  }
+}
+
 async function runQuantumInspectorSmoke(page) {
   const originalGeneratedTabs = await page.evaluate(() =>
     JSON.parse(JSON.stringify(window.readQuantumContentState("generated-tabs"))),
@@ -4924,6 +6035,14 @@ async function runQuantumInspectorSmoke(page) {
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
+    if (process.argv.includes("--mailbox-only")) {
+      await runMailboxRoomDeliverySmoke(browser, baseUrl);
+      return { ok: true, mailboxDelivery: true };
+    }
+    if (process.argv.includes("--editor-open-only")) {
+      await runEditorOpenTabSmoke(browser, baseUrl);
+      return { ok: true, editorOpenTab: true };
+    }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
     await installBrowserLocalContentTrap(page);
@@ -4940,6 +6059,7 @@ async function runSmokeTest(baseUrl) {
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
     await runLocalMultiQubitLabSmoke(page);
     await runLocalLabSharedSyncSmoke(browser, baseUrl);
+    await runMailboxRoomDeliverySmoke(browser, baseUrl);
     await runQuantumInspectorSmoke(page);
     await runDocEditorLandingIntroTextSmoke(page);
     await runEntangledMathSmoke(page);

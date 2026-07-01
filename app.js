@@ -105,6 +105,7 @@ const workshopModeButtons = Array.from(
   document.querySelectorAll("[data-workshop-mode]"),
 );
 const quantumCore = window.QuantumCore || null;
+const SHARED_REGISTER_MAX_QUBITS = 8;
 const localLabPanel = document.querySelector("[data-local-lab]");
 const localLabQubitCount = document.getElementById("localLabQubitCount");
 const localLabResetButton = document.getElementById("localLabResetButton");
@@ -283,8 +284,10 @@ const MAILBOX_LINK_PLACEHOLDER = "__MAILBOX_LINK__";
 const MAILBOX_WINDOW_OVERLAP_THRESHOLD = 0.35;
 const MAILBOX_ROOM_STORAGE_KEY = "quantum_mailbox_room_v1";
 const MAILBOX_ROOM_DEFAULT_ID = "qubit-lab-demo";
+const ENTANGLEMENT_THREE_ROOM_ID = "send-receive-room";
 const MAILBOX_ROOM_POLL_MS = 2500;
 const MAILBOX_ROOM_ACTIVE_MS = 15000;
+const MAILBOX_ROOM_AUTO_NAMES = ["Bob", "Alice"];
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
 const IS_GITHUB_PAGES_BUILD =
@@ -324,6 +327,16 @@ const PLAYGROUND_COMPONENT_LIBRARY = {
     label: "Four Testtube Array",
     width: 360,
     height: 245,
+  },
+  "triple-tube-array": {
+    label: "Eight Testtube Array",
+    width: 500,
+    height: 210,
+  },
+  "quadruple-tube-array": {
+    label: "Sixteen Testtube Array",
+    width: 900,
+    height: 210,
   },
   "single-magnifier": {
     label: "Single-Qubit Magnifier",
@@ -971,8 +984,88 @@ function normalizeQubitId(value) {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
+function normalizeRoomQubitIndex(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+}
+
 function qubitLogicalIdForItem(item) {
   return normalizeQubitId(item?.dataset?.qubitId);
+}
+
+function roomQubitIndexForItem(item) {
+  return normalizeRoomQubitIndex(item?.dataset?.roomQubitIndex);
+}
+
+function qubitDisplayIndexForItem(item, fallback = 0) {
+  const roomIndex = roomQubitIndexForItem(item);
+  return Number.isInteger(roomIndex) ? roomIndex : fallback;
+}
+
+function qubitDisplayLabelForItem(item, fallback = 0) {
+  return `q${qubitDisplayIndexForItem(item, fallback)}`;
+}
+
+function setQubitRoomIdentity(item, roomQubitIndex, options = {}) {
+  if (!(item instanceof HTMLElement) || item.dataset.component !== "qubit") {
+    return false;
+  }
+  const normalizedIndex = normalizeRoomQubitIndex(roomQubitIndex);
+  if (!Number.isInteger(normalizedIndex)) {
+    return false;
+  }
+  item.dataset.roomQubitIndex = String(normalizedIndex);
+  const qubitId = normalizeQubitId(options.qubitId) || normalizedIndex + 1;
+  item.dataset.qubitId = String(qubitId);
+  if (options.roomId) {
+    item.dataset.roomId = String(options.roomId);
+  }
+  updateQubitDisplayLabel(item);
+  return true;
+}
+
+function updateQubitDisplayLabel(item, fallback = 0) {
+  if (!(item instanceof HTMLElement) || item.dataset.component !== "qubit") {
+    return;
+  }
+  const label = qubitDisplayLabelForItem(item, fallback);
+  item.dataset.qubitLabel = label;
+  item.setAttribute("aria-label", `Qubit ${label}`);
+  const core = item.querySelector?.(".playground-qubit-core");
+  if (core instanceof HTMLElement) {
+    core.dataset.qubitLabel = label;
+  }
+}
+
+function roomQubitIdentityForItem(item) {
+  if (!(item instanceof HTMLElement) || item.dataset.component !== "qubit") {
+    return null;
+  }
+  const roomQubitIndex = roomQubitIndexForItem(item);
+  const qubitId = qubitLogicalIdForItem(item);
+  if (!Number.isInteger(roomQubitIndex) || !qubitId) {
+    return null;
+  }
+  return {
+    roomId: item.dataset.roomId || mailboxRoomState.roomId || null,
+    roomQubitIndex,
+    qubitId,
+    label: qubitDisplayLabelForItem(item),
+  };
+}
+
+function applyRoomQubitIdentity(item, identity) {
+  if (!identity || typeof identity !== "object") {
+    return false;
+  }
+  const roomQubitIndex = normalizeRoomQubitIndex(identity.roomQubitIndex);
+  if (!Number.isInteger(roomQubitIndex)) {
+    return false;
+  }
+  return setQubitRoomIdentity(item, roomQubitIndex, {
+    qubitId: identity.qubitId,
+    roomId: identity.roomId,
+  });
 }
 
 function maxQubitIdInLayoutItems(items) {
@@ -1136,6 +1229,92 @@ const HIDDEN_COMPONENT_PICKER_GROUP_IDS = new Set([
   "seperate-two-qubit-measurement",
   "sequential-two-qubit-measurement",
 ]);
+const REGISTER_THREE_QUBIT_MEASUREMENT_GROUP_ID =
+  "three-qubit-register-measurement";
+const REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID =
+  "four-qubit-register-measurement";
+
+function registerOutcomeKeyFromIndex(numQubits, index) {
+  const safeNumQubits = Math.max(1, Math.min(4, Number(numQubits) || 1));
+  return index
+    .toString(2)
+    .padStart(safeNumQubits, "0")
+    .replaceAll("0", "b")
+    .replaceAll("1", "r");
+}
+
+function registerMeasurementOutcomeKeys(numQubits) {
+  const safeNumQubits = Math.max(1, Math.min(4, Number(numQubits) || 1));
+  return Array.from({ length: 2 ** safeNumQubits }, (_item, index) =>
+    registerOutcomeKeyFromIndex(safeNumQubits, index),
+  );
+}
+
+function registerMeasurementQubitCountFromKeys(keys) {
+  const uniqueKeys = Array.from(
+    new Set(
+      (Array.isArray(keys) ? keys : [])
+        .map((key) => String(key || "").trim())
+        .filter((key) => /^[br]+$/.test(key)),
+    ),
+  );
+  const keyLength = uniqueKeys[0]?.length || 0;
+  if (
+    keyLength >= 2 &&
+    keyLength <= 4 &&
+    uniqueKeys.length === 2 ** keyLength &&
+    uniqueKeys.every((key) => key.length === keyLength)
+  ) {
+    return keyLength;
+  }
+  return 2;
+}
+
+function registerMeasurementColumnKeysForItem(item) {
+  if (!(item instanceof HTMLElement)) {
+    return [];
+  }
+  return Array.from(item.querySelectorAll(".pair-tube-column[data-key]"))
+    .map((column) => column.dataset.key || "")
+    .filter(Boolean);
+}
+
+function registerMeasurementQubitCountForItem(item) {
+  const datasetCount = Number(item?.dataset?.measurementRegisterQubitCount);
+  if (Number.isInteger(datasetCount) && datasetCount >= 2 && datasetCount <= 4) {
+    return datasetCount;
+  }
+  return registerMeasurementQubitCountFromKeys(
+    registerMeasurementColumnKeysForItem(item),
+  );
+}
+
+function registerMeasurementOutcomeKeysForItem(item) {
+  const count = registerMeasurementQubitCountForItem(item);
+  return registerMeasurementOutcomeKeys(count);
+}
+
+function forcedRegisterMeasurementQubitCountForRuntime(runtime) {
+  const configuredCount = Math.max(
+    0,
+    Math.min(4, Number(runtime?.configuredRegisterQubitCount) || 0),
+  );
+  if (configuredCount > 2) {
+    return configuredCount;
+  }
+  const itemCount = Math.max(
+    0,
+    Math.min(4, registerMeasurementQubitCountForItem(runtime?.item)),
+  );
+  if (itemCount > 2) {
+    return itemCount;
+  }
+  const runtimeCount = Math.max(
+    0,
+    Math.min(4, Number(runtime?.registerQubitCount) || 0),
+  );
+  return runtimeCount > 2 ? runtimeCount : 0;
+}
 
 function storageLabelKey(value) {
   return String(value || "")
@@ -1197,7 +1376,13 @@ function isSeparatedPairMeasurementGroupDefinition(group) {
     return false;
   }
   return (
-    group.items.some((item) => item?.type === "double-tube-array") &&
+    group.items.some((item) =>
+      [
+        "double-tube-array",
+        "triple-tube-array",
+        "quadruple-tube-array",
+      ].includes(item?.type),
+    ) &&
     group.items.some((item) => item?.type === "single-magnifier")
   );
 }
@@ -1637,22 +1822,86 @@ function builtInSeparateTwoQubitMeasurementGroup() {
   return null;
 }
 
+function builtInRegisterMeasurementGroup(numQubits) {
+  const safeNumQubits = numQubits === 4 ? 4 : 3;
+  const tubeType =
+    safeNumQubits === 4 ? "quadruple-tube-array" : "triple-tube-array";
+  const id =
+    safeNumQubits === 4
+      ? REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID
+      : REGISTER_THREE_QUBIT_MEASUREMENT_GROUP_ID;
+  const width = safeNumQubits === 4 ? 940 : 540;
+  const tubeWidth = width - 40;
+  const label =
+    safeNumQubits === 4
+      ? "Four qubit register measurement"
+      : "Three qubit register measurement";
+  return {
+    id,
+    label,
+    width,
+    height: 438,
+    measurementRegisterQubitCount: safeNumQubits,
+    items: [
+      {
+        type: "measurement-capacity",
+        left: Math.round((width - 360) / 2),
+        top: safeNumQubits === 4 ? -60 : 0,
+        width: 360,
+        height: 60,
+        z: 1,
+        measurementRole: "capacity",
+      },
+      {
+        type: tubeType,
+        left: 20,
+        top: 50,
+        width: tubeWidth,
+        height: 190,
+        z: 2,
+        measurementRole:
+          safeNumQubits === 4 ? "quadruple-tubes" : "triple-tubes",
+      },
+      {
+        type: "single-magnifier",
+        left: Math.round((width - 160) / 2),
+        top: 254,
+        width: 160,
+        height: 130,
+        z: 3,
+        measurementRole: "single-magnifier",
+      },
+      {
+        type: "measurement-count-menu",
+        left: Math.round((width - 110) / 2),
+        top: 376,
+        width: 110,
+        height: 62,
+        z: 4,
+        measurementRole: "iteration-count",
+      },
+    ],
+  };
+}
+
 function mergeBuiltInGroupComponentsPayload(payload) {
   const groups = Array.isArray(payload?.groups) ? payload.groups : [];
-  const builtin = builtInSeparateTwoQubitMeasurementGroup();
-  if (!builtin) {
-    return payload && typeof payload === "object" ? payload : { groups };
-  }
-  const alreadyPresent = groups.some(
-    (group) =>
-      storageIdentifierKey(group?.id) === storageIdentifierKey(builtin.id),
+  const builtins = [
+    builtInSeparateTwoQubitMeasurementGroup(),
+    builtInRegisterMeasurementGroup(3),
+    builtInRegisterMeasurementGroup(4),
+  ].filter(Boolean);
+  const existingIds = new Set(
+    groups.map((group) => storageIdentifierKey(group?.id)),
   );
-  if (alreadyPresent) {
-    return { ...(payload || {}), groups };
-  }
   return {
     ...(payload || {}),
-    groups: [...groups, builtin],
+    groups: [
+      ...groups,
+      ...builtins.filter(
+        (group) => !existingIds.has(storageIdentifierKey(group.id)),
+      ),
+    ],
   };
 }
 
@@ -2489,7 +2738,7 @@ function captureGeneratedMeasurementStateSnapshot(item) {
   if (item.dataset.component === "double-measurement") {
     const runtime = generatedDoubleMeasurementRuntimes.get(item);
     const counts = {};
-    ["bb", "br", "rb", "rr"].forEach((key) => {
+    registerMeasurementOutcomeKeys(2).forEach((key) => {
       counts[key] =
         runtime?.tubeCounts?.[key] ??
         parseMeasurementCountText(
@@ -2508,7 +2757,7 @@ function captureGeneratedMeasurementStateSnapshot(item) {
   if (isSeparatedPairMeasurementGroupElement(item)) {
     const runtime = generatedSeparatedPairMeasurementRuntimes.get(item);
     const counts = {};
-    ["bb", "br", "rb", "rr"].forEach((key) => {
+    registerMeasurementOutcomeKeysForItem(item).forEach((key) => {
       counts[key] =
         runtime?.tubeCounts?.[key] ??
         parseMeasurementCountText(
@@ -2579,7 +2828,11 @@ function applyGeneratedMeasurementStateSnapshot(item, measurementState) {
         ? measurementState.counts
         : {};
     const normalizedCounts = {};
-    ["bb", "br", "rb", "rr"].forEach((key) => {
+    const measurementKeys =
+      item.dataset.component === "double-measurement"
+        ? registerMeasurementOutcomeKeys(2)
+        : registerMeasurementOutcomeKeysForItem(item);
+    measurementKeys.forEach((key) => {
       normalizedCounts[key] = Math.max(
         0,
         Math.round(Number(counts[key]) || 0),
@@ -3995,6 +4248,8 @@ function isMeasurementPieceComponentType(type) {
     type === "measurement-capacity" ||
     type === "single-tube-array" ||
     type === "double-tube-array" ||
+    type === "triple-tube-array" ||
+    type === "quadruple-tube-array" ||
     type === "single-magnifier" ||
     type === "double-magnifier" ||
     type === "measurement-count-menu"
@@ -4007,6 +4262,8 @@ function measurementPieceRoleForType(type) {
       "measurement-capacity": "capacity",
       "single-tube-array": "single-tubes",
       "double-tube-array": "double-tubes",
+      "triple-tube-array": "triple-tubes",
+      "quadruple-tube-array": "quadruple-tubes",
       "single-magnifier": "single-magnifier",
       "double-magnifier": "double-magnifier",
       "measurement-count-menu": "iteration-count",
@@ -4021,7 +4278,66 @@ function clonePairMeasurementPart(selector) {
   return part instanceof HTMLElement ? part.cloneNode(true) : null;
 }
 
-function createMeasurementPieceNode(type) {
+function createMeasurementDot(color) {
+  const dot = document.createElement("span");
+  dot.className = `measurement-dot measurement-dot-${color}`;
+  return dot;
+}
+
+function createRegisterMeasurementTubeColumn(key) {
+  const column = document.createElement("div");
+  column.className = "pair-tube-column register-tube-column";
+  column.dataset.key = key;
+
+  const label = document.createElement("div");
+  label.className = "pair-tube-label register-tube-label";
+  key.split("").forEach((digit) => {
+    label.appendChild(createMeasurementDot(digit === "r" ? "red" : "blue"));
+  });
+
+  const count = document.createElement("div");
+  count.className = "tube-count";
+  count.dataset.role = `pair-count-${key}`;
+  count.textContent = "0";
+
+  const tube = document.createElement("div");
+  tube.className = "tube pair-tube register-tube";
+  tube.dataset.role = `pair-tube-${key}`;
+
+  const liquid = document.createElement("div");
+  const allBlue = /^b+$/.test(key);
+  const allRed = /^r+$/.test(key);
+  liquid.className = [
+    "tube-liquid",
+    allBlue
+      ? "tube-liquid-blue"
+      : allRed
+        ? "tube-liquid-red"
+        : "pair-liquid-br",
+  ].join(" ");
+  liquid.dataset.role = `pair-liquid-${key}`;
+  tube.appendChild(liquid);
+
+  column.append(label, count, tube);
+  return column;
+}
+
+function createRegisterMeasurementTubeRack(numQubits) {
+  const safeNumQubits = Math.max(2, Math.min(4, Number(numQubits) || 2));
+  const rack = document.createElement("div");
+  rack.className = [
+    "pair-tube-rack",
+    "register-tube-rack",
+    `register-tube-rack-${safeNumQubits}`,
+  ].join(" ");
+  rack.dataset.registerQubits = `${safeNumQubits}`;
+  registerMeasurementOutcomeKeys(safeNumQubits).forEach((key) => {
+    rack.appendChild(createRegisterMeasurementTubeColumn(key));
+  });
+  return rack;
+}
+
+function createMeasurementPieceNode(type, geometry = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = `measurement-piece measurement-piece-${type}`;
   wrapper.dataset.measurementRole = measurementPieceRoleForType(type);
@@ -4038,6 +4354,10 @@ function createMeasurementPieceNode(type) {
     );
   } else if (type === "double-tube-array") {
     node = clonePairMeasurementPart(".pair-tube-rack");
+  } else if (type === "triple-tube-array") {
+    node = createRegisterMeasurementTubeRack(3);
+  } else if (type === "quadruple-tube-array") {
+    node = createRegisterMeasurementTubeRack(4);
   } else if (type === "single-magnifier") {
     node = clonePlaygroundSourceElement(
       cloneSingleQubitBlueprint('[data-role="measurement-tool"]'),
@@ -4093,11 +4413,23 @@ let mailboxRoomState = {
   joined: false,
   roomId: "",
   participantId: "",
+  participantJoinIndex: 0,
   displayName: "",
   participants: [],
   events: [],
+  measurements: [],
+  resetId: "",
+  reviewCounts: {},
+  reviewRuns: 0,
+  replaying: false,
+  replayActionIndex: -1,
+  entanglementThreeBackendStatus: "",
+  entanglementThreeJoinStarted: false,
   pollTimer: null,
 };
+let mailboxRoomBootCleanupPromise = Promise.resolve();
+const mailboxRoomSeenSharedMeasurementControlIds = new Set();
+const mailboxRoomSeenSharedMeasurementCompletionIds = new Set();
 
 function mailboxMessageBodyWithLinkPlaceholder(message) {
   const trimmed = String(message || "").trim() || MAILBOX_DEFAULT_MESSAGE;
@@ -4144,6 +4476,19 @@ function writeMailboxRoomStorage(update = {}) {
   return next;
 }
 
+async function mailboxRoomCleanupOwnedRoomOnBoot() {
+  // Rooms are shared state. Do not delete a previously owned room just because
+  // this browser tab loaded again; another participant may already be in it.
+  return false;
+}
+
+function mailboxRoomStartBootCleanup() {
+  mailboxRoomBootCleanupPromise = mailboxRoomCleanupOwnedRoomOnBoot().catch(
+    () => false,
+  );
+  return mailboxRoomBootCleanupPromise;
+}
+
 function mailboxRoomSlug(value, fallback = "guest") {
   const slug = String(value || "")
     .trim()
@@ -4177,6 +4522,115 @@ function mailboxRoomCreateParticipantId(name, roomId) {
   return `${mailboxRoomSlug(name)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function mailboxRoomSortParticipantsByJoinOrder(participants = []) {
+  return (Array.isArray(participants) ? participants : [])
+    .slice()
+    .sort((left, right) => {
+      const leftTime = Date.parse(left?.createdAt || left?.updatedAt || "") || 0;
+      const rightTime = Date.parse(right?.createdAt || right?.updatedAt || "") || 0;
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
+    });
+}
+
+function mailboxRoomAutoNameForJoinIndex(joinIndex) {
+  return MAILBOX_ROOM_AUTO_NAMES[joinIndex] || "";
+}
+
+async function mailboxRoomParticipantsForRoom(roomId) {
+  const normalizedRoomId = mailboxRoomSlug(roomId, MAILBOX_ROOM_DEFAULT_ID);
+  let response = null;
+  try {
+    response = await fetch(
+      `${localLabBackendBaseUrl()}/rooms/${encodeURIComponent(normalizedRoomId)}/participants`,
+    );
+  } catch (_error) {
+    throw new Error(`backend at ${localLabBackendBaseUrl()} is not reachable`);
+  }
+  if (response.status === 404) {
+    return [];
+  }
+  const payload = await localLabReadJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(
+      payload?.error?.message ||
+        payload?.message ||
+        `Unable to inspect room participants (${response.status})`,
+    );
+  }
+  return mailboxRoomSortParticipantsByJoinOrder(payload.participants);
+}
+
+function mailboxRoomParticipantJoinIndex(participants, participantId) {
+  const ordered = mailboxRoomSortParticipantsByJoinOrder(participants);
+  const existingIndex = ordered.findIndex(
+    (participant) => participant?.id === participantId,
+  );
+  return existingIndex >= 0 ? existingIndex : ordered.length;
+}
+
+function mailboxRoomCanvasForCurrentContext() {
+  const mailboxItem = activeMailboxSendContext?.mailboxItem;
+  if (!(mailboxItem instanceof HTMLElement)) {
+    return null;
+  }
+  const canvas = mailboxItem.closest(".generated-layout-canvas, .playground-canvas");
+  return canvas instanceof HTMLElement ? canvas : null;
+}
+
+function mailboxRoomLocalQubitItemsForCanvas(canvas) {
+  if (!(canvas instanceof HTMLElement)) {
+    return [];
+  }
+  return Array.from(
+    canvas.querySelectorAll(':scope > .playground-node[data-component="qubit"]'),
+  ).filter((item) => item instanceof HTMLElement);
+}
+
+function mailboxRoomLocalQubitItemsForIdentityAssignment() {
+  return mailboxRoomLocalQubitItemsForCanvas(
+    mailboxRoomCanvasForCurrentContext(),
+  );
+}
+
+async function mailboxRoomAssignLocalQubitsForRoom(canvas = null) {
+  if (!mailboxRoomIsJoined()) {
+    return [];
+  }
+  const qubits =
+    canvas instanceof HTMLElement
+      ? mailboxRoomLocalQubitItemsForCanvas(canvas)
+      : mailboxRoomLocalQubitItemsForIdentityAssignment();
+  if (!qubits.length) {
+    return [];
+  }
+  const payload = await localLabRequest(
+    `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/qubits/allocate`,
+    {
+      method: "POST",
+      body: {
+        participantId: mailboxRoomState.participantId,
+        baseRoomQubitIndex:
+          Math.max(0, Number(mailboxRoomState.participantJoinIndex) || 0) *
+          qubits.length,
+        qubits: qubits.map((item, index) => ({
+          clientId: ensureGeneratedItemId(item, "qubit") || `local-${index}`,
+        })),
+      },
+    },
+  );
+  const assignments = Array.isArray(payload.qubits) ? payload.qubits : [];
+  assignments.forEach((assignment, index) => {
+    const item = qubits[index];
+    if (item instanceof HTMLElement) {
+      applyRoomQubitIdentity(item, assignment);
+    }
+  });
+  return assignments;
+}
+
 function mailboxRoomDefaultRoomId() {
   const stored = readMailboxRoomStorage();
   return (
@@ -4200,23 +4654,1395 @@ function mailboxRoomDefaultDisplayName() {
   );
 }
 
+let mailboxRoomNameSuggestionToken = 0;
+
+function mailboxRoomNameWasAutoFilled(input) {
+  return input instanceof HTMLInputElement && input.dataset.mailboxAutoName === "true";
+}
+
+function mailboxRoomSetAutoName(input, value) {
+  if (!(input instanceof HTMLInputElement)) {
+    return;
+  }
+  input.value = value || "";
+  input.dataset.mailboxAutoName = "true";
+}
+
+async function refreshMailboxRoomNameSuggestion(dialog = mailboxSendDialog) {
+  if (
+    mailboxRoomIsJoined() ||
+    !(dialog?.nameInput instanceof HTMLInputElement) ||
+    !(dialog?.roomInput instanceof HTMLInputElement)
+  ) {
+    return;
+  }
+  const nameInput = dialog.nameInput;
+  if (nameInput.value.trim() && !mailboxRoomNameWasAutoFilled(nameInput)) {
+    return;
+  }
+  const token = ++mailboxRoomNameSuggestionToken;
+  const roomId = dialog.roomInput.value || mailboxRoomDefaultRoomId();
+  let participants = [];
+  try {
+    participants = await mailboxRoomParticipantsForRoom(roomId);
+  } catch (_error) {
+    return;
+  }
+  if (token !== mailboxRoomNameSuggestionToken) {
+    return;
+  }
+  const suggestedName = mailboxRoomAutoNameForJoinIndex(participants.length);
+  mailboxRoomSetAutoName(nameInput, suggestedName);
+  nameInput.placeholder = suggestedName || "Name";
+}
+
 function mailboxRoomQubitLabel(context = activeMailboxSendContext) {
+  const roomIndex = roomQubitIndexForItem(context?.qubitItem);
+  if (Number.isInteger(roomIndex)) {
+    return `q${roomIndex}`;
+  }
   return Number.isInteger(context?.qubitIndex)
     ? `q${context.qubitIndex}`
     : "a qubit";
 }
 
-function mailboxRoomSerializeQubit(context = activeMailboxSendContext) {
+function mailboxRoomSharedEntanglementPath(sharedEntanglementId = "") {
+  const base = `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/shared-entanglements`;
+  return sharedEntanglementId
+    ? `${base}/${encodeURIComponent(sharedEntanglementId)}`
+    : base;
+}
+
+function mailboxRoomSetRemoteEntanglementVisual(item, sharedEntanglementId) {
+  if (!(item instanceof HTMLElement)) {
+    return;
+  }
+  if (sharedEntanglementId) {
+    item.dataset.remoteEntanglementId = sharedEntanglementId;
+    item.classList.add("remote-entangled");
+    item.title = "This qubit is entangled with a qubit in another mailbox session";
+  } else {
+    delete item.dataset.remoteEntanglementId;
+    item.classList.remove("remote-entangled");
+    item.removeAttribute("title");
+  }
+}
+
+function mailboxRoomLocalMembersForSharedEntanglement(sharedEntanglementId, numQubits) {
+  const members = [];
+  generatedQubitRuntimes.forEach((state, item) => {
+    if (!(item instanceof HTMLElement) || !item.isConnected || !state) {
+      return;
+    }
+    const hasSharedState =
+      state.pairState?.remoteEntanglementId === sharedEntanglementId;
+    const hasSharedVisual = item.dataset.remoteEntanglementId === sharedEntanglementId;
+    if (!hasSharedState && !hasSharedVisual) {
+      return;
+    }
+    const memberFromState = Array.isArray(state.pairState?.members)
+      ? state.pairState.members.find((entry) => entry?.item === item)
+      : null;
+    const rawIndex = Number.isFinite(state.pairQubitIndex)
+      ? state.pairQubitIndex
+      : Number.isFinite(memberFromState?.qubitIndex)
+        ? memberFromState.qubitIndex
+        : 0;
+    members.push({
+      item,
+      state,
+      qubitIndex: clamp(rawIndex, 0, Math.max(0, numQubits - 1)),
+    });
+  });
+  return members;
+}
+
+function mailboxRoomSharedMeasurementRegisterCount(sharedEntanglement) {
+  const measurement = mailboxRoomSharedMeasurementMetadata(sharedEntanglement);
+  const metadataCount = Number(measurement.numQubits);
+  if (Number.isInteger(metadataCount) && metadataCount >= 2 && metadataCount <= 4) {
+    return metadataCount;
+  }
+  return Math.max(
+    2,
+    Math.min(
+      4,
+      inferRegisterQubitCountFromAmplitudes(
+        sharedEntanglement?.amplitudes || [],
+        Number.isInteger(sharedEntanglement?.numQubits)
+          ? sharedEntanglement.numQubits
+          : 2,
+      ),
+    ),
+  );
+}
+
+function registerMeasurementTubeTypeForCount(numQubits) {
+  if (numQubits === 4) {
+    return "quadruple-tube-array";
+  }
+  if (numQubits === 3) {
+    return "triple-tube-array";
+  }
+  return "double-tube-array";
+}
+
+function appendSavedMeasurementPiece(
+  groupItem,
+  type,
+  { left = 8, top = 8, width = 84, height = 40, z = 1 } = {},
+) {
+  if (!(groupItem instanceof HTMLElement)) {
+    return null;
+  }
+  const child = createPlaygroundComponentNode(type, {}) || null;
+  if (!(child instanceof HTMLElement)) {
+    return null;
+  }
+  child.classList.add("saved-group-child");
+  child.dataset.component = type;
+  child.dataset.measurementRole = measurementPieceRoleForType(type);
+  if (groupItem.dataset.groupComponentId) {
+    child.dataset.groupComponentId = groupItem.dataset.groupComponentId;
+  }
+  child.style.left = `${left}%`;
+  child.style.top = `${top}%`;
+  child.style.width = `${width}%`;
+  child.style.height = `${height}%`;
+  child.style.zIndex = `${z}`;
+  groupItem.appendChild(child);
+  return child;
+}
+
+function reconfigureGeneratedSeparatedMeasurementRuntimeForRegister(
+  runtime,
+  numQubits,
+) {
+  const safeNumQubits = Math.max(2, Math.min(4, Number(numQubits) || 2));
+  if (!runtime?.item) {
+    return null;
+  }
+  if (
+    runtime.registerQubitCount === safeNumQubits &&
+    Array.isArray(runtime.outcomeKeys) &&
+    runtime.outcomeKeys.length === 2 ** safeNumQubits
+  ) {
+    return runtime;
+  }
+  const item = runtime.item;
+  const currentRack = item.querySelector(".pair-tube-rack");
+  let rackChild =
+    currentRack instanceof HTMLElement
+      ? currentRack.closest(".saved-group-child")
+      : null;
+  if (!(rackChild instanceof HTMLElement)) {
+    const rackType = registerMeasurementTubeTypeForCount(safeNumQubits);
+    rackChild = appendSavedMeasurementPiece(item, rackType, {
+      left: safeNumQubits === 4 ? 1 : 4,
+      top: 12,
+      width: safeNumQubits === 4 ? 98 : 92,
+      height: 48,
+      z: 2,
+    });
+  }
+  if (!(rackChild instanceof HTMLElement)) {
+    return runtime;
+  }
+  const nextRack = createRegisterMeasurementTubeRack(safeNumQubits);
+  if (currentRack instanceof HTMLElement) {
+    currentRack.replaceWith(nextRack);
+  } else {
+    rackChild.replaceChildren(nextRack);
+  }
+  if (rackChild instanceof HTMLElement) {
+    const nextType = registerMeasurementTubeTypeForCount(safeNumQubits);
+    rackChild.dataset.component = nextType;
+    rackChild.dataset.measurementRole =
+      safeNumQubits === 4
+        ? "quadruple-tubes"
+        : safeNumQubits === 3
+          ? "triple-tubes"
+          : "double-tubes";
+  }
+  item.dataset.measurementRegisterQubitCount = `${safeNumQubits}`;
+  syncSavedRegisterMeasurementCapacityText(item);
+  generatedSeparatedPairMeasurementRuntimes.delete(item);
+  return initializeGeneratedSeparatedPairMeasurementItem(item);
+}
+
+function mailboxRoomMeasurementRuntimeForSharedEntanglement(sharedEntanglement) {
+  if (!sharedEntanglement?.id) {
+    return null;
+  }
+  const numQubits = mailboxRoomSharedMeasurementRegisterCount(sharedEntanglement);
+  const localMembers = mailboxRoomLocalMembersForSharedEntanglement(
+    sharedEntanglement.id,
+    numQubits,
+  );
+  const canvas = generatedCanvasForItem(localMembers[0]?.item);
+  if (!canvas) {
+    return null;
+  }
+  const candidates = generatedItemsOfType(
+    canvas,
+    PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE,
+  )
+    .filter(isGeneratedSeparatedPairMeasurementItem)
+    .map((item) => initializeGeneratedSeparatedPairMeasurementItem(item))
+    .filter(Boolean);
+  if (candidates.length === 0) {
+    return null;
+  }
+  const exact = candidates.find(
+    (runtime) => runtime.registerQubitCount === numQubits,
+  );
+  return reconfigureGeneratedSeparatedMeasurementRuntimeForRegister(
+    exact || candidates[0],
+    numQubits,
+  );
+}
+
+function applySharedRegisterMeasurementCounts(sharedEntanglement) {
+  const measurement = mailboxRoomSharedMeasurementMetadata(sharedEntanglement);
+  const hasSharedMeasurement =
+    Object.keys(measurement.counts || {}).length > 0 ||
+    Object.keys(measurement.pending || {}).length > 0 ||
+    Object.keys(measurement.pendingQueues || {}).length > 0 ||
+    Number.isInteger(Number(measurement.numQubits));
+  if (!hasSharedMeasurement) {
+    return false;
+  }
+  const runtime = mailboxRoomMeasurementRuntimeForSharedEntanglement(
+    sharedEntanglement,
+  );
+  if (!runtime) {
+    return false;
+  }
+  runtime.outcomeKeys.forEach((key) => {
+    runtime.tubeCounts[key] = Math.max(
+      0,
+      Math.round(Number(measurement.counts?.[key]) || 0),
+    );
+  });
+  runtime.pendingMeasurements = [];
+  maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
+  updateGeneratedDoubleMeasurementTubeFills(runtime);
+  if (
+    measurement.completionId &&
+    !mailboxRoomSeenSharedMeasurementCompletionIds.has(measurement.completionId)
+  ) {
+    mailboxRoomSeenSharedMeasurementCompletionIds.add(measurement.completionId);
+    const canvas = generatedCanvasForItem(runtime.item);
+    if (isGeneratedExperimentRecording(canvas)) {
+      finishGeneratedExperimentRecordingAfterMeasurement(canvas, {
+        forceStop: Number(measurement.numQubits) > 2,
+      });
+    }
+  }
+  return true;
+}
+
+function mailboxRoomRemotePairStateForMeasurementRuntime(runtime) {
+  const canvas = generatedCanvasForItem(runtime?.item);
+  if (!canvas) {
+    return null;
+  }
+  const qubits = generatedItemsOfType(canvas, "qubit");
+  for (const qubit of qubits) {
+    const state = ensureGeneratedQubitRuntimeState(qubit);
+    if (state?.pairState?.remoteEntanglementId) {
+      return state.pairState;
+    }
+  }
+  return null;
+}
+
+function mailboxRoomSharedMeasurementControlId(type) {
+  return [
+    "measurement-control",
+    mailboxRoomState.participantId || "participant",
+    type || "repeat",
+    Date.now().toString(36),
+    Math.random().toString(36).slice(2, 8),
+  ].join("-");
+}
+
+async function mailboxRoomPublishSharedMeasurementControl(
+  runtime,
+  type,
+  iterations,
+) {
+  const pairState = mailboxRoomRemotePairStateForMeasurementRuntime(runtime);
+  const sharedId = pairState?.remoteEntanglementId;
+  if (!sharedId || !mailboxRoomIsJoined()) {
+    return null;
+  }
+  const controlId = mailboxRoomSharedMeasurementControlId(type);
+  const startAt = Date.now() + MAILBOX_ROOM_POLL_MS + 750;
+  mailboxRoomSeenSharedMeasurementControlIds.add(controlId);
+  let latest = await mailboxRoomRefreshSharedEntanglement(sharedId, {
+    apply: false,
+  });
+  if (!latest) {
+    return null;
+  }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const measurement = mailboxRoomSharedMeasurementMetadata(latest);
+    if (type === GENERATED_EXPERIMENT_COUNT_ACTION) {
+      measurement.counts = {};
+      measurement.pending = {};
+      measurement.pendingQueues = {};
+    }
+    measurement.numQubits = mailboxRoomSharedMeasurementRegisterCount(latest);
+    measurement.control = {
+      id: controlId,
+      type,
+      iterations: generatedExperimentReplayIterations({ iterations }),
+      requestedBy: mailboxRoomState.participantId || null,
+      createdAt: Date.now(),
+      startAt,
+    };
+    const metadata = mailboxRoomMetadataWithMeasurement(latest, measurement);
+    try {
+      const payload = await localLabRequest(
+        mailboxRoomSharedEntanglementPath(sharedId),
+        {
+          method: "PUT",
+          body: {
+            ...mailboxRoomSharedSnapshotForMeasurement(
+              pairState,
+              latest,
+              metadata,
+            ),
+            expectedVersion: latest.version,
+          },
+        },
+      );
+      const sharedEntanglement = payload.sharedEntanglement || null;
+      if (sharedEntanglement) {
+        pairState.remoteVersion = sharedEntanglement.version;
+        pairState.remoteMetadata =
+          sharedEntanglement.metadata &&
+          typeof sharedEntanglement.metadata === "object"
+            ? { ...sharedEntanglement.metadata }
+            : {};
+      }
+      mailboxRoomApplySharedEntanglement(sharedEntanglement);
+      return sharedEntanglement;
+    } catch (error) {
+      if (!/version conflict|shared_entanglement_version_conflict/i.test(error.message || "")) {
+        throw error;
+      }
+      latest = await mailboxRoomRefreshSharedEntanglement(sharedId, {
+        apply: false,
+      });
+      if (!latest) {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+function maybeRunSharedMeasurementControl(sharedEntanglement) {
+  const measurement = mailboxRoomSharedMeasurementMetadata(sharedEntanglement);
+  const control = measurement.control;
+  if (!control?.id || mailboxRoomSeenSharedMeasurementControlIds.has(control.id)) {
+    return false;
+  }
+  if (control.requestedBy && control.requestedBy === mailboxRoomState.participantId) {
+    mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+    return false;
+  }
+  const runtime = mailboxRoomMeasurementRuntimeForSharedEntanglement(
+    sharedEntanglement,
+  );
+  const canvas = generatedCanvasForItem(runtime?.item);
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!runtime || !canvas || !state?.experiment || layoutEditorState.enabled) {
+    return false;
+  }
+  mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+  const iterations = generatedExperimentReplayIterations(control);
+  if (control.type === GENERATED_EXPERIMENT_COUNT_ACTION) {
+    setMeasurementSelectValue(runtime.measurementCount, iterations);
+    clearGeneratedSeparatedPairMeasurementApparatus(runtime);
+  }
+  const startDelay = Math.max(0, Math.round(Number(control.startAt) - Date.now()));
+  window.setTimeout(() => {
+    runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
+  }, startDelay);
+  return true;
+}
+
+function mailboxRoomApplySharedEntanglement(sharedEntanglement) {
+  if (!sharedEntanglement?.id) {
+    return;
+  }
+  const numQubits = inferRegisterQubitCountFromAmplitudes(
+    sharedEntanglement.amplitudes || [],
+    Number.isInteger(sharedEntanglement.numQubits)
+      ? sharedEntanglement.numQubits
+      : 2,
+  );
+  const amplitudes = normalizeTourRegisterAmplitudes(
+    numQubits,
+    sharedEntanglement.amplitudes || [],
+  );
+  const localMembers = mailboxRoomLocalMembersForSharedEntanglement(
+    sharedEntanglement.id,
+    numQubits,
+  );
+  if (sharedEntanglement.status === "separated") {
+    localMembers.forEach(({ item, state, qubitIndex }) => {
+      const vector = sharedEntanglement.memberVectors?.[qubitIndex];
+      state.vector = Array.isArray(vector) ? normalizeVector2(vector) : state.vector;
+      state.pairState = null;
+      state.pairQubitIndex = null;
+      state.cnotSourceSlot = null;
+      state.cnotPairToken = null;
+      state.cnotOutcomeProbabilities = null;
+      mailboxRoomSetRemoteEntanglementVisual(item, "");
+      applyGeneratedQubitVectorVisualState(item);
+    });
+    return;
+  }
+  const canonicalState = {
+    numQubits,
+    amplitudes: amplitudes.slice(),
+    displayMode: sharedEntanglement.displayMode || "marginal",
+    members: localMembers.map(({ item, state, qubitIndex }) => ({
+      item,
+      state,
+      qubitIndex,
+    })),
+    remoteMembers: Array.isArray(sharedEntanglement.members)
+      ? sharedEntanglement.members.map((member) => ({ ...member }))
+      : [],
+    remoteEntanglementId: sharedEntanglement.id,
+    remoteVersion: sharedEntanglement.version,
+    remoteMetadata:
+      sharedEntanglement.metadata && typeof sharedEntanglement.metadata === "object"
+        ? { ...sharedEntanglement.metadata }
+        : {},
+  };
+  if (sharedEntanglement.linkRelation) {
+    canonicalState.linkRelation = sharedEntanglement.linkRelation;
+  }
+  ensureDistinctQubitLogicalIdsForRegisterMembers(canonicalState.members);
+  canonicalState.members.forEach((member) => {
+    assignRuntimeStateToRegisterMember(
+      member,
+      canonicalState,
+      member.qubitIndex,
+    );
+    member.state.vector = displayVectorForPairMember(
+      canonicalState,
+      member.qubitIndex,
+    );
+    mailboxRoomSetRemoteEntanglementVisual(member.item, sharedEntanglement.id);
+    applyGeneratedQubitVectorVisualState(member.item);
+  });
+  applySharedRegisterMeasurementCounts(sharedEntanglement);
+  maybeRunSharedMeasurementControl(sharedEntanglement);
+}
+
+async function mailboxRoomRefreshSharedEntanglement(
+  sharedEntanglementId,
+  { apply = true } = {},
+) {
+  if (!mailboxRoomIsJoined() || !sharedEntanglementId) {
+    return null;
+  }
+  const payload = await localLabRequest(
+    mailboxRoomSharedEntanglementPath(sharedEntanglementId),
+  );
+  const sharedEntanglement = payload.sharedEntanglement || null;
+  if (apply) {
+    mailboxRoomApplySharedEntanglement(sharedEntanglement);
+  }
+  return sharedEntanglement;
+}
+
+async function mailboxRoomRefreshSharedEntanglements() {
+  const ids = new Set();
+  generatedQubitRuntimes.forEach((state) => {
+    if (state?.pairState?.remoteEntanglementId) {
+      ids.add(state.pairState.remoteEntanglementId);
+    }
+  });
+  await Promise.all(
+    Array.from(ids).map((id) =>
+      mailboxRoomRefreshSharedEntanglement(id).catch(() => null),
+    ),
+  );
+}
+
+function mailboxRoomQueueSharedEntanglementUpdate(
+  pairState,
+  { status = "active", memberVectors = null } = {},
+) {
+  if (!pairState?.remoteEntanglementId || !mailboxRoomIsJoined()) {
+    return null;
+  }
+  const numQubits = registerStateNumQubits(pairState);
+  const snapshot = {
+    numQubits,
+    amplitudes: normalizeTourRegisterAmplitudes(
+      numQubits,
+      pairState.amplitudes || [],
+    ),
+    displayMode: pairState.displayMode || "marginal",
+    linkRelation: numQubits === 2 ? pairState.linkRelation || null : null,
+    status,
+    memberVectors,
+    members: registerMembersForRemoteSnapshot(pairState),
+    metadata:
+      pairState.remoteMetadata && typeof pairState.remoteMetadata === "object"
+        ? pairState.remoteMetadata
+        : {},
+  };
+  pairState.remoteUpdatePromise = (pairState.remoteUpdatePromise || Promise.resolve())
+    .catch(() => null)
+    .then(async () => {
+      try {
+        const payload = await localLabRequest(
+          mailboxRoomSharedEntanglementPath(pairState.remoteEntanglementId),
+          {
+            method: "PUT",
+            body: {
+              ...snapshot,
+              expectedVersion: pairState.remoteVersion,
+              updatedBy: mailboxRoomState.participantId,
+            },
+          },
+        );
+        const sharedEntanglement = payload.sharedEntanglement || null;
+        if (sharedEntanglement) {
+          pairState.remoteVersion = sharedEntanglement.version;
+          pairState.remoteMetadata =
+            sharedEntanglement.metadata &&
+            typeof sharedEntanglement.metadata === "object"
+              ? { ...sharedEntanglement.metadata }
+              : {};
+          mailboxRoomApplySharedEntanglement(sharedEntanglement);
+        }
+        return sharedEntanglement;
+      } catch (error) {
+        await mailboxRoomRefreshSharedEntanglement(
+          pairState.remoteEntanglementId,
+        ).catch(() => null);
+        throw error;
+      }
+    });
+  return pairState.remoteUpdatePromise;
+}
+
+function mailboxRoomSharedMeasurementMetadata(sharedEntanglement) {
+  const metadata =
+    sharedEntanglement?.metadata && typeof sharedEntanglement.metadata === "object"
+      ? sharedEntanglement.metadata
+      : {};
+  const measurement =
+    metadata.measurement && typeof metadata.measurement === "object"
+      ? metadata.measurement
+      : {};
+  const counts =
+    measurement.counts && typeof measurement.counts === "object"
+      ? measurement.counts
+      : {};
+  const pending =
+    measurement.pending && typeof measurement.pending === "object"
+      ? measurement.pending
+      : {};
+  const pendingQueues =
+    measurement.pendingQueues && typeof measurement.pendingQueues === "object"
+      ? Object.fromEntries(
+          Object.entries(measurement.pendingQueues).map(([key, queue]) => [
+            key,
+            Array.isArray(queue) ? queue.map((entry) => ({ ...entry })) : [],
+          ]),
+        )
+      : {};
+  return {
+    ...measurement,
+    counts: { ...counts },
+    pending: { ...pending },
+    pendingQueues,
+  };
+}
+
+function mailboxRoomSharedMeasurementOutcomeKey(pending, numQubits) {
+  return Array.from({ length: numQubits }, (_item, index) => {
+    const entry = pending[String(index)];
+    return entry?.color === "red" ? "r" : "b";
+  }).join("");
+}
+
+function mailboxRoomSharedMeasurementComplete(pending, numQubits) {
+  return Array.from({ length: numQubits }, (_item, index) =>
+    Boolean(pending[String(index)]?.color),
+  ).every(Boolean);
+}
+
+function mailboxRoomSharedMeasurementQueues(measurement, numQubits) {
+  return Object.fromEntries(
+    Array.from({ length: numQubits }, (_item, index) => {
+      const key = String(index);
+      const queue = Array.isArray(measurement.pendingQueues?.[key])
+        ? measurement.pendingQueues[key].map((entry) => ({ ...entry }))
+        : [];
+      const legacyEntry = measurement.pending?.[key];
+      if (legacyEntry?.color && queue.length === 0) {
+        queue.push({ ...legacyEntry });
+      }
+      return [key, queue];
+    }),
+  );
+}
+
+function mailboxRoomSharedMeasurementQueuesComplete(queues, numQubits) {
+  return Array.from({ length: numQubits }, (_item, index) =>
+    Boolean(queues[String(index)]?.[0]?.color),
+  ).every(Boolean);
+}
+
+function mailboxRoomSharedMeasurementOutcomeKeyFromQueues(queues, numQubits) {
+  return Array.from({ length: numQubits }, (_item, index) => {
+    const entry = queues[String(index)]?.[0];
+    return entry?.color === "red" ? "r" : "b";
+  }).join("");
+}
+
+function mailboxRoomSharedMeasurementPendingFromQueues(queues, numQubits) {
+  return Object.fromEntries(
+    Array.from({ length: numQubits }, (_item, index) => {
+      const key = String(index);
+      const entry = queues[key]?.[0];
+      return entry?.color ? [key, { ...entry }] : null;
+    }).filter(Boolean),
+  );
+}
+
+function mailboxRoomMergeSharedMeasurement(
+  sharedEntanglement,
+  measurementEntry,
+) {
+  const numQubits = inferRegisterQubitCountFromAmplitudes(
+    sharedEntanglement?.amplitudes || [],
+    Number.isInteger(sharedEntanglement?.numQubits)
+      ? sharedEntanglement.numQubits
+      : 2,
+  );
+  const measurement = mailboxRoomSharedMeasurementMetadata(sharedEntanglement);
+  const queues = mailboxRoomSharedMeasurementQueues(measurement, numQubits);
+  const qubitIndex = clamp(
+    Math.round(Number(measurementEntry?.qubitIndex) || 0),
+    0,
+    Math.max(0, numQubits - 1),
+  );
+  const queueKey = String(qubitIndex);
+  queues[queueKey].push({
+    color: measurementEntry.color === "red" ? "red" : "blue",
+    participantId: mailboxRoomState.participantId || null,
+    logicalQubitId: measurementEntry.logicalQubitId || null,
+    measuredAt: Date.now(),
+  });
+  let completed = false;
+  let outcomeKey = "";
+  while (mailboxRoomSharedMeasurementQueuesComplete(queues, numQubits)) {
+    outcomeKey = mailboxRoomSharedMeasurementOutcomeKeyFromQueues(
+      queues,
+      numQubits,
+    );
+    measurement.counts[outcomeKey] =
+      Math.max(0, Math.round(Number(measurement.counts[outcomeKey]) || 0)) + 1;
+    measurement.lastOutcomeKey = outcomeKey;
+    measurement.lastCompletedAt = Date.now();
+    measurement.completionId = `measurement-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    completed = true;
+    Array.from({ length: numQubits }, (_item, index) => {
+      queues[String(index)].shift();
+    });
+  }
+  measurement.pendingQueues = queues;
+  measurement.pending = mailboxRoomSharedMeasurementPendingFromQueues(
+    queues,
+    numQubits,
+  );
+  measurement.numQubits = numQubits;
+  return { measurement, completed, outcomeKey, numQubits };
+}
+
+function mailboxRoomMetadataWithMeasurement(sharedEntanglement, measurement) {
+  const metadata =
+    sharedEntanglement?.metadata && typeof sharedEntanglement.metadata === "object"
+      ? { ...sharedEntanglement.metadata }
+      : {};
+  metadata.measurement = measurement;
+  return metadata;
+}
+
+function mailboxRoomMeasurementPath(measurementId = "") {
+  const base = `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/measurements`;
+  return measurementId ? `${base}/${encodeURIComponent(measurementId)}` : base;
+}
+
+function mailboxRoomMeasurementControlPath(measurementId) {
+  return `${mailboxRoomMeasurementPath(measurementId)}/control`;
+}
+
+function mailboxRoomResetPath() {
+  return `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/reset`;
+}
+
+function mailboxRoomActionPath() {
+  return `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/actions`;
+}
+
+function mailboxRoomResetIdForRoom(room) {
+  const reset = room?.lastReset;
+  if (!reset) {
+    return "";
+  }
+  return (
+    reset.id ||
+    (Number.isFinite(Number(reset.version)) ? `reset-${reset.version}` : "")
+  );
+}
+
+function mailboxRoomCanvasForResetContext(canvas = null) {
+  if (canvas instanceof HTMLElement && canvas.isConnected) {
+    return canvas;
+  }
+  const activePanel = document.querySelector(
+    '[id^="panel-"]:not([hidden])',
+  );
+  const activeCanvas = activePanel?.querySelector?.(
+    ".generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)",
+  );
+  if (activeCanvas instanceof HTMLElement) {
+    return activeCanvas;
+  }
+  const contextCanvas = mailboxRoomCanvasForCurrentContext();
+  if (contextCanvas instanceof HTMLElement && contextCanvas.isConnected) {
+    return contextCanvas;
+  }
+  return null;
+}
+
+function mailboxRoomRebindContextForCanvas(canvas) {
+  if (!(canvas instanceof HTMLElement)) {
+    return null;
+  }
+  const mailboxItem = canvas.querySelector(
+    ':scope > .playground-node[data-component="mailbox"]',
+  );
+  if (mailboxItem instanceof HTMLElement) {
+    activeMailboxSendContext = { mailboxItem };
+    return mailboxItem;
+  }
+  return null;
+}
+
+function mailboxRoomGateActionDetails(canvas, gateItem, tickIndex) {
+  const gates = generatedItemsOfType(canvas, "single-gate").sort(
+    (left, right) =>
+      Number.parseFloat(left.style.top || "0") -
+      Number.parseFloat(right.style.top || "0"),
+  );
+  const gateIndex = Math.max(0, gates.indexOf(gateItem));
+  const qubits = generatedItemsOfType(canvas, "qubit").sort(
+    (left, right) =>
+      Number.parseFloat(left.style.top || "0") -
+      Number.parseFloat(right.style.top || "0"),
+  );
+  const qubit = qubits[gateIndex] || null;
+  return {
+    actionType: "gate-setting",
+    participantId: mailboxRoomState.participantId || null,
+    gateLabel: `flipper gate ${gateIndex + 1}`,
+    qubitLabel: qubit instanceof HTMLElement
+      ? qubitDisplayLabelForItem(qubit, gateIndex)
+      : null,
+    tickIndex: normalizeTickIndex(tickIndex),
+  };
+}
+
+async function mailboxRoomRecordGateSettingAction(canvas, gateItem, tickIndex) {
+  if (
+    !mailboxRoomIsJoined() ||
+    !isEntanglementThreeCanvas(canvas) ||
+    !(gateItem instanceof HTMLElement)
+  ) {
+    return null;
+  }
+  const payload = await localLabRequest(mailboxRoomActionPath(), {
+    method: "POST",
+    body: mailboxRoomGateActionDetails(canvas, gateItem, tickIndex),
+  });
+  const event = payload.event || null;
+  if (event) {
+    mailboxRoomState.events = [...mailboxRoomState.events, event];
+    updateEntanglementThreeRoomReviewToolbars();
+  }
+  return event;
+}
+
+async function mailboxRoomApplyRoomReset(room, options = {}) {
+  const resetId = mailboxRoomResetIdForRoom(room);
+  if (!resetId || (!options.force && mailboxRoomState.resetId === resetId)) {
+    return false;
+  }
+  mailboxRoomState.resetId = resetId;
+  mailboxRoomState.events = Array.isArray(room?.events) ? room.events : [];
+  mailboxRoomState.measurements = [];
+  mailboxRoomSeenSharedMeasurementControlIds.clear();
+  mailboxRoomSeenSharedMeasurementCompletionIds.clear();
+  mailboxRoomState.reviewCounts = {};
+  mailboxRoomState.reviewRuns = 0;
+  mailboxRoomState.replaying = false;
+  mailboxRoomState.replayActionIndex = -1;
+  const canvas = mailboxRoomCanvasForResetContext(options.canvas || null);
+  const panel = canvas?.closest?.('[data-generated-layout-panel="true"]');
+  if (canvas instanceof HTMLElement) {
+    resetGeneratedTabForCanvas(canvas);
+  }
+  const nextCanvas = panel?.querySelector?.(
+    ".generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)",
+  );
+  const assignmentCanvas =
+    nextCanvas instanceof HTMLElement ? nextCanvas : canvas;
+  mailboxRoomRebindContextForCanvas(assignmentCanvas);
+  await mailboxRoomAssignLocalQubitsForRoom(assignmentCanvas).catch(() => []);
+  renderMailboxRoomDialog();
+  return true;
+}
+
+async function mailboxRoomPublishRoomReset(canvas) {
+  if (!mailboxRoomIsJoined()) {
+    return null;
+  }
+  const payload = await localLabRequest(mailboxRoomResetPath(), {
+    method: "POST",
+    body: {
+      participantId: mailboxRoomState.participantId || null,
+    },
+  });
+  const room = payload.room || null;
+  if (room) {
+    await mailboxRoomApplyRoomReset(room, { canvas, force: true });
+  }
+  return room;
+}
+
+function mailboxRoomMeasurementSharedId(runtime, numQubits = null) {
+  const item = runtime?.item;
+  const canvas = generatedCanvasForItem(item);
+  const count = Math.max(
+    2,
+    Math.min(
+      4,
+      Number(numQubits) ||
+        Number(runtime?.registerQubitCount) ||
+        registerMeasurementQubitCountForItem(item),
+    ),
+  );
+  const groupKey =
+    isEntanglementThreeCanvas(canvas) && count === 4
+      ? "entanglement-3-register-measurement"
+      : item?.dataset?.groupComponentId ||
+        item?.dataset?.component ||
+        "register-measurement";
+  const canvasKey = isEntanglementThreeCanvas(canvas)
+    ? "entanglement-3"
+    : canvas?.dataset?.generatedTabId || canvas?.id || "room";
+  const normalizedGroupKey =
+    typeof generatedTabSlug === "function"
+      ? generatedTabSlug(groupKey)
+      : String(groupKey).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const normalizedCanvasKey =
+    typeof generatedTabSlug === "function"
+      ? generatedTabSlug(canvasKey)
+      : String(canvasKey).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  return `room-register-measurement-${count}-${normalizedCanvasKey || "room"}-${normalizedGroupKey || "default"}`;
+}
+
+function mailboxRoomMeasurementRuntimeById(measurementId) {
+  if (!measurementId) {
+    return null;
+  }
+  for (const [item, runtime] of generatedSeparatedPairMeasurementRuntimes) {
+    const currentRuntime =
+      runtime || initializeGeneratedSeparatedPairMeasurementItem(item);
+    if (
+      item instanceof HTMLElement &&
+      item.isConnected &&
+      (item.dataset.generatedItemId === measurementId ||
+        mailboxRoomMeasurementSharedId(currentRuntime) === measurementId)
+    ) {
+      return currentRuntime;
+    }
+  }
+  const escapedId =
+    typeof CSS !== "undefined" && typeof CSS.escape === "function"
+      ? CSS.escape(measurementId)
+      : String(measurementId).replace(/"/g, '\\"');
+  const item = document.querySelector(
+    `[data-generated-item-id="${escapedId}"]`,
+  );
+  return initializeGeneratedSeparatedPairMeasurementItem(item);
+}
+
+function maybeRunRoomMeasurementControl(measurement, runtime) {
+  const control = measurement?.control;
+  if (!control?.id || mailboxRoomSeenSharedMeasurementControlIds.has(control.id)) {
+    return false;
+  }
+  if (control.requestedBy && control.requestedBy === mailboxRoomState.participantId) {
+    mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+    return false;
+  }
+  const canvas = generatedCanvasForItem(runtime?.item);
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!runtime || !canvas || !state?.experiment || layoutEditorState.enabled) {
+    return false;
+  }
+  mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+  const iterations = generatedExperimentReplayIterations(control);
+  if (control.type === GENERATED_EXPERIMENT_COUNT_ACTION) {
+    setMeasurementSelectValue(runtime.measurementCount, iterations);
+    clearGeneratedSeparatedPairMeasurementApparatus(runtime);
+  }
+  const startDelay = Math.max(0, Math.round(Number(control.startAt) - Date.now()));
+  window.setTimeout(() => {
+    runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
+  }, startDelay);
+  return true;
+}
+
+function mailboxRoomApplyRoomMeasurement(measurement) {
+  if (!measurement?.id) {
+    return false;
+  }
+  const numQubits = Math.max(
+    2,
+    Math.min(4, Number(measurement.numQubits) || 4),
+  );
+  const runtime = reconfigureGeneratedSeparatedMeasurementRuntimeForRegister(
+    mailboxRoomMeasurementRuntimeById(measurement.id),
+    numQubits,
+  );
+  if (!runtime) {
+    return false;
+  }
+  const canvas = generatedCanvasForItem(runtime.item);
+  const pendingStartPoint =
+    generatedCanvasPointForElementCenter(
+      canvas,
+      runtime.magnifiers?.[0]?.measureLens || runtime.item,
+    ) || { x: 0, y: 0 };
+  (runtime.outcomeKeys || registerMeasurementOutcomeKeys(numQubits)).forEach(
+    (key) => {
+      runtime.tubeCounts[key] = Math.max(
+        0,
+        Math.round(Number(measurement.counts?.[key]) || 0),
+      );
+    },
+  );
+  runtime.pendingMeasurements = Object.entries(measurement.pending || {}).map(
+    ([index, entry], sequence) => ({
+      qubitId: `room-${measurement.id}-${index}`,
+      logicalQubitId: entry?.logicalQubitId || null,
+      color: entry?.color === "red" ? "red" : "blue",
+      orderIndex: Number(index),
+      sequence,
+      startPoint: pendingStartPoint,
+    }),
+  );
+  maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
+  updateGeneratedDoubleMeasurementTubeFills(runtime);
+  if (
+    measurement.completionId &&
+    !mailboxRoomSeenSharedMeasurementCompletionIds.has(measurement.completionId)
+  ) {
+    mailboxRoomSeenSharedMeasurementCompletionIds.add(measurement.completionId);
+    logGeneratedMeasurementProgress(runtime, {
+      event: "room-complete",
+      measuredSoFar: numQubits,
+      requiredCount: numQubits,
+      outcomeKey: measurement.lastOutcomeKey || null,
+    });
+    finishGeneratedExperimentRecordingAfterMeasurement(
+      generatedCanvasForItem(runtime.item),
+      { forceStop: numQubits > 2 },
+    );
+  }
+  maybeRunRoomMeasurementControl(measurement, runtime);
+  updateEntanglementThreeRoomReviewToolbars();
+  return true;
+}
+
+function mailboxRoomApplyRoomMeasurements(measurements) {
+  (Array.isArray(measurements) ? measurements : []).forEach((measurement) => {
+    mailboxRoomApplyRoomMeasurement(measurement);
+  });
+}
+
+async function mailboxRoomRecordRoomMeasurement(runtime, measurementEntry) {
+  if (!mailboxRoomIsJoined() || !runtime?.item) {
+    return null;
+  }
+  const numQubits = Math.max(
+    2,
+    Math.min(4, Number(runtime.registerQubitCount) || 4),
+  );
+  const measurementId = mailboxRoomMeasurementSharedId(runtime, numQubits);
+  const qubitIndex = clamp(
+    Math.round(Number(measurementEntry?.orderIndex) || 0),
+    0,
+    Math.max(0, numQubits - 1),
+  );
+  const payload = await localLabRequest(
+    mailboxRoomMeasurementPath(measurementId),
+    {
+      method: "POST",
+      body: {
+        numQubits,
+        qubitIndex,
+        color: measurementEntry?.color === "red" ? "red" : "blue",
+        logicalQubitId: measurementEntry?.logicalQubitId || null,
+        participantId: mailboxRoomState.participantId || null,
+      },
+    },
+  );
+  const measurement = payload.measurement || null;
+  logGeneratedMeasurementProgress(runtime, {
+    event: "room-post",
+    measurementId,
+    qubitId: measurementEntry?.qubitId || null,
+    logicalQubitId: measurementEntry?.logicalQubitId || null,
+    color: measurementEntry?.color || null,
+    orderIndex: qubitIndex,
+    measuredSoFar: Object.keys(measurement?.pending || {}).length,
+    requiredCount: numQubits,
+  });
+  mailboxRoomApplyRoomMeasurement(measurement);
+  return measurement;
+}
+
+async function mailboxRoomPublishRoomMeasurementControl(
+  runtime,
+  type,
+  iterations,
+) {
+  if (!mailboxRoomIsJoined() || !runtime?.item) {
+    return null;
+  }
+  const numQubits = Math.max(
+    2,
+    Math.min(
+      4,
+      Number(runtime.registerQubitCount) ||
+        registerMeasurementQubitCountForItem(runtime.item),
+    ),
+  );
+  if (numQubits <= 2) {
+    return null;
+  }
+  const measurementId = mailboxRoomMeasurementSharedId(runtime, numQubits);
+  const controlId = mailboxRoomSharedMeasurementControlId(type);
+  const startAt = Date.now() + MAILBOX_ROOM_POLL_MS + 750;
+  mailboxRoomSeenSharedMeasurementControlIds.add(controlId);
+  const payload = await localLabRequest(
+    mailboxRoomMeasurementControlPath(measurementId),
+    {
+      method: "POST",
+      body: {
+        id: controlId,
+        type,
+        iterations: generatedExperimentReplayIterations({ iterations }),
+        participantId: mailboxRoomState.participantId || null,
+        startAt,
+      },
+    },
+  );
+  const measurement = payload.measurement || null;
+  mailboxRoomApplyRoomMeasurement(measurement);
+  return measurement;
+}
+
+function mailboxRoomSharedSnapshotForMeasurement(pairState, latest, metadata) {
+  const numQubits = registerStateNumQubits(pairState || latest);
+  return {
+    numQubits,
+    amplitudes: normalizeTourRegisterAmplitudes(
+      numQubits,
+      pairState?.amplitudes || latest?.amplitudes || [],
+    ),
+    displayMode: pairState?.displayMode || latest?.displayMode || "marginal",
+    linkRelation:
+      numQubits === 2
+        ? pairState?.linkRelation || latest?.linkRelation || null
+        : null,
+    status: "active",
+    memberVectors: null,
+    members: Array.isArray(latest?.members)
+      ? latest.members
+      : registerMembersForRemoteSnapshot(pairState),
+    metadata,
+    updatedBy: mailboxRoomState.participantId,
+  };
+}
+
+async function mailboxRoomRecordSharedRegisterMeasurement(
+  pairState,
+  measurementEntry,
+) {
+  const sharedId = pairState?.remoteEntanglementId;
+  if (!sharedId || !mailboxRoomIsJoined()) {
+    return null;
+  }
+  let latest = await mailboxRoomRefreshSharedEntanglement(sharedId, {
+    apply: false,
+  });
+  if (!latest) {
+    return null;
+  }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { measurement, completed, outcomeKey } =
+      mailboxRoomMergeSharedMeasurement(latest, measurementEntry);
+    const metadata = mailboxRoomMetadataWithMeasurement(latest, measurement);
+    try {
+      const payload = await localLabRequest(
+        mailboxRoomSharedEntanglementPath(sharedId),
+        {
+          method: "PUT",
+          body: {
+            ...mailboxRoomSharedSnapshotForMeasurement(
+              pairState,
+              latest,
+              metadata,
+            ),
+            expectedVersion: latest.version,
+          },
+        },
+      );
+      const sharedEntanglement = payload.sharedEntanglement || null;
+      if (sharedEntanglement) {
+        pairState.remoteVersion = sharedEntanglement.version;
+        pairState.remoteMetadata =
+          sharedEntanglement.metadata &&
+          typeof sharedEntanglement.metadata === "object"
+            ? { ...sharedEntanglement.metadata }
+            : {};
+      }
+      mailboxRoomApplySharedEntanglement(sharedEntanglement);
+      return { sharedEntanglement, completed, outcomeKey };
+    } catch (error) {
+      if (!/version conflict|shared_entanglement_version_conflict/i.test(error.message || "")) {
+        throw error;
+      }
+      latest = await mailboxRoomRefreshSharedEntanglement(sharedId, {
+        apply: false,
+      });
+    }
+  }
+  return null;
+}
+
+async function mailboxRoomEnsureSharedEntanglement(
+  qubitItem,
+  qubitState,
+  { toParticipantId = "" } = {},
+) {
+  const pairState = qubitState?.pairState;
+  if (!pairState || !Number.isFinite(qubitState.pairQubitIndex)) {
+    return null;
+  }
+  if (pairState.remoteEntanglementId) {
+    const numQubits = registerStateNumQubits(pairState);
+    return {
+      id: pairState.remoteEntanglementId,
+      numQubits,
+      amplitudes: normalizeTourRegisterAmplitudes(
+        numQubits,
+        pairState.amplitudes,
+      ),
+      displayMode: pairState.displayMode,
+      linkRelation: numQubits === 2 ? pairState.linkRelation || null : null,
+      status: "active",
+      version: pairState.remoteVersion,
+      members: registerMembersForRemoteSnapshot(pairState),
+    };
+  }
+  const numQubits = registerStateNumQubits(pairState);
+  const payload = await localLabRequest(mailboxRoomSharedEntanglementPath(), {
+    method: "POST",
+    body: {
+      numQubits,
+      amplitudes: normalizeTourRegisterAmplitudes(
+        numQubits,
+        pairState.amplitudes,
+      ),
+      displayMode: pairState.displayMode,
+      linkRelation: numQubits === 2 ? pairState.linkRelation || null : null,
+      members: [
+        {
+          participantId: mailboxRoomState.participantId,
+          qubitIndex: qubitState.pairQubitIndex === 0 ? 1 : 0,
+          role: "retained",
+        },
+        {
+          participantId: toParticipantId || null,
+          qubitIndex: qubitState.pairQubitIndex,
+          role: "sent",
+        },
+      ],
+      metadata: {
+        source: "room-mailbox",
+        sourceQubitLabel: mailboxRoomQubitLabel({
+          qubitItem,
+          qubitIndex: qubitState.pairQubitIndex,
+        }),
+      },
+    },
+  });
+  const sharedEntanglement = payload.sharedEntanglement;
+  if (!sharedEntanglement?.id) {
+    throw new Error("Backend did not create shared entanglement");
+  }
+  pairState.remoteEntanglementId = sharedEntanglement.id;
+  pairState.remoteVersion = sharedEntanglement.version;
+  pairState.remoteMembers = Array.isArray(sharedEntanglement.members)
+    ? sharedEntanglement.members.map((member) => ({ ...member }))
+    : registerMembersForRemoteSnapshot(pairState);
+  pairState.members?.forEach((member) => {
+    if (member.item instanceof HTMLElement) {
+      mailboxRoomSetRemoteEntanglementVisual(
+        member.item,
+        sharedEntanglement.id,
+      );
+    }
+  });
+  return sharedEntanglement;
+}
+
+function mailboxRoomBindReceivedSharedEntanglement(
+  item,
+  state,
+  descriptor,
+) {
+  if (!descriptor?.id || !Number.isFinite(descriptor.qubitIndex)) {
+    return;
+  }
+  const numQubits = inferRegisterQubitCountFromAmplitudes(
+    descriptor.amplitudes || [],
+    Number.isInteger(descriptor.numQubits) ? descriptor.numQubits : 2,
+  );
+  const qubitIndex = clamp(
+    descriptor.qubitIndex,
+    0,
+    Math.max(0, numQubits - 1),
+  );
+  const pairState = {
+    numQubits,
+    amplitudes: normalizeTourRegisterAmplitudes(
+      numQubits,
+      descriptor.amplitudes || [],
+    ),
+    displayMode: descriptor.displayMode || "marginal",
+    members: [
+      {
+        item,
+        state,
+        qubitIndex,
+      },
+    ],
+    remoteMembers: Array.isArray(descriptor.members)
+      ? descriptor.members.map((member) => ({ ...member }))
+      : [],
+    remoteEntanglementId: descriptor.id,
+    remoteVersion: descriptor.version,
+  };
+  if (descriptor.linkRelation) {
+    pairState.linkRelation = descriptor.linkRelation;
+  }
+  state.pairState = pairState;
+  state.pairQubitIndex = qubitIndex;
+  state.vector = displayVectorForPairMember(pairState, state.pairQubitIndex);
+  if (!roomQubitIdentityForItem(item)) {
+    setQubitRoomIdentity(item, qubitIndex, {
+      roomId: descriptor.roomQubit?.roomId || mailboxRoomState.roomId,
+      qubitId: descriptor.roomQubit?.qubitId,
+    });
+  }
+  mailboxRoomSetRemoteEntanglementVisual(item, descriptor.id);
+  applyGeneratedQubitVectorVisualState(item);
+  mailboxRoomApplySharedEntanglement({
+    id: descriptor.id,
+    numQubits,
+    amplitudes: pairState.amplitudes,
+    displayMode: pairState.displayMode,
+    linkRelation: pairState.linkRelation || null,
+    status: "active",
+    members: pairState.remoteMembers,
+    version: pairState.remoteVersion,
+  });
+}
+
+async function mailboxRoomSerializeQubit(
+  context = activeMailboxSendContext,
+  { toParticipantId = "" } = {},
+) {
   const qubitItem = context?.qubitItem;
   if (!(qubitItem instanceof HTMLElement)) {
     return null;
   }
   let vector = null;
   let paired = false;
+  let entanglement = null;
   if (isGeneratedQubitItem(qubitItem)) {
     const state = ensureGeneratedQubitRuntimeState(qubitItem);
     vector = Array.isArray(state?.vector) ? normalizeVector2(state.vector) : null;
     paired = Boolean(state?.pairState);
+    if (paired) {
+      const sharedEntanglement = await mailboxRoomEnsureSharedEntanglement(
+        qubitItem,
+        state,
+        { toParticipantId },
+      );
+      if (sharedEntanglement) {
+        entanglement = {
+          id: sharedEntanglement.id,
+          numQubits:
+            sharedEntanglement.numQubits ||
+            registerStateNumQubits(state.pairState),
+          qubitIndex: state.pairQubitIndex,
+          amplitudes: normalizeTourRegisterAmplitudes(
+            sharedEntanglement.numQubits ||
+              registerStateNumQubits(state.pairState),
+            state.pairState.amplitudes || sharedEntanglement.amplitudes || [],
+          ),
+          displayMode:
+            state.pairState.displayMode ||
+            sharedEntanglement.displayMode ||
+            "marginal",
+          linkRelation:
+            state.pairState.linkRelation ||
+            sharedEntanglement.linkRelation ||
+            null,
+          version:
+            state.pairState.remoteVersion || sharedEntanglement.version,
+          roomQubit: roomQubitIdentityForItem(qubitItem),
+          members:
+            sharedEntanglement.members ||
+            registerMembersForRemoteSnapshot(state.pairState),
+        };
+      }
+    }
   } else {
     try {
       const parsed = JSON.parse(qubitItem.dataset.initialVector || "null");
@@ -4230,7 +6056,9 @@ function mailboxRoomSerializeQubit(context = activeMailboxSendContext) {
     version: 1,
     vector: vector || [1, 0],
     sourceQubitLabel: mailboxRoomQubitLabel(context),
+    roomQubit: roomQubitIdentityForItem(qubitItem),
     paired,
+    entanglement,
   };
 }
 
@@ -4294,8 +6122,33 @@ function mailboxRoomImportPoint(canvas) {
     return { x: 66, y: 66 };
   }
   const mailboxWindow = mailboxRoomImportMailboxWindow(canvas);
-  if (mailboxWindow) {
-    return generatedCanvasPointForElementCenter(canvas, mailboxWindow);
+  const mailboxItem = mailboxWindow?.closest?.(
+    '.playground-node[data-component="mailbox"]',
+  );
+  const mailboxBounds =
+    mailboxItem instanceof HTMLElement
+      ? generatedCanvasBoundsForElement(canvas, mailboxItem)
+      : null;
+  if (mailboxWindow && mailboxBounds) {
+    const origin = generatedCanvasPointForElementCenter(canvas, mailboxWindow);
+    const qubitRadius = 36;
+    const mailboxGap = 22;
+    const offset = qubitRadius + mailboxGap;
+    const candidates = [
+      { x: mailboxBounds.right + offset, y: origin.y },
+      { x: mailboxBounds.left - offset, y: origin.y },
+      { x: origin.x, y: mailboxBounds.bottom + offset },
+      { x: origin.x, y: mailboxBounds.top - offset },
+    ];
+    const fits = (point) =>
+      point.x >= qubitRadius &&
+      point.x <= canvas.clientWidth - qubitRadius &&
+      point.y >= qubitRadius &&
+      point.y <= canvas.clientHeight - qubitRadius;
+    return candidates.find(fits) || {
+      x: clamp(candidates[0].x, qubitRadius, canvas.clientWidth - qubitRadius),
+      y: clamp(candidates[0].y, qubitRadius, canvas.clientHeight - qubitRadius),
+    };
   }
   return {
     x: canvas.scrollLeft + Math.max(66, Math.round(canvas.clientWidth / 2)),
@@ -4316,22 +6169,91 @@ function mailboxRoomReceiveQubitEvent(event) {
   if (!canvas) {
     throw new Error("Open a tour tab before receiving the qubit");
   }
-  const point = mailboxRoomImportPoint(canvas);
+  if (mailboxRoomTransferReceived(event.id)) {
+    return canvas.querySelector(
+      `[data-mailbox-received-event-id="${CSS.escape(event.id || "")}"]`,
+    );
+  }
+  const mailboxWindow = mailboxRoomImportMailboxWindow(canvas);
+  const origin = mailboxWindow
+    ? generatedCanvasPointForElementCenter(canvas, mailboxWindow)
+    : mailboxRoomImportPoint(canvas);
+  const destination = mailboxRoomImportPoint(canvas);
+  const maxZ = Array.from(
+    canvas.querySelectorAll(":scope > .playground-node"),
+  ).reduce(
+    (highest, candidate) =>
+      Math.max(highest, parseLayoutNumeric(candidate.style.zIndex, 1)),
+    1,
+  );
   const item = createGeneratedLayoutItemNode("qubit", {
-    left: point.x - 36,
-    top: point.y - 36,
+    left: origin.x - 36,
+    top: origin.y - 36,
     width: 72,
     height: 72,
+    z: maxZ + 1,
     vector: Array.isArray(transfer.vector) ? transfer.vector : [1, 0],
   });
   item.dataset.mailboxReceivedEventId = event.id || "";
   item.dataset.mailboxReceivedFrom = payload.fromName || "";
+  item.classList.add("mailbox-arriving");
   canvas.appendChild(item);
   prepareGeneratedLayoutCanvas(canvas);
-  ensureGeneratedQubitRuntimeState(item);
-  setGeneratedQubitCenter(canvas, item, point.x, point.y);
+  applyRoomQubitIdentity(item, transfer.roomQubit);
+  const itemState = ensureGeneratedQubitRuntimeState(item);
+  if (transfer.entanglement && itemState) {
+    mailboxRoomBindReceivedSharedEntanglement(
+      item,
+      itemState,
+      transfer.entanglement,
+    );
+  }
+  setGeneratedQubitCenter(canvas, item, origin.x, origin.y);
   mailboxRoomMarkTransferReceived(event.id);
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      setGeneratedQubitCenter(canvas, item, destination.x, destination.y);
+      const finishArrival = () => item.classList.remove("mailbox-arriving");
+      item.addEventListener("transitionend", finishArrival, { once: true });
+      window.setTimeout(finishArrival, 900);
+    });
+  });
   return item;
+}
+
+function mailboxRoomReceivePendingQubits() {
+  if (!activeMailboxSendContext?.mailboxItem) {
+    return [];
+  }
+  const received = [];
+  mailboxRoomVisibleEvents().forEach((event) => {
+    const payload = event?.payload || {};
+    if (
+      event?.type !== "roomMailbox.sent" ||
+      !payload.transfer ||
+      payload.fromParticipantId === mailboxRoomState.participantId ||
+      !mailboxRoomTransferIsForThisParticipant(payload) ||
+      mailboxRoomTransferReceived(event.id)
+    ) {
+      return;
+    }
+    received.push({ event, item: mailboxRoomReceiveQubitEvent(event) });
+  });
+  if (received.length) {
+    const latest = received.at(-1).event.payload || {};
+    const countLabel =
+      received.length === 1
+        ? latest.qubitLabel || "qubit"
+        : `${received.length} qubits`;
+    const senderLabel =
+      received.length === 1 && latest.fromName ? ` from ${latest.fromName}` : "";
+    const message = `Received ${countLabel}${senderLabel} - close mailbox to use ${received.length === 1 ? "it" : "them"}`;
+    setMailboxComponentStatus(activeMailboxSendContext.mailboxItem, message);
+    if (mailboxSendDialog?.status instanceof HTMLElement) {
+      mailboxSendDialog.status.textContent = message;
+    }
+  }
+  return received;
 }
 
 function mailboxRoomIsJoined() {
@@ -4357,7 +6279,9 @@ function mailboxRoomVisibleEvents() {
   return mailboxRoomState.events
     .filter(
       (event) =>
-        event?.type === "room.message" || event?.type === "roomMailbox.sent",
+        event?.type === "room.message" ||
+        event?.type === "roomMailbox.sent" ||
+        event?.type === "room.reset",
     )
     .slice(-60);
 }
@@ -4371,6 +6295,392 @@ function mailboxRoomParticipantName(participantId) {
       (participant) => participant.id === participantId,
     )?.displayName || participantId
   );
+}
+
+function isEntanglementThreeCanvas(canvas) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return false;
+  }
+  const tabId = storageIdentifierKey(canvas.dataset.generatedTabId || "");
+  if (
+    tabId === "custom-entanglement-3" ||
+    tabId === "editor-entanglement-3"
+  ) {
+    return true;
+  }
+  const entry = generatedTabEntryForCanvas(canvas);
+  if (storageLabelKey(entry?.label) === "entanglement 3") {
+    return true;
+  }
+  const panelId = storageIdentifierKey(canvas.closest("[id]")?.id || "");
+  return panelId.endsWith("entanglement-3");
+}
+
+function mailboxRoomMeasurementCounts() {
+  const counts = {};
+  (Array.isArray(mailboxRoomState.measurements)
+    ? mailboxRoomState.measurements
+    : []
+  ).forEach((measurement) => {
+    Object.entries(measurement?.counts || {}).forEach(([key, value]) => {
+      counts[key] =
+        Math.max(0, Math.round(Number(counts[key]) || 0)) +
+        Math.max(0, Math.round(Number(value) || 0));
+    });
+  });
+  Object.entries(mailboxRoomState.reviewCounts || {}).forEach(([key, value]) => {
+    counts[key] =
+      Math.max(0, Math.round(Number(counts[key]) || 0)) +
+      Math.max(0, Math.round(Number(value) || 0));
+  });
+  return counts;
+}
+
+function mailboxRoomPrimaryOutcomeKey() {
+  const completed = (Array.isArray(mailboxRoomState.measurements)
+    ? mailboxRoomState.measurements
+    : []
+  ).find((measurement) => measurement?.lastOutcomeKey);
+  if (completed?.lastOutcomeKey) {
+    return completed.lastOutcomeKey;
+  }
+  const counts = mailboxRoomMeasurementCounts();
+  const countedKey =
+    Object.entries(counts).sort((left, right) => right[1] - left[1])[0]?.[0] ||
+    "";
+  if (countedKey) {
+    return countedKey;
+  }
+  const eventColors = new Map();
+  mailboxRoomState.events.forEach((event) => {
+    if (event?.type !== "roomMeasurement.updated") {
+      return;
+    }
+    const index = Number(event.payload?.qubitIndex);
+    const color = event.payload?.color === "red" ? "red" : "blue";
+    if (Number.isInteger(index) && index >= 0 && index < 4) {
+      eventColors.set(index, color);
+    }
+  });
+  if (eventColors.size >= 4) {
+    return Array.from({ length: 4 }, (_item, index) =>
+      eventColors.get(index) === "red" ? "r" : "b",
+    ).join("");
+  }
+  return "";
+}
+
+function mailboxRoomMeasuredQubitCount() {
+  const measurements = Array.isArray(mailboxRoomState.measurements)
+    ? mailboxRoomState.measurements
+    : [];
+  const measuredIndexes = new Set();
+  const completed = measurements.find(
+    (measurement) =>
+      Object.values(measurement?.counts || {}).some((count) => Number(count) > 0),
+  );
+  if (completed) {
+    return Math.max(0, Math.min(4, Number(completed.numQubits) || 4));
+  }
+  measurements.forEach((measurement) => {
+    Object.keys(measurement?.pending || {}).forEach((key) => {
+      const index = Number(key);
+      if (Number.isInteger(index) && index >= 0 && index < 4) {
+        measuredIndexes.add(index);
+      }
+    });
+  });
+  mailboxRoomState.events.forEach((event) => {
+    if (event?.type !== "roomMeasurement.updated") {
+      return;
+    }
+    const index = Number(event.payload?.qubitIndex);
+    if (Number.isInteger(index) && index >= 0 && index < 4) {
+      measuredIndexes.add(index);
+    }
+  });
+  return measuredIndexes.size;
+}
+
+function mailboxRoomActionElapsedLabel(event, firstAt) {
+  const at = Date.parse(event?.at || "");
+  const start = Date.parse(firstAt || "");
+  if (!Number.isFinite(at) || !Number.isFinite(start)) {
+    return "+0.0s";
+  }
+  return `+${Math.max(0, (at - start) / 1000).toFixed(1)}s`;
+}
+
+function mailboxRoomReviewActions() {
+  const events = Array.isArray(mailboxRoomState.events)
+    ? mailboxRoomState.events
+    : [];
+  const actionEvents = events.filter((event) =>
+    [
+      "participant.created",
+      "room.action",
+      "roomMailbox.sent",
+      "roomMeasurement.updated",
+    ].includes(event?.type),
+  );
+  const firstAt = actionEvents[0]?.at || "";
+  return actionEvents
+    .map((event) => {
+      const payload = event.payload || {};
+      const elapsed = mailboxRoomActionElapsedLabel(event, firstAt);
+      if (event.type === "participant.created") {
+        return `${elapsed} ${payload.displayName || mailboxRoomParticipantName(payload.participantId) || "Someone"} joined the room`;
+      }
+      if (event.type === "room.action" && payload.actionType === "gate-setting") {
+        const actor = mailboxRoomParticipantName(payload.participantId) || "Someone";
+        const gate = payload.gateLabel || "a flipper gate";
+        const qubit = payload.qubitLabel ? ` for ${payload.qubitLabel}` : "";
+        const tick = Number.isFinite(Number(payload.tickIndex))
+          ? ` to B${payload.tickIndex}`
+          : "";
+        return `${elapsed} ${actor} changed ${gate}${qubit}${tick}`;
+      }
+      if (event.type === "roomMailbox.sent") {
+        const actor =
+          payload.fromName ||
+          mailboxRoomParticipantName(payload.fromParticipantId) ||
+          "Someone";
+        const target =
+          payload.toName ||
+          mailboxRoomParticipantName(payload.toParticipantId) ||
+          "the room";
+        return `${elapsed} ${actor} sent ${payload.qubitLabel || "a qubit"} to ${target}`;
+      }
+      if (event.type === "roomMeasurement.updated") {
+        const actor = mailboxRoomParticipantName(payload.participantId) || "Someone";
+        const qubit = payload.logicalQubitId
+          ? `q${Number(payload.logicalQubitId) - 1}`
+          : Number.isInteger(Number(payload.qubitIndex))
+            ? `q${payload.qubitIndex}`
+            : "a qubit";
+        const color = payload.color ? ` as ${payload.color}` : "";
+        return `${elapsed} ${actor} measured ${qubit}${color}`;
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function mailboxRoomReviewCountsText() {
+  const counts = mailboxRoomMeasurementCounts();
+  const entries = Object.entries(counts).filter((entry) => Number(entry[1]) > 0);
+  if (!entries.length) {
+    return "Counts 0";
+  }
+  return entries
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("  ");
+}
+
+function incrementMailboxRoomReviewCount(amount) {
+  const outcomeKey = mailboxRoomPrimaryOutcomeKey();
+  if (!outcomeKey) {
+    return false;
+  }
+  mailboxRoomState.reviewCounts[outcomeKey] =
+    Math.max(0, Math.round(Number(mailboxRoomState.reviewCounts[outcomeKey]) || 0)) +
+    Math.max(1, Math.round(Number(amount) || 1));
+  mailboxRoomState.reviewRuns += Math.max(1, Math.round(Number(amount) || 1));
+  updateEntanglementThreeRoomReviewToolbars();
+  return true;
+}
+
+function updateEntanglementThreeRoomReviewToolbars() {
+  document
+    .querySelectorAll(".generated-layout-canvas")
+    .forEach((canvas) => {
+      if (isEntanglementThreeCanvas(canvas)) {
+        updateGeneratedExperimentToolbar(canvas);
+      }
+    });
+}
+
+function entanglementThreeCanvasForTab(tabTarget = "") {
+  const panel =
+    (tabTarget && document.getElementById(`panel-${tabTarget}`)) ||
+    document.querySelector('[id^="panel-"]:not([hidden])');
+  const canvas = panel?.querySelector?.(
+    ".generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)",
+  );
+  return isEntanglementThreeCanvas(canvas) ? canvas : null;
+}
+
+function entanglementThreeStoredParticipantId() {
+  const storage = readMailboxRoomStorage();
+  if (storage.roomId !== ENTANGLEMENT_THREE_ROOM_ID) {
+    return "";
+  }
+  return storage.participantId || "";
+}
+
+async function autoJoinEntanglementThreeRoom(canvas) {
+  if (!(canvas instanceof HTMLElement)) {
+    return false;
+  }
+  if (
+    mailboxRoomIsJoined() &&
+    mailboxRoomState.roomId === ENTANGLEMENT_THREE_ROOM_ID
+  ) {
+    mailboxRoomState.entanglementThreeBackendStatus = "joined";
+    updateEntanglementThreeRoomReviewToolbars();
+    return true;
+  }
+  if (mailboxRoomState.entanglementThreeJoinStarted) {
+    return false;
+  }
+  mailboxRoomState.entanglementThreeJoinStarted = true;
+  mailboxRoomState.entanglementThreeBackendStatus = "starting";
+  updateEntanglementThreeRoomReviewToolbars();
+  try {
+    const payload = await localLabRequest(
+      `/rooms/${encodeURIComponent(ENTANGLEMENT_THREE_ROOM_ID)}/auto-join`,
+      {
+        method: "POST",
+        body: {
+          participantId: entanglementThreeStoredParticipantId() || null,
+          label: ENTANGLEMENT_THREE_ROOM_ID,
+        },
+      },
+    );
+    const participant = payload.participant || null;
+    const room = payload.room || null;
+    mailboxRoomState.joined = true;
+    mailboxRoomState.roomId = room?.id || ENTANGLEMENT_THREE_ROOM_ID;
+    mailboxRoomState.participantId = participant?.id || "";
+    mailboxRoomState.participantJoinIndex =
+      mailboxRoomState.participantId === "alice" ? 1 : 0;
+    mailboxRoomState.displayName =
+      participant?.displayName ||
+      (mailboxRoomState.participantId === "alice" ? "Alice" : "Bob");
+    mailboxRoomState.entanglementThreeBackendStatus = "joined";
+    writeMailboxRoomStorage({
+      roomId: mailboxRoomState.roomId,
+      participantId: mailboxRoomState.participantId,
+      displayName: mailboxRoomState.displayName,
+      participants: {
+        ...(readMailboxRoomStorage().participants || {}),
+        [mailboxRoomStorageParticipantKey(
+          mailboxRoomState.roomId,
+          mailboxRoomState.displayName,
+        )]: mailboxRoomState.participantId,
+      },
+    });
+    await mailboxRoomAssignLocalQubitsForRoom(canvas);
+    mailboxRoomStartPolling();
+    await mailboxRoomRefresh({ render: false });
+    updateEntanglementThreeRoomReviewToolbars();
+    return true;
+  } catch (error) {
+    mailboxRoomState.entanglementThreeBackendStatus = "unavailable";
+    console.warn?.("[Qubit Lab] Entanglement 3 backend unavailable", error);
+    updateEntanglementThreeRoomReviewToolbars();
+    return false;
+  } finally {
+    mailboxRoomState.entanglementThreeJoinStarted = false;
+  }
+}
+
+function maybeAutoJoinEntanglementThreeRoom(tabTarget = "") {
+  const canvas = entanglementThreeCanvasForTab(tabTarget);
+  if (!(canvas instanceof HTMLElement)) {
+    return false;
+  }
+  autoJoinEntanglementThreeRoom(canvas).catch(() => {});
+  return true;
+}
+
+async function replayMailboxRoomReviewActions() {
+  if (mailboxRoomState.replaying || mailboxRoomMeasuredQubitCount() < 4) {
+    return false;
+  }
+  const actions = mailboxRoomReviewActions();
+  if (!actions.length) {
+    return false;
+  }
+  mailboxRoomState.replaying = true;
+  mailboxRoomState.replayActionIndex = -1;
+  updateEntanglementThreeRoomReviewToolbars();
+  try {
+    for (let index = 0; index < actions.length; index += 1) {
+      mailboxRoomState.replayActionIndex = index;
+      updateEntanglementThreeRoomReviewToolbars();
+      await waitForDuration(500);
+    }
+    incrementMailboxRoomReviewCount(1);
+    return true;
+  } finally {
+    mailboxRoomState.replaying = false;
+    updateEntanglementThreeRoomReviewToolbars();
+  }
+}
+
+function runMailboxRoomReviewBatch() {
+  if (mailboxRoomMeasuredQubitCount() < 4) {
+    return false;
+  }
+  return incrementMailboxRoomReviewCount(10000);
+}
+
+function renderEntanglementThreeRoomReviewStatus(status) {
+  if (!(status instanceof HTMLElement)) {
+    return false;
+  }
+  const measuredCount = mailboxRoomMeasuredQubitCount();
+  const ready = measuredCount >= 4;
+  const backendStatus = mailboxRoomState.entanglementThreeBackendStatus;
+  const roomText =
+    backendStatus === "starting"
+      ? "Back end starting up"
+      : backendStatus === "unavailable"
+        ? "Back end not available"
+        : mailboxRoomIsJoined()
+          ? `You are ${mailboxRoomState.displayName || "in"} in room ${mailboxRoomState.roomId}`
+          : "You are not in a room";
+  const actions = mailboxRoomReviewActions();
+  const activeAction =
+    mailboxRoomState.replayActionIndex >= 0
+      ? actions[mailboxRoomState.replayActionIndex] || ""
+      : "";
+  status.replaceChildren();
+  status.classList.add("entanglement-room-review-status");
+  const room = document.createElement("span");
+  room.textContent = roomText;
+  const measured = document.createElement("span");
+  measured.textContent = `Measured ${measuredCount}/4`;
+  const counts = document.createElement("span");
+  counts.textContent = mailboxRoomReviewCountsText();
+  const replay = document.createElement("button");
+  replay.type = "button";
+  replay.className = "playground-tool-btn entanglement-room-review-btn";
+  replay.textContent = "Replay";
+  replay.disabled = !ready || mailboxRoomState.replaying;
+  replay.addEventListener("click", (event) => {
+    event.stopPropagation();
+    replayMailboxRoomReviewActions().catch(() => {});
+  });
+  const run = document.createElement("button");
+  run.type = "button";
+  run.className = "playground-tool-btn entanglement-room-review-btn";
+  run.textContent = "Run";
+  run.disabled = !ready || mailboxRoomState.replaying;
+  run.addEventListener("click", (event) => {
+    event.stopPropagation();
+    runMailboxRoomReviewBatch();
+  });
+  status.append(room, measured, counts, replay, run);
+  if (activeAction) {
+    const current = document.createElement("span");
+    current.className = "entanglement-room-review-action";
+    current.textContent = activeAction;
+    status.appendChild(current);
+  }
+  return true;
 }
 
 function mailboxRoomEventText(event) {
@@ -4387,6 +6697,10 @@ function mailboxRoomEventText(event) {
       : " to the room";
     const note = payload.message ? ` - ${payload.message}` : "";
     return `${fromName} sent ${payload.qubitLabel || "a qubit"}${target}${note}`;
+  }
+  if (event?.type === "room.reset") {
+    const name = mailboxRoomParticipantName(payload.requestedBy) || "Someone";
+    return `${name} reset the room`;
   }
   return "";
 }
@@ -4440,16 +6754,40 @@ async function mailboxRoomRefresh({ render = true } = {}) {
     `${roomPath}/participants/${encodeURIComponent(mailboxRoomState.participantId)}/heartbeat`,
     { method: "POST" },
   );
-  const [participantsPayload, eventsPayload] = await Promise.all([
+  const [
+    roomPayload,
+    participantsPayload,
+    eventsPayload,
+    measurementsPayload,
+  ] = await Promise.all([
+    localLabRequest(roomPath),
     localLabRequest(`${roomPath}/participants`),
     localLabRequest(`${roomPath}/events`),
+    localLabRequest(`${roomPath}/measurements`),
   ]);
+  const resetApplied = await mailboxRoomApplyRoomReset(roomPayload.room);
   mailboxRoomState.participants = Array.isArray(participantsPayload.participants)
     ? participantsPayload.participants
     : [];
-  mailboxRoomState.events = Array.isArray(eventsPayload.events)
-    ? eventsPayload.events
-    : [];
+  const roomMeasurements =
+    roomPayload.room?.roomMeasurements &&
+    typeof roomPayload.room.roomMeasurements === "object"
+      ? Object.values(roomPayload.room.roomMeasurements)
+      : [];
+  mailboxRoomState.events =
+    resetApplied && Array.isArray(roomPayload.room?.events)
+      ? roomPayload.room.events
+      : Array.isArray(eventsPayload.events)
+        ? eventsPayload.events
+        : [];
+  mailboxRoomState.measurements = resetApplied
+    ? roomMeasurements
+    : Array.isArray(measurementsPayload.measurements)
+      ? measurementsPayload.measurements
+      : [];
+  mailboxRoomApplyRoomMeasurements(mailboxRoomState.measurements);
+  await mailboxRoomRefreshSharedEntanglements();
+  updateEntanglementThreeRoomReviewToolbars();
   if (render) {
     renderMailboxRoomDialog();
   }
@@ -4467,9 +6805,15 @@ function mailboxRoomStartPolling() {
   }, MAILBOX_ROOM_POLL_MS);
 }
 
-async function mailboxRoomJoin({ roomId, displayName }) {
+async function mailboxRoomJoin({ roomId, displayName, allowAutoName = false }) {
+  await mailboxRoomBootCleanupPromise;
   const normalizedRoomId = mailboxRoomSlug(roomId, MAILBOX_ROOM_DEFAULT_ID);
-  const normalizedName = String(displayName || "").trim();
+  const existingParticipants =
+    await mailboxRoomParticipantsForRoom(normalizedRoomId);
+  let normalizedName = String(displayName || "").trim();
+  if (!normalizedName && allowAutoName) {
+    normalizedName = mailboxRoomAutoNameForJoinIndex(existingParticipants.length);
+  }
   if (!normalizedName) {
     throw new Error("Name is required");
   }
@@ -4477,11 +6821,16 @@ async function mailboxRoomJoin({ roomId, displayName }) {
     normalizedName,
     normalizedRoomId,
   );
-  await localLabRequest("/rooms", {
+  const participantJoinIndex = mailboxRoomParticipantJoinIndex(
+    existingParticipants,
+    participantId,
+  );
+  const roomPayload = await localLabRequest("/rooms", {
     method: "POST",
     body: {
       id: normalizedRoomId,
       label: `Qubit Lab ${normalizedRoomId}`,
+      ownerId: participantId,
     },
   });
   const participantPayload = await localLabRequest(
@@ -4490,13 +6839,17 @@ async function mailboxRoomJoin({ roomId, displayName }) {
       method: "PUT",
       body: {
         displayName: normalizedName,
-        role: "editor",
+        role:
+          roomPayload.room?.ownerId === participantId && participantJoinIndex === 0
+            ? "owner"
+            : "editor",
       },
     },
   );
   mailboxRoomState.joined = true;
   mailboxRoomState.roomId = normalizedRoomId;
   mailboxRoomState.participantId = participantPayload.participant?.id || participantId;
+  mailboxRoomState.participantJoinIndex = participantJoinIndex;
   mailboxRoomState.displayName =
     participantPayload.participant?.displayName || normalizedName;
   writeMailboxRoomStorage({
@@ -4511,8 +6864,10 @@ async function mailboxRoomJoin({ roomId, displayName }) {
       )]: mailboxRoomState.participantId,
     },
   });
+  await mailboxRoomAssignLocalQubitsForRoom();
   mailboxRoomStartPolling();
   await mailboxRoomRefresh({ render: false });
+  updateEntanglementThreeRoomReviewToolbars();
 }
 
 async function mailboxRoomSendChat(message) {
@@ -4542,7 +6897,9 @@ async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
     ? mailboxRoomParticipantName(toParticipantId)
     : "";
   const qubitLabel = mailboxRoomQubitLabel(context);
-  const transfer = mailboxRoomSerializeQubit(context);
+  const transfer = await mailboxRoomSerializeQubit(context, {
+    toParticipantId,
+  });
   await localLabRequest(
     `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/mailbox-notifications`,
     {
@@ -4570,6 +6927,15 @@ function mailboxRoomConsumeSentQubit(context) {
   const qubitItem = context?.qubitItem;
   if (!(qubitItem instanceof HTMLElement) || !qubitItem.isConnected) {
     return;
+  }
+  const state = generatedQubitRuntimes.get(qubitItem);
+  if (state?.pairState?.remoteEntanglementId) {
+    state.pairState.members = (state.pairState.members || []).filter(
+      (member) =>
+        member.item instanceof HTMLElement &&
+        member.item !== qubitItem &&
+        member.item.isConnected,
+    );
   }
   generatedQubitRuntimes.delete(qubitItem);
   qubitItem.remove();
@@ -4617,6 +6983,18 @@ function renderMailboxRoomDialog() {
   }
   const joined = mailboxRoomIsJoined();
   const activeParticipants = mailboxRoomActiveParticipants();
+  if (joined) {
+    try {
+      mailboxRoomReceivePendingQubits();
+    } catch (error) {
+      if (dialog.status instanceof HTMLElement) {
+        dialog.status.textContent = localLabMailboxFailureMessage(
+          "receive",
+          error,
+        );
+      }
+    }
+  }
   dialog.joinPanel.hidden = joined;
   dialog.roomPanel.hidden = !joined;
   dialog.sendPanel.hidden = !joined || !activeMailboxSendContext?.qubitItem;
@@ -4746,11 +7124,13 @@ function ensureMailboxSendDialog() {
     activeMailboxSendContext = null;
     if (status instanceof HTMLElement) {
       status.textContent = "";
+      status.classList.remove("mailbox-send-status-error");
     }
   };
-  const showStatus = (message) => {
+  const showStatus = (message, tone = "") => {
     if (status instanceof HTMLElement) {
       status.textContent = message || "";
+      status.classList.toggle("mailbox-send-status-error", tone === "error");
     }
   };
 
@@ -4765,6 +7145,19 @@ function ensureMailboxSendDialog() {
       close();
     }
   });
+  nameInput?.addEventListener("input", () => {
+    if (nameInput instanceof HTMLInputElement) {
+      nameInput.dataset.mailboxAutoName = "false";
+    }
+  });
+  roomInput?.addEventListener("input", () => {
+    if (
+      nameInput instanceof HTMLInputElement &&
+      (!nameInput.value.trim() || mailboxRoomNameWasAutoFilled(nameInput))
+    ) {
+      void refreshMailboxRoomNameSuggestion(mailboxSendDialog);
+    }
+  });
   joinButton?.addEventListener("click", async () => {
     if (!(nameInput instanceof HTMLInputElement) || !(roomInput instanceof HTMLInputElement)) {
       return;
@@ -4776,12 +7169,17 @@ function ensureMailboxSendDialog() {
     try {
       await mailboxRoomJoin({
         roomId: roomInput.value,
-        displayName: nameInput.value,
+        displayName: mailboxRoomNameWasAutoFilled(nameInput)
+          ? ""
+          : nameInput.value,
+        allowAutoName:
+          mailboxRoomNameWasAutoFilled(nameInput) ||
+          !nameInput.value.trim(),
       });
       showStatus("Joined room");
       renderMailboxRoomDialog();
     } catch (error) {
-      showStatus(localLabMailboxFailureMessage("join", error));
+      showStatus(localLabMailboxFailureMessage("join", error), "error");
     } finally {
       if (joinButton instanceof HTMLButtonElement) {
         joinButton.disabled = false;
@@ -4810,7 +7208,7 @@ function ensureMailboxSendDialog() {
       activeMailboxSendContext = { mailboxItem: activeMailboxSendContext.mailboxItem };
       renderMailboxRoomDialog();
     } catch (error) {
-      showStatus(localLabMailboxFailureMessage("send", error));
+      showStatus(localLabMailboxFailureMessage("send", error), "error");
     } finally {
       if (sendButton instanceof HTMLButtonElement) {
         sendButton.disabled = false;
@@ -4834,7 +7232,7 @@ function ensureMailboxSendDialog() {
       chatInput.value = "";
       showStatus("Message posted");
     } catch (error) {
-      showStatus(localLabMailboxFailureMessage("chat", error));
+      showStatus(localLabMailboxFailureMessage("chat", error), "error");
     } finally {
       if (chatButton instanceof HTMLButtonElement) {
         chatButton.disabled = false;
@@ -4878,12 +7276,20 @@ function openMailboxSendDialog(context) {
   const dialog = ensureMailboxSendDialog();
   activeMailboxSendContext = context;
   if (dialog.nameInput instanceof HTMLInputElement) {
-    dialog.nameInput.value =
-      mailboxRoomState.displayName || mailboxRoomDefaultDisplayName();
+    const explicitName =
+      mailboxRoomState.displayName ||
+      localLabParticipantFromLocation();
+    if (explicitName) {
+      dialog.nameInput.value = explicitName;
+      dialog.nameInput.dataset.mailboxAutoName = "false";
+    } else {
+      mailboxRoomSetAutoName(dialog.nameInput, mailboxRoomAutoNameForJoinIndex(0));
+    }
   }
   if (dialog.roomInput instanceof HTMLInputElement) {
     dialog.roomInput.value = mailboxRoomState.roomId || mailboxRoomDefaultRoomId();
   }
+  void refreshMailboxRoomNameSuggestion(dialog);
   if (dialog.status instanceof HTMLElement) {
     dialog.status.textContent = "";
   }
@@ -4921,12 +7327,19 @@ function isSeparatedPairMeasurementGroupElement(item) {
   const magnifierCount = item.querySelectorAll(
     ':scope > .saved-group-child[data-component="single-magnifier"] [data-role="measurement-tool"]',
   ).length;
-  const requiredTubeKeys = ["bb", "br", "rb", "rr"];
-  return (
-    magnifierCount >= 1 &&
-    requiredTubeKeys.every((key) =>
-      item.querySelector(`.pair-tube-column[data-key="${key}"]`),
-    )
+  if (magnifierCount < 1) {
+    return false;
+  }
+  const columnKeys = registerMeasurementColumnKeysForItem(item);
+  if (columnKeys.length === 0) {
+    return true;
+  }
+  const registerQubitCount = registerMeasurementQubitCountFromKeys(
+    columnKeys,
+  );
+  const requiredTubeKeys = registerMeasurementOutcomeKeys(registerQubitCount);
+  return requiredTubeKeys.every((key) =>
+    item.querySelector(`.pair-tube-column[data-key="${key}"]`),
   );
 }
 
@@ -4940,6 +7353,8 @@ function savedGroupChildEditSpec(child, index) {
       "measurement-capacity": { minWidth: 120, minHeight: 24 },
       "single-tube-array": { minWidth: 120, minHeight: 80 },
       "double-tube-array": { minWidth: 160, minHeight: 90 },
+      "triple-tube-array": { minWidth: 220, minHeight: 90 },
+      "quadruple-tube-array": { minWidth: 360, minHeight: 90 },
       "single-magnifier": { minWidth: 100, minHeight: 80 },
       "double-magnifier": { minWidth: 160, minHeight: 100 },
       "measurement-count-menu": { minWidth: 60, minHeight: 24 },
@@ -5121,12 +7536,40 @@ function applySavedGroupChildSnapshot(child, storedGeometry) {
   }
 }
 
+function syncSavedRegisterMeasurementCapacityText(item) {
+  const registerQubitCount = Number(item?.dataset?.measurementRegisterQubitCount);
+  if (
+    !(item instanceof HTMLElement) ||
+    !Number.isInteger(registerQubitCount) ||
+    registerQubitCount <= 2
+  ) {
+    return;
+  }
+  const capacity = item.querySelector('[data-role="pair-capacity"]');
+  if (capacity instanceof HTMLElement) {
+    const capacityValue = savedMeasurementCapacity(
+      item.dataset.measurementTubeCapacity,
+    );
+    capacity.textContent = `The testtubes can each hold ${capacityValue} counts.`;
+  }
+}
+
 function createSavedGroupNode(group, geometry = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = "saved-component-group component-group";
   const groupId = group?.id || geometry?.groupComponentId || "";
   if (groupId) {
     wrapper.dataset.groupComponentId = groupId;
+  }
+  const registerQubitCount =
+    Number(geometry?.measurementRegisterQubitCount) ||
+    Number(group?.measurementRegisterQubitCount);
+  if (
+    Number.isInteger(registerQubitCount) &&
+    registerQubitCount >= 2 &&
+    registerQubitCount <= 4
+  ) {
+    wrapper.dataset.measurementRegisterQubitCount = `${registerQubitCount}`;
   }
   const instanceItems =
     Array.isArray(geometry?.items) && geometry.items.length > 0
@@ -5199,6 +7642,7 @@ function createSavedGroupNode(group, geometry = {}) {
       applySavedGroupChildSnapshot(child, storedGeometry);
       wrapper.appendChild(child);
     });
+  syncSavedRegisterMeasurementCapacityText(wrapper);
   return wrapper;
 }
 
@@ -5240,7 +7684,7 @@ function createPlaygroundComponentNode(type, geometry = {}) {
   } else if (type === "text-box") {
     node = createTextBoxElement(geometry);
   } else if (isMeasurementPieceComponentType(type)) {
-    node = createMeasurementPieceNode(type);
+    node = createMeasurementPieceNode(type, geometry);
   }
 
   if (!node) {
@@ -5291,6 +7735,12 @@ function minGeneratedLayoutSizeForType(type) {
     }
     if (type === "single-magnifier") {
       return { minWidth: 90, minHeight: 70 };
+    }
+    if (type === "triple-tube-array") {
+      return { minWidth: 220, minHeight: 90 };
+    }
+    if (type === "quadruple-tube-array") {
+      return { minWidth: 360, minHeight: 90 };
     }
     return { minWidth: 110, minHeight: 80 };
   }
@@ -5553,17 +8003,102 @@ function ensureUniqueGeneratedLayoutQubitIds(canvas) {
   }
   const seen = new Set();
   let changed = false;
-  generatedItemsOfType(canvas, "qubit").forEach((item) => {
+  generatedItemsOfType(canvas, "qubit").forEach((item, index) => {
+    if (!Number.isInteger(roomQubitIndexForItem(item))) {
+      item.dataset.roomQubitIndex = String(index);
+    }
     const qubitId = ensureQubitLogicalId(item);
     if (!qubitId || !seen.has(qubitId)) {
       if (qubitId) {
         seen.add(qubitId);
       }
+      updateQubitDisplayLabel(item, index);
       return;
     }
     const nextId = reserveNextQubitId();
     item.dataset.qubitId = String(nextId);
     seen.add(nextId);
+    updateQubitDisplayLabel(item, index);
+    changed = true;
+  });
+  return changed;
+}
+
+function generatedMeasurementSlotIndexForItem(item) {
+  const number = Number(item?.dataset?.generatedMeasurementSlotIndex);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+}
+
+function generatedMeasurementSlotSourcePoint(canvas, item, activeItem = null) {
+  if (
+    activeItem === item &&
+    generatedRuntimeDrag?.item === item &&
+    validPoint(generatedRuntimeDrag.startPoint)
+  ) {
+    return generatedRuntimeDrag.startPoint;
+  }
+  return generatedItemCenterPoint(canvas, item);
+}
+
+function ensureGeneratedMeasurementSlotIndexes(canvas, activeItem = null) {
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return [];
+  }
+  const qubits = generatedItemsOfType(canvas, "qubit");
+  const assigned = new Set();
+  qubits.forEach((item) => {
+    const roomIndex = roomQubitIndexForItem(item);
+    if (Number.isInteger(roomIndex)) {
+      item.dataset.generatedMeasurementSlotIndex = String(roomIndex);
+      assigned.add(roomIndex);
+    }
+  });
+  const remaining = qubits
+    .filter((item) => !Number.isInteger(roomQubitIndexForItem(item)))
+    .sort((left, right) => {
+      const leftPoint = generatedMeasurementSlotSourcePoint(canvas, left, activeItem);
+      const rightPoint = generatedMeasurementSlotSourcePoint(
+        canvas,
+        right,
+        activeItem,
+      );
+      return leftPoint.y - rightPoint.y || leftPoint.x - rightPoint.x;
+    });
+  let nextSlot = 0;
+  remaining.forEach((item) => {
+    const existing = generatedMeasurementSlotIndexForItem(item);
+    if (Number.isInteger(existing) && !assigned.has(existing)) {
+      assigned.add(existing);
+      return;
+    }
+    while (assigned.has(nextSlot)) {
+      nextSlot += 1;
+    }
+    item.dataset.generatedMeasurementSlotIndex = String(nextSlot);
+    assigned.add(nextSlot);
+  });
+  return qubits;
+}
+
+function ensureDistinctQubitLogicalIdsForRegisterMembers(members) {
+  if (!Array.isArray(members)) {
+    return false;
+  }
+  const seen = new Set();
+  let changed = false;
+  members.forEach((member) => {
+    const item = member?.item;
+    if (!(item instanceof HTMLElement) || item.dataset.component !== "qubit") {
+      return;
+    }
+    let qubitId = ensureQubitLogicalId(item);
+    if (qubitId && !seen.has(qubitId)) {
+      seen.add(qubitId);
+      return;
+    }
+    qubitId = reserveNextQubitId();
+    item.dataset.qubitId = String(qubitId);
+    seen.add(qubitId);
     changed = true;
   });
   return changed;
@@ -5824,6 +8359,11 @@ function updateGeneratedExperimentToolbar(canvas) {
     return;
   }
   if (state.status instanceof HTMLElement) {
+    if (isEntanglementThreeCanvas(canvas)) {
+      renderEntanglementThreeRoomReviewStatus(state.status);
+      return;
+    }
+    state.status.classList.remove("entanglement-room-review-status");
     const statusText = state.playing
       ? "Running experiment"
       : state.recording
@@ -6000,16 +8540,24 @@ function finishGeneratedExperimentRecording(canvas) {
   updateGeneratedExperimentToolbar(canvas);
 }
 
-function finishGeneratedExperimentRecordingAfterMeasurement(canvas) {
+function finishGeneratedExperimentRecordingAfterMeasurement(canvas, options = {}) {
+  const forceStop = Boolean(options.forceStop);
   if (isGeneratedExperimentRecording(canvas)) {
-    if (isDocumentEditorCanvas(canvas)) {
+    if (isDocumentEditorCanvas(canvas) && !forceStop) {
       syncDraftGeneratedExperimentFromRecording(canvas);
       refreshGeneratedMeasurementFillsForCanvas(canvas);
       updateDocEditorButtons();
       return;
     }
+    if (isDocumentEditorCanvas(canvas)) {
+      syncDraftGeneratedExperimentFromRecording(canvas);
+      refreshGeneratedMeasurementFillsForCanvas(canvas);
+    }
     finishGeneratedExperimentRecording(canvas);
     handleDocumentExperimentAutoFinished(canvas);
+    if (isDocumentEditorCanvas(canvas)) {
+      updateDocEditorButtons();
+    }
   }
 }
 
@@ -6218,6 +8766,15 @@ function syncGeneratedPairStateVisuals(pairState) {
   });
 }
 
+function setGeneratedMeasuredQubitVisualState(qubitItem, color) {
+  const state = ensureGeneratedQubitRuntimeState(qubitItem);
+  if (!state) {
+    return;
+  }
+  state.vector = color === "red" ? [0, 1] : [1, 0];
+  applyGeneratedQubitVectorVisualState(qubitItem);
+}
+
 function createGeneratedPairState(topQubitItem, bottomQubitItem) {
   const topState = ensureGeneratedQubitRuntimeState(topQubitItem);
   const bottomState = ensureGeneratedQubitRuntimeState(bottomQubitItem);
@@ -6242,6 +8799,155 @@ function createGeneratedPairState(topQubitItem, bottomQubitItem) {
   return pairState;
 }
 
+function runtimeRegisterOperandForQubit(
+  qubitItem,
+  state,
+  { participantId = null } = {},
+) {
+  if (state?.pairState && Number.isFinite(state.pairQubitIndex)) {
+    return {
+      registerState: state.pairState,
+      register: registerStateAsQuantumRegister(state.pairState),
+      controlOrTargetIndex: state.pairQubitIndex,
+      members: Array.isArray(state.pairState.members)
+        ? state.pairState.members
+        : [],
+    };
+  }
+  return {
+    registerState: null,
+    register:
+      quantumCore?.createQubit && Array.isArray(state?.vector)
+        ? quantumCore.createQubit(state.vector)
+        : null,
+    controlOrTargetIndex: 0,
+    members: [
+      {
+        item: qubitItem,
+        state,
+        qubitIndex: 0,
+        participantId,
+        role: "local",
+      },
+    ],
+  };
+}
+
+function generatedRuntimeRegisterOperand(qubitItem, state) {
+  return runtimeRegisterOperandForQubit(qubitItem, state, {
+    participantId: mailboxRoomState.participantId || null,
+  });
+}
+
+function mergeRuntimeRegistersForCnot(
+  topQubitItem,
+  bottomQubitItem,
+  topState,
+  bottomState,
+  { participantId = null, applyRemoteVisual = null } = {},
+) {
+  if (!topState || !bottomState || !quantumCore?.tensorProductRegisters) {
+    return null;
+  }
+  const topOperand = runtimeRegisterOperandForQubit(topQubitItem, topState, {
+    participantId,
+  });
+  const bottomOperand = runtimeRegisterOperandForQubit(bottomQubitItem, bottomState, {
+    participantId,
+  });
+  if (!topOperand.register || !bottomOperand.register) {
+    return null;
+  }
+  if (
+    topOperand.register.numQubits + bottomOperand.register.numQubits >
+    SHARED_REGISTER_MAX_QUBITS
+  ) {
+    return null;
+  }
+  const topHasRegister = Boolean(topOperand.registerState);
+  const bottomHasRegister = Boolean(bottomOperand.registerState);
+  const preserveBottomRegisterOrder = bottomHasRegister && !topHasRegister;
+  const firstOperand = preserveBottomRegisterOrder ? bottomOperand : topOperand;
+  const secondOperand = preserveBottomRegisterOrder ? topOperand : bottomOperand;
+  const offset = firstOperand.register.numQubits;
+  const combined = sharedRegisterTensor([
+    firstOperand.register,
+    secondOperand.register,
+  ]);
+  if (!combined) {
+    return null;
+  }
+  const controlIndex = preserveBottomRegisterOrder
+    ? offset + topOperand.controlOrTargetIndex
+    : topOperand.controlOrTargetIndex;
+  const targetIndex = preserveBottomRegisterOrder
+    ? bottomOperand.controlOrTargetIndex
+    : offset + bottomOperand.controlOrTargetIndex;
+  const existingRemote =
+    topOperand.registerState?.remoteEntanglementId
+      ? topOperand.registerState
+      : bottomOperand.registerState?.remoteEntanglementId
+        ? bottomOperand.registerState
+        : topOperand.registerState || bottomOperand.registerState || null;
+  const firstMembers = firstOperand.members.map((member) => ({
+    ...member,
+    qubitIndex: member.qubitIndex,
+  }));
+  const secondMembers = secondOperand.members.map((member) => ({
+    ...member,
+    qubitIndex: offset + member.qubitIndex,
+  }));
+  const registerState = {
+    numQubits: combined.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      combined,
+      2 ** combined.numQubits,
+    ),
+    displayMode: "conditional",
+    members: [...firstMembers, ...secondMembers],
+    remoteEntanglementId: existingRemote?.remoteEntanglementId,
+    remoteVersion: existingRemote?.remoteVersion,
+    remoteMembers: Array.isArray(existingRemote?.remoteMembers)
+      ? existingRemote.remoteMembers.map((member) => ({ ...member }))
+      : [],
+  };
+  ensureDistinctQubitLogicalIdsForRegisterMembers(registerState.members);
+  registerState.members.forEach((member) => {
+    assignRuntimeStateToRegisterMember(member, registerState, member.qubitIndex);
+    if (member.item instanceof HTMLElement && registerState.remoteEntanglementId) {
+      const updateRemoteVisual =
+        typeof applyRemoteVisual === "function"
+          ? applyRemoteVisual
+          : mailboxRoomSetRemoteEntanglementVisual;
+      updateRemoteVisual(
+        member.item,
+        registerState.remoteEntanglementId,
+      );
+    }
+  });
+  applyCNOTToRegisterState(registerState, controlIndex, targetIndex);
+  return registerState;
+}
+
+function mergeGeneratedRegistersForCnot(topQubitItem, bottomQubitItem) {
+  const topState = ensureGeneratedQubitRuntimeState(topQubitItem);
+  const bottomState = ensureGeneratedQubitRuntimeState(bottomQubitItem);
+  const registerState = mergeRuntimeRegistersForCnot(
+    topQubitItem,
+    bottomQubitItem,
+    topState,
+    bottomState,
+    {
+      participantId: mailboxRoomState.participantId || null,
+      applyRemoteVisual: mailboxRoomSetRemoteEntanglementVisual,
+    },
+  );
+  if (registerState) {
+    syncGeneratedPairStateVisuals(registerState);
+  }
+  return registerState;
+}
+
 function applyGeneratedSingleGateToQubitState(qubitItem, tickIndex) {
   const state = ensureGeneratedQubitRuntimeState(qubitItem);
   if (!state) {
@@ -6254,6 +8960,7 @@ function applyGeneratedSingleGateToQubitState(qubitItem, tickIndex) {
       gateMatrixForTick(tickIndex),
     );
     syncGeneratedPairStateVisuals(state.pairState);
+    mailboxRoomQueueSharedEntanglementUpdate(state.pairState)?.catch(() => {});
     return;
   }
   state.vector = normalizeVector2(
@@ -6262,11 +8969,28 @@ function applyGeneratedSingleGateToQubitState(qubitItem, tickIndex) {
   applyGeneratedQubitVectorVisualState(qubitItem);
 }
 
-function collapseGeneratedSingleQubitFromPair(qubitItem, color) {
+function collapseGeneratedSingleQubitFromPair(qubitItem, color, options = {}) {
   const state = ensureGeneratedQubitRuntimeState(qubitItem);
   const pairState = state?.pairState;
   if (!state || !pairState || !Number.isFinite(state.pairQubitIndex)) {
     return false;
+  }
+  if (pairState.remoteEntanglementId && options.deferRemoteRegisterMeasurement) {
+    const measuredIndex = state.pairQubitIndex;
+    if (!sharedRegisterMeasureMember(pairState, measuredIndex, color)) {
+      return false;
+    }
+    syncGeneratedPairStateVisuals(pairState);
+    return true;
+  }
+  if (registerStateNumQubits(pairState) !== 2) {
+    const measuredIndex = state.pairQubitIndex;
+    if (!sharedRegisterMeasureMember(pairState, measuredIndex, color)) {
+      return false;
+    }
+    syncGeneratedPairStateVisuals(pairState);
+    mailboxRoomQueueSharedEntanglementUpdate(pairState)?.catch(() => {});
+    return true;
   }
   const measuredIndex = state.pairQubitIndex;
   const otherMember = pairState.members?.find(
@@ -6278,6 +9002,16 @@ function collapseGeneratedSingleQubitFromPair(qubitItem, color) {
     color,
   );
   collapsePairStateBySingleQubitMeasurement(pairState, measuredIndex, color);
+  if (pairState.remoteEntanglementId) {
+    const measuredVector = color === "blue" ? [1, 0] : [0, 1];
+    const memberVectors = [];
+    memberVectors[measuredIndex] = measuredVector;
+    memberVectors[measuredIndex === 0 ? 1 : 0] = otherVector;
+    mailboxRoomQueueSharedEntanglementUpdate(pairState, {
+      status: "separated",
+      memberVectors,
+    })?.catch(() => {});
+  }
   state.vector = color === "blue" ? [1, 0] : [0, 1];
   state.pairState = null;
   state.pairQubitIndex = null;
@@ -6285,6 +9019,7 @@ function collapseGeneratedSingleQubitFromPair(qubitItem, color) {
   state.cnotPairToken = null;
   state.cnotOutcomeProbabilities = null;
   state.doubleMeasurementReturnPoint = null;
+  mailboxRoomSetRemoteEntanglementVisual(qubitItem, "");
   if (otherMember?.state) {
     otherMember.state.vector = otherVector;
     otherMember.state.pairState = null;
@@ -6476,6 +9211,7 @@ function prepareGeneratedLayoutCanvas(canvas) {
   });
   ensureUniqueGeneratedLayoutItemIds(canvas);
   ensureUniqueGeneratedLayoutQubitIds(canvas);
+  ensureGeneratedMeasurementSlotIndexes(canvas);
 }
 
 function alignGeneratedGateSpring(runtime) {
@@ -6563,6 +9299,11 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
         markGeneratedReplayGateSettingsChanged(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
+        mailboxRoomRecordGateSettingAction(
+          canvas,
+          item,
+          runtime.activeTick,
+        ).catch(() => {});
         handleGeneratedGateSettingChanged(canvas);
       }
     },
@@ -6735,7 +9476,10 @@ function updateGeneratedDoubleMeasurementTubeFills(runtime) {
     liquidElement.style.height = `${percent}%`;
   });
   if (runtime.capacityElement) {
-    runtime.capacityElement.textContent = `The testtubes can each hold ${runtime.tubePairCapacity} qubit pairs.`;
+    const capacityUnit =
+      runtime.capacityUnit ||
+      (runtime.registerQubitCount > 2 ? "counts" : "qubit pairs");
+    runtime.capacityElement.textContent = `The testtubes can each hold ${runtime.tubePairCapacity} ${capacityUnit}.`;
   }
 }
 
@@ -6756,13 +9500,70 @@ function clearGeneratedDoubleMeasurementApparatus(runtime, options = {}) {
     return;
   }
   runtime.tubePairCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-  ["bb", "br", "rb", "rr"].forEach((key) => {
+  (runtime.outcomeKeys || Object.keys(runtime.tubeCounts || {})).forEach((key) => {
     runtime.tubeCounts[key] = 0;
   });
   if (options.resetIterations) {
     setMeasurementSelectValue(runtime.measurementCount, 1);
   }
   updateGeneratedDoubleMeasurementTubeFills(runtime);
+}
+
+function ensureGeneratedSeparatedSingleTubeRuntime(runtime) {
+  if (!runtime?.item) {
+    return null;
+  }
+  const item = runtime.item;
+  if (!item.querySelector('[data-role="tube-rack"]')) {
+    appendSavedMeasurementPiece(item, "single-tube-array", {
+      left: 18,
+      top: 12,
+      width: 64,
+      height: 42,
+      z: 2,
+    });
+  }
+  const tubeBlue = item.querySelector('[data-role="tube-blue"]');
+  const tubeRed = item.querySelector('[data-role="tube-red"]');
+  const tubeBlueCount = item.querySelector('[data-role="tube-blue-count"]');
+  const tubeRedCount = item.querySelector('[data-role="tube-red-count"]');
+  const tubeBlueLiquid = item.querySelector('[data-role="tube-blue-liquid"]');
+  const tubeRedLiquid = item.querySelector('[data-role="tube-red-liquid"]');
+  if (
+    !(tubeBlue instanceof HTMLElement) ||
+    !(tubeRed instanceof HTMLElement) ||
+    !(tubeBlueCount instanceof HTMLElement) ||
+    !(tubeRedCount instanceof HTMLElement) ||
+    !(tubeBlueLiquid instanceof HTMLElement) ||
+    !(tubeRedLiquid instanceof HTMLElement)
+  ) {
+    return null;
+  }
+  const singleRuntime = {
+    item,
+    measurementTool: runtime.magnifiers[0]?.measurementTool || item,
+    measureLens: runtime.magnifiers[0]?.measureLens || item,
+    tubeBlue,
+    tubeRed,
+    tubeBlueCount,
+    tubeRedCount,
+    tubeBlueLiquid,
+    tubeRedLiquid,
+    tubeCapacity: item.querySelector(
+      '[data-role="tube-capacity"], [data-role="pair-capacity"]',
+    ),
+    measurementCount: runtime.measurementCount,
+    tubeQubitCapacity: savedMeasurementCapacity(
+      item.dataset.measurementTubeCapacity,
+    ),
+    blueTubeCount: Number.parseInt(tubeBlueCount.textContent || "0", 10) || 0,
+    redTubeCount: Number.parseInt(tubeRedCount.textContent || "0", 10) || 0,
+    busy: false,
+  };
+  maybeExpandGeneratedMeasurementTubeCapacity(singleRuntime);
+  updateGeneratedMeasurementTubeFills(singleRuntime);
+  runtime.singleTubeRuntime = singleRuntime;
+  return singleRuntime;
 }
 
 function generatedSeparatedPairMeasurementMagnifiers(item) {
@@ -6835,12 +9636,21 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
       countElements[key] = count;
     }
   });
-  const requiredKeys = ["bb", "br", "rb", "rr"];
-  if (
-    !requiredKeys.every(
+  const configuredRegisterQubitCount = registerMeasurementQubitCountForItem(item);
+  const registerQubitCount = Math.max(
+    configuredRegisterQubitCount,
+    registerMeasurementQubitCountFromKeys(
+      columns.map((column) => column.dataset.key || ""),
+    ),
+  );
+  item.dataset.measurementRegisterQubitCount = `${registerQubitCount}`;
+  const requiredKeys = registerMeasurementOutcomeKeys(registerQubitCount);
+  const hasCompleteTubeRack =
+    columns.length > 0 &&
+    requiredKeys.every(
       (key) => tubeElements[key] && liquidElements[key] && countElements[key],
-    )
-  ) {
+    );
+  if (columns.length > 0 && !hasCompleteTubeRack) {
     return null;
   }
 
@@ -6854,12 +9664,16 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
     tubeElements,
     liquidElements,
     countElements,
-    tubeCounts: {
-      bb: Number.parseInt(countElements.bb.textContent || "0", 10) || 0,
-      br: Number.parseInt(countElements.br.textContent || "0", 10) || 0,
-      rb: Number.parseInt(countElements.rb.textContent || "0", 10) || 0,
-      rr: Number.parseInt(countElements.rr.textContent || "0", 10) || 0,
-    },
+    tubeCounts: Object.fromEntries(
+      (hasCompleteTubeRack ? requiredKeys : []).map((key) => [
+        key,
+        Number.parseInt(countElements[key].textContent || "0", 10) || 0,
+      ]),
+    ),
+    outcomeKeys: hasCompleteTubeRack ? requiredKeys : [],
+    configuredRegisterQubitCount,
+    registerQubitCount,
+    capacityUnit: registerQubitCount > 2 ? "counts" : "qubit pairs",
     tubePairCapacity: savedMeasurementCapacity(
       item.dataset.measurementTubeCapacity,
     ),
@@ -6897,7 +9711,31 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
     ) {
       return;
     }
-    runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
+    mailboxRoomPublishSharedMeasurementControl(runtime, type, iterations)
+      .catch(() => null)
+      .then((sharedEntanglement) => {
+        if (sharedEntanglement) {
+          const control =
+            mailboxRoomSharedMeasurementMetadata(sharedEntanglement).control;
+          return control || null;
+        }
+        return mailboxRoomPublishRoomMeasurementControl(
+          runtime,
+          type,
+          iterations,
+        )
+          .catch(() => null)
+          .then((measurement) => measurement?.control || null);
+      })
+      .then((control) => {
+        const startDelay = Math.max(
+          0,
+          Math.round(Number(control?.startAt) - Date.now()),
+        );
+        return startDelay > 0 ? waitForDuration(startDelay) : null;
+      })
+      .then(() => runGeneratedRecordedExperiment(canvas, iterations))
+      .catch(() => {});
   };
 
   if (runtime.measurementCount) {
@@ -6950,9 +9788,18 @@ function clearGeneratedSeparatedPairMeasurementApparatus(runtime, options = {}) 
     return;
   }
   runtime.tubePairCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
-  ["bb", "br", "rb", "rr"].forEach((key) => {
+  (runtime.outcomeKeys || Object.keys(runtime.tubeCounts || {})).forEach((key) => {
     runtime.tubeCounts[key] = 0;
   });
+  if (runtime.item?.querySelector?.('[data-role="tube-rack"]')) {
+    const singleRuntime = ensureGeneratedSeparatedSingleTubeRuntime(runtime);
+    if (singleRuntime) {
+      singleRuntime.tubeQubitCapacity = INITIAL_TUBE_QUBIT_CAPACITY;
+      singleRuntime.blueTubeCount = 0;
+      singleRuntime.redTubeCount = 0;
+      updateGeneratedMeasurementTubeFills(singleRuntime);
+    }
+  }
   runtime.pendingMeasurements = [];
   runtime.busy = false;
   runtime.completing = false;
@@ -7579,6 +10426,10 @@ function serializeGeneratedLayoutItem(item) {
     if (qubitId) {
       serialized.qubitId = qubitId;
     }
+    const roomQubitIndex = roomQubitIndexForItem(item);
+    if (Number.isInteger(roomQubitIndex)) {
+      serialized.roomQubitIndex = roomQubitIndex;
+    }
     if (item.dataset.initialVector) {
       try {
         serialized.vector = normalizeVector2(
@@ -7616,6 +10467,15 @@ function serializeGeneratedLayoutItem(item) {
   }
   if (item.dataset.measurementRole) {
     serialized.measurementRole = item.dataset.measurementRole;
+  }
+  const registerQubitCount = Number(item.dataset.measurementRegisterQubitCount);
+  if (
+    item.dataset.component === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE &&
+    Number.isInteger(registerQubitCount) &&
+    registerQubitCount >= 2 &&
+    registerQubitCount <= 4
+  ) {
+    serialized.measurementRegisterQubitCount = registerQubitCount;
   }
   if (item.dataset.component === "cnot-gate") {
     const cnotLayout = captureCnotComponentDefaultsFromElement(item);
@@ -7682,6 +10542,11 @@ function createGeneratedLayoutItemNode(type, geometry = {}) {
   }
   if (type === "qubit") {
     ensureQubitLogicalId(item, geometry.qubitId);
+    const roomQubitIndex = normalizeRoomQubitIndex(geometry.roomQubitIndex);
+    if (Number.isInteger(roomQubitIndex)) {
+      item.dataset.roomQubitIndex = String(roomQubitIndex);
+    }
+    updateQubitDisplayLabel(item);
     if (Array.isArray(geometry.vector)) {
       item.dataset.initialVector = JSON.stringify(
         normalizeVector2(geometry.vector),
@@ -7778,6 +10643,9 @@ function appendGeneratedLayoutItemToCanvas(canvas, item) {
   canvas.appendChild(item);
   prepareGeneratedLayoutItem(item);
   initializeGeneratedLayoutItemRuntime(item);
+  ensureUniqueGeneratedLayoutItemIds(canvas);
+  ensureUniqueGeneratedLayoutQubitIds(canvas);
+  ensureGeneratedMeasurementSlotIndexes(canvas);
   bringGeneratedItemToFront(item);
   setSelectedGeneratedLayoutItem(item);
   layoutGeneratedSingleGateDials(canvas);
@@ -8120,6 +10988,13 @@ function createGeneratedExperimentToolbar(canvas) {
   resetButton.textContent = "Reset";
   resetButton.addEventListener("click", (event) => {
     event.stopPropagation();
+    if (mailboxRoomIsJoined()) {
+      mailboxRoomPublishRoomReset(canvas).catch((error) => {
+        console.warn?.("[Qubit Lab] room reset failed", error);
+        resetGeneratedTabForCanvas(canvas);
+      });
+      return;
+    }
     resetGeneratedTabForCanvas(canvas);
   });
   toolbar.appendChild(resetButton);
@@ -9879,17 +12754,23 @@ function applyGeneratedCnotToQubitStates(topQubitItem, bottomQubitItem) {
   }
 
   if (runtimeStatesSharePairState(topState, bottomState)) {
-    applyCNOTToPairWithControl(topState.pairState, topState.pairQubitIndex);
+    applyCNOTToRegisterState(
+      topState.pairState,
+      topState.pairQubitIndex,
+      bottomState.pairQubitIndex,
+    );
     syncGeneratedPairStateVisuals(topState.pairState);
+    mailboxRoomQueueSharedEntanglementUpdate(topState.pairState)?.catch(() => {});
     return;
   }
 
-  const pairState = createGeneratedPairState(topQubitItem, bottomQubitItem);
-  if (!pairState) {
-    return;
+  const registerState = mergeGeneratedRegistersForCnot(
+    topQubitItem,
+    bottomQubitItem,
+  );
+  if (registerState?.remoteEntanglementId) {
+    mailboxRoomQueueSharedEntanglementUpdate(registerState)?.catch(() => {});
   }
-  applyCNOTToPair(pairState);
-  syncGeneratedPairStateVisuals(pairState);
 }
 
 async function runGeneratedCnotCycle(canvas, runtime) {
@@ -9946,8 +12827,10 @@ async function runGeneratedCnotCycle(canvas, runtime) {
       bottomState.cnotSourceSlot = "bottom";
       topState.cnotPairToken = pairToken;
       bottomState.cnotPairToken = pairToken;
-      const cnotOutcomeProbabilities = pairOutcomeProbabilitiesFromState(
+      const cnotOutcomeProbabilities = pairOutcomeProbabilitiesForRegisterMembers(
         topState.pairState,
+        topState.pairQubitIndex,
+        bottomState.pairQubitIndex,
       );
       topState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
       bottomState.cnotOutcomeProbabilities = cnotOutcomeProbabilities;
@@ -10216,7 +13099,7 @@ function findBestGeneratedMeasurementRuntimeForQubit(canvas, qubitItem) {
   return bestRuntime;
 }
 
-function collapseGeneratedQubitState(qubitItem) {
+function collapseGeneratedQubitState(qubitItem, options = {}) {
   const qubitState = ensureGeneratedQubitRuntimeState(qubitItem);
   if (!qubitState) {
     return "blue";
@@ -10226,7 +13109,7 @@ function collapseGeneratedQubitState(qubitItem) {
       qubitState.pairState,
       qubitState.pairQubitIndex,
     );
-    collapseGeneratedSingleQubitFromPair(qubitItem, color);
+    collapseGeneratedSingleQubitFromPair(qubitItem, color, options);
     return color;
   }
   const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
@@ -10368,6 +13251,14 @@ async function runGeneratedSingleMeasurementTransit(
       measurementId: ensureGeneratedItemId(runtime.item, "single-measurement"),
     });
     const collapsedColor = collapseGeneratedQubitState(qubitItem);
+    logGeneratedMeasurementProgress(runtime, {
+      event: "single-collapsed",
+      qubitId: ensureGeneratedItemId(qubitItem, "qubit"),
+      logicalQubitId: qubitLogicalIdForItem(qubitItem),
+      color: collapsedColor,
+      measuredSoFar: 1,
+      requiredCount: 1,
+    });
     if (core instanceof HTMLElement) {
       core.classList.remove("collapse-animating");
     }
@@ -10416,9 +13307,7 @@ function maybeSnapGeneratedQubitToSingleMeasurement(qubitItem) {
   if (!runtime) {
     return false;
   }
-  runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime).catch(
-    () => {},
-  );
+  runGeneratedSingleMeasurementTransit(canvas, qubitItem, runtime).catch(() => {});
   return true;
 }
 
@@ -10684,10 +13573,19 @@ function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
 
   let argumentOutcomeKey = "bb";
   if (runtimeStatesSharePairState(topState, bottomState)) {
-    const stateOrderOutcome = samplePairOutcomeFromEntangledState(
+    const stateOrderOutcome = samplePairOutcomeForRegisterMembers(
       topState.pairState,
+      topState.pairQubitIndex,
+      bottomState.pairQubitIndex,
     );
-    collapsePairStateToOutcome(topState.pairState, stateOrderOutcome);
+    collapseRegisterStateMembersToOutcome(
+      topState.pairState,
+      topState.pairQubitIndex,
+      bottomState.pairQubitIndex,
+      stateOrderOutcome,
+    );
+    syncGeneratedPairStateVisuals(topState.pairState);
+    mailboxRoomQueueSharedEntanglementUpdate(topState.pairState)?.catch(() => {});
     argumentOutcomeKey = outcomeKeyForPairStatesInArgumentOrder(
       stateOrderOutcome,
       topState,
@@ -10706,10 +13604,15 @@ function collapseGeneratedQubitPairFromCnot(topQubitItem, bottomQubitItem) {
   const bottomBlue = argumentOutcomeKey[1] === "b";
   topState.vector = topBlue ? [1, 0] : [0, 1];
   bottomState.vector = bottomBlue ? [1, 0] : [0, 1];
-  topState.pairState = null;
-  bottomState.pairState = null;
-  topState.pairQubitIndex = null;
-  bottomState.pairQubitIndex = null;
+  const sharedRegisterState = runtimeStatesSharePairState(topState, bottomState)
+    ? topState.pairState
+    : null;
+  if (!sharedRegisterState || registerStateNumQubits(sharedRegisterState) === 2) {
+    topState.pairState = null;
+    bottomState.pairState = null;
+    topState.pairQubitIndex = null;
+    bottomState.pairQubitIndex = null;
+  }
   topState.cnotSourceSlot = null;
   bottomState.cnotSourceSlot = null;
   topState.cnotPairToken = null;
@@ -11129,8 +14032,42 @@ function generatedSeparatedPairOrderIndexForQubit(
   qubitItem,
   qubitState,
 ) {
+  const requiredCount = Math.max(2, runtime?.registerQubitCount || 2);
+  const roomIndex = roomQubitIndexForItem(qubitItem);
+  if (
+    requiredCount > 2 &&
+    Number.isInteger(roomIndex) &&
+    roomIndex >= 0 &&
+    roomIndex < requiredCount
+  ) {
+    return roomIndex;
+  }
+  if (requiredCount > 2) {
+    ensureGeneratedMeasurementSlotIndexes(canvas, qubitItem);
+    const measurementSlotIndex = generatedMeasurementSlotIndexForItem(qubitItem);
+    if (
+      Number.isInteger(measurementSlotIndex) &&
+      measurementSlotIndex >= 0 &&
+      measurementSlotIndex < requiredCount
+    ) {
+      return measurementSlotIndex;
+    }
+  }
+  const logicalIndex = (qubitLogicalIdForItem(qubitItem) || 0) - 1;
+  if (
+    requiredCount > 2 &&
+    Number.isInteger(logicalIndex) &&
+    logicalIndex >= 0 &&
+    logicalIndex < requiredCount
+  ) {
+    return logicalIndex;
+  }
   if (Number.isFinite(qubitState?.pairQubitIndex)) {
-    return qubitState.pairQubitIndex === 0 ? 0 : 1;
+    return clamp(
+      Math.round(qubitState.pairQubitIndex),
+      0,
+      requiredCount - 1,
+    );
   }
   if (qubitState?.cnotSourceSlot === "top") {
     return 0;
@@ -11144,58 +14081,206 @@ function generatedSeparatedPairOrderIndexForQubit(
     (entry) => entry.partnerId === qubitId,
   );
   if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
-    return expectedFromPending.partnerOrderIndex === 0 ? 0 : 1;
+    return clamp(
+      Math.round(expectedFromPending.partnerOrderIndex),
+      0,
+      requiredCount - 1,
+    );
   }
 
   const sortedQubits = sortGeneratedItemsTopToBottom(
     canvas,
     generatedItemsOfType(canvas, "qubit"),
-  ).slice(0, 2);
+  ).slice(0, requiredCount);
   const sortedIndex = sortedQubits.indexOf(qubitItem);
-  if (sortedIndex === 0 || sortedIndex === 1) {
+  if (sortedIndex >= 0 && sortedIndex < requiredCount) {
     return sortedIndex;
   }
 
   const used = new Set(
     runtime.pendingMeasurements
       .map((entry) => entry.orderIndex)
-      .filter((orderIndex) => orderIndex === 0 || orderIndex === 1),
+      .filter(
+        (orderIndex) =>
+          Number.isInteger(orderIndex) &&
+          orderIndex >= 0 &&
+          orderIndex < requiredCount,
+      ),
   );
-  if (!used.has(0)) {
-    return 0;
+  for (let index = 0; index < requiredCount; index += 1) {
+    if (!used.has(index)) {
+      return index;
+    }
   }
-  return 1;
+  return requiredCount - 1;
 }
 
 function storeGeneratedSeparatedPairMeasurementPending(runtime, entry) {
-  runtime.pendingMeasurements = runtime.pendingMeasurements.filter(
-    (pending) => pending.qubitId !== entry.qubitId,
-  );
-  if (runtime.pendingMeasurements.length >= 2) {
+  const requiredCount = Math.max(2, runtime.registerQubitCount || 2);
+  const nextEntry = { ...(entry || {}) };
+  let entryOrderIndex = Number.isInteger(nextEntry.orderIndex)
+    ? nextEntry.orderIndex
+    : null;
+  if (requiredCount > 2) {
+    const usedByOtherQubits = new Set(
+      runtime.pendingMeasurements
+        .filter((pending) => pending.qubitId !== nextEntry.qubitId)
+        .map((pending) => pending.orderIndex)
+        .filter(
+          (orderIndex) =>
+            Number.isInteger(orderIndex) &&
+            orderIndex >= 0 &&
+            orderIndex < requiredCount,
+        ),
+    );
+    if (entryOrderIndex === null || usedByOtherQubits.has(entryOrderIndex)) {
+      for (let index = 0; index < requiredCount; index += 1) {
+        if (!usedByOtherQubits.has(index)) {
+          entryOrderIndex = index;
+          nextEntry.orderIndex = index;
+          break;
+        }
+      }
+    }
+  }
+  runtime.pendingMeasurements = runtime.pendingMeasurements.filter((pending) => {
+    const pendingOrderIndex = Number.isInteger(pending?.orderIndex)
+      ? pending.orderIndex
+      : null;
+    if (
+      requiredCount > 2 &&
+      entryOrderIndex !== null &&
+      pendingOrderIndex !== null
+    ) {
+      return pendingOrderIndex !== entryOrderIndex;
+    }
+    return pending.qubitId !== nextEntry.qubitId;
+  });
+  if (runtime.pendingMeasurements.length >= requiredCount) {
     runtime.pendingMeasurements = [];
   }
   runtime.measurementSequence += 1;
   runtime.pendingMeasurements.push({
-    ...entry,
+    ...nextEntry,
     sequence: runtime.measurementSequence,
+  });
+  logGeneratedMeasurementProgress(runtime, {
+    event: "pending",
+    qubitId: nextEntry.qubitId,
+    logicalQubitId: nextEntry.logicalQubitId,
+    color: nextEntry.color,
+    orderIndex: nextEntry.orderIndex,
+    measuredSoFar: runtime.pendingMeasurements.length,
+    requiredCount,
   });
 }
 
 function generatedSeparatedPairMeasurementOutcomeEntries(runtime) {
-  const entries = runtime.pendingMeasurements.slice(0, 2);
-  const top = entries.find((entry) => entry.orderIndex === 0);
-  const bottom = entries.find((entry) => entry.orderIndex === 1);
-  if (top && bottom && top !== bottom) {
-    return [top, bottom];
+  const requiredCount = Math.max(2, runtime?.registerQubitCount || 2);
+  const entries = runtime.pendingMeasurements.slice(0, requiredCount);
+  if (requiredCount === 2) {
+    const top = entries.find((entry) => entry.orderIndex === 0);
+    const bottom = entries.find((entry) => entry.orderIndex === 1);
+    if (top && bottom && top !== bottom) {
+      return [top, bottom];
+    }
   }
-  return entries
+  const sorted = entries
     .slice()
     .sort(
       (a, b) =>
-        (Number.isFinite(a.orderIndex) ? a.orderIndex : 2) -
-          (Number.isFinite(b.orderIndex) ? b.orderIndex : 2) ||
+        (Number.isFinite(a.orderIndex) ? a.orderIndex : requiredCount) -
+          (Number.isFinite(b.orderIndex) ? b.orderIndex : requiredCount) ||
         a.sequence - b.sequence,
     );
+  const byIndex = Array.from({ length: requiredCount }, (_item, index) =>
+    sorted.find((entry) => entry.orderIndex === index),
+  );
+  if (byIndex.every(Boolean) && new Set(byIndex).size === requiredCount) {
+    return byIndex;
+  }
+  return sorted;
+}
+
+function registerOutcomeKeyFromMeasurementEntries(entries) {
+  return entries
+    .map((entry) => (entry.color === "red" ? "r" : "b"))
+    .join("");
+}
+
+function pairOutcomeKeyFromMeasurementEntries(entries) {
+  const [topEntry, bottomEntry] = entries;
+  if (!topEntry || !bottomEntry) {
+    return "bb";
+  }
+  return pairOutcomeKeyFromColorBooleans(
+    topEntry.color === "blue",
+    bottomEntry.color === "blue",
+  );
+}
+
+function separatedMeasurementOutcomeKeyFromEntries(runtime, entries) {
+  if ((runtime?.registerQubitCount || 2) === 2) {
+    return pairOutcomeKeyFromMeasurementEntries(entries);
+  }
+  const outcomeKey = registerOutcomeKeyFromMeasurementEntries(entries);
+  return runtime?.tubeElements?.[outcomeKey]
+    ? outcomeKey
+    : registerMeasurementOutcomeKeys(runtime?.registerQubitCount || 2)[0];
+}
+
+function logGeneratedMeasurementProgress(runtime, details = {}) {
+  if (typeof console === "undefined" || typeof console.info !== "function") {
+    return;
+  }
+  const pending = Array.isArray(runtime?.pendingMeasurements)
+    ? runtime.pendingMeasurements
+    : [];
+  const requiredCount = Math.max(
+    1,
+    Number(details.requiredCount) ||
+      Number(runtime?.registerQubitCount) ||
+      Number(runtime?.configuredRegisterQubitCount) ||
+      1,
+  );
+  console.info("[Qubit Lab] measurement progress", {
+    event: details.event || "measured",
+    measurementId:
+      details.measurementId ||
+      runtime?.item?.dataset?.generatedItemId ||
+      runtime?.item?.id ||
+      null,
+    qubitId: details.qubitId || null,
+    logicalQubitId: details.logicalQubitId || null,
+    color: details.color || null,
+    orderIndex: Number.isInteger(details.orderIndex)
+      ? details.orderIndex
+      : null,
+    measuredSoFar: Math.min(
+      requiredCount,
+      Math.max(0, Number(details.measuredSoFar) || pending.length),
+    ),
+    requiredCount,
+    pending: pending.map((entry) => ({
+      qubitId: entry.qubitId || null,
+      logicalQubitId: entry.logicalQubitId || null,
+      color: entry.color || null,
+      orderIndex: Number.isInteger(entry.orderIndex) ? entry.orderIndex : null,
+    })),
+    outcomeKey: details.outcomeKey || null,
+    recording: Boolean(
+      generatedExperimentStateForCanvas(
+        generatedCanvasForItem(runtime?.item),
+      )?.recording,
+    ),
+  });
+}
+
+function generatedSeparatedMeasurementPayloadOffset(index, total) {
+  if (total <= 1) {
+    return 0;
+  }
+  return (index - (total - 1) / 2) * 8;
 }
 
 function generatedPairMeasurementTubeTargetPoint(canvas, runtime, outcomeKey) {
@@ -11233,7 +14318,8 @@ async function animateGeneratedSeparatedPairPayloadsToTube(
       payloads.map((payload, index) =>
         moveGeneratedPayloadToPoint(
           payload,
-          targetPoint.x + (index === 0 ? -7 : 7),
+          targetPoint.x +
+            generatedSeparatedMeasurementPayloadOffset(index, payloads.length),
           targetPoint.y,
           AUTO_TRAVEL_MS,
         ),
@@ -11254,34 +14340,48 @@ async function animateGeneratedSeparatedPairPayloadsToTube(
 }
 
 async function maybeCompleteGeneratedSeparatedPairMeasurement(canvas, runtime) {
+  const requiredCount = Math.max(2, runtime?.registerQubitCount || 2);
   if (
     !runtime ||
     runtime.completing ||
-    runtime.pendingMeasurements.length < 2
+    runtime.pendingMeasurements.length < requiredCount
   ) {
     return false;
   }
   const entries = generatedSeparatedPairMeasurementOutcomeEntries(runtime);
-  if (entries.length < 2) {
+  if (entries.length < requiredCount) {
     return false;
   }
-  const [topEntry, bottomEntry] = entries;
-  const outcomeKey = pairOutcomeKeyFromColorBooleans(
-    topEntry.color === "blue",
-    bottomEntry.color === "blue",
+  const outcomeEntries = entries.slice(0, requiredCount);
+  const outcomeKey = separatedMeasurementOutcomeKeyFromEntries(
+    runtime,
+    outcomeEntries,
   );
   runtime.completing = true;
   try {
+    const countingRuntime =
+      reconfigureGeneratedSeparatedMeasurementRuntimeForRegister(
+        runtime,
+        requiredCount,
+      ) || runtime;
     await animateGeneratedSeparatedPairPayloadsToTube(
       canvas,
-      runtime,
-      entries,
+      countingRuntime,
+      outcomeEntries,
       outcomeKey,
     );
-    runtime.tubeCounts[outcomeKey] += 1;
-    maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
-    updateGeneratedDoubleMeasurementTubeFills(runtime);
-    finishGeneratedExperimentRecordingAfterMeasurement(canvas);
+    countingRuntime.tubeCounts[outcomeKey] += 1;
+    maybeExpandGeneratedDoubleMeasurementTubeCapacity(countingRuntime);
+    updateGeneratedDoubleMeasurementTubeFills(countingRuntime);
+    logGeneratedMeasurementProgress(countingRuntime, {
+      event: "complete",
+      measuredSoFar: requiredCount,
+      requiredCount,
+      outcomeKey,
+    });
+    finishGeneratedExperimentRecordingAfterMeasurement(canvas, {
+      forceStop: requiredCount > 2,
+    });
     return true;
   } finally {
     runtime.pendingMeasurements = [];
@@ -11294,16 +14394,19 @@ function generatedSeparatedPairMeasurementEjectionPoint(
   magnifier,
   qubitItem,
   orderIndex = null,
+  laneCount = 2,
 ) {
   const toolRect = magnifier.measurementTool.getBoundingClientRect();
   const qubitRect = qubitItem.getBoundingClientRect();
+  const safeLaneCount = Math.max(1, Number(laneCount) || 1);
+  const laneStep = Math.max(28, qubitRect.height * 0.64);
   const laneOffset = Number.isFinite(orderIndex)
-    ? Math.max(32, qubitRect.height * 0.72)
+    ? (orderIndex - (safeLaneCount - 1) / 2) * laneStep
     : 0;
   const centerY =
     toolRect.top +
     toolRect.height / 2 +
-    (orderIndex === 0 ? -laneOffset : orderIndex === 1 ? laneOffset : 0);
+    laneOffset;
   const candidate = generatedViewportPointToCanvasPoint(
     canvas,
     toolRect.right + Math.max(28, qubitRect.width * 0.7),
@@ -11336,6 +14439,25 @@ async function runGeneratedSeparatedPairMeasurementTransit(
     return false;
   }
   const qubitId = ensureGeneratedItemId(qubitItem, "qubit");
+  const pendingRegisterEntry = runtime.pendingMeasurements.find(
+    (entry) => entry.partnerId === qubitId,
+  );
+  const forcedRegisterCount = forcedRegisterMeasurementQubitCountForRuntime(runtime);
+  const inferredRegisterCount = pendingRegisterEntry
+    ? Math.max(2, Number(runtime.registerQubitCount) || 2)
+    : qubitState.pairState
+      ? Math.max(
+          2,
+          Math.min(4, registerStateNumQubits(qubitState.pairState)),
+        )
+      : 1;
+  const measurementRegisterCount = forcedRegisterCount
+    ? Math.max(forcedRegisterCount, inferredRegisterCount)
+    : inferredRegisterCount;
+  runtime.registerQubitCount = measurementRegisterCount;
+  runtime.capacityUnit =
+    measurementRegisterCount > 2 ? "counts" : "qubit pairs";
+  runtime.item.dataset.measurementRegisterQubitCount = `${measurementRegisterCount}`;
   if (
     runtime.pendingMeasurements.some((entry) => entry.qubitId === qubitId)
   ) {
@@ -11362,6 +14484,14 @@ async function runGeneratedSeparatedPairMeasurementTransit(
     qubitItem,
     qubitState,
   );
+  const sharedPairState =
+    mailboxRoomIsJoined() && qubitState.pairState?.remoteEntanglementId
+      ? qubitState.pairState
+      : null;
+  const sharedQubitIndex = Number.isFinite(qubitState.pairQubitIndex)
+    ? qubitState.pairQubitIndex
+    : orderIndex;
+  const logicalQubitId = ensureQubitLogicalId(qubitItem);
   const lensCenter = generatedCanvasPointForElementCenter(
     canvas,
     target.measureLens,
@@ -11395,11 +14525,27 @@ async function runGeneratedSeparatedPairMeasurementTransit(
         "separated-pair-measurement",
       ),
       qubitId,
-      logicalQubitId: ensureQubitLogicalId(qubitItem),
+      logicalQubitId,
       partnerLogicalQubitId: partnerInfo?.logicalQubitId,
       magnifierIndex: target.index,
+      orderIndex,
+      registerQubitCount: measurementRegisterCount,
     });
-    const collapsedColor = collapseGeneratedQubitState(qubitItem);
+    const collapsedColor = collapseGeneratedQubitState(qubitItem, {
+      deferRemoteRegisterMeasurement: Boolean(sharedPairState),
+    });
+    logGeneratedMeasurementProgress(runtime, {
+      event: "collapsed",
+      qubitId,
+      logicalQubitId,
+      color: collapsedColor,
+      orderIndex,
+      measuredSoFar: runtime.pendingMeasurements.length,
+      requiredCount: measurementRegisterCount,
+    });
+    if (sharedPairState) {
+      setGeneratedMeasuredQubitVisualState(qubitItem, collapsedColor);
+    }
     if (core instanceof HTMLElement) {
       core.classList.remove("collapse-animating");
     }
@@ -11409,6 +14555,7 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       target,
       qubitItem,
       orderIndex,
+      measurementRegisterCount,
     );
     await moveGeneratedQubitToPoint(
       canvas,
@@ -11418,18 +14565,84 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       AUTO_TRAVEL_MS,
     );
     settleGeneratedQubitVisualState(qubitItem);
+    if (sharedPairState) {
+      setGeneratedMeasuredQubitVisualState(qubitItem, collapsedColor);
+    }
 
-    storeGeneratedSeparatedPairMeasurementPending(runtime, {
+    if (sharedPairState) {
+      const result = await mailboxRoomRecordSharedRegisterMeasurement(
+        sharedPairState,
+        {
+          qubitIndex: sharedQubitIndex,
+          color: collapsedColor,
+          logicalQubitId,
+        },
+      ).catch(() => null);
+      const sharedRegisterCount = Math.max(
+        2,
+        Math.min(4, registerStateNumQubits(sharedPairState)),
+      );
+      const mixedRegisterMeasurement =
+        forcedRegisterCount > 0 && measurementRegisterCount > sharedRegisterCount;
+      if (mixedRegisterMeasurement) {
+        storeGeneratedSeparatedPairMeasurementPending(runtime, {
+          qubitId,
+          qubitItem,
+          logicalQubitId,
+          color: collapsedColor,
+          orderIndex,
+          startPoint: lensCenter,
+          partnerId: partnerInfo?.partnerId || "",
+          partnerLogicalQubitId: partnerInfo?.logicalQubitId,
+          partnerOrderIndex: partnerInfo?.partnerOrderIndex,
+        });
+        await maybeCompleteGeneratedSeparatedPairMeasurement(canvas, runtime);
+      } else if (result?.sharedEntanglement) {
+        applySharedRegisterMeasurementCounts(result.sharedEntanglement);
+      }
+      if (result?.completed && !mixedRegisterMeasurement) {
+        finishGeneratedExperimentRecordingAfterMeasurement(canvas, {
+          forceStop: measurementRegisterCount > 2,
+        });
+      }
+      return true;
+    }
+
+    if (measurementRegisterCount === 1) {
+      const singleRuntime = ensureGeneratedSeparatedSingleTubeRuntime(runtime);
+      if (!singleRuntime) {
+        return false;
+      }
+      await animateGeneratedMeasurementPayloadToTube(
+        canvas,
+        singleRuntime,
+        collapsedColor,
+        lensCenter,
+      );
+      finishGeneratedExperimentRecordingAfterMeasurement(canvas);
+      return true;
+    }
+
+    const measurementEntry = {
       qubitId,
       qubitItem,
-      logicalQubitId: ensureQubitLogicalId(qubitItem),
+      logicalQubitId,
       color: collapsedColor,
       orderIndex,
       startPoint: lensCenter,
       partnerId: partnerInfo?.partnerId || "",
       partnerLogicalQubitId: partnerInfo?.logicalQubitId,
       partnerOrderIndex: partnerInfo?.partnerOrderIndex,
-    });
+    };
+    storeGeneratedSeparatedPairMeasurementPending(runtime, measurementEntry);
+    if (mailboxRoomIsJoined() && measurementRegisterCount > 2) {
+      try {
+        await mailboxRoomRecordRoomMeasurement(runtime, measurementEntry);
+        return true;
+      } catch (error) {
+        console.warn?.("[Qubit Lab] room measurement sync failed", error);
+      }
+    }
     await maybeCompleteGeneratedSeparatedPairMeasurement(canvas, runtime);
     return true;
   } finally {
@@ -12546,20 +15759,30 @@ function generatedSeparatedPairRuntimeForFastAction(canvas, action) {
   return initializeGeneratedSeparatedPairMeasurementItem(measurementItem);
 }
 
-function orderedFastSeparatedPairEntries(entries) {
-  const top = entries.find((entry) => entry.orderIndex === 0);
-  const bottom = entries.find((entry) => entry.orderIndex === 1);
-  if (top && bottom && top !== bottom) {
-    return [top, bottom];
+function orderedFastSeparatedMeasurementEntries(entries, requiredCount = 2) {
+  const safeRequiredCount = Math.max(2, Number(requiredCount) || 2);
+  if (safeRequiredCount === 2) {
+    const top = entries.find((entry) => entry.orderIndex === 0);
+    const bottom = entries.find((entry) => entry.orderIndex === 1);
+    if (top && bottom && top !== bottom) {
+      return [top, bottom];
+    }
   }
-  return entries
+  const sorted = entries
     .slice()
     .sort(
       (a, b) =>
-        (Number.isFinite(a.orderIndex) ? a.orderIndex : 2) -
-          (Number.isFinite(b.orderIndex) ? b.orderIndex : 2) ||
+        (Number.isFinite(a.orderIndex) ? a.orderIndex : safeRequiredCount) -
+          (Number.isFinite(b.orderIndex) ? b.orderIndex : safeRequiredCount) ||
         a.sequence - b.sequence,
     );
+  const byIndex = Array.from({ length: safeRequiredCount }, (_item, index) =>
+    sorted.find((entry) => entry.orderIndex === index),
+  );
+  if (byIndex.every(Boolean) && new Set(byIndex).size === safeRequiredCount) {
+    return byIndex;
+  }
+  return sorted;
 }
 
 function generatedRecordedDoubleMeasureOrder(action, initialCenters = new Map()) {
@@ -12702,13 +15925,22 @@ function replayGeneratedRecordedExperimentFast(
         if (!runtime) {
           return;
         }
+        const requiredCount = Math.max(
+          2,
+          forcedRegisterMeasurementQubitCountForRuntime(runtime),
+          Number(action.registerQubitCount) ||
+            runtime.registerQubitCount ||
+            2,
+        );
         const measurementId =
           action.measurementId ||
           ensureGeneratedItemId(runtime.item, "separated-pair-measurement");
         const pending =
           separatedPendingByMeasurement.get(measurementId) || [];
         let color = "blue";
-        let orderIndex = null;
+        let orderIndex = Number.isFinite(action.orderIndex)
+          ? clamp(Math.round(action.orderIndex), 0, requiredCount - 1)
+          : null;
         let partnerId = "";
         let partnerOrderIndex = null;
         const logicalQubitId =
@@ -12729,7 +15961,7 @@ function replayGeneratedRecordedExperimentFast(
             qubitIndex === 0
               ? pairState.bottomLogicalId
               : pairState.topLogicalId;
-          orderIndex = qubitIndex;
+          orderIndex = Number.isFinite(orderIndex) ? orderIndex : qubitIndex;
           partnerOrderIndex = qubitIndex === 0 ? 1 : 0;
           color = sampleSingleQubitOutcomeFromPairState(
             pairState.state,
@@ -12760,15 +15992,35 @@ function replayGeneratedRecordedExperimentFast(
             (entry) => entry.partnerId === action.qubitId,
           );
           if (Number.isFinite(expectedFromPending?.partnerOrderIndex)) {
-            orderIndex =
-              expectedFromPending.partnerOrderIndex === 0 ? 0 : 1;
+            orderIndex = clamp(
+              Math.round(expectedFromPending.partnerOrderIndex),
+              0,
+              requiredCount - 1,
+            );
           } else if (
             pending.length === 1 &&
-            Number.isFinite(pending[0].orderIndex)
+            Number.isFinite(pending[0].orderIndex) &&
+            requiredCount === 2
           ) {
             orderIndex = pending[0].orderIndex === 0 ? 1 : 0;
           } else {
-            orderIndex = pending.length === 0 ? 0 : 1;
+            const used = new Set(
+              pending
+                .map((entry) => entry.orderIndex)
+                .filter(
+                  (candidate) =>
+                    Number.isInteger(candidate) &&
+                    candidate >= 0 &&
+                    candidate < requiredCount,
+                ),
+            );
+            orderIndex = 0;
+            for (let index = 0; index < requiredCount; index += 1) {
+              if (!used.has(index)) {
+                orderIndex = index;
+                break;
+              }
+            }
           }
         }
 
@@ -12784,13 +16036,15 @@ function replayGeneratedRecordedExperimentFast(
             partnerOrderIndex,
             sequence: pending.length + 1,
           })
-          .slice(-2);
-        if (nextPending.length >= 2) {
-          const [topEntry, bottomEntry] =
-            orderedFastSeparatedPairEntries(nextPending);
-          const outcome = pairOutcomeKeyFromColorBooleans(
-            topEntry.color === "blue",
-            bottomEntry.color === "blue",
+          .slice(-requiredCount);
+        if (nextPending.length >= requiredCount) {
+          const outcomeEntries = orderedFastSeparatedMeasurementEntries(
+            nextPending,
+            requiredCount,
+          );
+          const outcome = separatedMeasurementOutcomeKeyFromEntries(
+            runtime,
+            outcomeEntries.slice(0, requiredCount),
           );
           runtime.tubeCounts[outcome] += 1;
           maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
@@ -13099,6 +16353,7 @@ function applyGeneratedRecordedExperimentStaticFinalVisualState(
         target,
         qubitItem,
         orderIndex,
+        runtime.registerQubitCount,
       );
       setGeneratedQubitCenter(canvas, qubitItem, ejectionPoint.x, ejectionPoint.y);
       settleGeneratedQubitVisualState(qubitItem);
@@ -13334,16 +16589,14 @@ function endGeneratedRuntimeGesture() {
   gesture.item.style.top = `${Math.round(clamped.top)}px`;
   commitGeneratedDragRecord(gesture);
   if (generatedCanvasAllowsRuntime(gesture.canvas)) {
-    if (!maybeSnapGeneratedQubitToSingleGate(gesture.item)) {
-      if (!maybeSnapGeneratedQubitToCnot(gesture.item)) {
-        if (!maybeSnapGeneratedQubitToDoubleMeasurement(gesture.item)) {
-          if (!maybeSnapGeneratedQubitToSeparatedPairMeasurement(gesture.item)) {
-            if (!maybeSnapGeneratedQubitToSingleMeasurement(gesture.item)) {
-              maybeSnapGeneratedQubitToMailbox(gesture.item);
-            }
-          }
-        }
-      }
+    const snapped =
+      maybeSnapGeneratedQubitToSingleGate(gesture.item) ||
+      maybeSnapGeneratedQubitToCnot(gesture.item) ||
+      maybeSnapGeneratedQubitToDoubleMeasurement(gesture.item) ||
+      maybeSnapGeneratedQubitToSeparatedPairMeasurement(gesture.item) ||
+      maybeSnapGeneratedQubitToSingleMeasurement(gesture.item);
+    if (!snapped) {
+      maybeSnapGeneratedQubitToMailbox(gesture.item);
     }
   }
   generatedRuntimeDrag = null;
@@ -14213,6 +17466,17 @@ function ensurePlaygroundQubitLayoutRegistration(element) {
     return;
   }
   ensureQubitLogicalId(element);
+  if (!Number.isInteger(roomQubitIndexForItem(element))) {
+    const canvas = element.closest(".playground-canvas");
+    const index =
+      canvas instanceof HTMLElement
+        ? Array.from(
+            canvas.querySelectorAll(':scope > .playground-node[data-component="qubit"]'),
+          ).indexOf(element)
+        : 0;
+    element.dataset.roomQubitIndex = String(Math.max(0, index));
+  }
+  updateQubitDisplayLabel(element);
   element.dataset.layoutEditTarget = "true";
   element.dataset.layoutResizable = "true";
   element.dataset.layoutUniformResize = "true";
@@ -14736,7 +18000,7 @@ function setupPlagroundComposer() {
       playgroundDuplicateButton.disabled = !hasSelection;
     }
     if (playgroundDeleteButton) {
-      playgroundDeleteButton.disabled = !hasSelection;
+      playgroundDeleteButton.disabled = selectionCount !== 1;
     }
     if (playgroundSaveComponentButton) {
       playgroundSaveComponentButton.disabled = !componentMode || !hasSelection;
@@ -15418,16 +18682,24 @@ function setupPlagroundComposer() {
       return;
     }
     if (runtimeStatesSharePairState(topState, bottomState)) {
-      applyCNOTToPairWithControl(topState.pairState, topState.pairQubitIndex);
+      applyCNOTToRegisterState(
+        topState.pairState,
+        topState.pairQubitIndex,
+        bottomState.pairQubitIndex,
+      );
       syncPlaygroundPairStateVisuals(topState.pairState);
       return;
     }
-    const pairState = createPlaygroundPairState(topQubitItem, bottomQubitItem);
-    if (!pairState) {
+    const registerState = mergeRuntimeRegistersForCnot(
+      topQubitItem,
+      bottomQubitItem,
+      topState,
+      bottomState,
+    );
+    if (!registerState) {
       return;
     }
-    applyCNOTToPair(pairState);
-    syncPlaygroundPairStateVisuals(pairState);
+    syncPlaygroundPairStateVisuals(registerState);
   };
 
   const runPlaygroundCnotCycle = async (runtime) => {
@@ -16301,10 +19573,18 @@ function setupPlagroundComposer() {
 
     let argumentOutcomeKey = "bb";
     if (runtimeStatesSharePairState(topState, bottomState)) {
-      const stateOrderOutcome = samplePairOutcomeFromEntangledState(
+      const stateOrderOutcome = samplePairOutcomeForRegisterMembers(
         topState.pairState,
+        topState.pairQubitIndex,
+        bottomState.pairQubitIndex,
       );
-      collapsePairStateToOutcome(topState.pairState, stateOrderOutcome);
+      collapseRegisterStateMembersToOutcome(
+        topState.pairState,
+        topState.pairQubitIndex,
+        bottomState.pairQubitIndex,
+        stateOrderOutcome,
+      );
+      syncPlaygroundPairStateVisuals(topState.pairState);
       argumentOutcomeKey = outcomeKeyForPairStatesInArgumentOrder(
         stateOrderOutcome,
         topState,
@@ -17088,6 +20368,11 @@ function setupPlagroundComposer() {
     item.dataset.component = type;
     if (type === "qubit") {
       ensureQubitLogicalId(item, geometry?.qubitId);
+      const roomQubitIndex = normalizeRoomQubitIndex(geometry?.roomQubitIndex);
+      if (Number.isInteger(roomQubitIndex)) {
+        item.dataset.roomQubitIndex = String(roomQubitIndex);
+      }
+      updateQubitDisplayLabel(item);
     }
     if (typeof geometry?.measurementGroupId === "string") {
       item.dataset.measurementGroupId = geometry.measurementGroupId;
@@ -17232,6 +20517,10 @@ function setupPlagroundComposer() {
       const qubitId = ensureQubitLogicalId(item);
       if (qubitId) {
         serialized.qubitId = qubitId;
+      }
+      const roomQubitIndex = roomQubitIndexForItem(item);
+      if (Number.isInteger(roomQubitIndex)) {
+        serialized.roomQubitIndex = roomQubitIndex;
       }
     }
     if (item.dataset.component === "text-box") {
@@ -17387,7 +20676,7 @@ function setupPlagroundComposer() {
       editorNewTabName.required = !currentEditorTabId;
     }
     if (editorOpenTabButton) {
-      editorOpenTabButton.disabled = !targetById(nextValue);
+      editorOpenTabButton.disabled = targets.length === 0;
     }
     syncEditorDocumentChrome();
   };
@@ -17949,6 +21238,14 @@ function setupPlagroundComposer() {
       measurementGroupId: instanceId,
       groupComponentId: group.id || "",
     };
+    if (
+      Number.isInteger(group.measurementRegisterQubitCount) &&
+      group.measurementRegisterQubitCount >= 2 &&
+      group.measurementRegisterQubitCount <= 4
+    ) {
+      geometry.measurementRegisterQubitCount =
+        group.measurementRegisterQubitCount;
+    }
     const item = createItem(PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE, geometry);
     appendItemToCanvas(item);
     bringToFront(item);
@@ -19178,48 +22475,294 @@ function normalizeEntangledAmplitudes(amplitudes) {
   return amplitudes.map((v) => v / norm);
 }
 
-function applySingleQubitGateToPair(state, qubitIndex, U) {
+function sharedRegisterQubitCountFromAmplitudes(amplitudes, fallback = 2) {
+  if (Array.isArray(amplitudes) && amplitudes.length > 0) {
+    const inferred = Math.log2(amplitudes.length);
+    if (
+      Number.isInteger(inferred) &&
+      inferred >= 1 &&
+      inferred <= SHARED_REGISTER_MAX_QUBITS
+    ) {
+      return inferred;
+    }
+  }
+  if (Number.isInteger(fallback) && fallback >= 1) {
+    return Math.min(fallback, SHARED_REGISTER_MAX_QUBITS);
+  }
+  return 2;
+}
+
+function sharedRegisterNormalizeAmplitudes(numQubits, amplitudes) {
+  const safeNumQubits =
+    Number.isInteger(numQubits) && numQubits >= 1
+      ? Math.min(numQubits, SHARED_REGISTER_MAX_QUBITS)
+      : sharedRegisterQubitCountFromAmplitudes(amplitudes, 2);
+  const register = sharedRegisterCreate(safeNumQubits, amplitudes);
+  if (register) {
+    return realAmplitudesFromQuantumRegister(register, 2 ** safeNumQubits);
+  }
+  if (safeNumQubits === 2) {
+    return normalizeEntangledAmplitudes(amplitudes);
+  }
+  const expectedLength = 2 ** safeNumQubits;
+  const source = Array.isArray(amplitudes) ? amplitudes : [];
+  const values = Array.from({ length: expectedLength }, (_, index) => {
+    const value = source[index];
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  });
+  const normSquared = values.reduce((sum, value) => sum + value * value, 0);
+  if (!Number.isFinite(normSquared) || normSquared <= 1e-16) {
+    values.fill(0);
+    values[0] = 1;
+    return values;
+  }
+  const norm = Math.sqrt(normSquared);
+  return values.map((value) => value / norm);
+}
+
+function inferRegisterQubitCountFromAmplitudes(amplitudes, fallback = 2) {
+  return sharedRegisterQubitCountFromAmplitudes(amplitudes, fallback);
+}
+
+function normalizeTourRegisterAmplitudes(numQubits, amplitudes) {
+  return sharedRegisterNormalizeAmplitudes(numQubits, amplitudes);
+}
+
+function registerStateNumQubits(state) {
+  return sharedRegisterQubitCountFromAmplitudes(
+    state?.amplitudes,
+    Number.isInteger(state?.numQubits) ? state.numQubits : 2,
+  );
+}
+
+function sharedRegisterCreate(numQubits, amplitudes = null) {
+  if (!quantumCore?.createRegister) {
+    return null;
+  }
+  const safeNumQubits = Math.min(
+    Math.max(Number.isInteger(numQubits) ? numQubits : 1, 1),
+    SHARED_REGISTER_MAX_QUBITS,
+  );
+  return quantumCore.createRegister(safeNumQubits, amplitudes);
+}
+
+function sharedRegisterFromState(state) {
+  const numQubits = registerStateNumQubits(state);
+  return sharedRegisterCreate(
+    numQubits,
+    sharedRegisterNormalizeAmplitudes(numQubits, state?.amplitudes || []),
+  );
+}
+
+function registerStateAsQuantumRegister(state) {
+  return sharedRegisterFromState(state);
+}
+
+function sharedRegisterWriteState(state, register, displayMode = "conditional") {
+  if (!state || !register) {
+    return null;
+  }
+  state.numQubits = register.numQubits;
+  state.amplitudes = realAmplitudesFromQuantumRegister(
+    register,
+    2 ** register.numQubits,
+  );
+  state.displayMode = displayMode;
+  if (register.numQubits !== 2 || displayMode !== "linked") {
+    delete state.linkRelation;
+  }
+  return state;
+}
+
+function sharedRegisterApplySingleGate(state, qubitIndex, matrix) {
+  const register = sharedRegisterFromState(state);
+  if (!register || !quantumCore?.applySingleQubitGate) {
+    return null;
+  }
+  return sharedRegisterWriteState(
+    state,
+    quantumCore.applySingleQubitGate(register, qubitIndex, matrix),
+  );
+}
+
+function sharedRegisterApplyCnot(state, controlIndex, targetIndex) {
+  const register = sharedRegisterFromState(state);
+  if (!register || !quantumCore?.applyCnot || controlIndex === targetIndex) {
+    return null;
+  }
+  sharedRegisterWriteState(
+    state,
+    quantumCore.applyCnot(register, controlIndex, targetIndex),
+  );
+  if (state.numQubits === 2) {
+    syncPairLinkRelation(state);
+  }
+  return state;
+}
+
+function sharedRegisterTensor(registers) {
+  const source = (Array.isArray(registers) ? registers : []).filter(Boolean);
+  const totalQubits = source.reduce(
+    (sum, register) => sum + (register?.numQubits || 0),
+    0,
+  );
   if (
-    state?.linkRelation === "correlated" ||
-    state?.linkRelation === "anti-correlated"
+    !source.length ||
+    totalQubits > SHARED_REGISTER_MAX_QUBITS ||
+    !quantumCore?.tensorProductRegisters
   ) {
-    const currentVector = displayVectorForPairMember(state, qubitIndex);
-    const nextVector = normalizeVector2(vectorTimesMatrix2(currentVector, U));
-    setLinkedPairStateFromMemberVector(state, qubitIndex, nextVector);
+    return null;
+  }
+  return quantumCore.tensorProductRegisters(source);
+}
+
+function sharedRegisterMarginalVector(state, qubitIndex) {
+  const register = sharedRegisterFromState(state);
+  if (register && quantumCore?.marginalProbabilities) {
+    const marginal = quantumCore.marginalProbabilities(register, qubitIndex);
+    return canonicalizeRealAmplitudeVector([
+      Math.sqrt(clamp(marginal.blue, 0, 1)),
+      Math.sqrt(clamp(marginal.red, 0, 1)),
+    ]);
+  }
+  return [1, 0];
+}
+
+function sharedRegisterJointOutcomeProbabilities(
+  state,
+  firstIndex = 0,
+  secondIndex = 1,
+) {
+  const register = sharedRegisterFromState(state);
+  if (!register || !quantumCore?.bitValue || !quantumCore?.magnitudeSquared) {
+    return { bb: 0.25, br: 0.25, rb: 0.25, rr: 0.25 };
+  }
+  const raw = { bb: 0, br: 0, rb: 0, rr: 0 };
+  register.amplitudes.forEach((amplitude, basisIndex) => {
+    const firstBit = quantumCore.bitValue(
+      basisIndex,
+      register.numQubits,
+      firstIndex,
+    );
+    const secondBit = quantumCore.bitValue(
+      basisIndex,
+      register.numQubits,
+      secondIndex,
+    );
+    const key = `${firstBit ? "r" : "b"}${secondBit ? "r" : "b"}`;
+    raw[key] += quantumCore.magnitudeSquared(amplitude);
+  });
+  return raw;
+}
+
+function sharedRegisterCollapseMembersToOutcome(
+  state,
+  firstIndex,
+  secondIndex,
+  outcomeKey,
+) {
+  const register = sharedRegisterFromState(state);
+  if (!register || !quantumCore?.bitValue || !quantumCore?.createRegister) {
+    return null;
+  }
+  const firstBit = outcomeKey?.[0] === "r" ? 1 : 0;
+  const secondBit = outcomeKey?.[1] === "r" ? 1 : 0;
+  const collapsed = register.amplitudes.map((amplitude, basisIndex) =>
+    quantumCore.bitValue(basisIndex, register.numQubits, firstIndex) ===
+      firstBit &&
+    quantumCore.bitValue(basisIndex, register.numQubits, secondIndex) ===
+      secondBit
+      ? amplitude
+      : quantumCore.complex
+        ? quantumCore.complex(0)
+        : 0,
+  );
+  return sharedRegisterWriteState(
+    state,
+    quantumCore.createRegister(register.numQubits, collapsed),
+  );
+}
+
+function sharedRegisterMeasureMember(state, qubitIndex, color = null) {
+  const register = sharedRegisterFromState(state);
+  if (!register || !quantumCore?.measureQubit) {
+    return null;
+  }
+  let randomValue = Math.random();
+  if (color === "blue" || color === "red") {
+    const marginal = quantumCore.marginalProbabilities(register, qubitIndex);
+    const blueProbability = clamp(marginal.blue, 0, 1);
+    randomValue =
+      color === "blue"
+        ? Math.max(0, blueProbability / 2)
+        : Math.min(0.999999, blueProbability + (1 - blueProbability) / 2);
+  }
+  const result = quantumCore.measureQubit(register, qubitIndex, randomValue);
+  sharedRegisterWriteState(state, result.register);
+  return result;
+}
+
+function assignRuntimeStateToRegisterMember(member, registerState, qubitIndex) {
+  if (!member?.state) {
     return;
   }
-  // state: {amplitudes: [a_bb,a_br,a_rb,a_rr]}
-  const a = state.amplitudes || [0, 0, 0, 0];
-  const register = quantumRegisterForTourState(2, a);
-  if (register && quantumCore?.applySingleQubitGate) {
-    const nextRegister = quantumCore.applySingleQubitGate(
-      register,
-      qubitIndex === 1 ? 1 : 0,
-      U,
-    );
-    state.amplitudes = realAmplitudesFromQuantumRegister(nextRegister, 4);
-  } else {
-    const out = [0, 0, 0, 0];
-    if (qubitIndex === 0) {
-      // apply U to top qubit
-      // bottom = 0 -> indices 0(top0),2(top1)
-      out[0] = U[0][0] * a[0] + U[0][1] * a[2];
-      out[2] = U[1][0] * a[0] + U[1][1] * a[2];
-      // bottom = 1 -> indices 1,3
-      out[1] = U[0][0] * a[1] + U[0][1] * a[3];
-      out[3] = U[1][0] * a[1] + U[1][1] * a[3];
-    } else {
-      // apply U to bottom qubit (qubitIndex === 1)
-      // top = 0 -> indices 0,1
-      out[0] = U[0][0] * a[0] + U[0][1] * a[1];
-      out[1] = U[1][0] * a[0] + U[1][1] * a[1];
-      // top = 1 -> indices 2,3
-      out[2] = U[0][0] * a[2] + U[0][1] * a[3];
-      out[3] = U[1][0] * a[2] + U[1][1] * a[3];
+  member.qubitIndex = qubitIndex;
+  member.state.pairState = registerState;
+  member.state.pairQubitIndex = qubitIndex;
+}
+
+function registerMembersForRemoteSnapshot(registerState) {
+  const numQubits = registerStateNumQubits(registerState);
+  const byIndex = new Map();
+  (Array.isArray(registerState?.remoteMembers)
+    ? registerState.remoteMembers
+    : []
+  ).forEach((member) => {
+    if (Number.isInteger(member?.qubitIndex)) {
+      byIndex.set(member.qubitIndex, { ...member });
     }
-    state.amplitudes = normalizeEntangledAmplitudes(out);
+  });
+  (Array.isArray(registerState?.members) ? registerState.members : []).forEach(
+    (member) => {
+      if (!Number.isInteger(member?.qubitIndex)) {
+        return;
+      }
+      const current = byIndex.get(member.qubitIndex) || {};
+      const roomQubit = roomQubitIdentityForItem(member.item);
+      byIndex.set(member.qubitIndex, {
+        ...current,
+        participantId:
+          current.participantId || mailboxRoomState.participantId || null,
+        role: current.role || "local",
+        qubitIndex: member.qubitIndex,
+        roomId: roomQubit?.roomId || current.roomId || mailboxRoomState.roomId || null,
+        roomQubitIndex:
+          Number.isInteger(roomQubit?.roomQubitIndex)
+            ? roomQubit.roomQubitIndex
+            : current.roomQubitIndex,
+        qubitId: roomQubit?.qubitId || current.qubitId,
+        label: roomQubit?.label || current.label,
+      });
+    },
+  );
+  return Array.from({ length: numQubits }, (_, qubitIndex) => ({
+    ...(byIndex.get(qubitIndex) || {
+      participantId: mailboxRoomState.participantId || null,
+      role: "member",
+    }),
+    qubitIndex,
+  }));
+}
+
+function singleQubitVectorFromRegisterState(registerState, qubitIndex) {
+  return sharedRegisterMarginalVector(registerState, qubitIndex);
+}
+
+function applySingleQubitGateToPair(state, qubitIndex, U) {
+  sharedRegisterApplySingleGate(state, qubitIndex, U);
+  if (registerStateNumQubits(state) === 2) {
+    syncPairLinkRelation(state);
   }
-  state.displayMode = "conditional";
 }
 
 function inferPairLinkRelation(state, tolerance = 1e-9) {
@@ -19280,28 +22823,22 @@ function setLinkedPairStateFromMemberVector(state, qubitIndex, vector) {
 }
 
 function applyCNOTToPairWithControl(state, controlIndex = 0) {
-  const a = state.amplitudes || [0, 0, 0, 0];
-  const normalizedControlIndex = controlIndex === 1 ? 1 : 0;
-  const register = quantumRegisterForTourState(2, a);
-  if (register && quantumCore?.applyCnot) {
-    const nextRegister = quantumCore.applyCnot(
-      register,
-      normalizedControlIndex,
-      normalizedControlIndex === 0 ? 1 : 0,
-    );
-    state.amplitudes = realAmplitudesFromQuantumRegister(nextRegister, 4);
-    syncPairLinkRelation(state);
-    return;
+  const targetIndex = Array.isArray(state?.members)
+    ? state.members
+        .map((member) => member?.qubitIndex)
+        .find(
+          (candidate) => Number.isInteger(candidate) && candidate !== controlIndex,
+        )
+    : controlIndex === 0
+      ? 1
+      : 0;
+  if (Number.isInteger(targetIndex)) {
+    sharedRegisterApplyCnot(state, controlIndex, targetIndex);
   }
-  if (normalizedControlIndex === 1) {
-    // Bottom controls top: permute |01> and |11>.
-    state.amplitudes = [a[0], a[3], a[2], a[1]];
-    syncPairLinkRelation(state);
-    return;
-  }
-  // Top controls bottom: permute |10> and |11>.
-  state.amplitudes = [a[0], a[1], a[3], a[2]];
-  syncPairLinkRelation(state);
+}
+
+function applyCNOTToRegisterState(state, controlIndex = 0, targetIndex = 1) {
+  sharedRegisterApplyCnot(state, controlIndex, targetIndex);
 }
 
 function applyCNOTToPair(state) {
@@ -19314,21 +22851,32 @@ function samplePairOutcomeFromEntangledState(state) {
   );
 }
 
+function samplePairOutcomeForRegisterMembers(state, firstIndex, secondIndex) {
+  return samplePairOutcomeFromProbabilities(
+    pairOutcomeProbabilitiesForRegisterMembers(state, firstIndex, secondIndex),
+  );
+}
+
 function deepCopyAmplitudes(amplitudes) {
   return (amplitudes || []).slice(0);
 }
 
 function collapsePairStateToOutcome(state, outcomeKey) {
-  const idx = { bb: 0, br: 1, rb: 2, rr: 3 }[outcomeKey] ?? 0;
-  if (quantumCore?.createBasisRegister) {
-    state.amplitudes = realAmplitudesFromQuantumRegister(
-      quantumCore.createBasisRegister(2, idx),
-      4,
-    );
-    return;
-  }
-  state.amplitudes = [0, 0, 0, 0];
-  state.amplitudes[idx] = 1;
+  sharedRegisterCollapseMembersToOutcome(state, 0, 1, outcomeKey);
+}
+
+function collapseRegisterStateMembersToOutcome(
+  state,
+  firstIndex,
+  secondIndex,
+  outcomeKey,
+) {
+  sharedRegisterCollapseMembersToOutcome(
+    state,
+    firstIndex,
+    secondIndex,
+    outcomeKey,
+  );
 }
 
 function pairOutcomeKeyFromColorBooleans(topBlue, bottomBlue) {
@@ -19396,6 +22944,9 @@ function runtimeStatesSharePairState(firstState, secondState) {
 }
 
 function singleQubitVectorFromPairState(pairState, qubitIndex) {
+  if (registerStateNumQubits(pairState) !== 2) {
+    return singleQubitVectorFromRegisterState(pairState, qubitIndex);
+  }
   const marginals = pairMarginalsFromEntangledState(pairState);
   const marginal = qubitIndex === 0 ? marginals.top : marginals.bottom;
   return canonicalizeRealAmplitudeVector([
@@ -19416,6 +22967,9 @@ function nonzeroConditionalPairVector(vector) {
 }
 
 function displayVectorForPairMember(pairState, qubitIndex) {
+  if (registerStateNumQubits(pairState) !== 2) {
+    return singleQubitVectorFromRegisterState(pairState, qubitIndex);
+  }
   if (pairState?.linkRelation === "correlated") {
     return (
       nonzeroConditionalPairVector([
@@ -19524,9 +23078,12 @@ function collapsePairStateBySingleQubitMeasurement(
 }
 
 function sampleSingleQubitOutcomeFromPairState(pairState, qubitIndex) {
-  const marginals = pairMarginalsFromEntangledState(pairState);
-  const blueProbability =
-    qubitIndex === 0 ? marginals.top.blue : marginals.bottom.blue;
+  const register = sharedRegisterFromState(pairState);
+  const marginal =
+    register && quantumCore?.marginalProbabilities
+      ? quantumCore.marginalProbabilities(register, qubitIndex)
+      : { blue: 1, red: 0 };
+  const blueProbability = marginal.blue;
   if (blueProbability >= 1) {
     return "blue";
   }
@@ -19537,18 +23094,15 @@ function sampleSingleQubitOutcomeFromPairState(pairState, qubitIndex) {
 }
 
 function pairOutcomeProbabilitiesFromState(state) {
-  const register = quantumRegisterForTourState(2, state?.amplitudes || []);
-  const raw = register?.amplitudes
-    ? register.amplitudes.map((value) => quantumCore.magnitudeSquared(value))
-    : normalizeEntangledAmplitudes(state?.amplitudes || []).map(
-        (value) => value * value,
-      );
-  return {
-    bb: raw[0],
-    br: raw[1],
-    rb: raw[2],
-    rr: raw[3],
-  };
+  return sharedRegisterJointOutcomeProbabilities(state, 0, 1);
+}
+
+function pairOutcomeProbabilitiesForRegisterMembers(
+  state,
+  firstIndex = 0,
+  secondIndex = 1,
+) {
+  return sharedRegisterJointOutcomeProbabilities(state, firstIndex, secondIndex);
 }
 
 function pairMarginalsFromEntangledState(state) {
@@ -19979,11 +23533,13 @@ function quantumRegisterKetLines(register, options = {}) {
 
 function memberLabelForQubit(item, fallback) {
   const logicalId = normalizeQubitId(item?.dataset?.qubitId);
+  const roomIndex = roomQubitIndexForItem(item);
+  const labelIndex = Number.isInteger(roomIndex) ? roomIndex : fallback;
   const itemId = item?.dataset?.generatedItemId || item?.dataset?.component || "";
   if (logicalId) {
-    return `q${fallback}#${logicalId}`;
+    return `q${labelIndex}#${logicalId}`;
   }
-  return itemId ? `q${fallback}:${itemId}` : `q${fallback}`;
+  return itemId ? `q${labelIndex}:${itemId}` : `q${labelIndex}`;
 }
 
 function inspectorRegisterFromRuntimeState(item, state, fallbackLabel = "Qubit") {
@@ -20011,16 +23567,27 @@ function inspectorRegisterFromRuntimeState(item, state, fallbackLabel = "Qubit")
     Array.isArray(state.pairState.amplitudes) &&
     Number.isFinite(state.pairQubitIndex)
   ) {
+    const numQubits = registerStateNumQubits(state.pairState);
     const members = Array.isArray(state.pairState.members)
       ? state.pairState.members
       : [];
-    const memberLabels = [0, 1].map((index) => {
+    const remoteMembers = Array.isArray(state.pairState.remoteMembers)
+      ? state.pairState.remoteMembers
+      : [];
+    const memberLabels = Array.from({ length: numQubits }, (_, index) => {
       const member = members.find((entry) => entry.qubitIndex === index);
-      return memberLabelForQubit(member?.item, index);
+      if (member?.item) {
+        return memberLabelForQubit(member.item, index);
+      }
+      const remoteMember = remoteMembers.find(
+        (entry) => entry?.qubitIndex === index,
+      );
+      const participant = remoteMember?.participantId || remoteMember?.role || "";
+      return participant ? `q${index}:${participant}` : `q${index}`;
     });
     return {
       label: "Entangled Register Inspector",
-      register: quantumCore.createRegister(2, state.pairState.amplitudes),
+      register: quantumCore.createRegister(numQubits, state.pairState.amplitudes),
       selectedIndex: state.pairQubitIndex,
       memberLabels,
     };
@@ -20490,7 +24057,7 @@ function registerQubitInspector(element, getState) {
 }
 
 const LOCAL_LAB_DEFAULT_QUBITS = 3;
-const LOCAL_LAB_MAX_QUBITS = 8;
+const LOCAL_LAB_MAX_QUBITS = SHARED_REGISTER_MAX_QUBITS;
 const LOCAL_LAB_DEFAULT_BACKEND_URL = "http://127.0.0.1:8787";
 const LOCAL_LAB_ROOM_ID = "local-lab-room";
 const LOCAL_LAB_REGISTER_ID = "local-register";
@@ -20772,13 +24339,13 @@ function localLabRegister() {
     Number.isInteger(localLabState.register.numQubits) &&
     Array.isArray(localLabState.register.amplitudes)
   ) {
-    localLabState.register = quantumCore.createRegister(
+    localLabState.register = sharedRegisterCreate(
       localLabState.register.numQubits,
       localLabState.register.amplitudes,
     );
     return localLabState.register;
   }
-  localLabState.register = quantumCore.createRegister(localLabCurrentSize());
+  localLabState.register = sharedRegisterCreate(localLabCurrentSize());
   return localLabState.register;
 }
 
@@ -20819,7 +24386,7 @@ function localLabSetRegister(register, statusMessage = "") {
   if (!localLabIsReady() || !register) {
     return;
   }
-  localLabState.register = quantumCore.createRegister(
+  localLabState.register = sharedRegisterCreate(
     register.numQubits,
     register.amplitudes,
   );
@@ -21278,6 +24845,11 @@ function localLabBackendUrlFromLocation() {
   }
 }
 
+function localLabBackendUrlFromConfig() {
+  const value = String(window.QUANTUM_BACKEND_URL || "").trim();
+  return value && value !== "__PUBLIC_BACKEND_URL__" ? value : "";
+}
+
 function localLabRoomFromLocation() {
   try {
     return new URLSearchParams(window.location.search).get("room") || "";
@@ -21319,7 +24891,11 @@ function localLabBackendBaseUrl() {
     localLabBackendUrl instanceof HTMLInputElement
       ? localLabBackendUrl.value.trim()
       : "";
-  const value = raw || localLabBackendUrlFromLocation() || LOCAL_LAB_DEFAULT_BACKEND_URL;
+  const value =
+    raw ||
+    localLabBackendUrlFromLocation() ||
+    localLabBackendUrlFromConfig() ||
+    LOCAL_LAB_DEFAULT_BACKEND_URL;
   return value.replace(/\/+$/, "");
 }
 
@@ -21685,7 +25261,7 @@ async function localLabReceiveMailboxTransfer() {
     localLabClearTeleportation();
     localLabState.selectedQubit = selectedQubit;
     localLabSetRegister(
-      quantumCore.createRegister(snapshot.numQubits, snapshot.amplitudes),
+      sharedRegisterCreate(snapshot.numQubits, snapshot.amplitudes),
       `Received mailbox q${selectedQubit}`,
     );
     localLabSetMailboxLink("", token);
@@ -21707,7 +25283,7 @@ function localLabSetRegisterFromRemote(register, statusMessage, selectedQubit = 
       register.numQubits,
     );
     localLabSetRegister(
-      quantumCore.createRegister(register.numQubits, register.amplitudes),
+      sharedRegisterCreate(register.numQubits, register.amplitudes),
       statusMessage,
     );
   } finally {
@@ -22041,7 +25617,7 @@ async function localLabDistributedAliceMeasure() {
       throw new Error("Bob must start the protocol first");
     }
     const registerPayload = await localLabRequest(localLabSharedRegisterPath());
-    let register = quantumCore.createRegister(
+    let register = sharedRegisterCreate(
       registerPayload.register.numQubits,
       registerPayload.register.amplitudes,
     );
@@ -22098,7 +25674,7 @@ async function localLabDistributedBobCorrect() {
       throw new Error("Alice measurement bits are required");
     }
     const registerPayload = await localLabRequest(localLabSharedRegisterPath());
-    let register = quantumCore.createRegister(
+    let register = sharedRegisterCreate(
       registerPayload.register.numQubits,
       registerPayload.register.amplitudes,
     );
@@ -22188,9 +25764,11 @@ async function localLabDistributedRefresh() {
 
 function localLabInitializeMailboxControls() {
   const backendFromLocation = localLabBackendUrlFromLocation();
+  const backendFromConfig = localLabBackendUrlFromConfig();
   if (localLabBackendUrl instanceof HTMLInputElement) {
     localLabBackendUrl.value =
       backendFromLocation ||
+      backendFromConfig ||
       localLabBackendUrl.value.trim() ||
       LOCAL_LAB_DEFAULT_BACKEND_URL;
   }
@@ -22292,7 +25870,7 @@ function localLabApplySnapshot(snapshot) {
   ) {
     throw new Error("Saved lab snapshot is not valid");
   }
-  const register = quantumCore.createRegister(
+  const register = sharedRegisterCreate(
     snapshot.register.numQubits,
     snapshot.register.amplitudes,
   );
@@ -22337,7 +25915,7 @@ function localLabReset(numQubits = localLabCurrentSize()) {
   const size = Math.min(Math.max(numQubits, 1), LOCAL_LAB_MAX_QUBITS);
   localLabState.selectedQubit = 0;
   localLabState.teleportation = null;
-  localLabState.register = quantumCore.createRegister(size);
+  localLabState.register = sharedRegisterCreate(size);
   localLabRender(`Ready: ${size} local qubit${size === 1 ? "" : "s"}`);
   localLabSetTeleportStatus("");
   localLabScheduleAutoPush();
@@ -22373,10 +25951,15 @@ function localLabApplySingleGate(gateKey) {
     register.numQubits,
   );
   localLabState.selectedQubit = target;
-  localLabSetRegister(
-    quantumCore.applySingleQubitGate(register, target, matrix),
-    `${gateKey} applied to q${target}`,
-  );
+  const state = {
+    numQubits: register.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      register,
+      2 ** register.numQubits,
+    ),
+  };
+  sharedRegisterApplySingleGate(state, target, matrix);
+  localLabSetRegister(state, `${gateKey} applied to q${target}`);
 }
 
 function localLabApplyCnot() {
@@ -22398,10 +25981,15 @@ function localLabApplyCnot() {
     return;
   }
   localLabState.selectedQubit = target;
-  localLabSetRegister(
-    quantumCore.applyCnot(register, control, target),
-    `C-NOT q${control} -> q${target}`,
-  );
+  const state = {
+    numQubits: register.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      register,
+      2 ** register.numQubits,
+    ),
+  };
+  sharedRegisterApplyCnot(state, control, target);
+  localLabSetRegister(state, `C-NOT q${control} -> q${target}`);
 }
 
 function localLabMeasureSelectedQubit() {
@@ -22414,10 +26002,17 @@ function localLabMeasureSelectedQubit() {
     localLabSelectValue(localLabMeasureQubit, localLabState.selectedQubit),
     register.numQubits,
   );
-  const result = quantumCore.measureQubit(register, target);
+  const state = {
+    numQubits: register.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      register,
+      2 ** register.numQubits,
+    ),
+  };
+  const result = sharedRegisterMeasureMember(state, target);
   localLabState.selectedQubit = target;
   localLabSetRegister(
-    result.register,
+    state,
     `Measured q${target}: ${result.color} (p=${localLabFormatProbability(result.probability)})`,
   );
 }
@@ -22430,14 +26025,20 @@ function localLabMeasureAllQubits() {
   localLabClearTeleportation();
   const bits = [];
   let probability = 1;
+  const state = {
+    numQubits: register.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      register,
+      2 ** register.numQubits,
+    ),
+  };
   for (let qubitIndex = 0; qubitIndex < register.numQubits; qubitIndex += 1) {
-    const result = quantumCore.measureQubit(register, qubitIndex);
+    const result = sharedRegisterMeasureMember(state, qubitIndex);
     bits.push(String(result.outcome));
     probability *= result.probability;
-    register = result.register;
   }
   localLabSetRegister(
-    register,
+    state,
     `Measured |${bits.join("")}> (p=${localLabFormatProbability(probability)})`,
   );
 }
@@ -22806,6 +26407,7 @@ function setActiveTab(tabTarget) {
   } else {
     refreshGeneratedDocumentToolbarForTabId(tabTarget);
   }
+  maybeAutoJoinEntanglementThreeRoom(tabTarget);
   refreshVisibleEditorsAfterTabSwitch();
 }
 
@@ -22920,4 +26522,5 @@ function initialLocalTabTarget() {
 setActiveTab(
   IS_GITHUB_PAGES_BUILD ? initialGithubPagesTabTarget() : initialLocalTabTarget(),
 );
+mailboxRoomStartBootCleanup();
 localLabHandleMailboxRoute();

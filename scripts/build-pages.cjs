@@ -43,6 +43,10 @@ const buildVersion = buildVersionForFiles(assetFiles);
 
 let html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
 html = html.replace(
+  "__PUBLIC_BACKEND_URL__",
+  String(process.env.PUBLIC_BACKEND_URL || ""),
+);
+html = html.replace(
   '<html lang="en">',
   `<html lang="en" data-quantum-target="github-pages" data-quantum-content-version="${buildVersion}">`,
 );

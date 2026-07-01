@@ -63,15 +63,15 @@ function deliveryFailureForError(delivery, error, provider = "resend") {
   };
 }
 
-async function sendWithResend(transfer, config, fetchImpl = global.fetch) {
+async function sendWithResend(message, config, fetchImpl = global.fetch) {
   if (typeof fetchImpl !== "function") {
     throw new Error("fetch is unavailable for mail delivery");
   }
-  const delivery = transfer.delivery || {};
+  const delivery = message.delivery || {};
   const text = delivery.body || "A qubit is waiting for you in Qubit Lab.";
   const payload = {
     from: config.from,
-    to: [transfer.email],
+    to: [message.email],
     subject: delivery.subject || "A qubit is waiting for you in Qubit Lab",
     text,
     html: textToHtml(text),
@@ -115,7 +115,7 @@ async function sendWithResend(transfer, config, fetchImpl = global.fetch) {
   }
 }
 
-function createMailboxMailer(options = {}) {
+function createBackendMailer(options = {}) {
   const config = options.config || mailConfigFromEnv(options.env);
   const fetchImpl = options.fetchImpl || global.fetch;
   return {
@@ -129,10 +129,19 @@ function createMailboxMailer(options = {}) {
       }
       return sendWithResend(transfer, config, fetchImpl);
     },
+    async sendTeleportInvite(invite) {
+      if (!isResendConfigured(config)) {
+        return null;
+      }
+      return sendWithResend(invite, config, fetchImpl);
+    },
   };
 }
 
+const createMailboxMailer = createBackendMailer;
+
 module.exports = {
+  createBackendMailer,
   createMailboxMailer,
   deliveryFailureForError,
   mailConfigFromEnv,

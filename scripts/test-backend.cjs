@@ -107,7 +107,12 @@ test("backend records rooms, registers, entanglement groups, and teleport invite
     });
     assert.equal(invite.response.status, 201);
     assert.equal(invite.body.invite.status, "pending");
-    assert.equal(invite.body.invite.delivery.status, "stubbed");
+    assert.equal(invite.body.invite.delivery.status, "queued-local");
+    assert.match(invite.body.invite.delivery.link, /\/teleport\/tpl_/);
+    assert.equal(
+      invite.body.invite.delivery.body.includes(invite.body.invite.delivery.link),
+      true,
+    );
     assert.match(invite.body.invite.token, /^tpl_/);
     assert.match(invite.body.invite.url, /\/teleport\/tpl_/);
 
@@ -263,6 +268,52 @@ test("mailbox mailer sends transfer email through Resend", async () => {
   assert.equal(requests[0].body.text.includes("mbx_demo"), true);
 });
 
+test("mailbox mailer sends teleport invite email through Resend", async () => {
+  const requests = [];
+  const mailer = createMailboxMailer({
+    env: {
+      MAIL_DELIVERY_PROVIDER: "resend",
+      MAIL_FROM: "Qubit Lab <send@example.com>",
+      RESEND_API_KEY: "test_api_key",
+      RESEND_API_URL: "https://resend.test/emails",
+    },
+    fetchImpl: async (url, options) => {
+      requests.push({
+        url,
+        headers: options.headers,
+        body: JSON.parse(options.body),
+      });
+      return new Response(JSON.stringify({ id: "eml_invite_123" }), {
+        status: 200,
+      });
+    },
+  });
+
+  assert.equal(mailer.isConfigured(), true);
+  const delivery = await mailer.sendTeleportInvite({
+    email: "alice@example.com",
+    delivery: {
+      status: "queued-local",
+      to: "alice@example.com",
+      subject: "You're invited to teleport a qubit in Qubit Lab",
+      body: "Bob invited you.\nhttp://lab.test/teleport/tpl_demo",
+      link: "http://lab.test/teleport/tpl_demo",
+      mailto: "mailto:alice@example.com",
+    },
+  });
+
+  assert.equal(delivery.status, "sent");
+  assert.equal(delivery.provider, "resend");
+  assert.equal(delivery.providerMessageId, "eml_invite_123");
+  assert.equal(delivery.mailFrom, "Qubit Lab <send@example.com>");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://resend.test/emails");
+  assert.equal(requests[0].headers.Authorization, "Bearer test_api_key");
+  assert.deepEqual(requests[0].body.to, ["alice@example.com"]);
+  assert.equal(requests[0].body.from, "Qubit Lab <send@example.com>");
+  assert.equal(requests[0].body.text.includes("tpl_demo"), true);
+});
+
 test("backend records configured mailbox mail delivery", async () => {
   const sentTransfers = [];
   const mailer = {
@@ -322,6 +373,70 @@ test("backend records configured mailbox mail delivery", async () => {
     const fetched = await api(baseUrl, `/mailbox-transfers/${transfer.body.transfer.token}`);
     assert.equal(fetched.body.transfer.delivery.status, "sent");
     assert.equal(fetched.body.transfer.delivery.mailFrom, "Qubit Lab <send@example.com>");
+  }, { mailer });
+});
+
+test("backend sends and records configured teleport invite mail delivery", async () => {
+  const sentInvites = [];
+  const mailer = {
+    provider: "test-mail",
+    isConfigured() {
+      return true;
+    },
+    async sendTeleportInvite(invite) {
+      sentInvites.push(invite);
+      return {
+        ...invite.delivery,
+        status: "sent",
+        provider: "test-mail",
+        providerMessageId: "msg_invite_123",
+        mailFrom: "Qubit Lab <send@example.com>",
+      };
+    },
+  };
+
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "teleport-mail-room",
+        label: "Teleport mail delivery verification",
+      },
+    });
+    await api(baseUrl, "/rooms/teleport-mail-room/registers/source-register", {
+      method: "PUT",
+      body: {
+        label: "Source register",
+        numQubits: 1,
+        amplitudes: [1, 0],
+      },
+    });
+    const invite = await api(baseUrl, "/rooms/teleport-mail-room/teleport-invites", {
+      method: "POST",
+      body: {
+        registerId: "source-register",
+        qubitIndex: 0,
+        email: "alice@example.com",
+        createdBy: "bob",
+        metadata: {
+          emailBody: "A custom teleport invite.\n\n__TELEPORT_LINK__",
+        },
+      },
+    });
+    assert.equal(invite.response.status, 201);
+    assert.equal(invite.body.invite.delivery.status, "sent");
+    assert.equal(invite.body.invite.delivery.provider, "test-mail");
+    assert.equal(invite.body.invite.delivery.providerMessageId, "msg_invite_123");
+    assert.equal(sentInvites.length, 1);
+    assert.match(sentInvites[0].delivery.link, /^http:\/\/127\.0\.0\.1:\d+\/teleport\/tpl_/);
+    assert.match(
+      sentInvites[0].delivery.body,
+      /^A custom teleport invite\.\n\nhttp:\/\/127\.0\.0\.1:\d+\/teleport\/tpl_/,
+    );
+
+    const fetched = await api(baseUrl, `/teleport-invites/${invite.body.invite.token}`);
+    assert.equal(fetched.body.invite.delivery.status, "sent");
+    assert.equal(fetched.body.invite.delivery.mailFrom, "Qubit Lab <send@example.com>");
   }, { mailer });
 });
 
@@ -445,6 +560,179 @@ test("backend stores room participants with roles and permissions", async () => 
   });
 });
 
+test("backend auto-joins send-receive-room as Bob then Alice", async () => {
+  await withBackend(async (baseUrl) => {
+    const bob = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: {},
+    });
+    assert.equal(bob.response.status, 200);
+    assert.equal(bob.body.participant.id, "bob");
+    assert.equal(bob.body.participant.displayName, "Bob");
+    assert.equal(bob.body.room.id, "send-receive-room");
+
+    const alice = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: {},
+    });
+    assert.equal(alice.response.status, 200);
+    assert.equal(alice.body.participant.id, "alice");
+    assert.equal(alice.body.participant.displayName, "Alice");
+
+    const bobAgain = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: {
+        participantId: "bob",
+      },
+    });
+    assert.equal(bobAgain.response.status, 200);
+    assert.equal(bobAgain.body.participant.id, "bob");
+
+    const third = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: {},
+    });
+    assert.equal(third.response.status, 409);
+    assert.equal(third.body.error.code, "room_full");
+  });
+});
+
+test("backend allocates room-wide qubit identities", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "qubit-identity-room",
+        label: "Qubit identity verification",
+        ownerId: "bob",
+      },
+    });
+
+    const bob = await api(baseUrl, "/rooms/qubit-identity-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "bob",
+        qubits: [{ clientId: "bob-a" }, { clientId: "bob-b" }],
+      },
+    });
+    assert.equal(bob.response.status, 200);
+    assert.deepEqual(
+      bob.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
+        label,
+        qubitId,
+        roomQubitIndex,
+      })),
+      [
+        { label: "q0", qubitId: 1, roomQubitIndex: 0 },
+        { label: "q1", qubitId: 2, roomQubitIndex: 1 },
+      ],
+    );
+
+    const alice = await api(baseUrl, "/rooms/qubit-identity-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        qubits: [
+          { clientId: "alice-a" },
+          { clientId: "alice-b" },
+          { clientId: "alice-c" },
+        ],
+      },
+    });
+    assert.equal(alice.response.status, 200);
+    assert.deepEqual(
+      alice.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
+        label,
+        qubitId,
+        roomQubitIndex,
+      })),
+      [
+        { label: "q2", qubitId: 3, roomQubitIndex: 2 },
+        { label: "q3", qubitId: 4, roomQubitIndex: 3 },
+        { label: "q4", qubitId: 5, roomQubitIndex: 4 },
+      ],
+    );
+  });
+});
+
+test("backend honors requested room qubit slots when available", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "qubit-slot-room",
+        label: "Qubit slot verification",
+        ownerId: "bob",
+      },
+    });
+
+    const alice = await api(baseUrl, "/rooms/qubit-slot-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        baseRoomQubitIndex: 2,
+        qubits: [{ clientId: "alice-a" }, { clientId: "alice-b" }],
+      },
+    });
+    assert.equal(alice.response.status, 200);
+    assert.deepEqual(
+      alice.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
+        label,
+        qubitId,
+        roomQubitIndex,
+      })),
+      [
+        { label: "q2", qubitId: 3, roomQubitIndex: 2 },
+        { label: "q3", qubitId: 4, roomQubitIndex: 3 },
+      ],
+    );
+  });
+});
+
+test("backend lets only the owner clear a room", async () => {
+  await withBackend(async (baseUrl) => {
+    const created = await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "owned-room",
+        label: "Owned room",
+        ownerId: "alice-session",
+      },
+    });
+    assert.equal(created.response.status, 201);
+    await api(baseUrl, "/rooms/owned-room/participants/bob-session", {
+      method: "PUT",
+      body: {
+        displayName: "Bob",
+        role: "editor",
+      },
+    });
+
+    const forbidden = await api(
+      baseUrl,
+      "/rooms/owned-room?requestedBy=bob-session",
+      { method: "DELETE" },
+    );
+    assert.equal(forbidden.response.status, 403);
+    assert.equal(forbidden.body.error.code, "room_delete_forbidden");
+
+    const stillThere = await api(baseUrl, "/rooms/owned-room");
+    assert.equal(stillThere.response.status, 200);
+
+    const deleted = await api(
+      baseUrl,
+      "/rooms/owned-room?requestedBy=alice-session",
+      { method: "DELETE" },
+    );
+    assert.equal(deleted.response.status, 200);
+    assert.equal(deleted.body.deleted, true);
+    assert.equal(deleted.body.room.id, "owned-room");
+
+    const missing = await api(baseUrl, "/rooms/owned-room");
+    assert.equal(missing.response.status, 404);
+  });
+});
+
 test("backend records room chat and mailbox notification events", async () => {
   await withBackend(async (baseUrl) => {
     await api(baseUrl, "/rooms", {
@@ -494,10 +782,358 @@ test("backend records room chat and mailbox notification events", async () => {
       Math.SQRT1_2,
     ]);
 
+    const action = await api(baseUrl, "/rooms/demo-room/actions", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        actionType: "gate-setting",
+        gateLabel: "flipper gate 1",
+        qubitLabel: "q0",
+        tickIndex: 3,
+      },
+    });
+    assert.equal(action.response.status, 201);
+    assert.equal(action.body.event.type, "room.action");
+    assert.equal(action.body.event.payload.actionType, "gate-setting");
+    assert.equal(action.body.event.payload.qubitLabel, "q0");
+
     const events = await api(baseUrl, "/rooms/demo-room/events");
     assert.equal(events.response.status, 200);
     assert.ok(events.body.events.some((event) => event.type === "room.message"));
     assert.ok(events.body.events.some((event) => event.type === "roomMailbox.sent"));
+    assert.ok(events.body.events.some((event) => event.type === "room.action"));
+  });
+});
+
+test("backend resets room collaboration state without removing participants", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "reset-room",
+        label: "Reset room",
+      },
+    });
+    await api(baseUrl, "/rooms/reset-room/participants/alice", {
+      method: "PUT",
+      body: {
+        displayName: "Alice",
+        role: "editor",
+      },
+    });
+    await api(baseUrl, "/rooms/reset-room/messages", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        message: "Before reset.",
+      },
+    });
+    await api(baseUrl, "/rooms/reset-room/measurements/four-register", {
+      method: "POST",
+      body: {
+        numQubits: 4,
+        qubitIndex: 0,
+        color: "blue",
+        participantId: "alice",
+      },
+    });
+
+    const reset = await api(baseUrl, "/rooms/reset-room/reset", {
+      method: "POST",
+      body: {
+        id: "reset-1",
+        participantId: "alice",
+      },
+    });
+    assert.equal(reset.response.status, 200);
+    assert.equal(reset.body.room.lastReset.id, "reset-1");
+    assert.equal(reset.body.room.lastReset.requestedBy, "alice");
+    assert.equal(reset.body.room.resetVersion, 1);
+    assert.equal(Object.keys(reset.body.room.participants).length, 1);
+    assert.equal(reset.body.room.participants.alice.displayName, "Alice");
+    assert.deepEqual(reset.body.room.roomMeasurements, {});
+    assert.deepEqual(reset.body.room.sharedEntanglements, {});
+    assert.deepEqual(reset.body.room.entanglementGroups, {});
+    assert.deepEqual(reset.body.room.registers, {});
+    assert.equal(reset.body.room.events.length, 1);
+    assert.equal(reset.body.room.events[0].type, "room.reset");
+
+    const events = await api(baseUrl, "/rooms/reset-room/events");
+    assert.equal(events.response.status, 200);
+    assert.equal(events.body.events.length, 1);
+    assert.equal(events.body.events[0].type, "room.reset");
+
+    const participants = await api(baseUrl, "/rooms/reset-room/participants");
+    assert.equal(participants.response.status, 200);
+    assert.equal(participants.body.participants.length, 1);
+
+    const measurements = await api(baseUrl, "/rooms/reset-room/measurements");
+    assert.equal(measurements.response.status, 200);
+    assert.deepEqual(measurements.body.measurements, []);
+  });
+});
+
+test("backend aggregates distributed room measurements", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "measurement-room",
+        label: "Measurement room",
+      },
+    });
+
+    const colors = ["blue", "red", "blue", "red"];
+    let latest = null;
+    for (let qubitIndex = 0; qubitIndex < 4; qubitIndex += 1) {
+      latest = await api(
+        baseUrl,
+        "/rooms/measurement-room/measurements/four-register",
+        {
+          method: "POST",
+          body: {
+            numQubits: 4,
+            qubitIndex,
+            color: colors[qubitIndex],
+            participantId: qubitIndex < 2 ? "bob" : "alice",
+            logicalQubitId: qubitIndex + 1,
+          },
+        },
+      );
+      assert.equal(latest.response.status, 200);
+    }
+
+    assert.equal(latest.body.measurement.counts.brbr, 1);
+    assert.equal(latest.body.measurement.pendingQueues["0"].length, 0);
+    assert.match(latest.body.measurement.completionId, /^room_measurement_/);
+
+    const listed = await api(baseUrl, "/rooms/measurement-room/measurements");
+    assert.equal(listed.response.status, 200);
+    assert.equal(listed.body.measurements.length, 1);
+    assert.equal(listed.body.measurements[0].counts.brbr, 1);
+
+    const events = await api(baseUrl, "/rooms/measurement-room/events");
+    const measurementEvent = events.body.events.find(
+      (event) =>
+        event.type === "roomMeasurement.updated" &&
+        event.payload.qubitIndex === 3,
+    );
+    assert.equal(measurementEvent.payload.participantId, "alice");
+    assert.equal(measurementEvent.payload.logicalQubitId, 4);
+
+    const control = await api(
+      baseUrl,
+      "/rooms/measurement-room/measurements/four-register/control",
+      {
+        method: "POST",
+        body: {
+          id: "control-1",
+          type: "experiment-count",
+          iterations: 25,
+          participantId: "alice",
+          startAt: 123456,
+        },
+      },
+    );
+    assert.equal(control.response.status, 200);
+    assert.equal(control.body.measurement.control.id, "control-1");
+    assert.equal(control.body.measurement.control.type, "experiment-count");
+    assert.equal(control.body.measurement.control.iterations, 25);
+    assert.equal(control.body.measurement.control.requestedBy, "alice");
+    assert.deepEqual(control.body.measurement.counts, {});
+    assert.deepEqual(control.body.measurement.pending, {});
+
+    const repeated = await api(
+      baseUrl,
+      "/rooms/measurement-room/measurements/four-register/control",
+      {
+        method: "POST",
+        body: {
+          id: "control-2",
+          type: "experiment-repeat",
+          iterations: 3,
+          participantId: "bob",
+        },
+      },
+    );
+    assert.equal(repeated.response.status, 200);
+    assert.equal(repeated.body.measurement.control.id, "control-2");
+    assert.equal(repeated.body.measurement.control.type, "experiment-repeat");
+    assert.equal(repeated.body.measurement.control.iterations, 3);
+  });
+});
+
+test("backend versions shared mailbox entanglement state", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "shared-entanglement-room",
+        label: "Shared entanglement room",
+      },
+    });
+    const created = await api(
+      baseUrl,
+      "/rooms/shared-entanglement-room/shared-entanglements",
+      {
+        method: "POST",
+        body: {
+          amplitudes: [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
+          displayMode: "linked",
+          linkRelation: "correlated",
+          members: [
+            { participantId: "bob", qubitIndex: 0 },
+            { participantId: "alice", qubitIndex: 1 },
+          ],
+        },
+      },
+    );
+    assert.equal(created.response.status, 201);
+    assert.equal(created.body.sharedEntanglement.status, "active");
+    assert.equal(created.body.sharedEntanglement.version, 1);
+    assert.match(created.body.sharedEntanglement.id, /^shared_ent_/);
+
+    const sharedEntanglementId = created.body.sharedEntanglement.id;
+    const updated = await api(
+      baseUrl,
+      `/rooms/shared-entanglement-room/shared-entanglements/${sharedEntanglementId}`,
+      {
+        method: "PUT",
+        body: {
+          expectedVersion: 1,
+          amplitudes: [0, Math.SQRT1_2, Math.SQRT1_2, 0],
+          displayMode: "linked",
+          linkRelation: "anti-correlated",
+          status: "active",
+          updatedBy: "alice",
+        },
+      },
+    );
+    assert.equal(updated.response.status, 200);
+    assert.equal(updated.body.sharedEntanglement.version, 2);
+    assert.equal(
+      updated.body.sharedEntanglement.linkRelation,
+      "anti-correlated",
+    );
+
+    const separated = await api(
+      baseUrl,
+      `/rooms/shared-entanglement-room/shared-entanglements/${sharedEntanglementId}`,
+      {
+        method: "PUT",
+        body: {
+          expectedVersion: 2,
+          amplitudes: [0, 1, 0, 0],
+          displayMode: "conditional",
+          status: "separated",
+          memberVectors: [
+            [1, 0],
+            [0, 1],
+          ],
+          updatedBy: "bob",
+        },
+      },
+    );
+    assert.equal(separated.response.status, 200);
+    assert.equal(separated.body.sharedEntanglement.status, "separated");
+    assert.deepEqual(separated.body.sharedEntanglement.memberVectors, [
+      [1, 0],
+      [0, 1],
+    ]);
+
+    const stale = await api(
+      baseUrl,
+      `/rooms/shared-entanglement-room/shared-entanglements/${sharedEntanglementId}`,
+      {
+        method: "PUT",
+        body: {
+          expectedVersion: 1,
+          amplitudes: [1, 0, 0, 0],
+          status: "active",
+        },
+      },
+    );
+    assert.equal(stale.response.status, 409);
+    assert.equal(
+      stale.body.error.code,
+      "shared_entanglement_version_conflict",
+    );
+  });
+});
+
+test("backend versions multi-qubit shared mailbox entanglement state", async () => {
+  await withBackend(async (baseUrl) => {
+    await api(baseUrl, "/rooms", {
+      method: "POST",
+      body: {
+        id: "shared-ghz-room",
+        label: "Shared GHZ room",
+      },
+    });
+    const created = await api(
+      baseUrl,
+      "/rooms/shared-ghz-room/shared-entanglements",
+      {
+        method: "POST",
+        body: {
+          numQubits: 3,
+          amplitudes: [Math.SQRT1_2, 0, 0, 0, 0, 0, 0, Math.SQRT1_2],
+          displayMode: "conditional",
+          members: [
+            { participantId: "bob", qubitIndex: 0, role: "retained" },
+            { participantId: "alice", qubitIndex: 1, role: "received" },
+            { participantId: "alice", qubitIndex: 2, role: "local" },
+          ],
+        },
+      },
+    );
+    assert.equal(created.response.status, 201);
+    assert.equal(created.body.sharedEntanglement.numQubits, 3);
+    assert.equal(created.body.sharedEntanglement.amplitudes.length, 8);
+    assert.equal(created.body.sharedEntanglement.members.length, 3);
+
+    const sharedEntanglementId = created.body.sharedEntanglement.id;
+    const updated = await api(
+      baseUrl,
+      `/rooms/shared-ghz-room/shared-entanglements/${sharedEntanglementId}`,
+      {
+        method: "PUT",
+        body: {
+          expectedVersion: 1,
+          numQubits: 3,
+          amplitudes: [0, Math.SQRT1_2, 0, 0, 0, 0, Math.SQRT1_2, 0],
+          displayMode: "conditional",
+          members: [
+            { participantId: "bob", qubitIndex: 0, role: "retained" },
+            { participantId: "alice", qubitIndex: 1, role: "received" },
+            { participantId: "alice", qubitIndex: 2, role: "local" },
+          ],
+          updatedBy: "alice",
+        },
+      },
+    );
+    assert.equal(updated.response.status, 200);
+    assert.equal(updated.body.sharedEntanglement.version, 2);
+    assert.equal(updated.body.sharedEntanglement.numQubits, 3);
+
+    const stale = await api(
+      baseUrl,
+      `/rooms/shared-ghz-room/shared-entanglements/${sharedEntanglementId}`,
+      {
+        method: "PUT",
+        body: {
+          expectedVersion: 1,
+          numQubits: 3,
+          amplitudes: [1, 0, 0, 0, 0, 0, 0, 0],
+          status: "active",
+        },
+      },
+    );
+    assert.equal(stale.response.status, 409);
+    assert.equal(
+      stale.body.error.code,
+      "shared_entanglement_version_conflict",
+    );
   });
 });
 

@@ -2,7 +2,7 @@
 
 const http = require("node:http");
 const {
-  createMailboxMailer,
+  createBackendMailer,
   deliveryFailureForError,
 } = require("./mail.cjs");
 const { BackendError, createMemoryStore } = require("./store.cjs");
@@ -14,7 +14,7 @@ const JSON_LIMIT_BYTES = 1_000_000;
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
-    "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization",
     "Access-Control-Max-Age": "600",
   };
@@ -91,6 +91,46 @@ function withTransferUrl(req, transfer) {
   };
 }
 
+function mailtoUrl({ to, subject, body }) {
+  const query = new URLSearchParams({
+    subject,
+    body,
+  });
+  return `mailto:${encodeURIComponent(to)}?${query.toString()}`;
+}
+
+function withResolvedDeliveryLink(message) {
+  const delivery = message.delivery || {};
+  const link = delivery.link || message.url || "";
+  if (!link) {
+    return message;
+  }
+  let body = delivery.body || "";
+  if (body.includes("(link unavailable)")) {
+    body = body.replaceAll("(link unavailable)", link);
+  } else if (body && !body.includes(link)) {
+    body = `${body}\n\n${link}`;
+  } else if (!body) {
+    body = link;
+  }
+  const resolvedDelivery = {
+    ...delivery,
+    body,
+    link,
+  };
+  if (resolvedDelivery.to && resolvedDelivery.subject && resolvedDelivery.body) {
+    resolvedDelivery.mailto = mailtoUrl({
+      to: resolvedDelivery.to,
+      subject: resolvedDelivery.subject,
+      body: resolvedDelivery.body,
+    });
+  }
+  return {
+    ...message,
+    delivery: resolvedDelivery,
+  };
+}
+
 function routeKey(method, segments) {
   return `${method} /${segments.map((segment, index) => (index % 2 ? `:${index}` : segment)).join("/")}`;
 }
@@ -105,10 +145,10 @@ function parsePath(req) {
 
 function createApp(options = {}) {
   const store = options.store || createMemoryStore();
-  const mailer = options.mailer || createMailboxMailer();
+  const mailer = options.mailer || createBackendMailer();
 
-  function mailerIsConfigured() {
-    if (!mailer?.sendMailboxTransfer) {
+  function mailerIsConfigured(sendMethod) {
+    if (!mailer?.[sendMethod]) {
       return false;
     }
     if (typeof mailer.isConfigured === "function") {
@@ -118,7 +158,7 @@ function createApp(options = {}) {
   }
 
   async function deliverMailboxTransfer(req, transfer) {
-    if (!mailerIsConfigured()) {
+    if (!mailerIsConfigured("sendMailboxTransfer")) {
       return transfer;
     }
     const transferWithUrl = withTransferUrl(req, transfer);
@@ -135,6 +175,31 @@ function createApp(options = {}) {
       return store.updateMailboxTransferDelivery(
         transfer.token,
         deliveryFailureForError(transfer.delivery, error, provider),
+      );
+    }
+  }
+
+  async function deliverTeleportInvite(req, invite) {
+    const inviteWithUrl = withResolvedDeliveryLink(withInviteUrl(req, invite));
+    if (!mailerIsConfigured("sendTeleportInvite")) {
+      return store.updateTeleportInviteDelivery(
+        invite.token,
+        inviteWithUrl.delivery,
+      );
+    }
+    try {
+      const delivery = await mailer.sendTeleportInvite(inviteWithUrl);
+      return delivery
+        ? store.updateTeleportInviteDelivery(invite.token, delivery)
+        : store.updateTeleportInviteDelivery(invite.token, inviteWithUrl.delivery);
+    } catch (error) {
+      const provider =
+        typeof mailer.provider === "string" && mailer.provider
+          ? mailer.provider
+          : "mail";
+      return store.updateTeleportInviteDelivery(
+        invite.token,
+        deliveryFailureForError(inviteWithUrl.delivery, error, provider),
       );
     }
   }
@@ -201,8 +266,84 @@ function createApp(options = {}) {
         return;
       }
 
+      if (method === "DELETE" && segments.length === 2 && segments[0] === "rooms") {
+        const room = store.deleteRoom(
+          segments[1],
+          url.searchParams.get("requestedBy"),
+        );
+        sendJson(res, 200, { room, deleted: true });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
+        segments[2] === "auto-join"
+      ) {
+        const payload = store.autoJoinRoom(segments[1], await readJson(req));
+        sendJson(res, 200, payload);
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
+        segments[2] === "reset"
+      ) {
+        const room = store.resetRoom(segments[1], await readJson(req));
+        sendJson(res, 200, { room });
+        return;
+      }
+
       if (method === "GET" && segments.length === 4 && segments[0] === "rooms" && segments[2] === "registers") {
         sendJson(res, 200, { register: store.getRegister(segments[1], segments[3]) });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
+        segments[2] === "shared-entanglements"
+      ) {
+        const sharedEntanglement = store.createSharedEntanglement(
+          segments[1],
+          await readJson(req),
+        );
+        sendJson(res, 201, { sharedEntanglement });
+        return;
+      }
+
+      if (
+        method === "GET" &&
+        segments.length === 4 &&
+        segments[0] === "rooms" &&
+        segments[2] === "shared-entanglements"
+      ) {
+        sendJson(res, 200, {
+          sharedEntanglement: store.getSharedEntanglement(
+            segments[1],
+            segments[3],
+          ),
+        });
+        return;
+      }
+
+      if (
+        method === "PUT" &&
+        segments.length === 4 &&
+        segments[0] === "rooms" &&
+        segments[2] === "shared-entanglements"
+      ) {
+        sendJson(res, 200, {
+          sharedEntanglement: store.updateSharedEntanglement(
+            segments[1],
+            segments[3],
+            await readJson(req),
+          ),
+        });
         return;
       }
 
@@ -213,6 +354,12 @@ function createApp(options = {}) {
 
       if (method === "GET" && segments.length === 3 && segments[0] === "rooms" && segments[2] === "participants") {
         sendJson(res, 200, { participants: store.listParticipants(segments[1]) });
+        return;
+      }
+
+      if (method === "POST" && segments.length === 4 && segments[0] === "rooms" && segments[2] === "qubits" && segments[3] === "allocate") {
+        const qubits = store.allocateRoomQubits(segments[1], await readJson(req));
+        sendJson(res, 200, { qubits });
         return;
       }
 
@@ -244,10 +391,64 @@ function createApp(options = {}) {
         method === "POST" &&
         segments.length === 3 &&
         segments[0] === "rooms" &&
+        segments[2] === "actions"
+      ) {
+        const event = store.createRoomAction(segments[1], await readJson(req));
+        sendJson(res, 201, { event });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
         segments[2] === "mailbox-notifications"
       ) {
         const event = store.createRoomMailboxNotification(segments[1], await readJson(req));
         sendJson(res, 201, { event });
+        return;
+      }
+
+      if (
+        method === "GET" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
+        segments[2] === "measurements"
+      ) {
+        sendJson(res, 200, {
+          measurements: store.listRoomMeasurements(segments[1]),
+        });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 4 &&
+        segments[0] === "rooms" &&
+        segments[2] === "measurements"
+      ) {
+        const measurement = store.recordRoomMeasurement(
+          segments[1],
+          segments[3],
+          await readJson(req),
+        );
+        sendJson(res, 200, { measurement });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 5 &&
+        segments[0] === "rooms" &&
+        segments[2] === "measurements" &&
+        segments[4] === "control"
+      ) {
+        const measurement = store.updateRoomMeasurementControl(
+          segments[1],
+          segments[3],
+          await readJson(req),
+        );
+        sendJson(res, 200, { measurement });
         return;
       }
 
@@ -356,7 +557,8 @@ function createApp(options = {}) {
         segments[0] === "rooms" &&
         segments[2] === "teleport-invites"
       ) {
-        const invite = store.createTeleportInvite(segments[1], await readJson(req));
+        const createdInvite = store.createTeleportInvite(segments[1], await readJson(req));
+        const invite = await deliverTeleportInvite(req, createdInvite);
         sendJson(res, 201, { invite: withInviteUrl(req, invite) });
         return;
       }

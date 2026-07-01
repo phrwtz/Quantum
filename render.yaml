@@ -1,5 +1,14 @@
 services:
   - type: web
+    name: qubit-lab
+    runtime: static
+    buildCommand: npm ci && npm run build:pages
+    staticPublishPath: dist
+    envVars:
+      - key: PUBLIC_BACKEND_URL
+        sync: false
+
+  - type: web
     name: qubit-lab-backend
     runtime: node
     plan: free
@@ -16,5 +25,7 @@ services:
         sync: false
       - key: MAIL_REPLY_TO
         sync: false
+      - key: MAIL_SEND_TIMEOUT_MS
+        value: 10000
       - key: RESEND_API_KEY
         sync: false

@@ -1,6 +1,6 @@
 # Qubit Lab Backend Skeleton
 
-This is the Stage 5 backend skeleton for the distributed Qubit Lab. It is intentionally small and dependency-free so the protocol model can evolve before we add durable storage, authentication, realtime sync, or real email delivery.
+This is the Stage 5 backend skeleton for the distributed Qubit Lab. It is intentionally small and dependency-free so the protocol model can evolve before we add durable storage, authentication, and realtime sync.
 
 ## Local Run
 
@@ -12,7 +12,7 @@ By default the API listens on `http://127.0.0.1:8787`. Render will provide `PORT
 
 ## Mail Delivery
 
-Mailbox transfers use a local `mailto:` draft unless real delivery is configured.
+Mailbox transfers and teleport invites use a local `mailto:` draft unless real delivery is configured.
 On Render, set these environment variables on the backend service:
 
 - `MAIL_DELIVERY_PROVIDER=resend`
@@ -20,8 +20,18 @@ On Render, set these environment variables on the backend service:
 - `RESEND_API_KEY`: the secret Resend API key
 - `MAIL_REPLY_TO`: optional reply-to address
 - `PUBLIC_APP_URL`: the public frontend URL used when the backend has to build links
+- `MAIL_SEND_TIMEOUT_MS`: optional Resend request timeout in milliseconds; defaults to `10000`
 
-The address typed in the mailbox `From:` field is included in the message body. The actual email sender is always `MAIL_FROM`, because providers reject unverified sender domains.
+The address typed in the mailbox `From:` field, or the participant that created a teleport invite, is included in the message body. The actual email sender is always `MAIL_FROM`, because providers reject unverified sender domains.
+
+## Render Deployment
+
+`render.yaml` defines two services:
+
+- `qubit-lab`: a static site built with `npm run build:pages`.
+- `qubit-lab-backend`: a Node web service running `npm run backend`.
+
+Set `PUBLIC_BACKEND_URL` on the static site to the public backend service URL. Set `PUBLIC_APP_URL` on the backend to the public static site URL.
 
 ## Current API Surface
 
@@ -29,11 +39,19 @@ The address typed in the mailbox `From:` field is included in the message body. 
 - `GET /version` reports the package name and version.
 - `GET /rooms` lists in-memory lab rooms.
 - `POST /rooms` creates a room.
+- `POST /rooms/:roomId/auto-join` joins the fixed Entanglement 3 room as Bob first, then Alice.
 - `GET /rooms/:roomId` fetches a room with registers, entanglement groups, and events.
+- `DELETE /rooms/:roomId?requestedBy=:participantId` removes a stale room when requested by its owner.
+- `POST /rooms/:roomId/reset` clears mutable collaboration state and room events while keeping participants in the room.
 - `GET /rooms/:roomId/registers/:registerId` fetches a single shared register.
 - `POST /rooms/:roomId/registers` creates a register.
 - `PUT /rooms/:roomId/registers/:registerId` creates or replaces a named register.
 - `POST /rooms/:roomId/entanglement-groups` records a group of two or more qubits that should be treated as entangled.
+- `POST /rooms/:roomId/shared-entanglements` creates a versioned shared entangled register across mailbox participants. Include `numQubits` for registers larger than two qubits.
+- `GET|PUT /rooms/:roomId/shared-entanglements/:entanglementId` reads or updates that distributed register, including measurement separation.
+- `GET /rooms/:roomId/measurements` lists distributed room measurement counts.
+- `POST /rooms/:roomId/measurements/:measurementId` records one participant's measured qubit for a distributed room measurement.
+- `POST /rooms/:roomId/measurements/:measurementId/control` broadcasts a recorded-experiment repeat or B-count change for that distributed measurement.
 - `GET /rooms/:roomId/distributed-teleportation/:protocolId` fetches a distributed teleportation protocol record.
 - `PUT /rooms/:roomId/distributed-teleportation/:protocolId` creates or updates a distributed teleportation protocol record.
 - `POST /rooms/:roomId/teleport-invites` creates a mailbox-style teleport invite for a register qubit and email address.
@@ -44,13 +62,13 @@ The address typed in the mailbox `From:` field is included in the message body. 
 - `POST /mailbox-transfers/:token/claim` claims a mailbox transfer and returns the register snapshot.
 - `GET /rooms/:roomId/events` returns the room event log.
 - `POST /rooms/:roomId/messages` appends a lightweight room chat message to the event log.
+- `POST /rooms/:roomId/actions` appends a structured experiment action such as a flipper-gate setting change.
 - `POST /rooms/:roomId/mailbox-notifications` appends a Stage 1 mailbox notification such as “Paul sent q0” to the event log.
 
 ## Deliberate Stage 5 Limits
 
 - State is in memory and resets when the server restarts.
-- Mailbox email delivery is real when Render has Resend credentials; otherwise responses include a local draft link.
-- Teleport invite email delivery is still stubbed; invite responses include the link that a future mailer would send.
+- Mailbox transfer and teleport invite email delivery is real when Render has Resend credentials; otherwise responses include a local draft link.
 - There is no authentication or authorization yet.
 - Register amplitudes are validated and stored, but no server-side quantum operations run yet.
 - Mailbox transfer preserves a register snapshot; later stages can replace that with durable distributed entanglement ownership.

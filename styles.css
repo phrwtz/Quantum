@@ -304,7 +304,6 @@ html[data-quantum-target="github-pages"] .tabs-shell {
 
 html[data-workshop-editor-mode="tab"]
   #playgroundDuplicateButton,
-html[data-workshop-editor-mode="tab"] #playgroundDeleteButton,
 html[data-workshop-editor-mode="tab"] #playgroundSaveComponentButton,
 html[data-workshop-editor-mode="tab"] #playgroundSaveGroupButton,
 html[data-workshop-editor-mode="tab"] #panel-plaground .playground-hint,
@@ -1991,6 +1990,9 @@ body.layout-edit-active .generated-editor-toolbar {
   > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas),
 #panel-custom-entanglement-3
   .generated-layout-viewport
+  > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas),
+#panel-editor-entanglement-3
+  .generated-layout-viewport
   > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas) {
   background: #e6ffcc;
   background-size: auto;
@@ -1998,6 +2000,24 @@ body.layout-edit-active .generated-editor-toolbar {
 
 .generated-experiment-status {
   font-size: 0.72rem;
+}
+
+.entanglement-room-review-status {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  line-height: 1.25;
+}
+
+.entanglement-room-review-btn {
+  min-height: 28px;
+  padding: 0.2rem 0.55rem;
+}
+
+.entanglement-room-review-action {
+  flex-basis: 100%;
+  font-weight: 500;
 }
 
 .doc-editor-tab-panel {
@@ -2212,7 +2232,18 @@ body:not(.layout-edit-active)
   [data-role="measurement-tool"],
 body:not(.layout-edit-active)
   .generated-layout-canvas
+  .playground-node.component-group
+  .measurement-piece-single-magnifier
+  [data-role="measurement-tool"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
   .playground-node.component-group[data-separated-pair-measurement="true"]
+  .measurement-piece-single-magnifier
+  [data-role="measurement-tool"]
+  *,
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.component-group
   .measurement-piece-single-magnifier
   [data-role="measurement-tool"]
   *,
@@ -2220,8 +2251,13 @@ body:not(.layout-edit-active)
   .generated-layout-canvas
   .playground-node.component-group[data-separated-pair-measurement="true"]
   .measurement-piece-measurement-count-menu
+  [data-role="measurement-count"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.component-group
+  .measurement-piece-measurement-count-menu
   [data-role="measurement-count"] {
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 body.layout-edit-active .generated-layout-canvas .playground-node {
@@ -2258,6 +2294,44 @@ body.layout-edit-active
     left var(--move-duration, 620ms) ease-in-out,
     top var(--move-duration, 620ms) ease-in-out;
   pointer-events: none;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell.mailbox-arriving {
+  z-index: 10001 !important;
+  pointer-events: none;
+  transition:
+    left 620ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.generated-layout-canvas
+  .playground-node.playground-qubit-shell.mailbox-arriving
+  .playground-qubit-core {
+  animation: mailbox-qubit-arrival 620ms ease-out;
+}
+
+.generated-layout-canvas
+  .playground-node.playground-qubit-shell.remote-entangled
+  .playground-qubit-core {
+  box-shadow:
+    0 0 0 3px rgba(151, 83, 214, 0.72),
+    0 0 18px 6px rgba(151, 83, 214, 0.4),
+    inset 0 0 12px rgba(255, 255, 255, 0.46);
+}
+
+@keyframes mailbox-qubit-arrival {
+  0% {
+    opacity: 0.15;
+    scale: 0.35;
+  }
+  65% {
+    opacity: 1;
+    scale: 1.12;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 .generated-layout-canvas
@@ -2690,6 +2764,17 @@ body.layout-edit-active
   font-weight: 750;
 }
 
+.mailbox-send-status-error {
+  border: 2px solid #b42318;
+  border-radius: 6px;
+  background: #fff1f0;
+  color: #9f1712;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.35;
+  padding: 0.55rem 0.65rem;
+}
+
 .mailbox-send-actions {
   display: flex;
   justify-content: flex-end;
@@ -3112,6 +3197,41 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 .pair-tube {
   width: 32px;
   height: 126px;
+}
+
+.register-tube-rack {
+  gap: 0.34rem;
+  justify-content: center;
+}
+
+.register-tube-column {
+  width: 49px;
+  gap: 0.16rem;
+}
+
+.register-tube-label {
+  min-height: 2.15rem;
+  grid-auto-flow: row;
+  align-content: center;
+  row-gap: 0.02rem;
+}
+
+.register-tube-label .measurement-dot {
+  width: 0.43rem;
+  height: 0.43rem;
+}
+
+.register-tube {
+  width: 21px;
+  height: 126px;
+}
+
+.register-tube-rack-4 {
+  gap: 0.22rem;
+}
+
+.register-tube-rack-4 .register-tube-column {
+  width: 42px;
 }
 
 .pair-magnifier {
@@ -3792,6 +3912,25 @@ body.layout-edit-active .pair-ejection-site {
   pointer-events: none;
 }
 
+.qubit[data-qubit-label]::before,
+.playground-qubit-core[data-qubit-label]::before {
+  content: attr(data-qubit-label);
+  position: absolute;
+  left: 50%;
+  bottom: -1.45rem;
+  transform: translateX(-50%);
+  color: #14314f;
+  font:
+    700 0.82rem/1 "Aldrich",
+    sans-serif;
+  letter-spacing: 0.03em;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85),
+    0 2px 4px rgba(11, 31, 52, 0.22);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .qubit.qubit-selected {
   border-width: 5px;
   border-color: #0f2b40;
@@ -4285,6 +4424,36 @@ body.layout-edit-active .pair-ejection-site {
   .pair-tube {
     width: 25px;
     height: 88px;
+  }
+
+  .register-tube-rack {
+    gap: 0.2rem;
+  }
+
+  .register-tube-column {
+    width: 42px;
+  }
+
+  .register-tube-label {
+    min-height: 1.76rem;
+  }
+
+  .register-tube-label .measurement-dot {
+    width: 0.36rem;
+    height: 0.36rem;
+  }
+
+  .register-tube {
+    width: 17px;
+    height: 88px;
+  }
+
+  .register-tube-rack-4 {
+    gap: 0.12rem;
+  }
+
+  .register-tube-rack-4 .register-tube-column {
+    width: 34px;
   }
 
   .pair-magnifier {

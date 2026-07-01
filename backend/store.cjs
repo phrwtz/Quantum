@@ -76,6 +76,19 @@ function fillMailboxBodyTemplate(value, { link, token }) {
     .replaceAll("{token}", token);
 }
 
+function fillTeleportInviteBodyTemplate(value, { link, token }) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .replaceAll("__TELEPORT_LINK__", link || "(link unavailable)")
+    .replaceAll("{teleportLink}", link || "(link unavailable)")
+    .replaceAll("__INVITE_LINK__", link || "(link unavailable)")
+    .replaceAll("{inviteLink}", link || "(link unavailable)")
+    .replaceAll("__TOKEN__", token)
+    .replaceAll("{token}", token);
+}
+
 function mailtoUrl({ to, subject, body }) {
   const query = new URLSearchParams({
     subject,
@@ -111,6 +124,43 @@ function mailboxDelivery({ email, from, token, metadata }) {
     status: "queued-local",
     to: email,
     from: from || null,
+    subject,
+    body,
+    link,
+    mailto: mailtoUrl({ to: email, subject, body }),
+  };
+}
+
+function teleportInviteDelivery({ email, createdBy, token, metadata }) {
+  const link = fillTokenTemplate(
+    metadata.frontendLinkTemplate || metadata.teleportLinkTemplate,
+    token,
+  );
+  const sender = createdBy || metadata.from || "A Qubit Lab user";
+  const subject =
+    validateString(metadata.emailSubject, "metadata.emailSubject", {
+      required: false,
+      maxLength: 160,
+    }) || "You're invited to teleport a qubit in Qubit Lab";
+  const customBody = validateString(metadata.emailBody, "metadata.emailBody", {
+    required: false,
+    maxLength: 4000,
+  });
+  const body =
+    fillTeleportInviteBodyTemplate(customBody, { link, token }) ||
+    [
+      `${sender} invited you to help complete a distributed teleportation protocol in Qubit Lab.`,
+      "",
+      "Open this link to join the teleport invite:",
+      link || "(link unavailable)",
+      "",
+      "This prototype uses the sender's Qubit Lab backend, so the link works while that backend is running and reachable.",
+    ].join("\n");
+  return {
+    channel: "email",
+    status: "queued-local",
+    to: email,
+    from: createdBy || null,
     subject,
     body,
     link,
@@ -178,6 +228,118 @@ function validateMetadata(value) {
     throw new BackendError(400, "invalid_input", "metadata must be an object");
   }
   return clone(value);
+}
+
+function inferSharedEntanglementQubitCount(input = {}) {
+  if (input.numQubits != null) {
+    return validateQubitCount(input.numQubits);
+  }
+  if (Array.isArray(input.amplitudes)) {
+    const length = input.amplitudes.length;
+    const numQubits = Math.log2(length);
+    if (Number.isInteger(numQubits) && numQubits >= 1) {
+      return validateQubitCount(numQubits);
+    }
+  }
+  return 2;
+}
+
+function normalizeSharedEntanglementAmplitudes(value, numQubits, field = "amplitudes") {
+  const expectedLength = 2 ** numQubits;
+  if (
+    !Array.isArray(value) ||
+    value.length !== expectedLength ||
+    !value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+  ) {
+    throw new BackendError(
+      400,
+      "invalid_shared_entanglement",
+      `${field} must contain ${expectedLength} finite real amplitudes`,
+    );
+  }
+  const normSquared = value.reduce((sum, entry) => sum + entry * entry, 0);
+  if (normSquared <= 1e-24) {
+    throw new BackendError(
+      400,
+      "invalid_shared_entanglement",
+      `${field} must not be all zero`,
+    );
+  }
+  const norm = Math.sqrt(normSquared);
+  return value.map((entry) => entry / norm);
+}
+
+function normalizeSharedEntanglementMemberVectors(value, numQubits) {
+  if (value == null) {
+    return null;
+  }
+  if (!Array.isArray(value) || value.length !== numQubits) {
+    throw new BackendError(
+      400,
+      "invalid_shared_entanglement",
+      `memberVectors must contain ${numQubits} qubit vectors`,
+    );
+  }
+  return value.map((vector, index) => {
+    if (
+      !Array.isArray(vector) ||
+      vector.length !== 2 ||
+      !vector.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+    ) {
+      throw new BackendError(
+        400,
+        "invalid_shared_entanglement",
+        `memberVectors[${index}] must contain two finite real amplitudes`,
+      );
+    }
+    const norm = Math.hypot(vector[0], vector[1]);
+    if (norm <= 1e-12) {
+      throw new BackendError(
+        400,
+        "invalid_shared_entanglement",
+        `memberVectors[${index}] must not be all zero`,
+      );
+    }
+    return vector.map((entry) => entry / norm);
+  });
+}
+
+function normalizeSharedEntanglementMembers(value, numQubits) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.slice(0, numQubits).map((member, index) => {
+    if (!member || typeof member !== "object") {
+      throw new BackendError(
+        400,
+        "invalid_shared_entanglement",
+        `members[${index}] must be an object`,
+      );
+    }
+    const qubitIndex = validateQubitIndex(
+      Number.isInteger(member.qubitIndex) ? member.qubitIndex : index,
+      numQubits,
+      `members[${index}].qubitIndex`,
+    );
+    return {
+      ...clone(member),
+      qubitIndex,
+    };
+  });
+}
+
+function validateSharedEntanglementStatus(value) {
+  const status =
+    validateString(value, "status", { required: false, maxLength: 40 }) ||
+    "active";
+  if (!["active", "separated"].includes(status)) {
+    throw new BackendError(
+      400,
+      "invalid_shared_entanglement",
+      "status must be active or separated",
+    );
+  }
+  return status;
 }
 
 function validateParticipantRole(value) {
@@ -517,8 +679,14 @@ function createMemoryStore(options = {}) {
       participants: {},
       registers: {},
       entanglementGroups: {},
+      sharedEntanglements: {},
+      roomMeasurements: {},
+      qubitIdentities: {},
+      nextQubitIndex: 0,
       protocols: {},
       events: [],
+      resetVersion: 0,
+      lastReset: null,
     };
     if (room.ownerId) {
       room.participants[room.ownerId] = {
@@ -537,6 +705,61 @@ function createMemoryStore(options = {}) {
 
   function getRoom(roomId) {
     return clone(requireRoom(roomId));
+  }
+
+  function resetRoom(roomId, input = {}) {
+    const room = requireRoom(roomId);
+    const requestedBy =
+      validateString(input.participantId, "participantId", {
+        required: false,
+        maxLength: 80,
+      }) || null;
+    room.registers = {};
+    room.entanglementGroups = {};
+    room.sharedEntanglements = {};
+    room.roomMeasurements = {};
+    room.protocols = {};
+    room.events = [];
+    room.resetVersion = Math.max(0, Number(room.resetVersion) || 0) + 1;
+    room.lastReset = {
+      id:
+        validateString(input.id, "id", { required: false, maxLength: 160 }) ||
+        `room_reset_${createToken(10)}`,
+      version: room.resetVersion,
+      requestedBy,
+      at: timestamp(),
+    };
+    appendEvent(room, "room.reset", room.lastReset);
+    return clone(room);
+  }
+
+  function deleteRoom(roomId, requestedBy) {
+    const room = requireRoom(roomId);
+    const participantId = validateString(requestedBy, "requestedBy", {
+      maxLength: 80,
+    });
+    const canDelete = room.ownerId
+      ? room.ownerId === participantId
+      : Boolean(room.participants[participantId]);
+    if (!canDelete) {
+      throw new BackendError(
+        403,
+        "room_delete_forbidden",
+        "only the room owner can delete this room",
+      );
+    }
+    rooms.delete(room.id);
+    for (const [token, invite] of teleportInvites) {
+      if (invite.roomId === room.id) {
+        teleportInvites.delete(token);
+      }
+    }
+    for (const [token, transfer] of mailboxTransfers) {
+      if (transfer.roomId === room.id) {
+        mailboxTransfers.delete(token);
+      }
+    }
+    return clone(room);
   }
 
   function getRegister(roomId, registerId) {
@@ -561,6 +784,96 @@ function createMemoryStore(options = {}) {
     return Object.values(room.participants)
       .sort((left, right) => left.displayName.localeCompare(right.displayName))
       .map(clone);
+  }
+
+  function ensureRoomQubitIdentityState(room) {
+    if (!room.qubitIdentities || typeof room.qubitIdentities !== "object") {
+      room.qubitIdentities = {};
+    }
+    if (!Number.isSafeInteger(room.nextQubitIndex) || room.nextQubitIndex < 0) {
+      room.nextQubitIndex = Object.values(room.qubitIdentities).reduce(
+        (maxIndex, identity) =>
+          Math.max(
+            maxIndex,
+            Number.isSafeInteger(identity?.roomQubitIndex)
+              ? identity.roomQubitIndex + 1
+              : 0,
+          ),
+        0,
+      );
+    }
+  }
+
+  function allocateRoomQubits(roomId, input = {}) {
+    const room = requireRoom(roomId);
+    ensureRoomQubitIdentityState(room);
+    const participantId = validateString(input.participantId, "participantId", {
+      required: false,
+      maxLength: 80,
+    });
+    const qubits = Array.isArray(input.qubits) ? input.qubits : [];
+    if (!qubits.length) {
+      return [];
+    }
+    const requestedBaseIndex = Number(input.baseRoomQubitIndex);
+    const hasRequestedBaseIndex =
+      Number.isSafeInteger(requestedBaseIndex) && requestedBaseIndex >= 0;
+    const usedIndexes = new Set(
+      Object.values(room.qubitIdentities)
+        .map((identity) => identity?.roomQubitIndex)
+        .filter(Number.isSafeInteger),
+    );
+    const reserveRoomQubitIndex = (offset) => {
+      const preferredIndex = hasRequestedBaseIndex
+        ? requestedBaseIndex + offset
+        : null;
+      if (
+        Number.isSafeInteger(preferredIndex) &&
+        preferredIndex >= 0 &&
+        !usedIndexes.has(preferredIndex)
+      ) {
+        usedIndexes.add(preferredIndex);
+        room.nextQubitIndex = Math.max(room.nextQubitIndex, preferredIndex + 1);
+        return preferredIndex;
+      }
+      while (usedIndexes.has(room.nextQubitIndex)) {
+        room.nextQubitIndex += 1;
+      }
+      const roomQubitIndex = room.nextQubitIndex++;
+      usedIndexes.add(roomQubitIndex);
+      return roomQubitIndex;
+    };
+    const at = timestamp();
+    const assigned = qubits.map((qubit, offset) => {
+      const roomQubitIndex = reserveRoomQubitIndex(offset);
+      const qubitId = roomQubitIndex + 1;
+      const identity = {
+        roomId: room.id,
+        roomQubitIndex,
+        qubitId,
+        label: `q${roomQubitIndex}`,
+        participantId,
+        clientId:
+          validateString(qubit?.clientId, "clientId", {
+            required: false,
+            maxLength: 120,
+          }) || `local-${offset}`,
+        createdAt: at,
+        updatedAt: at,
+      };
+      room.qubitIdentities[String(qubitId)] = identity;
+      return identity;
+    });
+    appendEvent(room, "roomQubits.allocated", {
+      participantId,
+      qubits: assigned.map(({ clientId, roomQubitIndex, qubitId, label }) => ({
+        clientId,
+        roomQubitIndex,
+        qubitId,
+        label,
+      })),
+    });
+    return clone(assigned);
   }
 
   function upsertParticipant(roomId, participantId, input = {}) {
@@ -597,6 +910,50 @@ function createMemoryStore(options = {}) {
     return clone(participant);
   }
 
+  function autoJoinRoom(roomId, input = {}) {
+    const id = validateString(roomId, "roomId", {
+      required: false,
+      maxLength: 80,
+    }) || "send-receive-room";
+    let room = rooms.get(id) || null;
+    if (!room) {
+      room = createRoom({
+        id,
+        label:
+          validateString(input.label, "label", {
+            required: false,
+            maxLength: 160,
+          }) || id,
+      });
+      room = rooms.get(id);
+    }
+    const requestedId = validateString(input.participantId, "participantId", {
+      required: false,
+      maxLength: 80,
+    });
+    const seats = [
+      { id: "bob", displayName: "Bob", role: "owner" },
+      { id: "alice", displayName: "Alice", role: "editor" },
+    ];
+    const requestedSeat = seats.find((seat) => seat.id === requestedId);
+    const seat =
+      (requestedSeat && room.participants[requestedSeat.id]
+        ? requestedSeat
+        : null) || seats.find((candidate) => !room.participants[candidate.id]);
+    if (!seat) {
+      throw new BackendError(409, "room_full", "send-receive-room already has Bob and Alice");
+    }
+    const participant = upsertParticipant(id, seat.id, {
+      displayName: seat.displayName,
+      role: seat.role,
+    });
+    return {
+      room: clone(requireRoom(id)),
+      participant,
+      seat: seat.displayName,
+    };
+  }
+
   function touchParticipant(roomId, participantId) {
     const room = requireRoom(roomId);
     const id = validateString(participantId, "participantId", {
@@ -631,6 +988,45 @@ function createMemoryStore(options = {}) {
         participantId: participantId || null,
         displayName,
         message,
+      }),
+    );
+  }
+
+  function createRoomAction(roomId, input = {}) {
+    const room = requireRoom(roomId);
+    const participantId =
+      validateString(input.participantId, "participantId", {
+        required: false,
+        maxLength: 80,
+      }) || null;
+    const actionType = validateString(input.actionType, "actionType", {
+      maxLength: 80,
+    });
+    if (actionType !== "gate-setting") {
+      throw new BackendError(
+        400,
+        "invalid_room_action",
+        "unsupported room action type",
+      );
+    }
+    const qubitLabel = validateString(input.qubitLabel, "qubitLabel", {
+      required: false,
+      maxLength: 40,
+    });
+    const gateLabel = validateString(input.gateLabel, "gateLabel", {
+      required: false,
+      maxLength: 80,
+    });
+    const tickIndex = Number.isSafeInteger(Number(input.tickIndex))
+      ? Number(input.tickIndex)
+      : null;
+    return clone(
+      appendEvent(room, "room.action", {
+        participantId,
+        actionType,
+        qubitLabel: qubitLabel || null,
+        gateLabel: gateLabel || null,
+        tickIndex,
       }),
     );
   }
@@ -706,6 +1102,136 @@ function createMemoryStore(options = {}) {
       qubits: normalizedQubits,
     });
     return clone(group);
+  }
+
+  function createSharedEntanglement(roomId, input = {}) {
+    const room = requireRoom(roomId);
+    const id =
+      validateString(input.id, "id", { required: false, maxLength: 100 }) ||
+      `shared_ent_${createToken(12)}`;
+    if (room.sharedEntanglements[id]) {
+      throw new BackendError(
+        409,
+        "shared_entanglement_exists",
+        "shared entanglement already exists",
+      );
+    }
+    const at = timestamp();
+    const numQubits = inferSharedEntanglementQubitCount(input);
+    const sharedEntanglement = {
+      id,
+      roomId,
+      numQubits,
+      amplitudes: normalizeSharedEntanglementAmplitudes(input.amplitudes, numQubits),
+      displayMode:
+        validateString(input.displayMode, "displayMode", {
+          required: false,
+          maxLength: 40,
+        }) || "marginal",
+      linkRelation:
+        validateString(input.linkRelation, "linkRelation", {
+          required: false,
+          maxLength: 40,
+        }) || null,
+      status: "active",
+      memberVectors: null,
+      members: normalizeSharedEntanglementMembers(input.members, numQubits),
+      metadata: validateMetadata(input.metadata),
+      createdAt: at,
+      updatedAt: at,
+      version: 1,
+    };
+    room.sharedEntanglements[id] = sharedEntanglement;
+    appendEvent(room, "sharedEntanglement.created", {
+      sharedEntanglementId: id,
+      version: sharedEntanglement.version,
+    });
+    return clone(sharedEntanglement);
+  }
+
+  function getSharedEntanglement(roomId, sharedEntanglementId) {
+    const room = requireRoom(roomId);
+    const id = validateString(
+      sharedEntanglementId,
+      "sharedEntanglementId",
+      { maxLength: 100 },
+    );
+    const sharedEntanglement = room.sharedEntanglements[id];
+    if (!sharedEntanglement) {
+      throw new BackendError(
+        404,
+        "shared_entanglement_not_found",
+        "shared entanglement not found",
+      );
+    }
+    return clone(sharedEntanglement);
+  }
+
+  function updateSharedEntanglement(roomId, sharedEntanglementId, input = {}) {
+    const room = requireRoom(roomId);
+    const current = getSharedEntanglement(roomId, sharedEntanglementId);
+    if (
+      input.expectedVersion != null &&
+      input.expectedVersion !== current.version
+    ) {
+      throw new BackendError(
+        409,
+        "shared_entanglement_version_conflict",
+        "shared entanglement version conflict",
+        {
+          currentVersion: current.version,
+          expectedVersion: input.expectedVersion,
+        },
+      );
+    }
+    const numQubits = inferSharedEntanglementQubitCount({
+      numQubits: input.numQubits ?? current.numQubits ?? 2,
+      amplitudes: input.amplitudes,
+    });
+    const next = {
+      ...current,
+      numQubits,
+      amplitudes: normalizeSharedEntanglementAmplitudes(input.amplitudes, numQubits),
+      displayMode:
+        validateString(input.displayMode, "displayMode", {
+          required: false,
+          maxLength: 40,
+        }) || current.displayMode,
+      linkRelation:
+        input.linkRelation == null
+          ? null
+          : validateString(input.linkRelation, "linkRelation", {
+              required: false,
+              maxLength: 40,
+            }),
+      status:
+        input.status == null
+          ? current.status
+          : validateSharedEntanglementStatus(input.status),
+      memberVectors: normalizeSharedEntanglementMemberVectors(input.memberVectors, numQubits),
+      members:
+        input.members == null
+          ? current.members
+          : normalizeSharedEntanglementMembers(input.members, numQubits),
+      metadata:
+        input.metadata == null
+          ? current.metadata
+          : validateMetadata(input.metadata),
+      updatedAt: timestamp(),
+      version: current.version + 1,
+    };
+    room.sharedEntanglements[next.id] = next;
+    appendEvent(room, "sharedEntanglement.updated", {
+      sharedEntanglementId: next.id,
+      status: next.status,
+      version: next.version,
+      updatedBy:
+        validateString(input.updatedBy, "updatedBy", {
+          required: false,
+          maxLength: 160,
+        }) || null,
+    });
+    return clone(next);
   }
 
   function listProtocolDefinitions() {
@@ -962,26 +1488,25 @@ function createMemoryStore(options = {}) {
     const register = requireRegister(room, registerId);
     const qubitIndex = validateQubitIndex(input.qubitIndex, register.numQubits);
     const email = validateEmail(input.email);
+    const metadata = validateMetadata(input.metadata);
     const token = `tpl_${createToken(18)}`;
     const at = timestamp();
+    const createdBy =
+      validateString(input.createdBy, "createdBy", { required: false }) || null;
     const invite = {
       token,
       roomId,
       registerId,
       qubitIndex,
       email,
-      createdBy: validateString(input.createdBy, "createdBy", { required: false }) || null,
+      createdBy,
       status: "pending",
       path: `/teleport/${token}`,
       createdAt: at,
       acceptedAt: null,
       acceptedBy: null,
-      delivery: {
-        channel: "email",
-        status: "stubbed",
-        to: email,
-      },
-      metadata: validateMetadata(input.metadata),
+      delivery: teleportInviteDelivery({ email, createdBy, token, metadata }),
+      metadata,
     };
     teleportInvites.set(token, invite);
     appendEvent(room, "teleportInvite.created", {
@@ -1085,11 +1610,216 @@ function createMemoryStore(options = {}) {
     return clone(appendEvent(room, "roomMailbox.sent", notification));
   }
 
+  function roomMeasurementQueues(measurement, numQubits) {
+    return Object.fromEntries(
+      Array.from({ length: numQubits }, (_item, index) => {
+        const key = String(index);
+        const queue = Array.isArray(measurement.pendingQueues?.[key])
+          ? measurement.pendingQueues[key].map(clone)
+          : [];
+        const legacyEntry = measurement.pending?.[key];
+        if (legacyEntry?.color && queue.length === 0) {
+          queue.push(clone(legacyEntry));
+        }
+        return [key, queue];
+      }),
+    );
+  }
+
+  function roomMeasurementQueuesComplete(queues, numQubits) {
+    return Array.from({ length: numQubits }, (_item, index) =>
+      Boolean(queues[String(index)]?.[0]?.color),
+    ).every(Boolean);
+  }
+
+  function roomMeasurementOutcomeKeyFromQueues(queues, numQubits) {
+    return Array.from({ length: numQubits }, (_item, index) => {
+      const entry = queues[String(index)]?.[0];
+      return entry?.color === "red" ? "r" : "b";
+    }).join("");
+  }
+
+  function roomMeasurementPendingFromQueues(queues, numQubits) {
+    return Object.fromEntries(
+      Array.from({ length: numQubits }, (_item, index) => {
+        const key = String(index);
+        const entry = queues[key]?.[0];
+        return entry?.color ? [key, clone(entry)] : null;
+      }).filter(Boolean),
+    );
+  }
+
+  function recordRoomMeasurement(roomId, measurementId, input = {}) {
+    const room = requireRoom(roomId);
+    if (!room.roomMeasurements || typeof room.roomMeasurements !== "object") {
+      room.roomMeasurements = {};
+    }
+    const id = validateString(measurementId, "measurementId", {
+      maxLength: 160,
+    });
+    const numQubits = Math.max(
+      2,
+      Math.min(4, validateQubitCount(input.numQubits || 4)),
+    );
+    const qubitIndex = validateQubitIndex(input.qubitIndex, numQubits);
+    const color =
+      validateString(input.color, "color", { maxLength: 20 }) === "red"
+        ? "red"
+        : "blue";
+    const existing = room.roomMeasurements[id] || {
+      id,
+      roomId: room.id,
+      numQubits,
+      counts: {},
+      pending: {},
+      pendingQueues: {},
+      lastOutcomeKey: null,
+      completionId: null,
+      completedAt: null,
+      control: null,
+      createdAt: timestamp(),
+      updatedAt: null,
+      version: 0,
+    };
+    existing.numQubits = numQubits;
+    const queues = roomMeasurementQueues(existing, numQubits);
+    const queueKey = String(qubitIndex);
+    const participantId =
+      validateString(input.participantId, "participantId", {
+        required: false,
+        maxLength: 80,
+      }) || null;
+    const logicalQubitId =
+      Number.isSafeInteger(Number(input.logicalQubitId)) &&
+      Number(input.logicalQubitId) > 0
+        ? Number(input.logicalQubitId)
+        : null;
+    queues[queueKey].push({
+      color,
+      participantId,
+      logicalQubitId,
+      measuredAt: timestamp(),
+    });
+    let completed = false;
+    let outcomeKey = "";
+    while (roomMeasurementQueuesComplete(queues, numQubits)) {
+      outcomeKey = roomMeasurementOutcomeKeyFromQueues(queues, numQubits);
+      existing.counts[outcomeKey] =
+        Math.max(0, Math.round(Number(existing.counts[outcomeKey]) || 0)) + 1;
+      existing.lastOutcomeKey = outcomeKey;
+      existing.completedAt = timestamp();
+      existing.completionId = `room_measurement_${createToken(10)}`;
+      completed = true;
+      Array.from({ length: numQubits }, (_item, index) => {
+        queues[String(index)].shift();
+      });
+    }
+    existing.pendingQueues = queues;
+    existing.pending = roomMeasurementPendingFromQueues(queues, numQubits);
+    existing.updatedAt = timestamp();
+    existing.version += 1;
+    room.roomMeasurements[id] = existing;
+    appendEvent(room, "roomMeasurement.updated", {
+      measurementId: id,
+      numQubits,
+      qubitIndex,
+      participantId,
+      logicalQubitId,
+      color,
+      completed,
+      outcomeKey: outcomeKey || null,
+      completionId: existing.completionId,
+    });
+    return clone(existing);
+  }
+
+  function updateRoomMeasurementControl(roomId, measurementId, input = {}) {
+    const room = requireRoom(roomId);
+    if (!room.roomMeasurements || typeof room.roomMeasurements !== "object") {
+      room.roomMeasurements = {};
+    }
+    const id = validateString(measurementId, "measurementId", {
+      maxLength: 160,
+    });
+    const existing = room.roomMeasurements[id];
+    if (!existing) {
+      throw new BackendError(404, "room_measurement_not_found", "room measurement not found");
+    }
+    const type = validateString(input.type, "type", { maxLength: 80 });
+    if (type !== "experiment-repeat" && type !== "experiment-count") {
+      throw new BackendError(400, "invalid_measurement_control", "type must be experiment-repeat or experiment-count");
+    }
+    const iterations = Math.max(
+      1,
+      Math.min(100000, Math.round(Number(input.iterations) || 1)),
+    );
+    if (type === "experiment-count") {
+      existing.counts = {};
+      existing.pending = {};
+      existing.pendingQueues = {};
+      existing.lastOutcomeKey = null;
+      existing.completionId = null;
+      existing.completedAt = null;
+    }
+    existing.control = {
+      id:
+        validateString(input.id, "id", { required: false, maxLength: 160 }) ||
+        `room_measurement_control_${createToken(10)}`,
+      type,
+      iterations,
+      requestedBy:
+        validateString(input.participantId, "participantId", {
+          required: false,
+          maxLength: 80,
+        }) || null,
+      createdAt: timestamp(),
+      startAt: Number.isFinite(Number(input.startAt))
+        ? Math.max(0, Math.round(Number(input.startAt)))
+        : timestamp(),
+    };
+    existing.updatedAt = timestamp();
+    existing.version += 1;
+    room.roomMeasurements[id] = existing;
+    appendEvent(room, "roomMeasurement.control", {
+      measurementId: id,
+      controlId: existing.control.id,
+      type,
+      iterations,
+      requestedBy: existing.control.requestedBy,
+      startAt: existing.control.startAt,
+    });
+    return clone(existing);
+  }
+
+  function listRoomMeasurements(roomId) {
+    const room = requireRoom(roomId);
+    const measurements =
+      room.roomMeasurements && typeof room.roomMeasurements === "object"
+        ? room.roomMeasurements
+        : {};
+    return Object.values(measurements).map(clone);
+  }
+
   function getTeleportInvite(token) {
     const invite = teleportInvites.get(token);
     if (!invite) {
       throw new BackendError(404, "teleport_invite_not_found", "teleport invite not found");
     }
+    return clone(invite);
+  }
+
+  function updateTeleportInviteDelivery(token, delivery = {}) {
+    const invite = teleportInvites.get(token);
+    if (!invite) {
+      throw new BackendError(404, "teleport_invite_not_found", "teleport invite not found");
+    }
+    invite.delivery = clone(delivery);
+    const room = requireRoom(invite.roomId);
+    appendEvent(room, "teleportInvite.delivery", {
+      token,
+      status: invite.delivery.status || null,
+      provider: invite.delivery.provider || null,
+    });
     return clone(invite);
   }
 
@@ -1161,14 +1891,21 @@ function createMemoryStore(options = {}) {
   return {
     createRoom,
     getRoom,
+    resetRoom,
+    deleteRoom,
     getRegister,
     listRooms,
     listParticipants,
+    allocateRoomQubits,
     upsertParticipant,
+    autoJoinRoom,
     touchParticipant,
     createRoomMessage,
     upsertRegister,
     createEntanglementGroup,
+    createSharedEntanglement,
+    getSharedEntanglement,
+    updateSharedEntanglement,
     listProtocolDefinitions,
     getProtocolDefinition,
     listProtocols,
@@ -1180,6 +1917,11 @@ function createMemoryStore(options = {}) {
     createTeleportInvite,
     createMailboxTransfer,
     createRoomMailboxNotification,
+    createRoomAction,
+    recordRoomMeasurement,
+    updateRoomMeasurementControl,
+    listRoomMeasurements,
+    updateTeleportInviteDelivery,
     updateMailboxTransferDelivery,
     getTeleportInvite,
     getMailboxTransfer,
