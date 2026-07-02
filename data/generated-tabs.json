@@ -705,20 +705,60 @@
           {
             "id": "entanglement-3-mailbox",
             "type": "mailbox",
-            "left": 510,
-            "top": 250,
-            "width": 240,
-            "height": 180,
+            "left": 530,
+            "top": 586,
+            "width": 300,
+            "height": 150,
             "z": 12
           },
           {
             "id": "entanglement-3-register-measurement",
             "type": "component-group",
             "left": 640,
-            "top": 150,
-            "width": 920,
-            "height": 438,
+            "top": 80,
+            "width": 940,
+            "height": 472,
             "z": 10,
+            "items": [
+              {
+                "type": "measurement-capacity",
+                "left": 290,
+                "top": 0,
+                "width": 360,
+                "height": 60,
+                "z": 1,
+                "measurementRole": "capacity"
+              },
+              {
+                "type": "quadruple-tube-array",
+                "left": 20,
+                "top": 68,
+                "width": 900,
+                "height": 210,
+                "z": 2,
+                "measurementRole": "quadruple-tubes"
+              },
+              {
+                "type": "single-magnifier",
+                "left": 390,
+                "top": 294,
+                "width": 160,
+                "height": 130,
+                "z": 3,
+                "measurementRole": "single-magnifier"
+              },
+              {
+                "type": "measurement-count-menu",
+                "left": 415,
+                "top": 410,
+                "width": 110,
+                "height": 62,
+                "z": 4,
+                "measurementRole": "iteration-count"
+              }
+            ],
+            "itemsWidth": 940,
+            "itemsHeight": 472,
             "groupComponentId": "four-qubit-register-measurement",
             "measurementGroupId": "entanglement-3-register-measurement",
             "measurementRegisterQubitCount": 4

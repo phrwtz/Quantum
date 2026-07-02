@@ -596,6 +596,17 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
     });
     assert.equal(third.response.status, 409);
     assert.equal(third.body.error.code, "room_full");
+
+    const resetFullRoom = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: {
+        clientSessionId: "fresh-screen",
+        resetIfFull: true,
+      },
+    });
+    assert.equal(resetFullRoom.response.status, 200);
+    assert.equal(resetFullRoom.body.participant.id, "bob");
+    assert.deepEqual(Object.keys(resetFullRoom.body.room.participants), ["bob"]);
   });
 });
 

@@ -995,10 +995,18 @@ function createMemoryStore(options = {}) {
                 clientSessionId,
           )
         : null;
-    const seat =
+    let seat =
       matchingSessionSeat ||
       requestedSeat ||
       seats.find((candidate) => !room.participants[candidate.id]);
+    if (
+      !seat &&
+      id === "send-receive-room" &&
+      input.resetIfFull === true
+    ) {
+      clearRoomCollaborationState(room);
+      seat = seats[0];
+    }
     if (!seat) {
       throw new BackendError(409, "room_full", "send-receive-room already has Bob and Alice");
     }

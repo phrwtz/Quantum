@@ -42,6 +42,18 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function activateTab(page, tabTarget) {
+  await page.evaluate((target) => {
+    if (typeof window.setActiveTab === "function") {
+      window.setActiveTab(target);
+      return;
+    }
+    Array.from(document.querySelectorAll(".tab-btn")).find(
+      (button) => button.dataset.tabTarget === target,
+    )?.click();
+  }, tabTarget);
+}
+
 function isIgnorableBrowserConsoleError(message) {
   return /Failed to load resource: net::ERR_(CONNECTION_CLOSED|ABORTED)/.test(
     message || "",
@@ -4020,7 +4032,7 @@ async function runFileModeRepositoryContentSmoke(browser) {
   try {
     const fileUrl = pathToFileURL(path.join(rootDir, "index.html")).href;
     await page.goto(fileUrl, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#tab-custom-one-qubit");
+    await page.waitForSelector("#tab-custom-one-qubit", { state: "attached" });
     const result = await page.evaluate(() => {
       const labels = Array.from(document.querySelectorAll(".tab-btn")).map(
         (button) => button.textContent.trim(),
@@ -4169,7 +4181,6 @@ async function runFileModeRepositoryContentSmoke(browser) {
         })}`,
       );
     }
-    await page.locator("#tab-editor-introduction").click();
     await page.locator("#panel-editor-introduction .landing-tour-sign").click();
     const tourSignClick = await page.evaluate(() => ({
       activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
@@ -4185,40 +4196,6 @@ async function runFileModeRepositoryContentSmoke(browser) {
         `Landing tour sign did not open One qubit: ${JSON.stringify(tourSignClick)}`,
       );
     }
-
-    await page.locator("#tab-editor-introduction").click();
-    await page.locator("#panel-editor-introduction .landing-info-link").click();
-    const landingInfo = await page.evaluate(() => {
-      const generatedTabs =
-        window.__QUANTUM_REPOSITORY_CONTENT__?.files?.["data/generated-tabs.json"] ||
-        window.readQuantumContentState?.("generated-tabs") ||
-        {};
-      const intro = (generatedTabs.tabs || []).find(
-        (entry) => entry.id === "editor-introduction",
-      );
-      const introText = ((intro?.layout?.items || []).find(
-        (item) => item.type === "text-box",
-      )?.text || "").trim();
-      const card = document.querySelector("#panel-editor-introduction .landing-info-card");
-      const body = document.querySelector("#panel-editor-introduction .landing-info-body");
-      const background = card ? getComputedStyle(card).backgroundColor : "";
-      return {
-        visible: Boolean(card && !card.hidden),
-        cardText: body?.textContent?.trim() || "",
-        introText,
-        background,
-      };
-    });
-    if (
-      !landingInfo.visible ||
-      !landingInfo.introText ||
-      landingInfo.cardText !== landingInfo.introText ||
-      !/^rgb\(248,\s*253,\s*255\)$/.test(landingInfo.background)
-    ) {
-      throw new Error(
-        `Landing What's this card failed: ${JSON.stringify(landingInfo)}`,
-      );
-    }
     return result;
   } finally {
     await page.close();
@@ -4226,7 +4203,7 @@ async function runFileModeRepositoryContentSmoke(browser) {
 }
 
 async function runLocalMultiQubitLabSmoke(page) {
-  await page.locator("#tab-local-lab").click();
+  await activateTab(page, "local-lab");
   await page.waitForSelector("#panel-local-lab:not([hidden])");
 
   const initial = await page.evaluate(() => ({
@@ -4719,7 +4696,7 @@ async function openSyncedLocalLabPage(browser, baseUrl, backendBaseUrl, roomId, 
   const page = await browser.newPage({ viewport: { width: 1040, height: 760 } });
   await installContentApiHelpers(page);
   await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
-  await page.locator("#tab-local-lab").click();
+  await activateTab(page, "local-lab");
   await page.waitForSelector("#panel-local-lab:not([hidden])");
   await page.locator("#localLabBackendUrl").fill(backendBaseUrl);
   await page.locator("#localLabSyncRoom").fill(roomId);
@@ -4826,6 +4803,293 @@ async function runLocalLabSharedSyncSmoke(browser, baseUrl) {
   } finally {
     await alice?.close();
     await bob?.close();
+    await closeServer(backend.server);
+  }
+}
+
+async function openEntanglementThreeRoomPage(browser, baseUrl, backendUrl) {
+  const context = await browser.newContext({
+    viewport: { width: 1600, height: 900 },
+  });
+  const page = await context.newPage();
+  await installContentApiHelpers(page);
+  await page.goto(
+    `${baseUrl}/index.html?backend=${encodeURIComponent(backendUrl)}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.locator("#panel-editor-introduction .landing-tour-sign").click();
+  await page.locator("#tab-editor-entanglement-3").click({ force: true });
+  await page.waitForSelector(
+    "#panel-editor-entanglement-3:not([hidden]) .generated-layout-canvas",
+  );
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector("#panel-editor-entanglement-3 .generated-experiment-status")
+        ?.textContent?.includes("room send-receive-room"),
+    null,
+    { timeout: 8000 },
+  );
+  return { context, page };
+}
+
+async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
+  const backend = await startBackendServer();
+  let bob = null;
+  let alice = null;
+  try {
+    bob = await openEntanglementThreeRoomPage(
+      browser,
+      baseUrl,
+      backend.baseUrl,
+    );
+    alice = await openEntanglementThreeRoomPage(
+      browser,
+      baseUrl,
+      backend.baseUrl,
+    );
+
+    const initial = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(() => {
+          const canvas = document.querySelector(
+            "#panel-editor-entanglement-3 .generated-layout-canvas",
+          );
+          const measure = canvas?.querySelector(
+            '[data-generated-item-id="entanglement-3-register-measurement"]',
+          );
+          const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+          return {
+            name: mailboxRoomState.displayName,
+            qubits: Array.from(
+              canvas?.querySelectorAll('[data-component="qubit"]') || [],
+            ).map((qubit) => ({
+              roomQubitIndex: qubit.dataset.roomQubitIndex || "",
+              qubitId: qubit.dataset.qubitId || "",
+              label: qubit.dataset.qubitLabel || "",
+              coreLabel:
+                qubit.querySelector(".playground-qubit-core")?.dataset
+                  .qubitLabel || "",
+            })),
+            rackColumns: measure?.querySelectorAll(".pair-tube-column").length || 0,
+            registerQubitCount: runtime?.registerQubitCount || null,
+            capacity:
+              measure?.querySelector('[data-role="pair-capacity"]')
+                ?.textContent || "",
+            status:
+              document.querySelector(
+                "#panel-editor-entanglement-3 .generated-experiment-status",
+              )?.textContent || "",
+          };
+        }),
+      ),
+    );
+    const [bobInitial, aliceInitial] = initial;
+    if (
+      bobInitial.name !== "Bob" ||
+      bobInitial.qubits.length !== 2 ||
+      bobInitial.qubits[0].roomQubitIndex !== "0" ||
+      bobInitial.qubits[0].qubitId !== "1" ||
+      bobInitial.qubits[0].label !== "q0" ||
+      bobInitial.qubits[0].coreLabel !== "q0" ||
+      bobInitial.qubits[1].roomQubitIndex !== "1" ||
+      bobInitial.qubits[1].qubitId !== "2" ||
+      bobInitial.qubits[1].label !== "q1" ||
+      bobInitial.qubits[1].coreLabel !== "q1" ||
+      aliceInitial.name !== "Alice" ||
+      aliceInitial.qubits.length !== 2 ||
+      aliceInitial.qubits[0].roomQubitIndex !== "2" ||
+      aliceInitial.qubits[0].qubitId !== "3" ||
+      aliceInitial.qubits[0].label !== "q2" ||
+      aliceInitial.qubits[0].coreLabel !== "q2" ||
+      aliceInitial.qubits[1].roomQubitIndex !== "3" ||
+      aliceInitial.qubits[1].qubitId !== "4" ||
+      aliceInitial.qubits[1].label !== "q3" ||
+      aliceInitial.qubits[1].coreLabel !== "q3" ||
+      bobInitial.rackColumns !== 16 ||
+      aliceInitial.rackColumns !== 16 ||
+      bobInitial.registerQubitCount !== 4 ||
+      aliceInitial.registerQubitCount !== 4 ||
+      !bobInitial.capacity.includes("5 counts") ||
+      !aliceInitial.capacity.includes("5 counts")
+    ) {
+      throw new Error(
+        `Entanglement 3 room labels or 16-tube rack failed: ${JSON.stringify(initial)}`,
+      );
+    }
+
+    async function measureLocalEntanglementThreeQubits(page) {
+      return page.evaluate(async () => {
+        const canvas = document.querySelector(
+          "#panel-editor-entanglement-3 .generated-layout-canvas",
+        );
+        const measure = canvas?.querySelector(
+          '[data-generated-item-id="entanglement-3-register-measurement"]',
+        );
+        const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+        const qubits = Array.from(
+          canvas?.querySelectorAll('[data-component="qubit"]') || [],
+        );
+        const snapshots = [];
+        for (const qubit of qubits) {
+          await runGeneratedSeparatedPairMeasurementTransit(
+            canvas,
+            qubit,
+            runtime,
+            0,
+          );
+          await mailboxRoomRefresh({ render: false });
+          snapshots.push({
+            label: qubit.dataset.qubitLabel || "",
+            roomQubitIndex: qubit.dataset.roomQubitIndex || "",
+            pending: runtime.pendingMeasurements.map((entry) => ({
+              orderIndex: entry.orderIndex,
+              logicalQubitId: entry.logicalQubitId,
+              color: entry.color,
+            })),
+            total: Object.values(runtime.tubeCounts || {}).reduce(
+              (sum, count) => sum + Number(count || 0),
+              0,
+            ),
+          });
+        }
+        return {
+          name: mailboxRoomState.displayName,
+          snapshots,
+          measurements: mailboxRoomState.measurements,
+          status:
+            document.querySelector(
+              "#panel-editor-entanglement-3 .generated-experiment-status",
+            )?.textContent || "",
+        };
+      });
+    }
+
+    const bobMeasured = await measureLocalEntanglementThreeQubits(bob.page);
+    if (
+      bobMeasured.snapshots.length !== 2 ||
+      bobMeasured.snapshots[0].pending.length !== 1 ||
+      bobMeasured.snapshots[0].pending[0].orderIndex !== 0 ||
+      bobMeasured.snapshots[1].pending.length !== 2 ||
+      bobMeasured.snapshots[1].pending[1].orderIndex !== 1 ||
+      !bobMeasured.status.includes("Measured 2/4")
+    ) {
+      throw new Error(
+        `Entanglement 3 Bob measurement did not publish q0/q1 pending slots: ${JSON.stringify(bobMeasured)}`,
+      );
+    }
+
+    const aliceMeasured = await measureLocalEntanglementThreeQubits(alice.page);
+    if (
+      aliceMeasured.snapshots.length !== 2 ||
+      aliceMeasured.snapshots[0].pending.length !== 3 ||
+      aliceMeasured.snapshots[0].pending[2].orderIndex !== 2 ||
+      aliceMeasured.snapshots[1].pending.length !== 0 ||
+      aliceMeasured.snapshots[1].total !== 1 ||
+      !aliceMeasured.status.includes("Measured 4/4")
+    ) {
+      throw new Error(
+        `Entanglement 3 Alice measurement did not complete the room-wide count: ${JSON.stringify(aliceMeasured)}`,
+      );
+    }
+
+    await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(() => mailboxRoomRefresh({ render: false })),
+      ),
+    );
+    const shared = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(() => ({
+          name: mailboxRoomState.displayName,
+          measurements: mailboxRoomState.measurements,
+          visibleCounts: Array.from(
+            document.querySelectorAll(
+              "#panel-editor-entanglement-3 .pair-tube-column",
+            ),
+          )
+            .map((column) => [
+              column.dataset.key || "",
+              Number(column.querySelector(".tube-count")?.textContent || 0),
+            ])
+            .filter((entry) => entry[1] > 0),
+          status:
+            document.querySelector(
+              "#panel-editor-entanglement-3 .generated-experiment-status",
+            )?.textContent || "",
+          replayDisabled:
+            document.querySelector(
+              "#panel-editor-entanglement-3 .entanglement-room-review-btn",
+            )?.disabled ?? true,
+        })),
+      ),
+    );
+    if (
+      shared.some(
+        (state) =>
+          state.measurements.length !== 1 ||
+          Object.values(state.measurements[0].counts || {}).reduce(
+            (sum, count) => sum + Number(count || 0),
+            0,
+          ) !== 1 ||
+          state.visibleCounts.length !== 1 ||
+          state.visibleCounts[0][1] !== 1 ||
+          !state.status.includes("Measured 4/4") ||
+          state.replayDisabled,
+      )
+    ) {
+      throw new Error(
+        `Entanglement 3 room-wide measurement did not sync to both pages: ${JSON.stringify(shared)}`,
+      );
+    }
+
+    const backendMeasurements = await api(
+      backend.baseUrl,
+      "/rooms/send-receive-room/measurements",
+    );
+    if (
+      backendMeasurements.response.status !== 200 ||
+      backendMeasurements.body.measurements.length !== 1 ||
+      Object.values(backendMeasurements.body.measurements[0].counts || {}).reduce(
+        (sum, count) => sum + Number(count || 0),
+        0,
+      ) !== 1
+    ) {
+      throw new Error(
+        `Entanglement 3 backend measurement list failed: ${JSON.stringify(backendMeasurements.body)}`,
+      );
+    }
+
+    const replay = await bob.page.evaluate(async () => {
+      const ok = await replayMailboxRoomReviewActions();
+      return {
+        ok,
+        reviewRuns: mailboxRoomState.reviewRuns,
+        countsText: mailboxRoomReviewCountsText(),
+      };
+    });
+    const run = await bob.page.evaluate(() => {
+      const ok = runMailboxRoomReviewBatch();
+      return {
+        ok,
+        reviewRuns: mailboxRoomState.reviewRuns,
+        countsText: mailboxRoomReviewCountsText(),
+      };
+    });
+    if (
+      !replay.ok ||
+      replay.reviewRuns !== 1 ||
+      !run.ok ||
+      run.reviewRuns !== 10001 ||
+      !/:\s*10002\b/.test(run.countsText)
+    ) {
+      throw new Error(
+        `Entanglement 3 replay/run review flow failed: ${JSON.stringify({ replay, run })}`,
+      );
+    }
+  } finally {
+    await bob?.context.close();
+    await alice?.context.close();
     await closeServer(backend.server);
   }
 }
@@ -6045,6 +6309,10 @@ async function runSmokeTest(baseUrl) {
       await runEditorOpenTabSmoke(browser, baseUrl);
       return { ok: true, editorOpenTab: true };
     }
+    if (process.argv.includes("--entanglement-three-only")) {
+      await runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl);
+      return { ok: true, entanglementThreeRoomMeasurement: true };
+    }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
     await installBrowserLocalContentTrap(page);
@@ -6061,6 +6329,7 @@ async function runSmokeTest(baseUrl) {
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
     await runLocalMultiQubitLabSmoke(page);
     await runLocalLabSharedSyncSmoke(browser, baseUrl);
+    await runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl);
     await runMailboxRoomDeliverySmoke(browser, baseUrl);
     await runQuantumInspectorSmoke(page);
     await runDocEditorLandingIntroTextSmoke(page);

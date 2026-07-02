@@ -1834,7 +1834,7 @@ function builtInRegisterMeasurementGroup(numQubits) {
     safeNumQubits === 4
       ? REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID
       : REGISTER_THREE_QUBIT_MEASUREMENT_GROUP_ID;
-  const width = safeNumQubits === 4 ? 940 : 540;
+  const width = safeNumQubits === 4 ? 940 : 560;
   const tubeWidth = width - 40;
   const label =
     safeNumQubits === 4
@@ -1844,13 +1844,13 @@ function builtInRegisterMeasurementGroup(numQubits) {
     id,
     label,
     width,
-    height: 438,
+    height: 472,
     measurementRegisterQubitCount: safeNumQubits,
     items: [
       {
         type: "measurement-capacity",
         left: Math.round((width - 360) / 2),
-        top: safeNumQubits === 4 ? -60 : 0,
+        top: 0,
         width: 360,
         height: 60,
         z: 1,
@@ -1859,9 +1859,9 @@ function builtInRegisterMeasurementGroup(numQubits) {
       {
         type: tubeType,
         left: 20,
-        top: 50,
+        top: 68,
         width: tubeWidth,
-        height: 190,
+        height: 210,
         z: 2,
         measurementRole:
           safeNumQubits === 4 ? "quadruple-tubes" : "triple-tubes",
@@ -1869,7 +1869,7 @@ function builtInRegisterMeasurementGroup(numQubits) {
       {
         type: "single-magnifier",
         left: Math.round((width - 160) / 2),
-        top: 254,
+        top: 294,
         width: 160,
         height: 130,
         z: 3,
@@ -1878,7 +1878,7 @@ function builtInRegisterMeasurementGroup(numQubits) {
       {
         type: "measurement-count-menu",
         left: Math.round((width - 110) / 2),
-        top: 376,
+        top: 410,
         width: 110,
         height: 62,
         z: 4,
@@ -4437,6 +4437,8 @@ let mailboxRoomState = {
 let mailboxRoomBootCleanupPromise = Promise.resolve();
 const mailboxRoomSeenSharedMeasurementControlIds = new Set();
 const mailboxRoomSeenSharedMeasurementCompletionIds = new Set();
+const mailboxRoomSendingQubits = new WeakSet();
+const mailboxRoomReceivingEventIds = new Set();
 let entanglementThreeSessionChannel = null;
 const entanglementThreeWindowId = `ent3-window-${Date.now().toString(36)}-${Math.random()
   .toString(36)
@@ -6294,6 +6296,7 @@ function mailboxRoomImportPoint(canvas) {
 function mailboxRoomReceiveQubitEvent(event, options = {}) {
   const payload = event?.payload || {};
   const transfer = payload.transfer;
+  const eventId = event?.id || "";
   if (!transfer || transfer.kind !== "single-qubit") {
     throw new Error("No transferable qubit payload");
   }
@@ -6307,56 +6310,69 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
   if (!canvas) {
     throw new Error("Open a tour tab before receiving the qubit");
   }
-  if (mailboxRoomTransferReceived(event.id)) {
+  if (
+    eventId &&
+    (mailboxRoomTransferReceived(eventId) ||
+      mailboxRoomReceivingEventIds.has(eventId))
+  ) {
     return canvas.querySelector(
-      `[data-mailbox-received-event-id="${CSS.escape(event.id || "")}"]`,
+      `[data-mailbox-received-event-id="${CSS.escape(eventId)}"]`,
     );
   }
-  const mailboxWindow = mailboxRoomImportMailboxWindow(canvas);
-  const origin = mailboxWindow
-    ? generatedCanvasPointForElementCenter(canvas, mailboxWindow)
-    : mailboxRoomImportPoint(canvas);
-  const destination = mailboxRoomImportPoint(canvas);
-  const maxZ = Array.from(
-    canvas.querySelectorAll(":scope > .playground-node"),
-  ).reduce(
-    (highest, candidate) =>
-      Math.max(highest, parseLayoutNumeric(candidate.style.zIndex, 1)),
-    1,
-  );
-  const item = createGeneratedLayoutItemNode("qubit", {
-    left: origin.x - 36,
-    top: origin.y - 36,
-    width: 72,
-    height: 72,
-    z: maxZ + 1,
-    vector: Array.isArray(transfer.vector) ? transfer.vector : [1, 0],
-  });
-  item.dataset.mailboxReceivedEventId = event.id || "";
-  item.dataset.mailboxReceivedFrom = payload.fromName || "";
-  item.classList.add("mailbox-arriving");
-  canvas.appendChild(item);
-  prepareGeneratedLayoutCanvas(canvas);
-  applyRoomQubitIdentity(item, transfer.roomQubit);
-  const itemState = ensureGeneratedQubitRuntimeState(item);
-  if (transfer.entanglement && itemState) {
-    mailboxRoomBindReceivedSharedEntanglement(
-      item,
-      itemState,
-      transfer.entanglement,
-    );
+  if (eventId) {
+    mailboxRoomReceivingEventIds.add(eventId);
   }
-  setGeneratedQubitCenter(canvas, item, origin.x, origin.y);
-  mailboxRoomMarkTransferReceived(event.id);
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      setGeneratedQubitCenter(canvas, item, destination.x, destination.y);
-      const finishArrival = () => item.classList.remove("mailbox-arriving");
-      item.addEventListener("transitionend", finishArrival, { once: true });
-      window.setTimeout(finishArrival, 900);
+  try {
+    const mailboxWindow = mailboxRoomImportMailboxWindow(canvas);
+    const origin = mailboxWindow
+      ? generatedCanvasPointForElementCenter(canvas, mailboxWindow)
+      : mailboxRoomImportPoint(canvas);
+    const destination = mailboxRoomImportPoint(canvas);
+    const maxZ = Array.from(
+      canvas.querySelectorAll(":scope > .playground-node"),
+    ).reduce(
+      (highest, candidate) =>
+        Math.max(highest, parseLayoutNumeric(candidate.style.zIndex, 1)),
+      1,
+    );
+    const item = createGeneratedLayoutItemNode("qubit", {
+      left: origin.x - 36,
+      top: origin.y - 36,
+      width: 72,
+      height: 72,
+      z: maxZ + 1,
+      vector: Array.isArray(transfer.vector) ? transfer.vector : [1, 0],
     });
-  });
-  return item;
+    item.dataset.mailboxReceivedEventId = eventId;
+    item.dataset.mailboxReceivedFrom = payload.fromName || "";
+    item.classList.add("mailbox-arriving");
+    canvas.appendChild(item);
+    prepareGeneratedLayoutCanvas(canvas);
+    applyRoomQubitIdentity(item, transfer.roomQubit);
+    const itemState = ensureGeneratedQubitRuntimeState(item);
+    if (transfer.entanglement && itemState) {
+      mailboxRoomBindReceivedSharedEntanglement(
+        item,
+        itemState,
+        transfer.entanglement,
+      );
+    }
+    setGeneratedQubitCenter(canvas, item, origin.x, origin.y);
+    mailboxRoomMarkTransferReceived(eventId);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setGeneratedQubitCenter(canvas, item, destination.x, destination.y);
+        const finishArrival = () => item.classList.remove("mailbox-arriving");
+        item.addEventListener("transitionend", finishArrival, { once: true });
+        window.setTimeout(finishArrival, 900);
+      });
+    });
+    return item;
+  } finally {
+    if (eventId) {
+      mailboxRoomReceivingEventIds.delete(eventId);
+    }
+  }
 }
 
 function mailboxRoomPendingReceiveCanvas() {
@@ -6703,6 +6719,7 @@ async function autoJoinEntanglementThreeRoom(canvas) {
           participantId: null,
           clientSessionId,
           label: ENTANGLEMENT_THREE_ROOM_ID,
+          resetIfFull: true,
         },
       },
     );
@@ -7056,34 +7073,49 @@ async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
   if (!mailboxRoomIsJoined()) {
     throw new Error("Join a room first");
   }
+  const qubitItem = context?.qubitItem;
+  if (qubitItem instanceof HTMLElement) {
+    if (mailboxRoomSendingQubits.has(qubitItem)) {
+      return null;
+    }
+    mailboxRoomSendingQubits.add(qubitItem);
+  }
   const toName = toParticipantId
     ? mailboxRoomParticipantName(toParticipantId)
     : "";
-  const qubitLabel = mailboxRoomQubitLabel(context);
-  const transfer = await mailboxRoomSerializeQubit(context, {
-    toParticipantId,
-  });
-  await localLabRequest(
-    `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/mailbox-notifications`,
-    {
-      method: "POST",
-      body: {
-        fromParticipantId: mailboxRoomState.participantId,
-        fromName: mailboxRoomState.displayName,
-        toParticipantId: toParticipantId || null,
-        toName: toName || null,
-        qubitLabel,
-        message: String(message || "").trim(),
-        transfer,
+  try {
+    const qubitLabel = mailboxRoomQubitLabel(context);
+    const transfer = await mailboxRoomSerializeQubit(context, {
+      toParticipantId,
+    });
+    await localLabRequest(
+      `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/mailbox-notifications`,
+      {
+        method: "POST",
+        body: {
+          fromParticipantId: mailboxRoomState.participantId,
+          fromName: mailboxRoomState.displayName,
+          toParticipantId: toParticipantId || null,
+          toName: toName || null,
+          qubitLabel,
+          message: String(message || "").trim(),
+          transfer,
+        },
       },
-    },
-  );
-  setMailboxComponentStatus(
-    context?.mailboxItem,
-    `Sent ${qubitLabel}${toName ? ` to ${toName}` : " to the room"}`,
-  );
-  mailboxRoomConsumeSentQubit(context);
-  await mailboxRoomRefresh();
+    );
+    setMailboxComponentStatus(
+      context?.mailboxItem,
+      `Sent ${qubitLabel}${toName ? ` to ${toName}` : " to the room"}`,
+    );
+    mailboxRoomConsumeSentQubit(context);
+    await mailboxRoomRefresh();
+    return true;
+  } catch (error) {
+    if (qubitItem instanceof HTMLElement) {
+      mailboxRoomSendingQubits.delete(qubitItem);
+    }
+    throw error;
+  }
 }
 
 function mailboxRoomConsumeSentQubit(context) {
@@ -7106,6 +7138,12 @@ function mailboxRoomConsumeSentQubit(context) {
 
 function handleMailboxQubitPlaced(context) {
   if (!context?.mailboxItem) {
+    return;
+  }
+  if (
+    context.qubitItem instanceof HTMLElement &&
+    mailboxRoomSendingQubits.has(context.qubitItem)
+  ) {
     return;
   }
   activeMailboxSendContext = context;
