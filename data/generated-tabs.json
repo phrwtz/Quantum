@@ -693,14 +693,13 @@
             "singleGateTick": 0
           },
           {
-            "id": "entanglement-3-gate-1",
-            "type": "single-gate",
+            "id": "entanglement-3-cnot",
+            "type": "cnot-gate",
             "left": 190,
-            "top": 356,
-            "width": 338,
-            "height": 208,
-            "z": 16,
-            "singleGateTick": 0
+            "top": 330,
+            "width": 373,
+            "height": 209,
+            "z": 16
           },
           {
             "id": "entanglement-3-mailbox",

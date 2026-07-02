@@ -47,6 +47,13 @@ function assertEntanglementThreeLayoutIsNotKnownStale(state, sourceLabel) {
   const tab = entanglementThreeTabFromState(state);
   const mailbox = itemById(tab, "entanglement-3-mailbox");
   const measurement = itemById(tab, "entanglement-3-register-measurement");
+  const layoutItems = Array.isArray(tab.layout?.items) ? tab.layout.items : [];
+  const singleGateCount = layoutItems.filter(
+    (entry) => entry?.type === "single-gate",
+  ).length;
+  const cnotGateCount = layoutItems.filter(
+    (entry) => entry?.type === "cnot-gate",
+  ).length;
   const problems = [];
   const mailboxGeometry = {
     left: mailbox.left,
@@ -91,6 +98,12 @@ function assertEntanglementThreeLayoutIsNotKnownStale(state, sourceLabel) {
   if (!tubeRack || Number(tubeRack.width) < 900 || Number(tubeRack.height) < 200) {
     problems.push(
       `sixteen-tube rack geometry is missing or too small: ${JSON.stringify(tubeRack || null)}`,
+    );
+  }
+
+  if (singleGateCount !== 1 || cnotGateCount !== 1) {
+    problems.push(
+      `apparatus should have one flipper and one C-NOT, found ${singleGateCount} single-gate and ${cnotGateCount} cnot-gate items`,
     );
   }
 

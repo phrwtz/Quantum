@@ -4872,6 +4872,10 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
                   .qubitLabel || "",
             })),
             rackColumns: measure?.querySelectorAll(".pair-tube-column").length || 0,
+            singleGateCount:
+              canvas?.querySelectorAll('[data-component="single-gate"]').length || 0,
+            cnotGateCount:
+              canvas?.querySelectorAll('[data-component="cnot-gate"]').length || 0,
             registerQubitCount: runtime?.registerQubitCount || null,
             capacity:
               measure?.querySelector('[data-role="pair-capacity"]')
@@ -4908,13 +4912,17 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       aliceInitial.qubits[1].coreLabel !== "q3" ||
       bobInitial.rackColumns !== 16 ||
       aliceInitial.rackColumns !== 16 ||
+      bobInitial.singleGateCount !== 1 ||
+      aliceInitial.singleGateCount !== 1 ||
+      bobInitial.cnotGateCount !== 1 ||
+      aliceInitial.cnotGateCount !== 1 ||
       bobInitial.registerQubitCount !== 4 ||
       aliceInitial.registerQubitCount !== 4 ||
       !bobInitial.capacity.includes("5 counts") ||
       !aliceInitial.capacity.includes("5 counts")
     ) {
       throw new Error(
-        `Entanglement 3 room labels or 16-tube rack failed: ${JSON.stringify(initial)}`,
+        `Entanglement 3 room labels, apparatus, or 16-tube rack failed: ${JSON.stringify(initial)}`,
       );
     }
 
