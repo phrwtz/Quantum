@@ -14771,6 +14771,18 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       setGeneratedMeasuredQubitVisualState(qubitItem, collapsedColor);
     }
 
+    const measurementEntry = {
+      qubitId,
+      qubitItem,
+      logicalQubitId,
+      color: collapsedColor,
+      orderIndex,
+      startPoint: lensCenter,
+      partnerId: partnerInfo?.partnerId || "",
+      partnerLogicalQubitId: partnerInfo?.logicalQubitId,
+      partnerOrderIndex: partnerInfo?.partnerOrderIndex,
+    };
+
     if (sharedPairState) {
       const result = await mailboxRoomRecordSharedRegisterMeasurement(
         sharedPairState,
@@ -14786,18 +14798,16 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       );
       const mixedRegisterMeasurement =
         forcedRegisterCount > 0 && measurementRegisterCount > sharedRegisterCount;
+      if (mailboxRoomIsJoined() && measurementRegisterCount > 2) {
+        try {
+          await mailboxRoomRecordRoomMeasurement(runtime, measurementEntry);
+          return true;
+        } catch (error) {
+          console.warn?.("[Qubit Lab] room measurement sync failed", error);
+        }
+      }
       if (mixedRegisterMeasurement) {
-        storeGeneratedSeparatedPairMeasurementPending(runtime, {
-          qubitId,
-          qubitItem,
-          logicalQubitId,
-          color: collapsedColor,
-          orderIndex,
-          startPoint: lensCenter,
-          partnerId: partnerInfo?.partnerId || "",
-          partnerLogicalQubitId: partnerInfo?.logicalQubitId,
-          partnerOrderIndex: partnerInfo?.partnerOrderIndex,
-        });
+        storeGeneratedSeparatedPairMeasurementPending(runtime, measurementEntry);
         await maybeCompleteGeneratedSeparatedPairMeasurement(canvas, runtime);
       } else if (result?.sharedEntanglement) {
         applySharedRegisterMeasurementCounts(result.sharedEntanglement);
@@ -14825,17 +14835,6 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       return true;
     }
 
-    const measurementEntry = {
-      qubitId,
-      qubitItem,
-      logicalQubitId,
-      color: collapsedColor,
-      orderIndex,
-      startPoint: lensCenter,
-      partnerId: partnerInfo?.partnerId || "",
-      partnerLogicalQubitId: partnerInfo?.logicalQubitId,
-      partnerOrderIndex: partnerInfo?.partnerOrderIndex,
-    };
     storeGeneratedSeparatedPairMeasurementPending(runtime, measurementEntry);
     if (mailboxRoomIsJoined() && measurementRegisterCount > 2) {
       try {

@@ -4926,8 +4926,11 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       );
     }
 
-    async function measureLocalEntanglementThreeQubits(page) {
-      return page.evaluate(async () => {
+    async function measureLocalEntanglementThreeQubits(
+      page,
+      { markFirstQubitRemoteEntangled = false } = {},
+    ) {
+      return page.evaluate(async (markFirstShared) => {
         const canvas = document.querySelector(
           "#panel-editor-entanglement-3 .generated-layout-canvas",
         );
@@ -4938,6 +4941,22 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
         const qubits = Array.from(
           canvas?.querySelectorAll('[data-component="qubit"]') || [],
         );
+        if (markFirstShared && qubits[0]) {
+          const state = ensureGeneratedQubitRuntimeState(qubits[0]);
+          if (state) {
+            state.pairQubitIndex = 0;
+            state.pairState = {
+              numQubits: 2,
+              amplitudes: [1, 0, 0, 0],
+              members: [{ item: qubits[0], state, qubitIndex: 0 }],
+              remoteEntanglementId: "smoke-remote-entanglement",
+            };
+            mailboxRoomSetRemoteEntanglementVisual(
+              qubits[0],
+              "smoke-remote-entanglement",
+            );
+          }
+        }
         const snapshots = [];
         for (const qubit of qubits) {
           await runGeneratedSeparatedPairMeasurementTransit(
@@ -4970,10 +4989,12 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
               "#panel-editor-entanglement-3 .generated-experiment-status",
             )?.textContent || "",
         };
-      });
+      }, markFirstQubitRemoteEntangled);
     }
 
-    const bobMeasured = await measureLocalEntanglementThreeQubits(bob.page);
+    const bobMeasured = await measureLocalEntanglementThreeQubits(bob.page, {
+      markFirstQubitRemoteEntangled: true,
+    });
     if (
       bobMeasured.snapshots.length !== 2 ||
       bobMeasured.snapshots[0].pending.length !== 1 ||
