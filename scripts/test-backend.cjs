@@ -675,6 +675,25 @@ test("backend allocates room-wide qubit identities", async () => {
         { label: "q1", qubitId: 2, roomQubitIndex: 1 },
       ],
     );
+    const repeatedBob = await api(baseUrl, "/rooms/qubit-identity-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "bob",
+        qubits: [{ clientId: "bob-a" }, { clientId: "bob-b" }],
+      },
+    });
+    assert.equal(repeatedBob.response.status, 200);
+    assert.deepEqual(
+      repeatedBob.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
+        label,
+        qubitId,
+        roomQubitIndex,
+      })),
+      [
+        { label: "q0", qubitId: 1, roomQubitIndex: 0 },
+        { label: "q1", qubitId: 2, roomQubitIndex: 1 },
+      ],
+    );
 
     const alice = await api(baseUrl, "/rooms/qubit-identity-room/qubits/allocate", {
       method: "POST",
@@ -690,6 +709,30 @@ test("backend allocates room-wide qubit identities", async () => {
     assert.equal(alice.response.status, 200);
     assert.deepEqual(
       alice.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
+        label,
+        qubitId,
+        roomQubitIndex,
+      })),
+      [
+        { label: "q2", qubitId: 3, roomQubitIndex: 2 },
+        { label: "q3", qubitId: 4, roomQubitIndex: 3 },
+        { label: "q4", qubitId: 5, roomQubitIndex: 4 },
+      ],
+    );
+    const repeatedAlice = await api(baseUrl, "/rooms/qubit-identity-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        qubits: [
+          { clientId: "alice-a" },
+          { clientId: "alice-b" },
+          { clientId: "alice-c" },
+        ],
+      },
+    });
+    assert.equal(repeatedAlice.response.status, 200);
+    assert.deepEqual(
+      repeatedAlice.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
         label,
         qubitId,
         roomQubitIndex,
@@ -725,6 +768,26 @@ test("backend honors requested room qubit slots when available", async () => {
     assert.equal(alice.response.status, 200);
     assert.deepEqual(
       alice.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
+        label,
+        qubitId,
+        roomQubitIndex,
+      })),
+      [
+        { label: "q2", qubitId: 3, roomQubitIndex: 2 },
+        { label: "q3", qubitId: 4, roomQubitIndex: 3 },
+      ],
+    );
+    const repeatedAlice = await api(baseUrl, "/rooms/qubit-slot-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        baseRoomQubitIndex: 2,
+        qubits: [{ clientId: "alice-a" }, { clientId: "alice-b" }],
+      },
+    });
+    assert.equal(repeatedAlice.response.status, 200);
+    assert.deepEqual(
+      repeatedAlice.body.qubits.map(({ label, qubitId, roomQubitIndex }) => ({
         label,
         qubitId,
         roomQubitIndex,

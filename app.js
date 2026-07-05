@@ -4783,25 +4783,17 @@ async function mailboxRoomEnsureQubitIdentityForMeasurement(
   ) {
     return existingIndex;
   }
-  const localQubits = mailboxRoomLocalQubitItemsForCanvas(canvas);
-  const localIndex = localQubits.indexOf(qubitItem);
-  if (localIndex >= 0) {
-    const fallbackIndex =
-      Math.max(0, Number(mailboxRoomState.participantJoinIndex) || 0) *
-        localQubits.length +
-      localIndex;
-    if (fallbackIndex >= 0 && fallbackIndex < requiredCount) {
-      setQubitRoomIdentity(qubitItem, fallbackIndex, {
-        roomId: mailboxRoomState.roomId,
-        qubitId: fallbackIndex + 1,
-      });
-      ensureGeneratedMeasurementSlotIndexes(canvas, qubitItem);
-      return fallbackIndex;
-    }
-  }
   await mailboxRoomAssignLocalQubitsForRoom(canvas).catch(() => []);
   const assignedIndex = roomQubitIndexForItem(qubitItem);
-  return Number.isInteger(assignedIndex) ? assignedIndex : null;
+  if (
+    Number.isInteger(assignedIndex) &&
+    assignedIndex >= 0 &&
+    assignedIndex < requiredCount
+  ) {
+    ensureGeneratedMeasurementSlotIndexes(canvas, qubitItem);
+    return assignedIndex;
+  }
+  return null;
 }
 
 function mailboxRoomDefaultRoomId() {
@@ -14829,11 +14821,19 @@ async function runGeneratedSeparatedPairMeasurementTransit(
     qubitItem,
     qubitState,
   );
-  await mailboxRoomEnsureQubitIdentityForMeasurement(
+  const roomMeasurementIndex = await mailboxRoomEnsureQubitIdentityForMeasurement(
     canvas,
     qubitItem,
     measurementRegisterCount,
   );
+  if (
+    mailboxRoomIsJoined() &&
+    isEntanglementThreeCanvas(canvas) &&
+    measurementRegisterCount > 2 &&
+    !Number.isInteger(roomMeasurementIndex)
+  ) {
+    return false;
+  }
   const orderIndex = generatedSeparatedPairOrderIndexForQubit(
     canvas,
     runtime,

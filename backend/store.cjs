@@ -849,23 +849,45 @@ function createMemoryStore(options = {}) {
     const requestedBaseIndex = Number(input.baseRoomQubitIndex);
     const hasRequestedBaseIndex =
       Number.isSafeInteger(requestedBaseIndex) && requestedBaseIndex >= 0;
+    const identities = () => Object.values(room.qubitIdentities);
+    const findIdentityByClient = (clientId) =>
+      participantId && clientId
+        ? identities().find(
+            (identity) =>
+              identity?.participantId === participantId &&
+              identity.clientId === clientId,
+          ) || null
+        : null;
+    const findIdentityByRoomIndex = (roomQubitIndex) =>
+      identities().find(
+        (identity) => identity?.roomQubitIndex === roomQubitIndex,
+      ) || null;
     const usedIndexes = new Set(
-      Object.values(room.qubitIdentities)
+      identities()
         .map((identity) => identity?.roomQubitIndex)
         .filter(Number.isSafeInteger),
     );
-    const reserveRoomQubitIndex = (offset) => {
+    const reserveRoomQubitIndex = (offset, clientId) => {
       const preferredIndex = hasRequestedBaseIndex
         ? requestedBaseIndex + offset
         : null;
       if (
         Number.isSafeInteger(preferredIndex) &&
-        preferredIndex >= 0 &&
-        !usedIndexes.has(preferredIndex)
+        preferredIndex >= 0
       ) {
-        usedIndexes.add(preferredIndex);
-        room.nextQubitIndex = Math.max(room.nextQubitIndex, preferredIndex + 1);
-        return preferredIndex;
+        const existingAtPreferred = findIdentityByRoomIndex(preferredIndex);
+        if (
+          !existingAtPreferred ||
+          (participantId && existingAtPreferred.participantId === participantId)
+        ) {
+          if (existingAtPreferred && clientId) {
+            existingAtPreferred.clientId = clientId;
+            existingAtPreferred.updatedAt = timestamp();
+          }
+          usedIndexes.add(preferredIndex);
+          room.nextQubitIndex = Math.max(room.nextQubitIndex, preferredIndex + 1);
+          return preferredIndex;
+        }
       }
       while (usedIndexes.has(room.nextQubitIndex)) {
         room.nextQubitIndex += 1;
@@ -876,7 +898,17 @@ function createMemoryStore(options = {}) {
     };
     const at = timestamp();
     const assigned = qubits.map((qubit, offset) => {
-      const roomQubitIndex = reserveRoomQubitIndex(offset);
+      const clientId =
+        validateString(qubit?.clientId, "clientId", {
+          required: false,
+          maxLength: 120,
+        }) || `local-${offset}`;
+      const existing = findIdentityByClient(clientId);
+      if (existing) {
+        existing.updatedAt = at;
+        return existing;
+      }
+      const roomQubitIndex = reserveRoomQubitIndex(offset, clientId);
       const qubitId = roomQubitIndex + 1;
       const identity = {
         roomId: room.id,
@@ -884,11 +916,7 @@ function createMemoryStore(options = {}) {
         qubitId,
         label: `q${roomQubitIndex}`,
         participantId,
-        clientId:
-          validateString(qubit?.clientId, "clientId", {
-            required: false,
-            maxLength: 120,
-          }) || `local-${offset}`,
+        clientId,
         createdAt: at,
         updatedAt: at,
       };
