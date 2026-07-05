@@ -3159,11 +3159,22 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 }
 
 .pair-tube-label {
+  order: 1;
   min-height: 3rem;
   display: grid;
   place-items: center;
   text-align: center;
   row-gap: 0.02rem;
+}
+
+.pair-tube-column .tube-count {
+  order: 2;
+  justify-self: center;
+}
+
+.pair-tube-column .pair-tube {
+  order: 3;
+  justify-self: center;
 }
 
 .tube-label {
