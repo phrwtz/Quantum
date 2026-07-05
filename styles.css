@@ -3124,7 +3124,7 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 .pair-capacity {
   width: max-content;
   min-width: 397px;
-  min-height: 32px;
+  min-height: 38px;
   border-radius: 0.45rem;
   border: 1px solid #869bae;
   background: #f6fbff;
@@ -3159,7 +3159,7 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 }
 
 .pair-tube-label {
-  min-height: 1.92rem;
+  min-height: 3rem;
   display: grid;
   place-items: center;
   text-align: center;
@@ -3169,16 +3169,18 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 .tube-label {
   order: 2;
   width: 42px;
-  min-height: 0.56rem;
-  display: grid;
+  min-height: 1.12rem;
+  display: flex;
   place-items: center;
+  align-items: center;
+  justify-content: center;
   margin: -0.08rem 0 -0.12rem;
 }
 
 .measurement-dot {
   display: block;
-  width: 0.56rem;
-  height: 0.56rem;
+  width: 1.12rem;
+  height: 1.12rem;
   border-radius: 50%;
   border: 1px solid rgba(18, 38, 55, 0.28);
   box-shadow:
@@ -3210,15 +3212,15 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 }
 
 .register-tube-label {
-  min-height: 2.15rem;
+  min-height: 3.35rem;
   grid-auto-flow: row;
   align-content: center;
   row-gap: 0.02rem;
 }
 
 .register-tube-label .measurement-dot {
-  width: 0.43rem;
-  height: 0.43rem;
+  width: 0.86rem;
+  height: 0.86rem;
 }
 
 .register-tube {
@@ -3418,7 +3420,7 @@ body.layout-edit-active .pair-ejection-site {
 .tube-capacity {
   width: max-content;
   min-width: 290px;
-  min-height: 32px;
+  min-height: 38px;
   border-radius: 0.45rem;
   border: 1px solid #869bae;
   background: #f6fbff;
@@ -4404,7 +4406,7 @@ body.layout-edit-active .pair-ejection-site {
 
   .pair-capacity {
     width: min(100%, 314px);
-    min-height: 28px;
+    min-height: 34px;
     font-size: 14pt;
   }
 
@@ -4413,7 +4415,7 @@ body.layout-edit-active .pair-ejection-site {
   }
 
   .pair-tube-label {
-    min-height: 1.34rem;
+    min-height: 2.7rem;
     font-size: 0.62rem;
   }
 
@@ -4435,12 +4437,12 @@ body.layout-edit-active .pair-ejection-site {
   }
 
   .register-tube-label {
-    min-height: 1.76rem;
+    min-height: 3rem;
   }
 
   .register-tube-label .measurement-dot {
-    width: 0.36rem;
-    height: 0.36rem;
+    width: 0.72rem;
+    height: 0.72rem;
   }
 
   .register-tube {
@@ -4558,7 +4560,7 @@ body.layout-edit-active .pair-ejection-site {
 
   .tube-capacity {
     width: min(100%, 290px);
-    min-height: 28px;
+    min-height: 34px;
     font-size: 14pt;
   }
 
