@@ -1669,6 +1669,20 @@ function createMemoryStore(options = {}) {
         maxLength: 80,
       }) || "a qubit";
     const transfer = input.transfer == null ? null : validateMetadata(input.transfer);
+    const dedupeKey = validateString(input.dedupeKey, "dedupeKey", {
+      required: false,
+      maxLength: 200,
+    });
+    if (dedupeKey) {
+      const existing = room.events.find(
+        (event) =>
+          event?.type === "roomMailbox.sent" &&
+          event.payload?.dedupeKey === dedupeKey,
+      );
+      if (existing) {
+        return clone(existing);
+      }
+    }
     const notification = {
       id: `room_mbx_${createToken(12)}`,
       fromParticipantId: fromParticipantId || null,
@@ -1678,6 +1692,7 @@ function createMemoryStore(options = {}) {
       message: message || "",
       qubitLabel,
       transfer,
+      dedupeKey: dedupeKey || null,
     };
     return clone(appendEvent(room, "roomMailbox.sent", notification));
   }
@@ -1721,6 +1736,30 @@ function createMemoryStore(options = {}) {
     );
   }
 
+  function roomMeasurementExperiment(input = {}) {
+    if (!input || typeof input !== "object") {
+      return null;
+    }
+    const actions = Array.isArray(input.actions) ? input.actions : [];
+    if (actions.length === 0 || actions.length > 2000) {
+      return null;
+    }
+    const experiment = {
+      version: 1,
+      recordedAt: Number.isFinite(Number(input.recordedAt))
+        ? Math.round(Number(input.recordedAt))
+        : timestamp(),
+      initialQubits: Array.isArray(input.initialQubits)
+        ? input.initialQubits.slice(0, 16).map(clone)
+        : [],
+      gateSettings: Array.isArray(input.gateSettings)
+        ? input.gateSettings.slice(0, 32).map(clone)
+        : [],
+      actions: actions.map(clone),
+    };
+    return clone(experiment);
+  }
+
   function recordRoomMeasurement(roomId, measurementId, input = {}) {
     const room = requireRoom(roomId);
     if (!room.roomMeasurements || typeof room.roomMeasurements !== "object") {
@@ -1749,11 +1788,16 @@ function createMemoryStore(options = {}) {
       completionId: null,
       completedAt: null,
       control: null,
+      experiment: null,
       createdAt: timestamp(),
       updatedAt: null,
       version: 0,
     };
     existing.numQubits = numQubits;
+    const experiment = roomMeasurementExperiment(input.experiment);
+    if (experiment) {
+      existing.experiment = experiment;
+    }
     const queues = roomMeasurementQueues(existing, numQubits);
     const queueKey = String(qubitIndex);
     const participantId =

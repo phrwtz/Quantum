@@ -5046,6 +5046,12 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
             document.querySelector(
               "#panel-editor-entanglement-3 .generated-experiment-status",
             )?.textContent || "",
+          experimentActions:
+            generatedExperimentStateForCanvas(
+              document.querySelector(
+                "#panel-editor-entanglement-3 .generated-layout-canvas",
+              ),
+            )?.experiment?.actions?.length || 0,
           replayDisabled:
             document.querySelector(
               "#panel-editor-entanglement-3 .entanglement-room-review-btn",
@@ -5064,6 +5070,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           state.visibleCounts.length !== 1 ||
           state.visibleCounts[0][1] !== 1 ||
           !state.status.includes("Measured 4/4") ||
+          state.experimentActions === 0 ||
           state.replayDisabled,
       )
     ) {
@@ -5089,6 +5096,65 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       );
     }
 
+    const normalReplayStarted = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(async () => {
+          const canvas = document.querySelector(
+            "#panel-editor-entanglement-3 .generated-layout-canvas",
+          );
+          const experiment =
+            generatedExperimentStateForCanvas(canvas)?.experiment || null;
+          const completed = await runGeneratedRecordedExperiment(canvas, 1);
+          return {
+            completed,
+            experimentActions: experiment?.actions?.length || 0,
+          };
+        }),
+      ),
+    );
+    if (
+      normalReplayStarted.some(
+        (state) => !state.completed || state.experimentActions === 0,
+      )
+    ) {
+      throw new Error(
+        `Entanglement 3 normal experiment replay did not start on both pages: ${JSON.stringify(normalReplayStarted)}`,
+      );
+    }
+    await wait(1000);
+    await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(() => mailboxRoomRefresh({ render: false })),
+      ),
+    );
+    const replayedShared = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(() => ({
+          name: mailboxRoomState.displayName,
+          total: Object.values(
+            mailboxRoomState.measurements[0]?.counts || {},
+          ).reduce((sum, count) => sum + Number(count || 0), 0),
+          visibleTotal: Array.from(
+            document.querySelectorAll(
+              "#panel-editor-entanglement-3 .pair-tube-column .tube-count",
+            ),
+          ).reduce(
+            (sum, count) => sum + Number(count.textContent || 0),
+            0,
+          ),
+        })),
+      ),
+    );
+    if (
+      replayedShared.some(
+        (state) => state.total !== 2 || state.visibleTotal !== 2,
+      )
+    ) {
+      throw new Error(
+        `Entanglement 3 recorded experiment replay did not add a room-wide count: ${JSON.stringify(replayedShared)}`,
+      );
+    }
+
     const replay = await bob.page.evaluate(async () => {
       const ok = await replayMailboxRoomReviewActions();
       return {
@@ -5110,7 +5176,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       replay.reviewRuns !== 1 ||
       !run.ok ||
       run.reviewRuns !== 10001 ||
-      !/:\s*10002\b/.test(run.countsText)
+      !/:\s*10003\b/.test(run.countsText)
     ) {
       throw new Error(
         `Entanglement 3 replay/run review flow failed: ${JSON.stringify({ replay, run })}`,

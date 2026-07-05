@@ -4438,7 +4438,9 @@ let mailboxRoomBootCleanupPromise = Promise.resolve();
 const mailboxRoomSeenSharedMeasurementControlIds = new Set();
 const mailboxRoomSeenSharedMeasurementCompletionIds = new Set();
 const mailboxRoomSendingQubits = new WeakSet();
+const mailboxRoomSendingKeys = new Set();
 const mailboxRoomReceivingEventIds = new Set();
+const mailboxRoomReceivedEventItems = new Map();
 let entanglementThreeSessionChannel = null;
 const entanglementThreeWindowId = `ent3-window-${Date.now().toString(36)}-${Math.random()
   .toString(36)
@@ -5707,6 +5709,38 @@ function mailboxRoomMeasurementSharedId(runtime, numQubits = null) {
   return `room-register-measurement-${count}-${normalizedCanvasKey || "room"}-${normalizedGroupKey || "default"}`;
 }
 
+function mailboxRoomRecordedExperimentForRuntime(runtime) {
+  const canvas = generatedCanvasForItem(runtime?.item);
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state) {
+    return null;
+  }
+  if (state.recording) {
+    return currentGeneratedRecordingExperiment(canvas);
+  }
+  return cloneGeneratedExperiment(state.experiment);
+}
+
+function mailboxRoomApplyRecordedExperiment(measurement, runtime) {
+  const experiment = cloneGeneratedExperiment(measurement?.experiment);
+  if (!experiment || !Array.isArray(experiment.actions) || experiment.actions.length === 0) {
+    return false;
+  }
+  const canvas = generatedCanvasForItem(runtime?.item);
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state || state.recording || state.playing) {
+    return false;
+  }
+  state.experiment = experiment;
+  state.gateSettings = Array.isArray(experiment.gateSettings)
+    ? experiment.gateSettings.map((entry) => ({ ...entry }))
+    : captureGeneratedGateSettings(canvas);
+  state.replayGateSettingsChanged = false;
+  state.playbackResultVisible = false;
+  updateGeneratedExperimentToolbar(canvas);
+  return true;
+}
+
 function mailboxRoomMeasurementRuntimeById(measurementId) {
   if (!measurementId) {
     return null;
@@ -5801,6 +5835,7 @@ function mailboxRoomApplyRoomMeasurement(measurement) {
   );
   maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
   updateGeneratedDoubleMeasurementTubeFills(runtime);
+  mailboxRoomApplyRecordedExperiment(measurement, runtime);
   if (
     measurement.completionId &&
     !mailboxRoomSeenSharedMeasurementCompletionIds.has(measurement.completionId)
@@ -5852,6 +5887,7 @@ async function mailboxRoomRecordRoomMeasurement(runtime, measurementEntry) {
         color: measurementEntry?.color === "red" ? "red" : "blue",
         logicalQubitId: measurementEntry?.logicalQubitId || null,
         participantId: mailboxRoomState.participantId || null,
+        experiment: mailboxRoomRecordedExperimentForRuntime(runtime),
       },
     },
   );
@@ -6228,6 +6264,24 @@ function mailboxRoomTransferReceived(eventId) {
   return mailboxRoomReceivedTransferIds().has(eventId);
 }
 
+function mailboxRoomReceivedItemForEvent(canvas, eventId) {
+  if (!(canvas instanceof HTMLElement) || !eventId) {
+    return null;
+  }
+  const tracked = mailboxRoomReceivedEventItems.get(eventId);
+  if (tracked instanceof HTMLElement && tracked.isConnected) {
+    return tracked;
+  }
+  const selector = `[data-mailbox-received-event-id="${CSS.escape(eventId)}"]`;
+  const existing = canvas.querySelector(selector);
+  if (existing instanceof HTMLElement) {
+    mailboxRoomReceivedEventItems.set(eventId, existing);
+    return existing;
+  }
+  mailboxRoomReceivedEventItems.delete(eventId);
+  return null;
+}
+
 function mailboxRoomImportTargetCanvas() {
   return activeGeneratedLayoutCanvas();
 }
@@ -6310,17 +6364,20 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
   if (!canvas) {
     throw new Error("Open a tour tab before receiving the qubit");
   }
+  const existingItem = mailboxRoomReceivedItemForEvent(canvas, eventId);
+  if (existingItem) {
+    return existingItem;
+  }
   if (
     eventId &&
     (mailboxRoomTransferReceived(eventId) ||
       mailboxRoomReceivingEventIds.has(eventId))
   ) {
-    return canvas.querySelector(
-      `[data-mailbox-received-event-id="${CSS.escape(eventId)}"]`,
-    );
+    return mailboxRoomReceivedItemForEvent(canvas, eventId);
   }
   if (eventId) {
     mailboxRoomReceivingEventIds.add(eventId);
+    mailboxRoomMarkTransferReceived(eventId);
   }
   try {
     const mailboxWindow = mailboxRoomImportMailboxWindow(canvas);
@@ -6345,6 +6402,9 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
     });
     item.dataset.mailboxReceivedEventId = eventId;
     item.dataset.mailboxReceivedFrom = payload.fromName || "";
+    if (eventId) {
+      mailboxRoomReceivedEventItems.set(eventId, item);
+    }
     item.classList.add("mailbox-arriving");
     canvas.appendChild(item);
     prepareGeneratedLayoutCanvas(canvas);
@@ -6358,7 +6418,6 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
       );
     }
     setGeneratedQubitCenter(canvas, item, origin.x, origin.y);
-    mailboxRoomMarkTransferReceived(eventId);
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         setGeneratedQubitCenter(canvas, item, destination.x, destination.y);
@@ -6368,6 +6427,16 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
       });
     });
     return item;
+  } catch (error) {
+    if (eventId) {
+      mailboxRoomReceivedEventItems.delete(eventId);
+      const received = mailboxRoomReceivedTransferIds();
+      received.delete(eventId);
+      writeMailboxRoomStorage({
+        receivedTransfers: Array.from(received).slice(-200),
+      });
+    }
+    throw error;
   } finally {
     if (eventId) {
       mailboxRoomReceivingEventIds.delete(eventId);
@@ -7069,16 +7138,50 @@ async function mailboxRoomSendChat(message) {
   await mailboxRoomRefresh();
 }
 
+function mailboxRoomSendGuardTokenForQubit(qubitItem) {
+  if (!(qubitItem instanceof HTMLElement)) {
+    return "";
+  }
+  if (!qubitItem.dataset.mailboxSendGuardId) {
+    const randomId =
+      window.crypto?.randomUUID?.() ||
+      `send_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    qubitItem.dataset.mailboxSendGuardId = randomId;
+  }
+  return qubitItem.dataset.mailboxSendGuardId;
+}
+
+function mailboxRoomSendGuardKey(context, { toParticipantId = "" } = {}) {
+  const qubitItem = context?.qubitItem;
+  const qubitToken = mailboxRoomSendGuardTokenForQubit(qubitItem);
+  if (!qubitToken) {
+    return "";
+  }
+  return [
+    mailboxRoomState.roomId || "",
+    mailboxRoomState.participantId || "",
+    toParticipantId || "room",
+    qubitToken,
+  ].join(":");
+}
+
 async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
   if (!mailboxRoomIsJoined()) {
     throw new Error("Join a room first");
   }
   const qubitItem = context?.qubitItem;
+  const sendGuardKey = mailboxRoomSendGuardKey(context, { toParticipantId });
   if (qubitItem instanceof HTMLElement) {
-    if (mailboxRoomSendingQubits.has(qubitItem)) {
+    if (
+      mailboxRoomSendingQubits.has(qubitItem) ||
+      (sendGuardKey && mailboxRoomSendingKeys.has(sendGuardKey))
+    ) {
       return null;
     }
     mailboxRoomSendingQubits.add(qubitItem);
+  }
+  if (sendGuardKey) {
+    mailboxRoomSendingKeys.add(sendGuardKey);
   }
   const toName = toParticipantId
     ? mailboxRoomParticipantName(toParticipantId)
@@ -7100,6 +7203,7 @@ async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
           qubitLabel,
           message: String(message || "").trim(),
           transfer,
+          dedupeKey: sendGuardKey || null,
         },
       },
     );
@@ -7113,6 +7217,9 @@ async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
   } catch (error) {
     if (qubitItem instanceof HTMLElement) {
       mailboxRoomSendingQubits.delete(qubitItem);
+    }
+    if (sendGuardKey) {
+      mailboxRoomSendingKeys.delete(sendGuardKey);
     }
     throw error;
   }

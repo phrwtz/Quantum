@@ -123,7 +123,10 @@ async function openEntanglementThreePage(
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") {
-      errors.push(message.text());
+      const text = message.text();
+      if (!/^Failed to load resource:/.test(text)) {
+        errors.push(text);
+      }
     }
   });
 
@@ -191,6 +194,37 @@ function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForMailboxEvent(page, message, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  let latest = null;
+  while (Date.now() < deadline) {
+    latest = await page.evaluate(async (sendMessage) => {
+      await mailboxRoomRefresh({ render: false });
+      const matchingEvents = mailboxRoomVisibleEvents().filter(
+        (event) =>
+          event?.type === "roomMailbox.sent" &&
+          event.payload?.message === sendMessage,
+      );
+      const event = matchingEvents.at(-1) || null;
+      return {
+        count: matchingEvents.length,
+        eventId: event?.id || "",
+      };
+    }, message);
+    if (latest.count === 1 && latest.eventId) {
+      return latest;
+    }
+    await wait(150);
+  }
+  throw new Error(
+    `Timed out waiting for one visible mailbox event for ${message}: ${JSON.stringify(latest)}`,
+  );
 }
 
 test("repository Entanglement 3 layout is not the known stale deployed layout", () => {
@@ -347,7 +381,7 @@ test("hard-fresh deployed frontend tabs do not create duplicate mailbox send eve
       `concurrent sends of the same q0 should create exactly one mailbox event: ${JSON.stringify(sendResult)}`,
     );
 
-    await alicePage.evaluate(() => mailboxRoomRefresh({ render: false }));
+    const aliceEvent = await waitForMailboxEvent(alicePage, message);
     const receiveResult = await alicePage.evaluate((sendMessage) => {
       const event = mailboxRoomVisibleEvents()
         .slice()
@@ -371,9 +405,19 @@ test("hard-fresh deployed frontend tabs do not create duplicate mailbox send eve
     }, message);
 
     assert.equal(
+      receiveResult.eventId,
+      aliceEvent.eventId,
+      `recipient should receive the same event it waited for: ${JSON.stringify({ aliceEvent, receiveResult })}`,
+    );
+    assert.equal(
       receiveResult.receivedItems,
       1,
       `receiving the same mailbox event twice should create one qubit: ${JSON.stringify(receiveResult)}`,
+    );
+    assert.deepEqual(
+      [...bob.errors, ...alice.errors],
+      [],
+      "duplicate-send repro should not log browser errors",
     );
   } finally {
     await bob?.context.close();

@@ -814,6 +814,7 @@ test("backend records room chat and mailbox notification events", async () => {
         fromParticipantId: "alice",
         qubitLabel: "q0",
         message: "Here comes q0.",
+        dedupeKey: "demo-room:alice:q0-send",
         transfer: {
           kind: "single-qubit",
           version: 1,
@@ -829,6 +830,38 @@ test("backend records room chat and mailbox notification events", async () => {
       Math.SQRT1_2,
       Math.SQRT1_2,
     ]);
+    assert.equal(
+      notification.body.event.payload.dedupeKey,
+      "demo-room:alice:q0-send",
+    );
+
+    const duplicateNotification = await api(
+      baseUrl,
+      "/rooms/demo-room/mailbox-notifications",
+      {
+        method: "POST",
+        body: {
+          fromParticipantId: "alice",
+          qubitLabel: "q0",
+          message: "Here comes q0 again.",
+          dedupeKey: "demo-room:alice:q0-send",
+          transfer: {
+            kind: "single-qubit",
+            version: 1,
+            vector: [0, 1],
+          },
+        },
+      },
+    );
+    assert.equal(duplicateNotification.response.status, 201);
+    assert.equal(
+      duplicateNotification.body.event.id,
+      notification.body.event.id,
+    );
+    assert.equal(
+      duplicateNotification.body.event.payload.message,
+      "Here comes q0.",
+    );
 
     const action = await api(baseUrl, "/rooms/demo-room/actions", {
       method: "POST",
@@ -848,7 +881,11 @@ test("backend records room chat and mailbox notification events", async () => {
     const events = await api(baseUrl, "/rooms/demo-room/events");
     assert.equal(events.response.status, 200);
     assert.ok(events.body.events.some((event) => event.type === "room.message"));
-    assert.ok(events.body.events.some((event) => event.type === "roomMailbox.sent"));
+    assert.equal(
+      events.body.events.filter((event) => event.type === "roomMailbox.sent")
+        .length,
+      1,
+    );
     assert.ok(events.body.events.some((event) => event.type === "room.action"));
   });
 });
