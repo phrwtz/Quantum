@@ -4992,33 +4992,98 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       }, markFirstQubitRemoteEntangled);
     }
 
-    const bobMeasured = await measureLocalEntanglementThreeQubits(bob.page, {
-      markFirstQubitRemoteEntangled: true,
-    });
-    if (
-      bobMeasured.snapshots.length !== 2 ||
-      bobMeasured.snapshots[0].pending.length !== 1 ||
-      bobMeasured.snapshots[0].pending[0].orderIndex !== 0 ||
-      bobMeasured.snapshots[1].pending.length !== 2 ||
-      bobMeasured.snapshots[1].pending[1].orderIndex !== 1 ||
-      !bobMeasured.status.includes("Measured 2/4")
+    async function measureOneEntanglementThreeQubit(
+      page,
+      itemId,
+      { simulateStaleLocalIdentity = false } = {},
     ) {
-      throw new Error(
-        `Entanglement 3 Bob measurement did not publish q0/q1 pending slots: ${JSON.stringify(bobMeasured)}`,
+      return page.evaluate(
+        async ({ qubitItemId, staleIdentity }) => {
+          await mailboxRoomRefresh({ render: false });
+          const canvas = document.querySelector(
+            "#panel-editor-entanglement-3 .generated-layout-canvas",
+          );
+          const measure = canvas?.querySelector(
+            '[data-generated-item-id="entanglement-3-register-measurement"]',
+          );
+          const qubit = canvas?.querySelector(
+            `[data-generated-item-id="${qubitItemId}"]`,
+          );
+          const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+          if (!(qubit instanceof HTMLElement) || !runtime) {
+            throw new Error(`Missing Entanglement 3 qubit/runtime for ${qubitItemId}`);
+          }
+          if (staleIdentity) {
+            const localQubits = Array.from(
+              canvas.querySelectorAll('[data-component="qubit"]'),
+            );
+            const localIndex = Math.max(0, localQubits.indexOf(qubit));
+            delete qubit.dataset.roomQubitIndex;
+            delete qubit.dataset.generatedMeasurementSlotIndex;
+            qubit.dataset.qubitId = String(localIndex + 1);
+            updateQubitDisplayLabel(qubit, localIndex);
+          }
+          const completed = await runGeneratedSeparatedPairMeasurementTransit(
+            canvas,
+            qubit,
+            runtime,
+            0,
+          );
+          await mailboxRoomRefresh({ render: false });
+          const measurement = mailboxRoomState.measurements[0] || null;
+          const countsTotal = Object.values(measurement?.counts || {}).reduce(
+            (sum, count) => sum + Number(count || 0),
+            0,
+          );
+          return {
+            name: mailboxRoomState.displayName,
+            completed,
+            itemId: qubitItemId,
+            roomQubitIndex: qubit.dataset.roomQubitIndex || "",
+            qubitId: qubit.dataset.qubitId || "",
+            pendingKeys: Object.keys(measurement?.pending || {}).sort(),
+            countsTotal,
+            status:
+              document.querySelector(
+                "#panel-editor-entanglement-3 .generated-experiment-status",
+              )?.textContent || "",
+          };
+        },
+        { qubitItemId: itemId, staleIdentity: simulateStaleLocalIdentity },
       );
     }
 
-    const aliceMeasured = await measureLocalEntanglementThreeQubits(alice.page);
-    if (
-      aliceMeasured.snapshots.length !== 2 ||
-      aliceMeasured.snapshots[0].pending.length !== 3 ||
-      aliceMeasured.snapshots[0].pending[2].orderIndex !== 2 ||
-      aliceMeasured.snapshots[1].pending.length !== 0 ||
-      aliceMeasured.snapshots[1].total !== 1 ||
-      !aliceMeasured.status.includes("Measured 4/4")
-    ) {
+    const interleaved = [];
+    interleaved.push(
+      await measureOneEntanglementThreeQubit(bob.page, "entanglement-3-q0"),
+    );
+    interleaved.push(
+      await measureOneEntanglementThreeQubit(alice.page, "entanglement-3-q0", {
+        simulateStaleLocalIdentity: true,
+      }),
+    );
+    interleaved.push(
+      await measureOneEntanglementThreeQubit(alice.page, "entanglement-3-q1", {
+        simulateStaleLocalIdentity: true,
+      }),
+    );
+    interleaved.push(
+      await measureOneEntanglementThreeQubit(bob.page, "entanglement-3-q1"),
+    );
+    const interleavedOk =
+      interleaved[0]?.pendingKeys.join(",") === "0" &&
+      interleaved[0]?.status.includes("Measured 1/4") &&
+      interleaved[1]?.pendingKeys.join(",") === "0,2" &&
+      interleaved[1]?.roomQubitIndex === "2" &&
+      interleaved[1]?.status.includes("Measured 2/4") &&
+      interleaved[2]?.pendingKeys.join(",") === "0,2,3" &&
+      interleaved[2]?.roomQubitIndex === "3" &&
+      interleaved[2]?.status.includes("Measured 3/4") &&
+      interleaved[3]?.countsTotal === 1 &&
+      interleaved[3]?.status.includes("Measured 4/4");
+    if (!interleavedOk) {
       throw new Error(
-        `Entanglement 3 Alice measurement did not complete the room-wide count: ${JSON.stringify(aliceMeasured)}`,
+        `Entanglement 3 interleaved Bob/Alice measurement count regressed: ${JSON.stringify(interleaved)}`,
       );
     }
 
