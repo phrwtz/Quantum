@@ -674,6 +674,7 @@ function createMemoryStore(options = {}) {
     room.entanglementGroups = {};
     room.sharedEntanglements = {};
     room.roomMeasurements = {};
+    room.recordedExperiment = null;
     room.qubitIdentities = {};
     room.nextQubitIndex = 0;
     room.protocols = {};
@@ -712,6 +713,7 @@ function createMemoryStore(options = {}) {
       entanglementGroups: {},
       sharedEntanglements: {},
       roomMeasurements: {},
+      recordedExperiment: null,
       qubitIdentities: {},
       nextQubitIndex: 0,
       protocols: {},
@@ -749,6 +751,7 @@ function createMemoryStore(options = {}) {
     room.entanglementGroups = {};
     room.sharedEntanglements = {};
     room.roomMeasurements = {};
+    room.recordedExperiment = null;
     room.protocols = {};
     room.events = [];
     room.resetVersion = Math.max(0, Number(room.resetVersion) || 0) + 1;
@@ -1754,6 +1757,13 @@ function createMemoryStore(options = {}) {
     }).join("");
   }
 
+  function roomMeasurementOutcomeKeys(numQubits) {
+    const count = Math.max(2, Math.min(4, Number(numQubits) || 4));
+    return Array.from({ length: 1 << count }, (_item, index) =>
+      index.toString(2).padStart(count, "0").replaceAll("0", "b").replaceAll("1", "r"),
+    );
+  }
+
   function roomMeasurementPendingFromQueues(queues, numQubits) {
     return Object.fromEntries(
       Array.from({ length: numQubits }, (_item, index) => {
@@ -1786,6 +1796,45 @@ function createMemoryStore(options = {}) {
       actions: actions.map(clone),
     };
     return clone(experiment);
+  }
+
+  function roomRecordedExperimentActionKey(action) {
+    if (!action || typeof action !== "object") {
+      return "";
+    }
+    const stable = { ...action };
+    delete stable.t;
+    return JSON.stringify(stable);
+  }
+
+  function mergeRoomRecordedExperiment(current, incoming) {
+    const next = roomMeasurementExperiment(incoming);
+    if (!next) {
+      return roomMeasurementExperiment(current);
+    }
+    const existing = roomMeasurementExperiment(current);
+    if (!existing) {
+      return next;
+    }
+    const seen = new Set(
+      existing.actions.map(roomRecordedExperimentActionKey).filter(Boolean),
+    );
+    next.actions.forEach((action) => {
+      const key = roomRecordedExperimentActionKey(action);
+      if (!key || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      existing.actions.push(clone(action));
+    });
+    if (!existing.initialQubits.length && next.initialQubits.length) {
+      existing.initialQubits = next.initialQubits.map(clone);
+    }
+    if (!existing.gateSettings.length && next.gateSettings.length) {
+      existing.gateSettings = next.gateSettings.map(clone);
+    }
+    existing.recordedAt = Math.min(existing.recordedAt, next.recordedAt);
+    return clone(existing);
   }
 
   function recordRoomMeasurement(roomId, measurementId, input = {}) {
@@ -1824,7 +1873,13 @@ function createMemoryStore(options = {}) {
     existing.numQubits = numQubits;
     const experiment = roomMeasurementExperiment(input.experiment);
     if (experiment) {
-      existing.experiment = experiment;
+      room.recordedExperiment = mergeRoomRecordedExperiment(
+        room.recordedExperiment,
+        experiment,
+      );
+    }
+    if (room.recordedExperiment) {
+      existing.experiment = clone(room.recordedExperiment);
     }
     const queues = roomMeasurementQueues(existing, numQubits);
     const queueKey = String(qubitIndex);
@@ -1897,6 +1952,12 @@ function createMemoryStore(options = {}) {
       1,
       Math.min(100000, Math.round(Number(input.iterations) || 1)),
     );
+    const replayOutcomeKey =
+      existing.lastOutcomeKey ||
+      Object.entries(existing.counts || {})
+        .filter((entry) => Number(entry[1]) > 0)
+        .sort((left, right) => Number(right[1]) - Number(left[1]))[0]?.[0] ||
+      null;
     if (type === "experiment-count") {
       existing.counts = {};
       existing.pending = {};
@@ -1916,6 +1977,10 @@ function createMemoryStore(options = {}) {
           required: false,
           maxLength: 80,
         }) || null,
+      completedBy: {},
+      completedAt: null,
+      status: "active",
+      replayOutcomeKey,
       createdAt: timestamp(),
       startAt: Number.isFinite(Number(input.startAt))
         ? Math.max(0, Math.round(Number(input.startAt)))
@@ -1931,6 +1996,114 @@ function createMemoryStore(options = {}) {
       iterations,
       requestedBy: existing.control.requestedBy,
       startAt: existing.control.startAt,
+    });
+    return clone(existing);
+  }
+
+  function roomControlParticipantIds(room) {
+    const ids = Object.keys(room.participants || {}).filter(Boolean);
+    const standard = ids.filter((id) => id === "bob" || id === "alice");
+    return standard.length ? standard : ids;
+  }
+
+  function completeRoomMeasurementControl(roomId, measurementId, input = {}) {
+    const room = requireRoom(roomId);
+    const id = validateString(measurementId, "measurementId", {
+      maxLength: 160,
+    });
+    const existing = room.roomMeasurements?.[id];
+    if (!existing) {
+      throw new BackendError(404, "room_measurement_not_found", "room measurement not found");
+    }
+    const control = existing.control;
+    if (!control?.id) {
+      throw new BackendError(404, "room_measurement_control_not_found", "room measurement control not found");
+    }
+    const controlId = validateString(input.controlId, "controlId", {
+      required: false,
+      maxLength: 160,
+    });
+    if (controlId && controlId !== control.id) {
+      throw new BackendError(409, "room_measurement_control_mismatch", "room measurement control mismatch");
+    }
+    const participantId =
+      validateString(input.participantId, "participantId", {
+        required: false,
+        maxLength: 80,
+      }) || null;
+    const completedBy =
+      control.completedBy && typeof control.completedBy === "object"
+        ? { ...control.completedBy }
+        : {};
+    if (participantId) {
+      completedBy[participantId] = timestamp();
+    }
+    control.completedBy = completedBy;
+    const required = roomControlParticipantIds(room);
+    const completeForRoom =
+      input.complete === true ||
+      (required.length > 0 &&
+        required.every((requiredId) => Boolean(completedBy[requiredId])));
+    if (completeForRoom) {
+      control.status = "complete";
+      control.completedAt = timestamp();
+    }
+    existing.updatedAt = timestamp();
+    existing.version += 1;
+    room.roomMeasurements[id] = existing;
+    appendEvent(room, "roomMeasurement.controlComplete", {
+      measurementId: id,
+      controlId: control.id,
+      participantId,
+      complete: control.status === "complete",
+    });
+    return clone(existing);
+  }
+
+  function addRoomMeasurementCounts(roomId, measurementId, input = {}) {
+    const room = requireRoom(roomId);
+    const id = validateString(measurementId, "measurementId", {
+      maxLength: 160,
+    });
+    const existing = room.roomMeasurements?.[id];
+    if (!existing) {
+      throw new BackendError(404, "room_measurement_not_found", "room measurement not found");
+    }
+    const numQubits = Math.max(
+      2,
+      Math.min(4, validateQubitCount(input.numQubits || existing.numQubits || 4)),
+    );
+    existing.numQubits = numQubits;
+    const validKeys = new Set(roomMeasurementOutcomeKeys(numQubits));
+    const counts = input.counts && typeof input.counts === "object" ? input.counts : {};
+    Object.entries(counts).forEach(([key, value]) => {
+      if (!validKeys.has(key)) {
+        return;
+      }
+      const amount = Math.max(0, Math.min(100000, Math.round(Number(value) || 0)));
+      if (amount <= 0) {
+        return;
+      }
+      existing.counts[key] =
+        Math.max(0, Math.round(Number(existing.counts?.[key]) || 0)) + amount;
+      existing.lastOutcomeKey = key;
+    });
+    existing.pending = {};
+    existing.pendingQueues = {};
+    existing.completedAt = timestamp();
+    existing.completionId = `room_measurement_${createToken(10)}`;
+    existing.updatedAt = timestamp();
+    existing.version += 1;
+    room.roomMeasurements[id] = existing;
+    appendEvent(room, "roomMeasurement.countsAdded", {
+      measurementId: id,
+      numQubits,
+      participantId:
+        validateString(input.participantId, "participantId", {
+          required: false,
+          maxLength: 80,
+        }) || null,
+      counts: clone(counts),
     });
     return clone(existing);
   }
@@ -2064,6 +2237,8 @@ function createMemoryStore(options = {}) {
     createRoomAction,
     recordRoomMeasurement,
     updateRoomMeasurementControl,
+    completeRoomMeasurementControl,
+    addRoomMeasurementCounts,
     listRoomMeasurements,
     updateTeleportInviteDelivery,
     updateMailboxTransferDelivery,

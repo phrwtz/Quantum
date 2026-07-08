@@ -4620,3 +4620,27 @@ body.layout-edit-active .pair-ejection-site {
     height: 19px;
   }
 }
+
+.entanglement-room-progress-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgb(248 252 255 / 16%);
+  pointer-events: auto;
+}
+
+.entanglement-room-progress-box {
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border: 2px solid #244b6f;
+  border-radius: 8px;
+  background: #f8fcff;
+  box-shadow: 0 12px 28px rgb(16 38 60 / 22%);
+  color: #12324c;
+  font-weight: 700;
+  text-align: center;
+}

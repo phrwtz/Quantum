@@ -3760,6 +3760,102 @@ async function runEntangledMathSmoke(page) {
         new Map([["gate-a", 0]]),
       ),
     };
+    const mailboxReplayCanvas = document.createElement("div");
+    mailboxReplayCanvas.className = "generated-layout-canvas playground-canvas";
+    mailboxReplayCanvas.dataset.generatedTabId = "mailbox-replay-smoke";
+    mailboxReplayCanvas.style.width = "640px";
+    mailboxReplayCanvas.style.height = "320px";
+    const mailboxReplayQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "mailbox-replay-q",
+      left: 40,
+      top: 96,
+      width: 52,
+      height: 52,
+      qubitId: 8,
+    });
+    const mailboxReplayBox = createGeneratedLayoutItemNode("mailbox", {
+      id: "mailbox-replay-box",
+      left: 280,
+      top: 56,
+      width: 220,
+      height: 150,
+    });
+    mailboxReplayCanvas.append(mailboxReplayQubit, mailboxReplayBox);
+    document.body.appendChild(mailboxReplayCanvas);
+    prepareGeneratedLayoutCanvas(mailboxReplayCanvas);
+    const mailboxReplayExperiment = {
+      initialQubits: [
+        {
+          itemId: "mailbox-replay-q",
+          logicalQubitId: 8,
+          vector: [1, 0],
+          center: { x: 66, y: 122 },
+        },
+      ],
+      actions: [
+        {
+          type: "drag",
+          qubitId: "mailbox-replay-q",
+          qubitLogicalId: 8,
+          path: [
+            { x: 66, y: 122, t: 0 },
+            { x: 360, y: 128, t: 80 },
+          ],
+        },
+        {
+          type: "mailbox-send",
+          mailboxId: "mailbox-replay-box",
+          qubitId: "mailbox-replay-q",
+          qubitLogicalId: 8,
+        },
+      ],
+    };
+    const mailboxAnimatedReplayCompleted =
+      await replayGeneratedRecordedExperimentAnimated(
+        mailboxReplayCanvas,
+        mailboxReplayExperiment,
+      );
+    const mailboxAnimatedReplay = {
+      completed: mailboxAnimatedReplayCompleted,
+      qubitConnected: mailboxReplayQubit.isConnected,
+      qubitCount: mailboxReplayCanvas.querySelectorAll('[data-component="qubit"]')
+        .length,
+    };
+    mailboxReplayCanvas.remove();
+    const mailboxStaticReplayCanvas = document.createElement("div");
+    mailboxStaticReplayCanvas.className = "generated-layout-canvas playground-canvas";
+    mailboxStaticReplayCanvas.dataset.generatedTabId =
+      "mailbox-static-replay-smoke";
+    mailboxStaticReplayCanvas.style.width = "640px";
+    mailboxStaticReplayCanvas.style.height = "320px";
+    const mailboxStaticQubit = createGeneratedLayoutItemNode("qubit", {
+      id: "mailbox-replay-q",
+      left: 40,
+      top: 96,
+      width: 52,
+      height: 52,
+      qubitId: 8,
+    });
+    const mailboxStaticBox = createGeneratedLayoutItemNode("mailbox", {
+      id: "mailbox-replay-box",
+      left: 280,
+      top: 56,
+      width: 220,
+      height: 150,
+    });
+    mailboxStaticReplayCanvas.append(mailboxStaticQubit, mailboxStaticBox);
+    document.body.appendChild(mailboxStaticReplayCanvas);
+    prepareGeneratedLayoutCanvas(mailboxStaticReplayCanvas);
+    applyGeneratedRecordedExperimentStaticFinalVisualState(
+      mailboxStaticReplayCanvas,
+      mailboxReplayExperiment,
+    );
+    const mailboxStaticReplay = {
+      qubitConnected: mailboxStaticQubit.isConnected,
+      qubitCount: mailboxStaticReplayCanvas.querySelectorAll('[data-component="qubit"]')
+        .length,
+    };
+    mailboxStaticReplayCanvas.remove();
     return {
       afterCnot,
       displayAfterCnot,
@@ -3783,6 +3879,8 @@ async function runEntangledMathSmoke(page) {
       docRecordingControlResult,
       generatedReplaySpeeds,
       replayGateTickRules,
+      mailboxAnimatedReplay,
+      mailboxStaticReplay,
     };
   });
 
@@ -3853,7 +3951,12 @@ async function runEntangledMathSmoke(page) {
     result.generatedReplaySpeeds.hundred !== 1 ||
     result.replayGateTickRules.initialDialWins !== 0 ||
     result.replayGateTickRules.futureSettingWins !== 6 ||
-    result.replayGateTickRules.recordedTickFallback !== 9
+    result.replayGateTickRules.recordedTickFallback !== 9 ||
+    result.mailboxAnimatedReplay.completed !== true ||
+    result.mailboxAnimatedReplay.qubitConnected !== false ||
+    result.mailboxAnimatedReplay.qubitCount !== 0 ||
+    result.mailboxStaticReplay.qubitConnected !== false ||
+    result.mailboxStaticReplay.qubitCount !== 0
   ) {
     throw new Error(
       `Entangled amplitude math failed: ${JSON.stringify(result)}`,
@@ -5148,75 +5251,185 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       backend.baseUrl,
       "/rooms/send-receive-room/measurements",
     );
+    const backendRoom = await api(backend.baseUrl, "/rooms/send-receive-room");
+    const backendMeasurementActions =
+      backendMeasurements.body.measurements?.[0]?.experiment?.actions || [];
+    const backendRoomActions =
+      backendRoom.body.room?.recordedExperiment?.actions || [];
+    const backendRoomActionParticipants = new Set(
+      backendRoomActions.map((action) => action?.roomParticipantId).filter(Boolean),
+    );
     if (
       backendMeasurements.response.status !== 200 ||
       backendMeasurements.body.measurements.length !== 1 ||
       Object.values(backendMeasurements.body.measurements[0].counts || {}).reduce(
         (sum, count) => sum + Number(count || 0),
         0,
-      ) !== 1
+      ) !== 1 ||
+      !Array.isArray(backendMeasurementActions) ||
+      backendMeasurementActions.length < 4 ||
+      backendRoom.response.status !== 200 ||
+      !Array.isArray(backendRoomActions) ||
+      backendRoomActions.length < 4 ||
+      !backendRoomActionParticipants.has("bob") ||
+      !backendRoomActionParticipants.has("alice")
     ) {
       throw new Error(
-        `Entanglement 3 backend measurement list failed: ${JSON.stringify(backendMeasurements.body)}`,
+        `Entanglement 3 backend room experiment failed: ${JSON.stringify({
+          measurements: backendMeasurements.body,
+          room: backendRoom.body,
+        })}`,
       );
     }
 
-    const normalReplayStarted = await Promise.all(
-      [bob.page, alice.page].map((page) =>
-        page.evaluate(async () => {
-          const canvas = document.querySelector(
-            "#panel-editor-entanglement-3 .generated-layout-canvas",
-          );
-          const experiment =
-            generatedExperimentStateForCanvas(canvas)?.experiment || null;
-          const completed = await runGeneratedRecordedExperiment(canvas, 1);
+    async function waitForEntanglementThreeTotal(page, expectedTotal) {
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const totals = await page.evaluate(async () => {
+          await mailboxRoomRefresh({ render: false });
           return {
-            completed,
-            experimentActions: experiment?.actions?.length || 0,
+            total: Object.values(
+              mailboxRoomState.measurements[0]?.counts || {},
+            ).reduce((sum, count) => sum + Number(count || 0), 0),
+            visibleTotal: Array.from(
+              document.querySelectorAll(
+                "#panel-editor-entanglement-3 .pair-tube-column .tube-count",
+              ),
+            ).reduce((sum, count) => sum + Number(count.textContent || 0), 0),
           };
-        }),
-      ),
-    );
+        });
+        if (
+          totals.total === expectedTotal &&
+          totals.visibleTotal === expectedTotal
+        ) {
+          return totals;
+        }
+        await wait(500);
+      }
+      return page.evaluate(() => ({
+        total: Object.values(
+          mailboxRoomState.measurements[0]?.counts || {},
+        ).reduce((sum, count) => sum + Number(count || 0), 0),
+        visibleTotal: Array.from(
+          document.querySelectorAll(
+            "#panel-editor-entanglement-3 .pair-tube-column .tube-count",
+          ),
+        ).reduce((sum, count) => sum + Number(count.textContent || 0), 0),
+      }));
+    }
+
+    const magnifierReplayStarted = await bob.page.evaluate(() => {
+      const canvas = document.querySelector(
+        "#panel-editor-entanglement-3 .generated-layout-canvas",
+      );
+      const measure = canvas?.querySelector(
+        '[data-generated-item-id="entanglement-3-register-measurement"]',
+      );
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+      if (!runtime?.measurementCount || !runtime.magnifiers?.[0]?.measurementTool) {
+        return { clicked: false, reason: "missing runtime" };
+      }
+      setMeasurementSelectValue(runtime.measurementCount, 5);
+      runtime.magnifiers[0].measurementTool.click();
+      return {
+        clicked: true,
+        experimentActions:
+          generatedExperimentStateForCanvas(canvas)?.experiment?.actions?.length ||
+          0,
+      };
+    });
     if (
-      normalReplayStarted.some(
-        (state) => !state.completed || state.experimentActions === 0,
-      )
+      !magnifierReplayStarted.clicked ||
+      magnifierReplayStarted.experimentActions === 0
     ) {
       throw new Error(
-        `Entanglement 3 normal experiment replay did not start on both pages: ${JSON.stringify(normalReplayStarted)}`,
+        `Entanglement 3 magnifier replay did not start: ${JSON.stringify(magnifierReplayStarted)}`,
       );
     }
-    await wait(1000);
-    await Promise.all(
-      [bob.page, alice.page].map((page) =>
-        page.evaluate(() => mailboxRoomRefresh({ render: false })),
-      ),
-    );
     const replayedShared = await Promise.all(
       [bob.page, alice.page].map((page) =>
-        page.evaluate(() => ({
-          name: mailboxRoomState.displayName,
-          total: Object.values(
-            mailboxRoomState.measurements[0]?.counts || {},
-          ).reduce((sum, count) => sum + Number(count || 0), 0),
-          visibleTotal: Array.from(
-            document.querySelectorAll(
-              "#panel-editor-entanglement-3 .pair-tube-column .tube-count",
-            ),
-          ).reduce(
-            (sum, count) => sum + Number(count.textContent || 0),
-            0,
-          ),
-        })),
+        waitForEntanglementThreeTotal(page, 6),
       ),
     );
     if (
       replayedShared.some(
-        (state) => state.total !== 2 || state.visibleTotal !== 2,
+        (state) => state.total !== 6 || state.visibleTotal !== 6,
       )
     ) {
       throw new Error(
         `Entanglement 3 recorded experiment replay did not add a room-wide count: ${JSON.stringify(replayedShared)}`,
+      );
+    }
+
+    const batchCountStarted = await bob.page.evaluate(() => {
+      const canvas = document.querySelector(
+        "#panel-editor-entanglement-3 .generated-layout-canvas",
+      );
+      const measure = canvas?.querySelector(
+        '[data-generated-item-id="entanglement-3-register-measurement"]',
+      );
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+      if (!runtime?.measurementCount || !runtime.magnifiers?.[0]?.measurementTool) {
+        return false;
+      }
+      const state = generatedExperimentStateForCanvas(canvas);
+      if (state) {
+        state.experiment = null;
+        state.actions = [];
+        state.recording = false;
+        state.playing = false;
+      }
+      setMeasurementSelectValue(runtime.measurementCount, 10000);
+      runtime.measurementCount.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    });
+    if (!batchCountStarted) {
+      throw new Error("Entanglement 3 batch count replay did not start");
+    }
+    const batchTotals = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        waitForEntanglementThreeTotal(page, 10000),
+      ),
+    );
+    if (
+      batchTotals.some(
+        (totals) => totals.total !== 10000 || totals.visibleTotal !== 10000,
+      )
+    ) {
+      throw new Error(
+        `Entanglement 3 batch replay did not add shared counts: ${JSON.stringify(batchTotals)}`,
+      );
+    }
+
+    const batchMagnifierStarted = await bob.page.evaluate(() => {
+      const canvas = document.querySelector(
+        "#panel-editor-entanglement-3 .generated-layout-canvas",
+      );
+      const measure = canvas?.querySelector(
+        '[data-generated-item-id="entanglement-3-register-measurement"]',
+      );
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(measure);
+      if (!runtime?.measurementCount || !runtime.magnifiers?.[0]?.measurementTool) {
+        return false;
+      }
+      setMeasurementSelectValue(runtime.measurementCount, 100);
+      runtime.magnifiers[0].measurementTool.click();
+      return true;
+    });
+    if (!batchMagnifierStarted) {
+      throw new Error("Entanglement 3 batch magnifier replay did not start");
+    }
+    const batchRepeatTotals = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        waitForEntanglementThreeTotal(page, 10100),
+      ),
+    );
+    if (
+      batchRepeatTotals.some(
+        (totals) => totals.total !== 10100 || totals.visibleTotal !== 10100,
+      )
+    ) {
+      throw new Error(
+        `Entanglement 3 batch magnifier replay did not add shared counts: ${JSON.stringify(batchRepeatTotals)}`,
       );
     }
 
@@ -5241,7 +5454,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       replay.reviewRuns !== 1 ||
       !run.ok ||
       run.reviewRuns !== 10001 ||
-      !/:\s*10003\b/.test(run.countsText)
+      !/:\s*20101\b/.test(run.countsText)
     ) {
       throw new Error(
         `Entanglement 3 replay/run review flow failed: ${JSON.stringify({ replay, run })}`,
@@ -6458,6 +6671,97 @@ async function runQuantumInspectorSmoke(page) {
   }
 }
 
+async function runMailboxReplayCoreSmoke(page) {
+  const result = await page.evaluate(async () => {
+    const makeCanvas = (tabId) => {
+      const canvas = document.createElement("div");
+      canvas.className = "generated-layout-canvas playground-canvas";
+      canvas.dataset.generatedTabId = tabId;
+      canvas.style.width = "640px";
+      canvas.style.height = "320px";
+      const qubit = createGeneratedLayoutItemNode("qubit", {
+        id: "mailbox-replay-q",
+        left: 40,
+        top: 96,
+        width: 52,
+        height: 52,
+        qubitId: 8,
+      });
+      const mailbox = createGeneratedLayoutItemNode("mailbox", {
+        id: "mailbox-replay-box",
+        left: 280,
+        top: 56,
+        width: 220,
+        height: 150,
+      });
+      canvas.append(qubit, mailbox);
+      document.body.appendChild(canvas);
+      prepareGeneratedLayoutCanvas(canvas);
+      return { canvas, qubit };
+    };
+    const experiment = {
+      initialQubits: [
+        {
+          itemId: "mailbox-replay-q",
+          logicalQubitId: 8,
+          vector: [1, 0],
+          center: { x: 66, y: 122 },
+        },
+      ],
+      actions: [
+        {
+          type: "drag",
+          qubitId: "mailbox-replay-q",
+          qubitLogicalId: 8,
+          path: [
+            { x: 66, y: 122, t: 0 },
+            { x: 360, y: 128, t: 80 },
+          ],
+        },
+        {
+          type: "mailbox-send",
+          mailboxId: "mailbox-replay-box",
+          qubitId: "mailbox-replay-q",
+          qubitLogicalId: 8,
+        },
+      ],
+    };
+    const animated = makeCanvas("mailbox-replay-smoke");
+    const animatedCompleted = await replayGeneratedRecordedExperimentAnimated(
+      animated.canvas,
+      experiment,
+    );
+    const animatedResult = {
+      completed: animatedCompleted,
+      qubitConnected: animated.qubit.isConnected,
+      qubitCount: animated.canvas.querySelectorAll('[data-component="qubit"]')
+        .length,
+    };
+    animated.canvas.remove();
+    const staticReplay = makeCanvas("mailbox-static-replay-smoke");
+    applyGeneratedRecordedExperimentStaticFinalVisualState(
+      staticReplay.canvas,
+      experiment,
+    );
+    const staticResult = {
+      qubitConnected: staticReplay.qubit.isConnected,
+      qubitCount: staticReplay.canvas.querySelectorAll('[data-component="qubit"]')
+        .length,
+    };
+    staticReplay.canvas.remove();
+    return { animatedResult, staticResult };
+  });
+  if (
+    result.animatedResult.completed !== true ||
+    result.animatedResult.qubitConnected !== false ||
+    result.animatedResult.qubitCount !== 0 ||
+    result.staticResult.qubitConnected !== false ||
+    result.staticResult.qubitCount !== 0
+  ) {
+    throw new Error(`Mailbox replay smoke failed: ${JSON.stringify(result)}`);
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -6472,6 +6776,14 @@ async function runSmokeTest(baseUrl) {
     if (process.argv.includes("--entanglement-three-only")) {
       await runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl);
       return { ok: true, entanglementThreeRoomMeasurement: true };
+    }
+    if (process.argv.includes("--replay-core-only")) {
+      const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+      await installBrowserLocalContentTrap(page);
+      await installContentApiHelpers(page);
+      await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+      await runMailboxReplayCoreSmoke(page);
+      return { ok: true, replayCore: true };
     }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });

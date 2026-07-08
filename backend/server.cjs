@@ -452,6 +452,38 @@ function createApp(options = {}) {
         return;
       }
 
+      if (
+        method === "POST" &&
+        segments.length === 5 &&
+        segments[0] === "rooms" &&
+        segments[2] === "measurements" &&
+        segments[4] === "control-completion"
+      ) {
+        const measurement = store.completeRoomMeasurementControl(
+          segments[1],
+          segments[3],
+          await readJson(req),
+        );
+        sendJson(res, 200, { measurement });
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 5 &&
+        segments[0] === "rooms" &&
+        segments[2] === "measurements" &&
+        segments[4] === "counts"
+      ) {
+        const measurement = store.addRoomMeasurementCounts(
+          segments[1],
+          segments[3],
+          await readJson(req),
+        );
+        sendJson(res, 200, { measurement });
+        return;
+      }
+
       if (method === "GET" && segments.length === 3 && segments[0] === "rooms" && segments[2] === "protocols") {
         sendJson(res, 200, { protocols: store.listProtocols(segments[1]) });
         return;

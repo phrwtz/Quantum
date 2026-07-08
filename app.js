@@ -4437,6 +4437,7 @@ let mailboxRoomState = {
 let mailboxRoomBootCleanupPromise = Promise.resolve();
 const mailboxRoomSeenSharedMeasurementControlIds = new Set();
 const mailboxRoomSeenSharedMeasurementCompletionIds = new Set();
+const mailboxRoomCompletedMeasurementControlIds = new Set();
 const mailboxRoomSendingQubits = new WeakSet();
 const mailboxRoomSendingKeys = new Set();
 const mailboxRoomReceivingEventIds = new Set();
@@ -5567,6 +5568,14 @@ function mailboxRoomMeasurementControlPath(measurementId) {
   return `${mailboxRoomMeasurementPath(measurementId)}/control`;
 }
 
+function mailboxRoomMeasurementControlCompletionPath(measurementId) {
+  return `${mailboxRoomMeasurementPath(measurementId)}/control-completion`;
+}
+
+function mailboxRoomMeasurementCountsPath(measurementId) {
+  return `${mailboxRoomMeasurementPath(measurementId)}/counts`;
+}
+
 function mailboxRoomResetPath() {
   return `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/reset`;
 }
@@ -5749,14 +5758,54 @@ function mailboxRoomRecordedExperimentForRuntime(runtime) {
   if (!state) {
     return null;
   }
+  let experiment = null;
   if (state.recording) {
-    return currentGeneratedRecordingExperiment(canvas);
+    experiment = currentGeneratedRecordingExperiment(canvas);
+  } else {
+    experiment = cloneGeneratedExperiment(state.experiment);
   }
-  return cloneGeneratedExperiment(state.experiment);
+  if (!experiment || !Array.isArray(experiment.actions)) {
+    return experiment;
+  }
+  experiment.actions = experiment.actions.map((action) => ({
+    ...action,
+    roomParticipantId:
+      action.roomParticipantId || mailboxRoomState.participantId || null,
+  }));
+  return experiment;
+}
+
+function mailboxRoomExperimentForCurrentParticipant(experiment) {
+  const clone = cloneGeneratedExperiment(experiment);
+  if (!clone || !Array.isArray(clone.actions)) {
+    return clone;
+  }
+  const participantId = mailboxRoomState.participantId || "";
+  clone.actions = clone.actions.filter(
+    (action) =>
+      !action.roomParticipantId || action.roomParticipantId === participantId,
+  );
+  return clone;
+}
+
+function ensureEntanglementThreeRoomExperimentRecording(canvas) {
+  if (
+    !mailboxRoomIsJoined() ||
+    !isEntanglementThreeCanvas(canvas)
+  ) {
+    return false;
+  }
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!state || state.playing || state.experiment) {
+    return false;
+  }
+  return state.recording || beginGeneratedExperimentRecording(canvas);
 }
 
 function mailboxRoomApplyRecordedExperiment(measurement, runtime) {
-  const experiment = cloneGeneratedExperiment(measurement?.experiment);
+  const experiment = mailboxRoomExperimentForCurrentParticipant(
+    measurement?.experiment || measurement?.recordedExperiment,
+  );
   if (!experiment || !Array.isArray(experiment.actions) || experiment.actions.length === 0) {
     return false;
   }
@@ -5773,6 +5822,215 @@ function mailboxRoomApplyRecordedExperiment(measurement, runtime) {
   state.playbackResultVisible = false;
   updateGeneratedExperimentToolbar(canvas);
   return true;
+}
+
+function mailboxRoomControlCompletionKey(control) {
+  return `${control?.id || ""}:${mailboxRoomState.participantId || ""}`;
+}
+
+function mailboxRoomControlIsComplete(control) {
+  return Boolean(control?.status === "complete" || control?.completedAt);
+}
+
+function mailboxRoomActiveExperimentMeasurement() {
+  return (
+    (Array.isArray(mailboxRoomState.measurements)
+      ? mailboxRoomState.measurements
+      : []
+    ).find((measurement) => {
+      const control = measurement?.control;
+      return control?.id && !mailboxRoomControlIsComplete(control);
+    }) || null
+  );
+}
+
+function mailboxRoomExperimentControlInProgress() {
+  return Boolean(mailboxRoomActiveExperimentMeasurement());
+}
+
+function updateMailboxRoomExperimentProgressOverlay() {
+  const existing = document.querySelector(".entanglement-room-progress-overlay");
+  const activeMeasurement = mailboxRoomActiveExperimentMeasurement();
+  if (!activeMeasurement) {
+    existing?.remove();
+    return false;
+  }
+  const control = activeMeasurement.control || {};
+  const iterations = generatedExperimentReplayIterations(control);
+  const message =
+    iterations > 10
+      ? `Experiment in progress: running ${iterations} iterations without animation.`
+      : `Experiment in progress: animating ${iterations} iteration${iterations === 1 ? "" : "s"}.`;
+  const overlay =
+    existing instanceof HTMLElement ? existing : document.createElement("div");
+  overlay.className = "entanglement-room-progress-overlay";
+  overlay.setAttribute("role", "status");
+  overlay.setAttribute("aria-live", "polite");
+  let box = overlay.querySelector(".entanglement-room-progress-box");
+  if (!(box instanceof HTMLElement)) {
+    box = document.createElement("div");
+    box.className = "entanglement-room-progress-box";
+    overlay.replaceChildren(box);
+  }
+  box.textContent = message;
+  if (!existing) {
+    document.body.appendChild(overlay);
+  }
+  return true;
+}
+
+function mailboxRoomCountDelta(beforeCounts, afterCounts) {
+  const delta = {};
+  Object.entries(afterCounts || {}).forEach(([key, value]) => {
+    const amount =
+      Math.max(0, Math.round(Number(value) || 0)) -
+      Math.max(0, Math.round(Number(beforeCounts?.[key]) || 0));
+    if (amount > 0) {
+      delta[key] = amount;
+    }
+  });
+  return delta;
+}
+
+async function mailboxRoomAddBatchMeasurementCounts(runtime, counts, control) {
+  if (!mailboxRoomIsJoined() || !runtime?.item) {
+    return null;
+  }
+  const measurementId = mailboxRoomMeasurementSharedId(
+    runtime,
+    runtime.registerQubitCount,
+  );
+  const payload = await localLabRequest(
+    mailboxRoomMeasurementCountsPath(measurementId),
+    {
+      method: "POST",
+      body: {
+        numQubits: Math.max(2, Math.min(4, Number(runtime.registerQubitCount) || 4)),
+        counts,
+        controlId: control?.id || null,
+        participantId: mailboxRoomState.participantId || null,
+      },
+    },
+  );
+  const measurement = payload.measurement || null;
+  mailboxRoomApplyRoomMeasurement(measurement);
+  updateMailboxRoomExperimentProgressOverlay();
+  return measurement;
+}
+
+function mailboxRoomDirectReplayOutcomeKey(measurement, control) {
+  if (control?.replayOutcomeKey) {
+    return control.replayOutcomeKey;
+  }
+  if (measurement?.lastOutcomeKey) {
+    return measurement.lastOutcomeKey;
+  }
+  return (
+    Object.entries(measurement?.counts || {})
+      .filter((entry) => Number(entry[1]) > 0)
+      .sort((left, right) => Number(right[1]) - Number(left[1]))[0]?.[0] || ""
+  );
+}
+
+async function mailboxRoomCompleteRoomMeasurementControl(
+  runtime,
+  control,
+  options = {},
+) {
+  if (!mailboxRoomIsJoined() || !runtime?.item || !control?.id) {
+    return null;
+  }
+  const completionKey = mailboxRoomControlCompletionKey(control);
+  if (!options.complete && mailboxRoomCompletedMeasurementControlIds.has(completionKey)) {
+    return null;
+  }
+  mailboxRoomCompletedMeasurementControlIds.add(completionKey);
+  const measurementId = mailboxRoomMeasurementSharedId(
+    runtime,
+    runtime.registerQubitCount,
+  );
+  const payload = await localLabRequest(
+    mailboxRoomMeasurementControlCompletionPath(measurementId),
+    {
+      method: "POST",
+      body: {
+        controlId: control.id,
+        participantId: mailboxRoomState.participantId || null,
+        complete: options.complete === true,
+      },
+    },
+  );
+  const measurement = payload.measurement || null;
+  mailboxRoomApplyRoomMeasurement(measurement);
+  return measurement;
+}
+
+async function runMailboxRoomBatchRecordedExperiment(
+  canvas,
+  runtime,
+  measurement,
+  control,
+) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (!runtime?.item || layoutEditorState.enabled) {
+    return false;
+  }
+  const iterations = generatedExperimentReplayIterations(control);
+  const outcomeKey = mailboxRoomDirectReplayOutcomeKey(measurement, control);
+  if (!outcomeKey) {
+    return false;
+  }
+  const shouldMarkPlaying = state && !state.playing;
+  if (shouldMarkPlaying) {
+    state.playing = true;
+    updateGeneratedExperimentToolbar(canvas);
+  }
+  try {
+    await mailboxRoomAddBatchMeasurementCounts(
+      runtime,
+      { [outcomeKey]: iterations },
+      control,
+    );
+    return true;
+  } finally {
+    if (shouldMarkPlaying) {
+      state.playing = false;
+      updateGeneratedExperimentToolbar(canvas);
+    }
+  }
+}
+
+async function runMailboxRoomRecordedExperimentForControl(
+  canvas,
+  runtime,
+  measurement,
+  control,
+) {
+  if (!canvas || !runtime || !control?.id) {
+    return false;
+  }
+  const iterations = generatedExperimentReplayIterations(control);
+  const requester = control.requestedBy || "";
+  const isRequester = requester && requester === mailboxRoomState.participantId;
+  updateMailboxRoomExperimentProgressOverlay();
+  try {
+    if (!isRequester) {
+      return false;
+    }
+    return await runMailboxRoomBatchRecordedExperiment(
+      canvas,
+      runtime,
+      measurement,
+      control,
+    );
+  } finally {
+    if (isRequester) {
+      await mailboxRoomCompleteRoomMeasurementControl(runtime, control, {
+        complete: true,
+      }).catch(() => null);
+    }
+    updateMailboxRoomExperimentProgressOverlay();
+  }
 }
 
 function mailboxRoomMeasurementRuntimeById(measurementId) {
@@ -5806,13 +6064,17 @@ function maybeRunRoomMeasurementControl(measurement, runtime) {
   if (!control?.id || mailboxRoomSeenSharedMeasurementControlIds.has(control.id)) {
     return false;
   }
+  if (mailboxRoomControlIsComplete(control)) {
+    mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+    updateMailboxRoomExperimentProgressOverlay();
+    return false;
+  }
   if (control.requestedBy && control.requestedBy === mailboxRoomState.participantId) {
     mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
     return false;
   }
   const canvas = generatedCanvasForItem(runtime?.item);
-  const state = generatedExperimentStateForCanvas(canvas);
-  if (!runtime || !canvas || !state?.experiment || layoutEditorState.enabled) {
+  if (!runtime || !canvas || layoutEditorState.enabled) {
     return false;
   }
   mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
@@ -5823,7 +6085,12 @@ function maybeRunRoomMeasurementControl(measurement, runtime) {
   }
   const startDelay = Math.max(0, Math.round(Number(control.startAt) - Date.now()));
   window.setTimeout(() => {
-    runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
+    runMailboxRoomRecordedExperimentForControl(
+      canvas,
+      runtime,
+      measurement,
+      control,
+    ).catch(() => {});
   }, startDelay);
   return true;
 }
@@ -5885,6 +6152,7 @@ function mailboxRoomApplyRoomMeasurement(measurement) {
       generatedCanvasForItem(runtime.item),
       { forceStop: numQubits > 2 },
     );
+    mailboxRoomApplyRecordedExperiment(measurement, runtime);
   }
   maybeRunRoomMeasurementControl(measurement, runtime);
   updateEntanglementThreeRoomReviewToolbars();
@@ -5895,6 +6163,7 @@ function mailboxRoomApplyRoomMeasurements(measurements) {
   (Array.isArray(measurements) ? measurements : []).forEach((measurement) => {
     mailboxRoomApplyRoomMeasurement(measurement);
   });
+  updateMailboxRoomExperimentProgressOverlay();
 }
 
 async function mailboxRoomRecordRoomMeasurement(runtime, measurementEntry) {
@@ -6852,6 +7121,7 @@ async function autoJoinEntanglementThreeRoom(canvas) {
     await mailboxRoomAssignLocalQubitsForRoom(canvas);
     mailboxRoomStartPolling();
     await mailboxRoomRefresh({ render: false });
+    ensureEntanglementThreeRoomExperimentRecording(canvas);
     updateEntanglementThreeRoomReviewToolbars();
     return true;
   } catch (error) {
@@ -6911,6 +7181,7 @@ function renderEntanglementThreeRoomReviewStatus(status) {
   }
   const measuredCount = mailboxRoomMeasuredQubitCount();
   const ready = measuredCount >= 4;
+  const roomExperimentInProgress = mailboxRoomExperimentControlInProgress();
   const backendStatus = mailboxRoomState.entanglementThreeBackendStatus;
   const roomText =
     backendStatus === "starting"
@@ -6937,7 +7208,7 @@ function renderEntanglementThreeRoomReviewStatus(status) {
   replay.type = "button";
   replay.className = "playground-tool-btn entanglement-room-review-btn";
   replay.textContent = "Replay";
-  replay.disabled = !ready || mailboxRoomState.replaying;
+  replay.disabled = !ready || mailboxRoomState.replaying || roomExperimentInProgress;
   replay.addEventListener("click", (event) => {
     event.stopPropagation();
     replayMailboxRoomReviewActions().catch(() => {});
@@ -6946,7 +7217,7 @@ function renderEntanglementThreeRoomReviewStatus(status) {
   run.type = "button";
   run.className = "playground-tool-btn entanglement-room-review-btn";
   run.textContent = "Run";
-  run.disabled = !ready || mailboxRoomState.replaying;
+  run.disabled = !ready || mailboxRoomState.replaying || roomExperimentInProgress;
   run.addEventListener("click", (event) => {
     event.stopPropagation();
     runMailboxRoomReviewBatch();
@@ -7245,6 +7516,16 @@ async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
       context?.mailboxItem,
       `Sent ${qubitLabel}${toName ? ` to ${toName}` : " to the room"}`,
     );
+    const canvas = generatedCanvasForItem(context?.mailboxItem || qubitItem);
+    if (canvas instanceof HTMLElement && qubitItem instanceof HTMLElement) {
+      recordGeneratedExperimentAction(canvas, {
+        type: "mailbox-send",
+        mailboxId: ensureGeneratedItemId(context.mailboxItem, "mailbox"),
+        qubitId: ensureGeneratedItemId(qubitItem, "qubit"),
+        qubitLogicalId: qubitLogicalIdForItem(qubitItem),
+        toParticipantId: toParticipantId || null,
+      });
+    }
     mailboxRoomConsumeSentQubit(context);
     await mailboxRoomRefresh();
     return true;
@@ -8630,6 +8911,14 @@ function refreshGeneratedTabPanelFromState(tabId, state = generatedTabsState) {
 }
 
 function generatedCanvasAllowsRuntime(canvas) {
+  const state = generatedExperimentStateForCanvas(canvas);
+  if (
+    isEntanglementThreeCanvas(canvas) &&
+    mailboxRoomExperimentControlInProgress() &&
+    !state?.playing
+  ) {
+    return false;
+  }
   return (
     !layoutEditorState.enabled ||
     isGeneratedExperimentRecording(canvas) ||
@@ -9781,7 +10070,16 @@ function initializeGeneratedSingleMeasurementItem(item) {
       return;
     }
     const state = generatedExperimentStateForCanvas(canvas);
-    if (!state?.experiment) {
+    const measurementRegisterQubitCount = Math.max(
+      2,
+      Number(runtime.registerQubitCount) ||
+        registerMeasurementQubitCountForItem(item),
+    );
+    const canUseRoomMeasurementControl =
+      mailboxRoomIsJoined() &&
+      isEntanglementThreeCanvas(canvas) &&
+      measurementRegisterQubitCount > 2;
+    if (!state?.experiment && !canUseRoomMeasurementControl) {
       return;
     }
     event.stopPropagation();
@@ -10039,7 +10337,16 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
       return;
     }
     const state = generatedExperimentStateForCanvas(canvas);
-    if (!state?.experiment) {
+    const measurementRegisterQubitCount = Math.max(
+      2,
+      Number(runtime.registerQubitCount) ||
+        registerMeasurementQubitCountForItem(item),
+    );
+    const canUseRoomMeasurementControl =
+      mailboxRoomIsJoined() &&
+      isEntanglementThreeCanvas(canvas) &&
+      measurementRegisterQubitCount > 2;
+    if (!state?.experiment && !canUseRoomMeasurementControl) {
       return;
     }
     const iterations = Math.max(
@@ -10054,30 +10361,56 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
     ) {
       return;
     }
-    mailboxRoomPublishSharedMeasurementControl(runtime, type, iterations)
-      .catch(() => null)
-      .then((sharedEntanglement) => {
-        if (sharedEntanglement) {
-          const control =
-            mailboxRoomSharedMeasurementMetadata(sharedEntanglement).control;
-          return control || null;
-        }
-        return mailboxRoomPublishRoomMeasurementControl(
-          runtime,
-          type,
-          iterations,
-        )
+    const publishControl = canUseRoomMeasurementControl
+      ? mailboxRoomPublishRoomMeasurementControl(runtime, type, iterations)
           .catch(() => null)
-          .then((measurement) => measurement?.control || null);
-      })
-      .then((control) => {
+          .then((measurement) => ({
+            control: measurement?.control || null,
+            measurement,
+            room: Boolean(measurement?.control),
+          }))
+      : mailboxRoomPublishSharedMeasurementControl(runtime, type, iterations)
+          .catch(() => null)
+          .then((sharedEntanglement) => {
+            if (sharedEntanglement) {
+              const control =
+                mailboxRoomSharedMeasurementMetadata(sharedEntanglement)
+                  .control;
+              return { control: control || null, measurement: null, room: false };
+            }
+            return mailboxRoomPublishRoomMeasurementControl(
+              runtime,
+              type,
+              iterations,
+            )
+              .catch(() => null)
+              .then((measurement) => ({
+                control: measurement?.control || null,
+                measurement,
+                room: Boolean(measurement?.control),
+              }));
+          });
+    publishControl
+      .then((result) => {
         const startDelay = Math.max(
           0,
-          Math.round(Number(control?.startAt) - Date.now()),
+          Math.round(Number(result?.control?.startAt) - Date.now()),
         );
-        return startDelay > 0 ? waitForDuration(startDelay) : null;
+        return (startDelay > 0 ? waitForDuration(startDelay) : Promise.resolve())
+          .then(() => result);
       })
-      .then(() => runGeneratedRecordedExperiment(canvas, iterations))
+      .then((result) =>
+        result?.room && result.control
+          ? runMailboxRoomRecordedExperimentForControl(
+              canvas,
+              runtime,
+              result.measurement,
+              result.control,
+            )
+          : state?.experiment
+            ? runGeneratedRecordedExperiment(canvas, iterations)
+            : false,
+      )
       .catch(() => {});
   };
 
@@ -14874,6 +15207,9 @@ async function runGeneratedSeparatedPairMeasurementTransit(
     if (core instanceof HTMLElement) {
       core.classList.add("collapse-animating");
     }
+    if (measurementRegisterCount > 2) {
+      ensureEntanglementThreeRoomExperimentRecording(canvas);
+    }
     recordGeneratedExperimentAction(canvas, {
       type: "separated-pair-measure",
       measurementId: ensureGeneratedItemId(
@@ -15727,6 +16063,26 @@ async function replayGeneratedRecordedDragAction(canvas, action) {
   return true;
 }
 
+function replayGeneratedRecordedMailboxSendAction(canvas, action) {
+  const qubitItem = generatedQubitItemForRecordedAction(
+    canvas,
+    action.qubitId,
+    action.qubitLogicalId,
+  );
+  if (!qubitItem) {
+    return true;
+  }
+  const mailboxItem =
+    generatedItemById(canvas, action.mailboxId) ||
+    findBestGeneratedMailboxForQubit(canvas, qubitItem);
+  if (mailboxItem instanceof HTMLElement) {
+    const label = qubitDisplayLabelForItem(qubitItem);
+    setMailboxComponentStatus(mailboxItem, `Sent ${label} during replay`);
+  }
+  mailboxRoomConsumeSentQubit({ qubitItem });
+  return true;
+}
+
 async function replayGeneratedRecordedCnotAction(canvas, action) {
   const runtime = initializeGeneratedCnotItem(
     generatedItemById(canvas, action.cnotId),
@@ -15990,6 +16346,8 @@ async function replayGeneratedRecordedExperimentAnimated(
     const action = actions[actionIndex];
     if (action.type === "drag") {
       await replayGeneratedRecordedDragAction(canvas, action);
+    } else if (action.type === "mailbox-send") {
+      replayGeneratedRecordedMailboxSendAction(canvas, action);
     } else if (action.type === "gate-setting") {
       if (options.ignoreGateSettingActions) {
         continue;
@@ -16529,6 +16887,10 @@ function applyGeneratedRecordedExperimentStaticFinalVisualState(
         setGeneratedQubitCenter(canvas, qubitItem, finalPoint.x, finalPoint.y);
         settleGeneratedQubitVisualState(qubitItem);
       }
+      return;
+    }
+    if (action.type === "mailbox-send") {
+      replayGeneratedRecordedMailboxSendAction(canvas, action);
       return;
     }
     if (action.type === "gate-setting") {
