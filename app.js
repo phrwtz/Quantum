@@ -5767,10 +5767,24 @@ function mailboxRoomRecordedExperimentForRuntime(runtime) {
   if (!experiment || !Array.isArray(experiment.actions)) {
     return experiment;
   }
+  const participantId = mailboxRoomState.participantId || null;
+  experiment.initialQubits = (Array.isArray(experiment.initialQubits)
+    ? experiment.initialQubits
+    : []
+  ).map((entry) => ({
+    ...entry,
+    roomParticipantId: entry.roomParticipantId || participantId,
+  }));
+  experiment.gateSettings = (Array.isArray(experiment.gateSettings)
+    ? experiment.gateSettings
+    : []
+  ).map((entry) => ({
+    ...entry,
+    roomParticipantId: entry.roomParticipantId || participantId,
+  }));
   experiment.actions = experiment.actions.map((action) => ({
     ...action,
-    roomParticipantId:
-      action.roomParticipantId || mailboxRoomState.participantId || null,
+    roomParticipantId: action.roomParticipantId || participantId,
   }));
   return experiment;
 }
@@ -5781,6 +5795,20 @@ function mailboxRoomExperimentForCurrentParticipant(experiment) {
     return clone;
   }
   const participantId = mailboxRoomState.participantId || "";
+  clone.initialQubits = (Array.isArray(clone.initialQubits)
+    ? clone.initialQubits
+    : []
+  ).filter(
+    (entry) =>
+      !entry.roomParticipantId || entry.roomParticipantId === participantId,
+  );
+  clone.gateSettings = (Array.isArray(clone.gateSettings)
+    ? clone.gateSettings
+    : []
+  ).filter(
+    (entry) =>
+      !entry.roomParticipantId || entry.roomParticipantId === participantId,
+  );
   clone.actions = clone.actions.filter(
     (action) =>
       !action.roomParticipantId || action.roomParticipantId === participantId,
@@ -5932,6 +5960,316 @@ function mailboxRoomDirectReplayOutcomeKey(measurement, control) {
   );
 }
 
+function mailboxRoomRecordedExperimentForMeasurement(measurement) {
+  return cloneGeneratedExperiment(
+    measurement?.experiment || measurement?.recordedExperiment,
+  );
+}
+
+function mailboxRoomScopedItemKey(participantId, itemId) {
+  return `${participantId || "room"}:${itemId || ""}`;
+}
+
+function mailboxRoomRecordedQubitKey(entry = {}) {
+  const logicalQubitId = normalizeQubitId(
+    entry.logicalQubitId ??
+      entry.qubitLogicalId ??
+      entry.topQubitLogicalId ??
+      entry.bottomQubitLogicalId,
+  );
+  if (logicalQubitId) {
+    return `q:${logicalQubitId}`;
+  }
+  return mailboxRoomScopedItemKey(
+    entry.roomParticipantId || "",
+    entry.itemId || entry.qubitId || "",
+  );
+}
+
+function mailboxRoomRecordedGateKey(entry = {}) {
+  return mailboxRoomScopedItemKey(
+    entry.roomParticipantId || "",
+    entry.itemId || entry.gateId || "",
+  );
+}
+
+function mailboxRoomRecordedExperimentInitialVectorMap(experiment) {
+  const vectors = new Map();
+  (Array.isArray(experiment?.initialQubits)
+    ? experiment.initialQubits
+    : []
+  ).forEach((entry) => {
+    const key = mailboxRoomRecordedQubitKey(entry);
+    if (key) {
+      vectors.set(key, normalizeVector2(entry.vector || [1, 0]));
+    }
+  });
+  return vectors;
+}
+
+function mailboxRoomRecordedExperimentGateTickMap(experiment) {
+  const ticks = new Map();
+  (Array.isArray(experiment?.gateSettings)
+    ? experiment.gateSettings
+    : []
+  ).forEach((entry) => {
+    const key = mailboxRoomRecordedGateKey(entry);
+    if (key) {
+      ticks.set(key, normalizeTickIndex(entry.tickIndex || 0));
+    }
+  });
+  return ticks;
+}
+
+function mailboxRoomRecordedGateTickForAction(action, gateTicks) {
+  if (Number.isFinite(action?.tickIndex)) {
+    return normalizeTickIndex(action.tickIndex);
+  }
+  const key = mailboxRoomRecordedGateKey(action);
+  if (key && gateTicks instanceof Map && gateTicks.has(key)) {
+    return normalizeTickIndex(gateTicks.get(key));
+  }
+  return 0;
+}
+
+function mailboxRoomRecordedActionQubitKey(action) {
+  const key = mailboxRoomRecordedQubitKey(action);
+  return key || mailboxRoomScopedItemKey(action?.roomParticipantId || "", action?.qubitId || "");
+}
+
+function mailboxRoomRecordedCnotQubitKey(action, side) {
+  const logicalKey =
+    side === "top"
+      ? normalizeQubitId(action?.topQubitLogicalId)
+      : normalizeQubitId(action?.bottomQubitLogicalId);
+  if (logicalKey) {
+    return `q:${logicalKey}`;
+  }
+  return mailboxRoomScopedItemKey(
+    action?.roomParticipantId || "",
+    side === "top" ? action?.topQubitId : action?.bottomQubitId,
+  );
+}
+
+function mailboxRoomNextRecordedOrderIndex(pending, requiredCount) {
+  const used = new Set(
+    pending
+      .map((entry) => entry.orderIndex)
+      .filter(
+        (candidate) =>
+          Number.isInteger(candidate) &&
+          candidate >= 0 &&
+          candidate < requiredCount,
+      ),
+  );
+  for (let index = 0; index < requiredCount; index += 1) {
+    if (!used.has(index)) {
+      return index;
+    }
+  }
+  return requiredCount - 1;
+}
+
+function mailboxRoomRecordedMeasurementCounts(
+  experiment,
+  iterations,
+  measurement,
+) {
+  const actions = generatedExperimentLowLevelActions(experiment?.actions || []);
+  const count = Math.max(1, Number(iterations) || 1);
+  if (!actions.length) {
+    return null;
+  }
+  const numQubits = Math.max(
+    2,
+    Math.min(4, Number(measurement?.numQubits) || 4),
+  );
+  const outcomeKeys = registerMeasurementOutcomeKeys(numQubits);
+  const validOutcomes = new Set(outcomeKeys);
+  const counts = Object.fromEntries(outcomeKeys.map((key) => [key, 0]));
+  const baseVectors = mailboxRoomRecordedExperimentInitialVectorMap(experiment);
+  const baseGateTicks = mailboxRoomRecordedExperimentGateTickMap(experiment);
+
+  for (let run = 0; run < count; run += 1) {
+    const vectors = new Map(
+      Array.from(baseVectors.entries()).map(([key, vector]) => [
+        key,
+        normalizeVector2(vector),
+      ]),
+    );
+    const gateTicks = new Map(baseGateTicks);
+    let pairState = null;
+    const pendingByMeasurement = new Map();
+
+    actions.forEach((action) => {
+      if (!action || !action.type) {
+        return;
+      }
+      if (action.type === "gate-setting") {
+        const gateKey = mailboxRoomRecordedGateKey(action);
+        if (gateKey) {
+          gateTicks.set(gateKey, mailboxRoomRecordedGateTickForAction(action));
+        }
+        return;
+      }
+      if (action.type === "gate") {
+        const qubitKey = mailboxRoomRecordedActionQubitKey(action);
+        if (!qubitKey) {
+          return;
+        }
+        const tickIndex = mailboxRoomRecordedGateTickForAction(action, gateTicks);
+        if (
+          pairState &&
+          (qubitKey === pairState.topKey || qubitKey === pairState.bottomKey)
+        ) {
+          applySingleQubitGateToPair(
+            pairState.state,
+            qubitKey === pairState.topKey ? 0 : 1,
+            gateMatrixForTick(tickIndex),
+          );
+        } else {
+          vectors.set(
+            qubitKey,
+            normalizeVector2(
+              vectorTimesMatrix2(
+                vectors.get(qubitKey) || [1, 0],
+                gateMatrixForTick(tickIndex),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      if (action.type === "cnot") {
+        const topKey = mailboxRoomRecordedCnotQubitKey(action, "top");
+        const bottomKey = mailboxRoomRecordedCnotQubitKey(action, "bottom");
+        if (!topKey || !bottomKey) {
+          return;
+        }
+        pairState = {
+          topKey,
+          bottomKey,
+          state: {
+            amplitudes: entangledAmplitudesFromQubitVectors(
+              vectors.get(topKey) || [1, 0],
+              vectors.get(bottomKey) || [1, 0],
+            ),
+          },
+        };
+        applyCNOTToPair(pairState.state);
+        return;
+      }
+      if (action.type !== "separated-pair-measure") {
+        return;
+      }
+
+      const measurementId = action.measurementId || "room-measurement";
+      const pending = pendingByMeasurement.get(measurementId) || [];
+      const qubitKey = mailboxRoomRecordedActionQubitKey(action);
+      if (!qubitKey) {
+        return;
+      }
+      const requiredCount = Math.max(
+        2,
+        Math.min(4, Number(action.registerQubitCount) || numQubits),
+      );
+      let orderIndex = Number.isFinite(action.orderIndex)
+        ? clamp(Math.round(action.orderIndex), 0, requiredCount - 1)
+        : null;
+      if (!Number.isInteger(orderIndex)) {
+        const logicalIndex =
+          (normalizeQubitId(action.logicalQubitId || action.qubitLogicalId) || 0) -
+          1;
+        orderIndex =
+          logicalIndex >= 0 && logicalIndex < requiredCount
+            ? logicalIndex
+            : mailboxRoomNextRecordedOrderIndex(pending, requiredCount);
+      }
+
+      let color = "blue";
+      if (
+        pairState &&
+        (qubitKey === pairState.topKey || qubitKey === pairState.bottomKey)
+      ) {
+        const qubitIndex = qubitKey === pairState.topKey ? 0 : 1;
+        color = sampleSingleQubitOutcomeFromPairState(
+          pairState.state,
+          qubitIndex,
+        );
+        const otherVector = conditionalVectorAfterPairMeasurement(
+          pairState.state,
+          qubitIndex,
+          color,
+        );
+        collapsePairStateBySingleQubitMeasurement(
+          pairState.state,
+          qubitIndex,
+          color,
+        );
+        vectors.set(qubitKey, color === "blue" ? [1, 0] : [0, 1]);
+        vectors.set(
+          qubitIndex === 0 ? pairState.bottomKey : pairState.topKey,
+          otherVector,
+        );
+        pairState = null;
+      } else {
+        color = sampleSingleQubitOutcomeFromVector(
+          vectors.get(qubitKey) || [1, 0],
+        );
+        vectors.set(qubitKey, color === "blue" ? [1, 0] : [0, 1]);
+      }
+
+      const nextPending = pending
+        .filter((entry) => entry.qubitKey !== qubitKey)
+        .concat({
+          qubitKey,
+          color,
+          orderIndex,
+          sequence: pending.length + 1,
+        })
+        .slice(-requiredCount);
+      if (nextPending.length >= requiredCount) {
+        const ordered = orderedFastSeparatedMeasurementEntries(
+          nextPending,
+          requiredCount,
+        );
+        const outcome = registerOutcomeKeyFromMeasurementEntries(
+          ordered.slice(0, requiredCount),
+        );
+        if (validOutcomes.has(outcome)) {
+          counts[outcome] += 1;
+        }
+        pendingByMeasurement.set(measurementId, []);
+      } else {
+        pendingByMeasurement.set(measurementId, nextPending);
+      }
+    });
+  }
+
+  return Object.values(counts).some((value) => Number(value) > 0)
+    ? counts
+    : null;
+}
+
+function mailboxRoomAddReviewCounts(counts) {
+  let added = 0;
+  Object.entries(counts || {}).forEach(([key, value]) => {
+    const amount = Math.max(0, Math.round(Number(value) || 0));
+    if (amount <= 0) {
+      return;
+    }
+    mailboxRoomState.reviewCounts[key] =
+      Math.max(0, Math.round(Number(mailboxRoomState.reviewCounts[key]) || 0)) +
+      amount;
+    added += amount;
+  });
+  if (added > 0) {
+    mailboxRoomState.reviewRuns += added;
+    updateEntanglementThreeRoomReviewToolbars();
+  }
+  return added > 0;
+}
+
 async function mailboxRoomCompleteRoomMeasurementControl(
   runtime,
   control,
@@ -5976,8 +6314,17 @@ async function runMailboxRoomBatchRecordedExperiment(
     return false;
   }
   const iterations = generatedExperimentReplayIterations(control);
-  const outcomeKey = mailboxRoomDirectReplayOutcomeKey(measurement, control);
-  if (!outcomeKey) {
+  const experiment = mailboxRoomRecordedExperimentForMeasurement(measurement);
+  let counts = mailboxRoomRecordedMeasurementCounts(
+    experiment,
+    iterations,
+    measurement,
+  );
+  if (!counts) {
+    const outcomeKey = mailboxRoomDirectReplayOutcomeKey(measurement, control);
+    counts = outcomeKey ? { [outcomeKey]: iterations } : null;
+  }
+  if (!counts) {
     return false;
   }
   const shouldMarkPlaying = state && !state.playing;
@@ -5988,7 +6335,7 @@ async function runMailboxRoomBatchRecordedExperiment(
   try {
     await mailboxRoomAddBatchMeasurementCounts(
       runtime,
-      { [outcomeKey]: iterations },
+      counts,
       control,
     );
     return true;
@@ -7023,14 +7370,28 @@ function mailboxRoomReviewCountsText() {
 }
 
 function incrementMailboxRoomReviewCount(amount) {
+  const iterations = Math.max(1, Math.round(Number(amount) || 1));
+  const measurement = (Array.isArray(mailboxRoomState.measurements)
+    ? mailboxRoomState.measurements
+    : []
+  ).find((entry) => entry?.experiment || entry?.recordedExperiment);
+  const experiment = mailboxRoomRecordedExperimentForMeasurement(measurement);
+  const sampledCounts = mailboxRoomRecordedMeasurementCounts(
+    experiment,
+    iterations,
+    measurement,
+  );
+  if (sampledCounts && mailboxRoomAddReviewCounts(sampledCounts)) {
+    return true;
+  }
   const outcomeKey = mailboxRoomPrimaryOutcomeKey();
   if (!outcomeKey) {
     return false;
   }
   mailboxRoomState.reviewCounts[outcomeKey] =
     Math.max(0, Math.round(Number(mailboxRoomState.reviewCounts[outcomeKey]) || 0)) +
-    Math.max(1, Math.round(Number(amount) || 1));
-  mailboxRoomState.reviewRuns += Math.max(1, Math.round(Number(amount) || 1));
+    iterations;
+  mailboxRoomState.reviewRuns += iterations;
   updateEntanglementThreeRoomReviewToolbars();
   return true;
 }

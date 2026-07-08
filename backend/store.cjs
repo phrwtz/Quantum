@@ -1807,6 +1807,35 @@ function createMemoryStore(options = {}) {
     return JSON.stringify(stable);
   }
 
+  function roomRecordedExperimentEntryKey(entry) {
+    if (!entry || typeof entry !== "object") {
+      return "";
+    }
+    return JSON.stringify({
+      roomParticipantId: entry.roomParticipantId || null,
+      itemId: entry.itemId || null,
+      logicalQubitId: Number.isSafeInteger(Number(entry.logicalQubitId))
+        ? Number(entry.logicalQubitId)
+        : null,
+    });
+  }
+
+  function mergeRoomRecordedExperimentEntries(currentEntries, nextEntries) {
+    const merged = (Array.isArray(currentEntries) ? currentEntries : []).map(clone);
+    const seen = new Set(
+      merged.map(roomRecordedExperimentEntryKey).filter(Boolean),
+    );
+    (Array.isArray(nextEntries) ? nextEntries : []).forEach((entry) => {
+      const key = roomRecordedExperimentEntryKey(entry);
+      if (!key || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      merged.push(clone(entry));
+    });
+    return merged;
+  }
+
   function mergeRoomRecordedExperiment(current, incoming) {
     const next = roomMeasurementExperiment(incoming);
     if (!next) {
@@ -1827,12 +1856,14 @@ function createMemoryStore(options = {}) {
       seen.add(key);
       existing.actions.push(clone(action));
     });
-    if (!existing.initialQubits.length && next.initialQubits.length) {
-      existing.initialQubits = next.initialQubits.map(clone);
-    }
-    if (!existing.gateSettings.length && next.gateSettings.length) {
-      existing.gateSettings = next.gateSettings.map(clone);
-    }
+    existing.initialQubits = mergeRoomRecordedExperimentEntries(
+      existing.initialQubits,
+      next.initialQubits,
+    );
+    existing.gateSettings = mergeRoomRecordedExperimentEntries(
+      existing.gateSettings,
+      next.gateSettings,
+    );
     existing.recordedAt = Math.min(existing.recordedAt, next.recordedAt);
     return clone(existing);
   }

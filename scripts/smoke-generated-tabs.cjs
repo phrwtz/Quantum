@@ -5029,6 +5029,62 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       );
     }
 
+    async function runLocalEntanglementThreeQubitsThroughFlipper(page) {
+      return page.evaluate(async () => {
+        const canvas = document.querySelector(
+          "#panel-editor-entanglement-3 .generated-layout-canvas",
+        );
+        const gateItem = canvas?.querySelector('[data-component="single-gate"]');
+        const gateRuntime = initializeGeneratedSingleGateItem(gateItem, {
+          singleGateTick: 3,
+        });
+        if (!canvas || !gateRuntime) {
+          return { completed: false, reason: "missing gate runtime" };
+        }
+        setGeneratedGateRuntimeTick(gateRuntime, 3);
+        const qubits = Array.from(
+          canvas.querySelectorAll('[data-component="qubit"]'),
+        );
+        const completed = [];
+        for (const qubit of qubits) {
+          completed.push(
+            await runGeneratedSingleGateTransit(canvas, qubit, gateRuntime),
+          );
+        }
+        return {
+          completed: completed.every(Boolean),
+          results: completed,
+          actions:
+            generatedExperimentStateForCanvas(canvas)?.actions?.map((action) => ({
+              type: action.type,
+              tickIndex: action.tickIndex,
+              qubitLogicalId: action.qubitLogicalId,
+            })) || [],
+        };
+      });
+    }
+
+    const flipperRuns = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        runLocalEntanglementThreeQubitsThroughFlipper(page),
+      ),
+    );
+    if (
+      flipperRuns.some(
+        (run) =>
+          !run.completed ||
+          run.results.length !== 2 ||
+          run.actions.filter((action) => action.type === "gate").length < 2 ||
+          run.actions.some(
+            (action) => action.type === "gate" && action.tickIndex !== 3,
+          ),
+      )
+    ) {
+      throw new Error(
+        `Entanglement 3 flipper setup failed: ${JSON.stringify(flipperRuns)}`,
+      );
+    }
+
     async function measureLocalEntanglementThreeQubits(
       page,
       { markFirstQubitRemoteEntangled = false } = {},
@@ -5399,6 +5455,22 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
         `Entanglement 3 batch replay did not add shared counts: ${JSON.stringify(batchTotals)}`,
       );
     }
+    const batchSpread = await bob.page.evaluate(() => {
+      const counts = mailboxRoomState.measurements[0]?.counts || {};
+      const nonZero = Object.entries(counts).filter(
+        (entry) => Number(entry[1]) > 0,
+      );
+      return {
+        counts,
+        nonZeroCount: nonZero.length,
+        maxCount: Math.max(0, ...nonZero.map((entry) => Number(entry[1]))),
+      };
+    });
+    if (batchSpread.nonZeroCount < 12 || batchSpread.maxCount > 1300) {
+      throw new Error(
+        `Entanglement 3 batch replay repeated one result instead of sampling: ${JSON.stringify(batchSpread)}`,
+      );
+    }
 
     const batchMagnifierStarted = await bob.page.evaluate(() => {
       const canvas = document.querySelector(
@@ -5438,6 +5510,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       return {
         ok,
         reviewRuns: mailboxRoomState.reviewRuns,
+        reviewCounts: mailboxRoomState.reviewCounts,
         countsText: mailboxRoomReviewCountsText(),
       };
     });
@@ -5446,15 +5519,24 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       return {
         ok,
         reviewRuns: mailboxRoomState.reviewRuns,
+        reviewCounts: mailboxRoomState.reviewCounts,
         countsText: mailboxRoomReviewCountsText(),
       };
     });
+    const reviewTotal = Object.values(run.reviewCounts || {}).reduce(
+      (sum, count) => sum + Number(count || 0),
+      0,
+    );
+    const reviewNonZero = Object.values(run.reviewCounts || {}).filter(
+      (count) => Number(count) > 0,
+    ).length;
     if (
       !replay.ok ||
       replay.reviewRuns !== 1 ||
       !run.ok ||
       run.reviewRuns !== 10001 ||
-      !/:\s*20101\b/.test(run.countsText)
+      reviewTotal !== 10001 ||
+      reviewNonZero < 12
     ) {
       throw new Error(
         `Entanglement 3 replay/run review flow failed: ${JSON.stringify({ replay, run })}`,
