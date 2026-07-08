@@ -5509,6 +5509,70 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
         `Entanglement 3 accepted stale empty measurement snapshot: ${JSON.stringify(staleApplyResult)}`,
       );
     }
+    const sharedMetadataApplyResult = await bob.page.evaluate(() => {
+      const canvas = document.querySelector(
+        "#panel-editor-entanglement-3 .generated-layout-canvas",
+      );
+      const qubits = Array.from(
+        canvas?.querySelectorAll('[data-component="qubit"]') || [],
+      );
+      const sharedId = "smoke-four-way-shared-register";
+      qubits.forEach((qubit, index) => {
+        const state = ensureGeneratedQubitRuntimeState(qubit);
+        if (!state) {
+          return;
+        }
+        state.pairQubitIndex = index;
+        state.pairState = {
+          numQubits: 4,
+          amplitudes: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          members: qubits.map((item, qubitIndex) => ({
+            item,
+            state: ensureGeneratedQubitRuntimeState(item),
+            qubitIndex,
+          })),
+          remoteEntanglementId: sharedId,
+        };
+        mailboxRoomSetRemoteEntanglementVisual(qubit, sharedId);
+      });
+      const sharedEntanglement = {
+        id: sharedId,
+        numQubits: 4,
+        amplitudes: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        metadata: {
+          measurement: {
+            numQubits: 4,
+            counts: {},
+            pending: {},
+            pendingQueues: {},
+            control: {
+              id: "stale-shared-control",
+              type: "experiment-count",
+              iterations: 10000,
+              requestedBy: "alice",
+              startAt: Date.now(),
+            },
+          },
+        },
+      };
+      const countsApplied = applySharedRegisterMeasurementCounts(sharedEntanglement);
+      const controlStarted = maybeRunSharedMeasurementControl(sharedEntanglement);
+      const visibleTotal = Array.from(
+        document.querySelectorAll(
+          "#panel-editor-entanglement-3 .pair-tube-column .tube-count",
+        ),
+      ).reduce((sum, count) => sum + Number(count.textContent || 0), 0);
+      return { countsApplied, controlStarted, visibleTotal };
+    });
+    if (
+      sharedMetadataApplyResult.countsApplied ||
+      sharedMetadataApplyResult.controlStarted ||
+      sharedMetadataApplyResult.visibleTotal !== 10000
+    ) {
+      throw new Error(
+        `Entanglement 3 shared metadata cleared room counts: ${JSON.stringify(sharedMetadataApplyResult)}`,
+      );
+    }
 
     const batchMagnifierStarted = await bob.page.evaluate(() => {
       const canvas = document.querySelector(

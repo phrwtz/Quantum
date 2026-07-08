@@ -5093,6 +5093,14 @@ function applySharedRegisterMeasurementCounts(sharedEntanglement) {
   if (!runtime) {
     return false;
   }
+  const canvas = generatedCanvasForItem(runtime.item);
+  if (
+    mailboxRoomIsJoined() &&
+    isEntanglementThreeCanvas(canvas) &&
+    mailboxRoomSharedMeasurementRegisterCount(sharedEntanglement) > 2
+  ) {
+    return false;
+  }
   runtime.outcomeKeys.forEach((key) => {
     runtime.tubeCounts[key] = Math.max(
       0,
@@ -5107,7 +5115,6 @@ function applySharedRegisterMeasurementCounts(sharedEntanglement) {
     !mailboxRoomSeenSharedMeasurementCompletionIds.has(measurement.completionId)
   ) {
     mailboxRoomSeenSharedMeasurementCompletionIds.add(measurement.completionId);
-    const canvas = generatedCanvasForItem(runtime.item);
     if (isGeneratedExperimentRecording(canvas)) {
       finishGeneratedExperimentRecordingAfterMeasurement(canvas, {
         forceStop: Number(measurement.numQubits) > 2,
@@ -5225,14 +5232,22 @@ function maybeRunSharedMeasurementControl(sharedEntanglement) {
   if (!control?.id || mailboxRoomSeenSharedMeasurementControlIds.has(control.id)) {
     return false;
   }
-  if (control.requestedBy && control.requestedBy === mailboxRoomState.participantId) {
-    mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
-    return false;
-  }
   const runtime = mailboxRoomMeasurementRuntimeForSharedEntanglement(
     sharedEntanglement,
   );
   const canvas = generatedCanvasForItem(runtime?.item);
+  if (
+    mailboxRoomIsJoined() &&
+    isEntanglementThreeCanvas(canvas) &&
+    mailboxRoomSharedMeasurementRegisterCount(sharedEntanglement) > 2
+  ) {
+    mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+    return false;
+  }
+  if (control.requestedBy && control.requestedBy === mailboxRoomState.participantId) {
+    mailboxRoomSeenSharedMeasurementControlIds.add(control.id);
+    return false;
+  }
   const state = generatedExperimentStateForCanvas(canvas);
   if (!runtime || !canvas || !state?.experiment || layoutEditorState.enabled) {
     return false;
