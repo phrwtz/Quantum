@@ -5480,6 +5480,35 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
         `Entanglement 3 batch replay repeated one result instead of sampling: ${JSON.stringify(batchSpread)}`,
       );
     }
+    const staleApplyResult = await bob.page.evaluate(() => {
+      const measurement = mailboxRoomState.measurements[0] || null;
+      if (!measurement) {
+        return { applied: false, reason: "missing measurement" };
+      }
+      const staleMeasurement = {
+        ...measurement,
+        counts: {},
+        pending: {},
+        control: {
+          ...(measurement.control || {}),
+          status: "active",
+          completedAt: null,
+        },
+        version: Math.max(0, Number(measurement.version) || 0) - 1,
+      };
+      const applied = mailboxRoomApplyRoomMeasurement(staleMeasurement);
+      const visibleTotal = Array.from(
+        document.querySelectorAll(
+          "#panel-editor-entanglement-3 .pair-tube-column .tube-count",
+        ),
+      ).reduce((sum, count) => sum + Number(count.textContent || 0), 0);
+      return { applied, visibleTotal };
+    });
+    if (staleApplyResult.applied || staleApplyResult.visibleTotal !== 10000) {
+      throw new Error(
+        `Entanglement 3 accepted stale empty measurement snapshot: ${JSON.stringify(staleApplyResult)}`,
+      );
+    }
 
     const batchMagnifierStarted = await bob.page.evaluate(() => {
       const canvas = document.querySelector(

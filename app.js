@@ -4438,6 +4438,7 @@ let mailboxRoomBootCleanupPromise = Promise.resolve();
 const mailboxRoomSeenSharedMeasurementControlIds = new Set();
 const mailboxRoomSeenSharedMeasurementCompletionIds = new Set();
 const mailboxRoomCompletedMeasurementControlIds = new Set();
+const mailboxRoomAppliedMeasurementVersions = new Map();
 const mailboxRoomSendingQubits = new WeakSet();
 const mailboxRoomSendingKeys = new Set();
 const mailboxRoomReceivingEventIds = new Set();
@@ -5683,6 +5684,8 @@ async function mailboxRoomApplyRoomReset(room, options = {}) {
   mailboxRoomState.measurements = [];
   mailboxRoomSeenSharedMeasurementControlIds.clear();
   mailboxRoomSeenSharedMeasurementCompletionIds.clear();
+  mailboxRoomCompletedMeasurementControlIds.clear();
+  mailboxRoomAppliedMeasurementVersions.clear();
   mailboxRoomState.reviewCounts = {};
   mailboxRoomState.reviewRuns = 0;
   mailboxRoomState.replaying = false;
@@ -6406,6 +6409,82 @@ function mailboxRoomMeasurementRuntimeById(measurementId) {
   return initializeGeneratedSeparatedPairMeasurementItem(item);
 }
 
+function mailboxRoomMeasurementVersion(measurement) {
+  return Math.max(0, Math.round(Number(measurement?.version) || 0));
+}
+
+function mailboxRoomMeasurementIsStale(measurement) {
+  if (!measurement?.id) {
+    return true;
+  }
+  const version = mailboxRoomMeasurementVersion(measurement);
+  const latest = Math.max(
+    0,
+    Number(mailboxRoomAppliedMeasurementVersions.get(measurement.id)) || 0,
+  );
+  return version > 0 && latest > 0 && version < latest;
+}
+
+function mailboxRoomRememberMeasurementVersion(measurement) {
+  if (!measurement?.id) {
+    return;
+  }
+  const version = mailboxRoomMeasurementVersion(measurement);
+  if (version <= 0) {
+    return;
+  }
+  const latest = Math.max(
+    0,
+    Number(mailboxRoomAppliedMeasurementVersions.get(measurement.id)) || 0,
+  );
+  if (version >= latest) {
+    mailboxRoomAppliedMeasurementVersions.set(measurement.id, version);
+  }
+}
+
+function mailboxRoomStoreRoomMeasurement(measurement) {
+  if (!measurement?.id || mailboxRoomMeasurementIsStale(measurement)) {
+    return false;
+  }
+  mailboxRoomRememberMeasurementVersion(measurement);
+  const measurements = Array.isArray(mailboxRoomState.measurements)
+    ? mailboxRoomState.measurements.slice()
+    : [];
+  const index = measurements.findIndex((entry) => entry?.id === measurement.id);
+  if (index >= 0) {
+    measurements[index] = measurement;
+  } else {
+    measurements.push(measurement);
+  }
+  mailboxRoomState.measurements = measurements;
+  return true;
+}
+
+function mailboxRoomMergeRoomMeasurements(measurements) {
+  const existing = new Map(
+    (Array.isArray(mailboxRoomState.measurements)
+      ? mailboxRoomState.measurements
+      : []
+    )
+      .filter((measurement) => measurement?.id)
+      .map((measurement) => [measurement.id, measurement]),
+  );
+  (Array.isArray(measurements) ? measurements : []).forEach((measurement) => {
+    if (!measurement?.id || mailboxRoomMeasurementIsStale(measurement)) {
+      return;
+    }
+    const current = existing.get(measurement.id);
+    if (
+      !current ||
+      mailboxRoomMeasurementVersion(measurement) >=
+        mailboxRoomMeasurementVersion(current)
+    ) {
+      existing.set(measurement.id, measurement);
+    }
+  });
+  return Array.from(existing.values());
+}
+
 function maybeRunRoomMeasurementControl(measurement, runtime) {
   const control = measurement?.control;
   if (!control?.id || mailboxRoomSeenSharedMeasurementControlIds.has(control.id)) {
@@ -6444,6 +6523,9 @@ function maybeRunRoomMeasurementControl(measurement, runtime) {
 
 function mailboxRoomApplyRoomMeasurement(measurement) {
   if (!measurement?.id) {
+    return false;
+  }
+  if (!mailboxRoomStoreRoomMeasurement(measurement)) {
     return false;
   }
   const numQubits = Math.max(
@@ -7691,10 +7773,12 @@ async function mailboxRoomRefresh({ render = true } = {}) {
         ? eventsPayload.events
         : [];
   mailboxRoomState.measurements = resetApplied
-    ? roomMeasurements
-    : Array.isArray(measurementsPayload.measurements)
-      ? measurementsPayload.measurements
-      : [];
+    ? mailboxRoomMergeRoomMeasurements(roomMeasurements)
+    : mailboxRoomMergeRoomMeasurements(
+        Array.isArray(measurementsPayload.measurements)
+          ? measurementsPayload.measurements
+          : [],
+      );
   mailboxRoomApplyRoomMeasurements(mailboxRoomState.measurements);
   await mailboxRoomRefreshSharedEntanglements();
   try {
