@@ -10264,6 +10264,21 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
     activeTick,
     busy: false,
     dial: null,
+    lastRoomRecordedTick: null,
+  };
+  const recordRoomGateSettingIfChanged = () => {
+    const normalizedTick = normalizeTickIndex(runtime.activeTick);
+    if (runtime.lastRoomRecordedTick === normalizedTick) {
+      return;
+    }
+    runtime.lastRoomRecordedTick = normalizedTick;
+    mailboxRoomRecordGateSettingAction(
+      generatedCanvasForItem(item),
+      item,
+      normalizedTick,
+    ).catch(() => {
+      runtime.lastRoomRecordedTick = null;
+    });
   };
   runtime.dial = createSingleQubitGateDial({
     ticksWrap,
@@ -10282,6 +10297,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
         markGeneratedReplayGateSettingsChanged(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
+        recordRoomGateSettingIfChanged();
         handleGeneratedGateSettingChanged(canvas);
       }
     },
@@ -10292,11 +10308,7 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
         syncGeneratedExperimentGateSettingsFromCanvas(canvas);
         markGeneratedReplayGateSettingsChanged(canvas);
         recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
-        mailboxRoomRecordGateSettingAction(
-          canvas,
-          item,
-          runtime.activeTick,
-        ).catch(() => {});
+        recordRoomGateSettingIfChanged();
         handleGeneratedGateSettingChanged(canvas);
       }
     },

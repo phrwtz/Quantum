@@ -5042,6 +5042,8 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           return { completed: false, reason: "missing gate runtime" };
         }
         setGeneratedGateRuntimeTick(gateRuntime, 3);
+        recordGeneratedGateSettingAction(canvas, gateItem, 3);
+        await mailboxRoomRecordGateSettingAction(canvas, gateItem, 3);
         const qubits = Array.from(
           canvas.querySelectorAll('[data-component="qubit"]'),
         );
@@ -5315,6 +5317,11 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
     const backendRoomActionParticipants = new Set(
       backendRoomActions.map((action) => action?.roomParticipantId).filter(Boolean),
     );
+    const backendGateSettingParticipants = new Set(
+      backendRoomActions
+        .filter((action) => action?.type === "gate-setting")
+        .map((action) => `${action.roomParticipantId}:${action.tickIndex}`),
+    );
     if (
       backendMeasurements.response.status !== 200 ||
       backendMeasurements.body.measurements.length !== 1 ||
@@ -5328,7 +5335,9 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       !Array.isArray(backendRoomActions) ||
       backendRoomActions.length < 4 ||
       !backendRoomActionParticipants.has("bob") ||
-      !backendRoomActionParticipants.has("alice")
+      !backendRoomActionParticipants.has("alice") ||
+      !backendGateSettingParticipants.has("bob:3") ||
+      !backendGateSettingParticipants.has("alice:3")
     ) {
       throw new Error(
         `Entanglement 3 backend room experiment failed: ${JSON.stringify({
