@@ -5071,8 +5071,11 @@ function mailboxRoomMeasurementRuntimeForSharedEntanglement(sharedEntanglement) 
   const exact = candidates.find(
     (runtime) => runtime.registerQubitCount === numQubits,
   );
+  if (!exact) {
+    return null;
+  }
   return reconfigureGeneratedSeparatedMeasurementRuntimeForRegister(
-    exact || candidates[0],
+    exact,
     numQubits,
   );
 }

@@ -6335,6 +6335,95 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
       );
     }
 
+    const sharedPairMeasurementDoesNotResizeRegisterTools =
+      await alice.page.evaluate((sharedId) => {
+        const panel = document.querySelector("#panel-mailbox-delivery-smoke");
+        const canvas = panel?.querySelector(".generated-layout-canvas");
+        const received = panel?.querySelector("[data-mailbox-received-event-id]");
+        if (
+          !(canvas instanceof HTMLElement) ||
+          !(received instanceof HTMLElement)
+        ) {
+          return { ok: false, reason: "missing received qubit" };
+        }
+        ensureGeneratedQubitRuntimeState(received);
+        const createRegisterMeasurement = (count, top) => {
+          const groupId =
+            count === 4
+              ? REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID
+              : REGISTER_THREE_QUBIT_MEASUREMENT_GROUP_ID;
+          const item = createGeneratedLayoutItemNode(
+            savedGroupComponentType(groupId),
+            {
+              id: `shared-pair-no-resize-${count}`,
+              left: 360,
+              top,
+              width: count === 4 ? 940 : 820,
+              height: 438,
+              z: 80 + count,
+              measurementRegisterQubitCount: count,
+            },
+          );
+          canvas.append(item);
+          return item;
+        };
+        const three = createRegisterMeasurement(3, 20);
+        const four = createRegisterMeasurement(4, 500);
+        const runtimeThree =
+          initializeGeneratedSeparatedPairMeasurementItem(three);
+        const runtimeFour = initializeGeneratedSeparatedPairMeasurementItem(four);
+        const before = {
+          three: runtimeThree?.registerQubitCount || null,
+          four: runtimeFour?.registerQubitCount || null,
+        };
+        const applied = applySharedRegisterMeasurementCounts({
+          id: sharedId,
+          numQubits: 2,
+          amplitudes: [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
+          metadata: {
+            measurement: {
+              numQubits: 2,
+              counts: { bb: 1 },
+              pending: {},
+              pendingQueues: {},
+            },
+          },
+        });
+        const afterThree =
+          generatedSeparatedPairMeasurementRuntimes.get(three) ||
+          initializeGeneratedSeparatedPairMeasurementItem(three);
+        const afterFour =
+          generatedSeparatedPairMeasurementRuntimes.get(four) ||
+          initializeGeneratedSeparatedPairMeasurementItem(four);
+        const after = {
+          three: afterThree?.registerQubitCount || null,
+          four: afterFour?.registerQubitCount || null,
+          threeDataset: three.dataset.measurementRegisterQubitCount || "",
+          fourDataset: four.dataset.measurementRegisterQubitCount || "",
+        };
+        generatedSeparatedPairMeasurementRuntimes.delete(three);
+        generatedSeparatedPairMeasurementRuntimes.delete(four);
+        three.remove();
+        four.remove();
+        return {
+          ok:
+            before.three === 3 &&
+            before.four === 4 &&
+            after.three === 3 &&
+            after.four === 4 &&
+            after.threeDataset === "3" &&
+            after.fourDataset === "4",
+          applied,
+          before,
+          after,
+        };
+      }, alicePair.id);
+    if (!sharedPairMeasurementDoesNotResizeRegisterTools.ok) {
+      throw new Error(
+        `Shared pair measurement resized a larger register tool: ${JSON.stringify(sharedPairMeasurementDoesNotResizeRegisterTools)}`,
+      );
+    }
+
     const aliceBottomExistingOrientation = await alice.page.evaluate(async () => {
       const panel = document.querySelector("#panel-mailbox-delivery-smoke");
       const canvas = panel?.querySelector(".generated-layout-canvas");
