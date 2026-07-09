@@ -3451,6 +3451,95 @@ async function runEntangledMathSmoke(page) {
       bottom: separatedEjectionBottom,
     };
     canvas.remove();
+    const deterministicFourCanvas = document.createElement("div");
+    deterministicFourCanvas.className = "generated-layout-canvas";
+    deterministicFourCanvas.dataset.generatedTabId =
+      "four-qubit-recorded-color-replay-smoke";
+    const deterministicFourMeasure = createGeneratedLayoutItemNode(
+      savedGroupComponentType(REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID),
+      {
+        id: "four-color-replay-measure",
+        left: 300,
+        top: 30,
+        width: 940,
+        height: 438,
+        measurementRegisterQubitCount: 4,
+      },
+    );
+    deterministicFourCanvas.append(deterministicFourMeasure);
+    document.body.appendChild(deterministicFourCanvas);
+    const deterministicFourRuntime =
+      initializeGeneratedSeparatedPairMeasurementItem(deterministicFourMeasure);
+    replayGeneratedRecordedExperimentFast(
+      deterministicFourCanvas,
+      {
+        initialQubits: [
+          {
+            itemId: "four-color-q0",
+            logicalQubitId: 1,
+            vector: [rootHalf, rootHalf],
+          },
+          {
+            itemId: "four-color-q1",
+            logicalQubitId: 2,
+            vector: [rootHalf, rootHalf],
+          },
+          {
+            itemId: "four-color-q2",
+            logicalQubitId: 3,
+            vector: [rootHalf, rootHalf],
+          },
+          {
+            itemId: "four-color-q3",
+            logicalQubitId: 4,
+            vector: [rootHalf, rootHalf],
+          },
+        ],
+        actions: [
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-color-replay-measure",
+            qubitId: "four-color-q0",
+            logicalQubitId: 1,
+            orderIndex: 0,
+            registerQubitCount: 4,
+            color: "red",
+          },
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-color-replay-measure",
+            qubitId: "four-color-q1",
+            logicalQubitId: 2,
+            orderIndex: 1,
+            registerQubitCount: 4,
+            color: "red",
+          },
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-color-replay-measure",
+            qubitId: "four-color-q2",
+            logicalQubitId: 3,
+            orderIndex: 2,
+            registerQubitCount: 4,
+            color: "blue",
+          },
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-color-replay-measure",
+            qubitId: "four-color-q3",
+            logicalQubitId: 4,
+            orderIndex: 3,
+            registerQubitCount: 4,
+            color: "red",
+          },
+        ],
+      },
+      12,
+    );
+    const deterministicFourCounts = {
+      ...deterministicFourRuntime.tubeCounts,
+    };
+    deterministicFourCanvas.remove();
     const gateReplayCanvas = document.createElement("div");
     gateReplayCanvas.className = "generated-layout-canvas";
     gateReplayCanvas.dataset.generatedTabId = "gate-replay-smoke";
@@ -3869,6 +3958,7 @@ async function runEntangledMathSmoke(page) {
       bottomAfterTopBlueMeasurement,
       separatedCounts,
       separatedEjectionLanes,
+      deterministicFourCounts,
       liveInitialGateReplayCounts,
       recordedFutureGateReplayCounts,
       recordedInitialGateResetCounts,
@@ -3912,6 +4002,9 @@ async function runEntangledMathSmoke(page) {
     result.separatedCounts.bb !== 0 ||
     result.separatedCounts.rr !== 0 ||
     result.separatedCounts.rb !== 0 ||
+    result.deterministicFourCounts.rrbr !== 12 ||
+    result.deterministicFourCounts.bbbb !== 0 ||
+    result.deterministicFourCounts.rbrb !== 0 ||
     !(result.separatedEjectionLanes.top.y < result.separatedEjectionLanes.base.y) ||
     !(
       result.separatedEjectionLanes.base.y <
@@ -7035,6 +7128,107 @@ async function runMailboxReplayCoreSmoke(page) {
   }
 }
 
+async function runFourQubitRecordedReplaySmoke(page) {
+  const result = await page.evaluate(() => {
+    const rootHalf = Math.SQRT1_2;
+    const canvas = document.createElement("div");
+    canvas.className = "generated-layout-canvas";
+    canvas.dataset.generatedTabId = "four-qubit-recorded-replay-smoke";
+    const measurement = createGeneratedLayoutItemNode(
+      savedGroupComponentType(REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID),
+      {
+        id: "four-recorded-replay-measure",
+        left: 300,
+        top: 30,
+        width: 940,
+        height: 438,
+        measurementRegisterQubitCount: 4,
+      },
+    );
+    canvas.append(measurement);
+    document.body.appendChild(canvas);
+    const runtime = initializeGeneratedSeparatedPairMeasurementItem(measurement);
+    replayGeneratedRecordedExperimentFast(
+      canvas,
+      {
+        initialQubits: [
+          {
+            itemId: "four-recorded-q0",
+            logicalQubitId: 1,
+            vector: [rootHalf, rootHalf],
+          },
+          {
+            itemId: "four-recorded-q1",
+            logicalQubitId: 2,
+            vector: [rootHalf, rootHalf],
+          },
+          {
+            itemId: "four-recorded-q2",
+            logicalQubitId: 3,
+            vector: [rootHalf, rootHalf],
+          },
+          {
+            itemId: "four-recorded-q3",
+            logicalQubitId: 4,
+            vector: [rootHalf, rootHalf],
+          },
+        ],
+        actions: [
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-recorded-replay-measure",
+            qubitId: "four-recorded-q0",
+            logicalQubitId: 1,
+            orderIndex: 0,
+            registerQubitCount: 4,
+            color: "red",
+          },
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-recorded-replay-measure",
+            qubitId: "four-recorded-q1",
+            logicalQubitId: 2,
+            orderIndex: 1,
+            registerQubitCount: 4,
+            color: "red",
+          },
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-recorded-replay-measure",
+            qubitId: "four-recorded-q2",
+            logicalQubitId: 3,
+            orderIndex: 2,
+            registerQubitCount: 4,
+            color: "blue",
+          },
+          {
+            type: "separated-pair-measure",
+            measurementId: "four-recorded-replay-measure",
+            qubitId: "four-recorded-q3",
+            logicalQubitId: 4,
+            orderIndex: 3,
+            registerQubitCount: 4,
+            color: "red",
+          },
+        ],
+      },
+      12,
+    );
+    const counts = { ...(runtime?.tubeCounts || {}) };
+    canvas.remove();
+    return { counts };
+  });
+  if (
+    result.counts.rrbr !== 12 ||
+    result.counts.bbbb !== 0 ||
+    result.counts.rbrb !== 0
+  ) {
+    throw new Error(
+      `Four-qubit recorded replay was not deterministic: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -7057,6 +7251,16 @@ async function runSmokeTest(baseUrl) {
       await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
       await runMailboxReplayCoreSmoke(page);
       return { ok: true, replayCore: true };
+    }
+    if (process.argv.includes("--four-replay-only")) {
+      const page = await browser.newPage({
+        viewport: { width: 1100, height: 760 },
+      });
+      await installBrowserLocalContentTrap(page);
+      await installContentApiHelpers(page);
+      await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+      await runFourQubitRecordedReplaySmoke(page);
+      return { ok: true, fourReplay: true };
     }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });

@@ -14256,17 +14256,21 @@ function collapseGeneratedQubitState(qubitItem, options = {}) {
     return "blue";
   }
   if (qubitState.pairState && Number.isFinite(qubitState.pairQubitIndex)) {
-    const color = sampleSingleQubitOutcomeFromPairState(
-      qubitState.pairState,
-      qubitState.pairQubitIndex,
-    );
+    const color =
+      normalizedMeasuredColor(options.forcedColor) ||
+      sampleSingleQubitOutcomeFromPairState(
+        qubitState.pairState,
+        qubitState.pairQubitIndex,
+      );
     collapseGeneratedSingleQubitFromPair(qubitItem, color, options);
     return color;
   }
   const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
-  const collapseToBlue =
-    blueProbability >= 1 ||
-    (blueProbability > 0 && Math.random() < blueProbability);
+  const forcedColor = normalizedMeasuredColor(options.forcedColor);
+  const collapseToBlue = forcedColor
+    ? forcedColor === "blue"
+    : blueProbability >= 1 ||
+      (blueProbability > 0 && Math.random() < blueProbability);
   qubitState.vector = collapseToBlue ? [1, 0] : [0, 1];
   qubitState.cnotSourceSlot = null;
   qubitState.cnotPairToken = null;
@@ -15359,6 +15363,10 @@ function registerOutcomeKeyFromMeasurementEntries(entries) {
     .join("");
 }
 
+function normalizedMeasuredColor(color) {
+  return color === "red" || color === "blue" ? color : null;
+}
+
 function pairOutcomeKeyFromMeasurementEntries(entries) {
   const [topEntry, bottomEntry] = entries;
   if (!topEntry || !bottomEntry) {
@@ -15575,6 +15583,7 @@ async function runGeneratedSeparatedPairMeasurementTransit(
   qubitItem,
   runtime,
   magnifierIndex = null,
+  options = {},
 ) {
   if (
     !isGeneratedQubitItem(qubitItem) ||
@@ -15685,6 +15694,10 @@ async function runGeneratedSeparatedPairMeasurementTransit(
     if (measurementRegisterCount > 2) {
       ensureEntanglementThreeRoomExperimentRecording(canvas);
     }
+    const collapsedColor = collapseGeneratedQubitState(qubitItem, {
+      deferRemoteRegisterMeasurement: Boolean(sharedPairState),
+      forcedColor: options.forcedColor,
+    });
     recordGeneratedExperimentAction(canvas, {
       type: "separated-pair-measure",
       measurementId: ensureGeneratedItemId(
@@ -15697,9 +15710,7 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       magnifierIndex: target.index,
       orderIndex,
       registerQubitCount: measurementRegisterCount,
-    });
-    const collapsedColor = collapseGeneratedQubitState(qubitItem, {
-      deferRemoteRegisterMeasurement: Boolean(sharedPairState),
+      color: collapsedColor,
     });
     logGeneratedMeasurementProgress(runtime, {
       event: "collapsed",
@@ -16683,6 +16694,7 @@ async function replayGeneratedRecordedSeparatedPairMeasureAction(
       qubitItem,
       runtime,
       action.magnifierIndex,
+      { forcedColor: normalizedMeasuredColor(action.color) },
     ),
   );
 }
@@ -17137,6 +17149,7 @@ function replayGeneratedRecordedExperimentFast(
         let partnerLogicalQubitId = normalizeQubitId(
           action.partnerLogicalQubitId,
         );
+        const recordedColor = normalizedMeasuredColor(action.color);
 
         if (
           pairState &&
@@ -17151,10 +17164,9 @@ function replayGeneratedRecordedExperimentFast(
               : pairState.topLogicalId;
           orderIndex = Number.isFinite(orderIndex) ? orderIndex : qubitIndex;
           partnerOrderIndex = qubitIndex === 0 ? 1 : 0;
-          color = sampleSingleQubitOutcomeFromPairState(
-            pairState.state,
-            qubitIndex,
-          );
+          color =
+            recordedColor ||
+            sampleSingleQubitOutcomeFromPairState(pairState.state, qubitIndex);
           const otherVector = conditionalVectorAfterPairMeasurement(
             pairState.state,
             qubitIndex,
@@ -17169,9 +17181,11 @@ function replayGeneratedRecordedExperimentFast(
           vectors.set(partnerId, otherVector);
           pairState = null;
         } else {
-          color = sampleSingleQubitOutcomeFromVector(
-            vectors.get(action.qubitId) || [1, 0],
-          );
+          color =
+            recordedColor ||
+            sampleSingleQubitOutcomeFromVector(
+              vectors.get(action.qubitId) || [1, 0],
+            );
           vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
         }
 
@@ -17539,7 +17553,9 @@ function applyGeneratedRecordedExperimentStaticFinalVisualState(
         qubitItem,
         ensureGeneratedQubitRuntimeState(qubitItem),
       );
-      collapseGeneratedQubitState(qubitItem);
+      collapseGeneratedQubitState(qubitItem, {
+        forcedColor: normalizedMeasuredColor(action.color),
+      });
       const ejectionPoint = generatedSeparatedPairMeasurementEjectionPoint(
         canvas,
         target,
