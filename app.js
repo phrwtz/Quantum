@@ -14256,21 +14256,17 @@ function collapseGeneratedQubitState(qubitItem, options = {}) {
     return "blue";
   }
   if (qubitState.pairState && Number.isFinite(qubitState.pairQubitIndex)) {
-    const color =
-      normalizedMeasuredColor(options.forcedColor) ||
-      sampleSingleQubitOutcomeFromPairState(
-        qubitState.pairState,
-        qubitState.pairQubitIndex,
-      );
+    const color = sampleSingleQubitOutcomeFromPairState(
+      qubitState.pairState,
+      qubitState.pairQubitIndex,
+    );
     collapseGeneratedSingleQubitFromPair(qubitItem, color, options);
     return color;
   }
   const [blueProbability] = probabilitiesFromVector2(qubitState.vector);
-  const forcedColor = normalizedMeasuredColor(options.forcedColor);
-  const collapseToBlue = forcedColor
-    ? forcedColor === "blue"
-    : blueProbability >= 1 ||
-      (blueProbability > 0 && Math.random() < blueProbability);
+  const collapseToBlue =
+    blueProbability >= 1 ||
+    (blueProbability > 0 && Math.random() < blueProbability);
   qubitState.vector = collapseToBlue ? [1, 0] : [0, 1];
   qubitState.cnotSourceSlot = null;
   qubitState.cnotPairToken = null;
@@ -15363,10 +15359,6 @@ function registerOutcomeKeyFromMeasurementEntries(entries) {
     .join("");
 }
 
-function normalizedMeasuredColor(color) {
-  return color === "red" || color === "blue" ? color : null;
-}
-
 function pairOutcomeKeyFromMeasurementEntries(entries) {
   const [topEntry, bottomEntry] = entries;
   if (!topEntry || !bottomEntry) {
@@ -15583,7 +15575,6 @@ async function runGeneratedSeparatedPairMeasurementTransit(
   qubitItem,
   runtime,
   magnifierIndex = null,
-  options = {},
 ) {
   if (
     !isGeneratedQubitItem(qubitItem) ||
@@ -15694,10 +15685,6 @@ async function runGeneratedSeparatedPairMeasurementTransit(
     if (measurementRegisterCount > 2) {
       ensureEntanglementThreeRoomExperimentRecording(canvas);
     }
-    const collapsedColor = collapseGeneratedQubitState(qubitItem, {
-      deferRemoteRegisterMeasurement: Boolean(sharedPairState),
-      forcedColor: options.forcedColor,
-    });
     recordGeneratedExperimentAction(canvas, {
       type: "separated-pair-measure",
       measurementId: ensureGeneratedItemId(
@@ -15710,7 +15697,9 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       magnifierIndex: target.index,
       orderIndex,
       registerQubitCount: measurementRegisterCount,
-      color: collapsedColor,
+    });
+    const collapsedColor = collapseGeneratedQubitState(qubitItem, {
+      deferRemoteRegisterMeasurement: Boolean(sharedPairState),
     });
     logGeneratedMeasurementProgress(runtime, {
       event: "collapsed",
@@ -16694,7 +16683,6 @@ async function replayGeneratedRecordedSeparatedPairMeasureAction(
       qubitItem,
       runtime,
       action.magnifierIndex,
-      { forcedColor: normalizedMeasuredColor(action.color) },
     ),
   );
 }
@@ -16918,23 +16906,63 @@ async function replayGeneratedRecordedExperimentAnimated(
   return true;
 }
 
+function fastReplaySingleQubitState(vector) {
+  return {
+    numQubits: 1,
+    amplitudes: normalizeVector2(vector || [1, 0]),
+    qubitIds: [],
+    logicalIds: [],
+  };
+}
+
+function fastReplayStateForQubit(vectors, registers, qubitId, logicalQubitId) {
+  const existing = registers.get(qubitId);
+  if (existing?.state && Number.isInteger(existing.index)) {
+    return existing;
+  }
+  const state = fastReplaySingleQubitState(vectors.get(qubitId) || [1, 0]);
+  state.qubitIds = [qubitId];
+  state.logicalIds = [logicalQubitId || null];
+  const reference = { state, index: 0 };
+  registers.set(qubitId, reference);
+  return reference;
+}
+
+function syncFastReplayVectorsFromState(vectors, registers, state) {
+  const ids = Array.isArray(state?.qubitIds) ? state.qubitIds : [];
+  ids.forEach((qubitId, index) => {
+    registers.set(qubitId, { state, index });
+    vectors.set(qubitId, sharedRegisterMarginalVector(state, index));
+  });
+}
+
+function clearFastReplayStateForQubit(registers, qubitId) {
+  const reference = registers.get(qubitId);
+  if (!reference?.state) {
+    registers.delete(qubitId);
+    return;
+  }
+  (reference.state.qubitIds || []).forEach((id) => {
+    registers.delete(id);
+  });
+}
+
 function applyGeneratedFastGateToVectorMap(
   vectors,
-  pairState,
+  registers,
   action,
   gateTicks = new Map(),
 ) {
   const tickIndex = generatedGateTickForRecordedAction(action, gateTicks);
-  if (
-    pairState &&
-    (action.qubitId === pairState.topId || action.qubitId === pairState.bottomId)
-  ) {
-    applySingleQubitGateToPair(
-      pairState.state,
-      action.qubitId === pairState.topId ? 0 : 1,
+  const reference = registers.get(action.qubitId);
+  if (reference?.state && Number.isInteger(reference.index)) {
+    sharedRegisterApplySingleGate(
+      reference.state,
+      reference.index,
       gateMatrixForTick(tickIndex),
     );
-    return pairState;
+    syncFastReplayVectorsFromState(vectors, registers, reference.state);
+    return;
   }
   vectors.set(
     action.qubitId,
@@ -16945,7 +16973,89 @@ function applyGeneratedFastGateToVectorMap(
       ),
     ),
   );
-  return pairState;
+}
+
+function applyGeneratedFastCnotToReplayState(
+  vectors,
+  registers,
+  action,
+  logicalQubitIds,
+) {
+  const topLogicalId =
+    normalizeQubitId(action.topQubitLogicalId) ||
+    logicalQubitIds.get(action.topQubitId);
+  const bottomLogicalId =
+    normalizeQubitId(action.bottomQubitLogicalId) ||
+    logicalQubitIds.get(action.bottomQubitId);
+  const topReference = fastReplayStateForQubit(
+    vectors,
+    registers,
+    action.topQubitId,
+    topLogicalId,
+  );
+  const bottomReference = fastReplayStateForQubit(
+    vectors,
+    registers,
+    action.bottomQubitId,
+    bottomLogicalId,
+  );
+  if (topReference.state === bottomReference.state) {
+    sharedRegisterApplyCnot(
+      topReference.state,
+      topReference.index,
+      bottomReference.index,
+    );
+    syncFastReplayVectorsFromState(vectors, registers, topReference.state);
+    return topReference.state;
+  }
+
+  const topHasRegister = (topReference.state?.numQubits || 1) > 1;
+  const bottomHasRegister = (bottomReference.state?.numQubits || 1) > 1;
+  const preserveBottomRegisterOrder = bottomHasRegister && !topHasRegister;
+  const firstReference = preserveBottomRegisterOrder
+    ? bottomReference
+    : topReference;
+  const secondReference = preserveBottomRegisterOrder
+    ? topReference
+    : bottomReference;
+  const firstRegister = registerStateAsQuantumRegister(firstReference.state);
+  const secondRegister = registerStateAsQuantumRegister(secondReference.state);
+  const combinedRegister = sharedRegisterTensor([firstRegister, secondRegister]);
+  if (!combinedRegister) {
+    return null;
+  }
+  const offset = firstRegister.numQubits;
+  const firstIds = Array.isArray(firstReference.state.qubitIds)
+    ? firstReference.state.qubitIds
+    : [];
+  const secondIds = Array.isArray(secondReference.state.qubitIds)
+    ? secondReference.state.qubitIds
+    : [];
+  const firstLogicalIds = Array.isArray(firstReference.state.logicalIds)
+    ? firstReference.state.logicalIds
+    : [];
+  const secondLogicalIds = Array.isArray(secondReference.state.logicalIds)
+    ? secondReference.state.logicalIds
+    : [];
+  const nextState = {
+    numQubits: combinedRegister.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      combinedRegister,
+      2 ** combinedRegister.numQubits,
+    ),
+    displayMode: "conditional",
+    qubitIds: [...firstIds, ...secondIds],
+    logicalIds: [...firstLogicalIds, ...secondLogicalIds],
+  };
+  const controlIndex = preserveBottomRegisterOrder
+    ? offset + topReference.index
+    : topReference.index;
+  const targetIndex = preserveBottomRegisterOrder
+    ? bottomReference.index
+    : offset + bottomReference.index;
+  sharedRegisterApplyCnot(nextState, controlIndex, targetIndex);
+  syncFastReplayVectorsFromState(vectors, registers, nextState);
+  return nextState;
 }
 
 function generatedSeparatedPairRuntimeForFastAction(canvas, action) {
@@ -17032,7 +17142,7 @@ function replayGeneratedRecordedExperimentFast(
   for (let run = 0; run < iterations; run += 1) {
     const vectors = generatedExperimentInitialVectorMap(experiment);
     const gateTicks = new Map(baseGateTicks);
-    let pairState = null;
+    const registers = new Map();
     const separatedPendingByMeasurement = new Map();
     (experiment.actions || []).forEach((action) => {
       if (action.type === "gate-setting") {
@@ -17044,32 +17154,19 @@ function replayGeneratedRecordedExperimentFast(
           gateTicks.set(action.gateId, tickIndex);
         }
       } else if (action.type === "gate") {
-        pairState = applyGeneratedFastGateToVectorMap(
+        applyGeneratedFastGateToVectorMap(
           vectors,
-          pairState,
+          registers,
           action,
           gateTicks,
         );
       } else if (action.type === "cnot") {
-        const topVector = vectors.get(action.topQubitId) || [1, 0];
-        const bottomVector = vectors.get(action.bottomQubitId) || [1, 0];
-        pairState = {
-          topId: action.topQubitId,
-          bottomId: action.bottomQubitId,
-          topLogicalId:
-            normalizeQubitId(action.topQubitLogicalId) ||
-            logicalQubitIds.get(action.topQubitId),
-          bottomLogicalId:
-            normalizeQubitId(action.bottomQubitLogicalId) ||
-            logicalQubitIds.get(action.bottomQubitId),
-          state: {
-            amplitudes: entangledAmplitudesFromQubitVectors(
-              topVector,
-              bottomVector,
-            ),
-          },
-        };
-        applyCNOTToPair(pairState.state);
+        applyGeneratedFastCnotToReplayState(
+          vectors,
+          registers,
+          action,
+          logicalQubitIds,
+        );
       } else if (action.type === "single-measure") {
         const runtime = initializeGeneratedSingleMeasurementItem(
           generatedItemById(canvas, action.measurementId),
@@ -17078,32 +17175,14 @@ function replayGeneratedRecordedExperimentFast(
           return;
         }
         let color = "blue";
-        if (
-          pairState &&
-          (action.qubitId === pairState.topId ||
-            action.qubitId === pairState.bottomId)
-        ) {
-          const qubitIndex = action.qubitId === pairState.topId ? 0 : 1;
-          color = sampleSingleQubitOutcomeFromPairState(
-            pairState.state,
-            qubitIndex,
+        const reference = registers.get(action.qubitId);
+        if (reference?.state && Number.isInteger(reference.index)) {
+          const result = sharedRegisterMeasureMember(
+            reference.state,
+            reference.index,
           );
-          const otherVector = conditionalVectorAfterPairMeasurement(
-            pairState.state,
-            qubitIndex,
-            color,
-          );
-          collapsePairStateBySingleQubitMeasurement(
-            pairState.state,
-            qubitIndex,
-            color,
-          );
-          vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
-          vectors.set(
-            qubitIndex === 0 ? pairState.bottomId : pairState.topId,
-            otherVector,
-          );
-          pairState = null;
+          color = result?.color || "blue";
+          syncFastReplayVectorsFromState(vectors, registers, reference.state);
         } else {
           color = sampleSingleQubitOutcomeFromVector(
             vectors.get(action.qubitId) || [1, 0],
@@ -17149,44 +17228,36 @@ function replayGeneratedRecordedExperimentFast(
         let partnerLogicalQubitId = normalizeQubitId(
           action.partnerLogicalQubitId,
         );
-        const recordedColor = normalizedMeasuredColor(action.color);
-
-        if (
-          pairState &&
-          (action.qubitId === pairState.topId ||
-            action.qubitId === pairState.bottomId)
-        ) {
-          const qubitIndex = action.qubitId === pairState.topId ? 0 : 1;
-          partnerId = qubitIndex === 0 ? pairState.bottomId : pairState.topId;
-          partnerLogicalQubitId =
-            qubitIndex === 0
-              ? pairState.bottomLogicalId
-              : pairState.topLogicalId;
-          orderIndex = Number.isFinite(orderIndex) ? orderIndex : qubitIndex;
-          partnerOrderIndex = qubitIndex === 0 ? 1 : 0;
-          color =
-            recordedColor ||
-            sampleSingleQubitOutcomeFromPairState(pairState.state, qubitIndex);
-          const otherVector = conditionalVectorAfterPairMeasurement(
-            pairState.state,
-            qubitIndex,
-            color,
+        const reference = registers.get(action.qubitId);
+        if (reference?.state && Number.isInteger(reference.index)) {
+          const memberIds = Array.isArray(reference.state.qubitIds)
+            ? reference.state.qubitIds
+            : [];
+          const memberLogicalIds = Array.isArray(reference.state.logicalIds)
+            ? reference.state.logicalIds
+            : [];
+          const partnerIndex = memberIds.findIndex((id) => id !== action.qubitId);
+          if (partnerIndex >= 0) {
+            partnerId = memberIds[partnerIndex] || "";
+            partnerLogicalQubitId =
+              partnerLogicalQubitId || memberLogicalIds[partnerIndex] || null;
+            partnerOrderIndex = partnerIndex;
+          }
+          orderIndex = Number.isFinite(orderIndex)
+            ? orderIndex
+            : reference.index;
+          const result = sharedRegisterMeasureMember(
+            reference.state,
+            reference.index,
           );
-          collapsePairStateBySingleQubitMeasurement(
-            pairState.state,
-            qubitIndex,
-            color,
-          );
-          vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
-          vectors.set(partnerId, otherVector);
-          pairState = null;
+          color = result?.color || "blue";
+          syncFastReplayVectorsFromState(vectors, registers, reference.state);
         } else {
-          color =
-            recordedColor ||
-            sampleSingleQubitOutcomeFromVector(
-              vectors.get(action.qubitId) || [1, 0],
-            );
+          color = sampleSingleQubitOutcomeFromVector(
+            vectors.get(action.qubitId) || [1, 0],
+          );
           vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
+          clearFastReplayStateForQubit(registers, action.qubitId);
         }
 
         if (!Number.isFinite(orderIndex)) {
@@ -17266,23 +17337,37 @@ function replayGeneratedRecordedExperimentFast(
           action,
           initialCenters,
         );
-        const stateOrderOutcome = pairState
-          ? samplePairOutcomeFromEntangledState(pairState.state)
-          : null;
-        const argumentOutcome = pairState
-          ? outcomeKeyForPairIdsInArgumentOrder(
-              stateOrderOutcome,
-              pairState.topId,
-              pairState.bottomId,
-              qubitOrder.topQubitId,
-              qubitOrder.bottomQubitId,
-            )
-          : samplePairOutcomeFromEntangledState({
-              amplitudes: entangledAmplitudesFromQubitVectors(
-                vectors.get(qubitOrder.topQubitId) || [1, 0],
-                vectors.get(qubitOrder.bottomQubitId) || [1, 0],
-              ),
-            });
+        const topReference = registers.get(qubitOrder.topQubitId);
+        const bottomReference = registers.get(qubitOrder.bottomQubitId);
+        let argumentOutcome = "bb";
+        if (
+          topReference?.state &&
+          topReference.state === bottomReference?.state &&
+          Number.isInteger(topReference.index) &&
+          Number.isInteger(bottomReference.index)
+        ) {
+          argumentOutcome = samplePairOutcomeForRegisterMembers(
+            topReference.state,
+            topReference.index,
+            bottomReference.index,
+          );
+          collapseRegisterStateMembersToOutcome(
+            topReference.state,
+            topReference.index,
+            bottomReference.index,
+            argumentOutcome,
+          );
+          syncFastReplayVectorsFromState(vectors, registers, topReference.state);
+        } else {
+          argumentOutcome = samplePairOutcomeFromEntangledState({
+            amplitudes: entangledAmplitudesFromQubitVectors(
+              vectors.get(qubitOrder.topQubitId) || [1, 0],
+              vectors.get(qubitOrder.bottomQubitId) || [1, 0],
+            ),
+          });
+          clearFastReplayStateForQubit(registers, qubitOrder.topQubitId);
+          clearFastReplayStateForQubit(registers, qubitOrder.bottomQubitId);
+        }
         runtime.tubeCounts[argumentOutcome] += 1;
         maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
         measurementRuntimesToUpdate.add(runtime);
@@ -17294,7 +17379,6 @@ function replayGeneratedRecordedExperimentFast(
           qubitOrder.bottomQubitId,
           argumentOutcome[1] === "b" ? [1, 0] : [0, 1],
         );
-        pairState = null;
       }
     });
   }
@@ -17553,9 +17637,7 @@ function applyGeneratedRecordedExperimentStaticFinalVisualState(
         qubitItem,
         ensureGeneratedQubitRuntimeState(qubitItem),
       );
-      collapseGeneratedQubitState(qubitItem, {
-        forcedColor: normalizedMeasuredColor(action.color),
-      });
+      collapseGeneratedQubitState(qubitItem);
       const ejectionPoint = generatedSeparatedPairMeasurementEjectionPoint(
         canvas,
         target,

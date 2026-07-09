@@ -3451,14 +3451,14 @@ async function runEntangledMathSmoke(page) {
       bottom: separatedEjectionBottom,
     };
     canvas.remove();
-    const deterministicFourCanvas = document.createElement("div");
-    deterministicFourCanvas.className = "generated-layout-canvas";
-    deterministicFourCanvas.dataset.generatedTabId =
-      "four-qubit-recorded-color-replay-smoke";
-    const deterministicFourMeasure = createGeneratedLayoutItemNode(
+    const fourRegisterReplayCanvas = document.createElement("div");
+    fourRegisterReplayCanvas.className = "generated-layout-canvas";
+    fourRegisterReplayCanvas.dataset.generatedTabId =
+      "four-qubit-register-replay-smoke";
+    const fourRegisterReplayMeasure = createGeneratedLayoutItemNode(
       savedGroupComponentType(REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID),
       {
-        id: "four-color-replay-measure",
+        id: "four-register-replay-measure",
         left: 300,
         top: 30,
         width: 940,
@@ -3466,80 +3466,109 @@ async function runEntangledMathSmoke(page) {
         measurementRegisterQubitCount: 4,
       },
     );
-    deterministicFourCanvas.append(deterministicFourMeasure);
-    document.body.appendChild(deterministicFourCanvas);
-    const deterministicFourRuntime =
-      initializeGeneratedSeparatedPairMeasurementItem(deterministicFourMeasure);
-    replayGeneratedRecordedExperimentFast(
-      deterministicFourCanvas,
-      {
-        initialQubits: [
-          {
-            itemId: "four-color-q0",
-            logicalQubitId: 1,
-            vector: [rootHalf, rootHalf],
-          },
-          {
-            itemId: "four-color-q1",
-            logicalQubitId: 2,
-            vector: [rootHalf, rootHalf],
-          },
-          {
-            itemId: "four-color-q2",
-            logicalQubitId: 3,
-            vector: [rootHalf, rootHalf],
-          },
-          {
-            itemId: "four-color-q3",
-            logicalQubitId: 4,
-            vector: [rootHalf, rootHalf],
-          },
-        ],
-        actions: [
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-color-replay-measure",
-            qubitId: "four-color-q0",
-            logicalQubitId: 1,
-            orderIndex: 0,
-            registerQubitCount: 4,
-            color: "red",
-          },
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-color-replay-measure",
-            qubitId: "four-color-q1",
-            logicalQubitId: 2,
-            orderIndex: 1,
-            registerQubitCount: 4,
-            color: "red",
-          },
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-color-replay-measure",
-            qubitId: "four-color-q2",
-            logicalQubitId: 3,
-            orderIndex: 2,
-            registerQubitCount: 4,
-            color: "blue",
-          },
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-color-replay-measure",
-            qubitId: "four-color-q3",
-            logicalQubitId: 4,
-            orderIndex: 3,
-            registerQubitCount: 4,
-            color: "red",
-          },
-        ],
-      },
-      12,
-    );
-    const deterministicFourCounts = {
-      ...deterministicFourRuntime.tubeCounts,
+    fourRegisterReplayCanvas.append(fourRegisterReplayMeasure);
+    document.body.appendChild(fourRegisterReplayCanvas);
+    const fourRegisterReplayRuntime =
+      initializeGeneratedSeparatedPairMeasurementItem(fourRegisterReplayMeasure);
+    const originalMathRandom = Math.random;
+    try {
+      const replayRandomValues = [];
+      for (let index = 0; index < 12; index += 1) {
+        replayRandomValues.push(index % 2 === 0 ? 0.75 : 0.25);
+        replayRandomValues.push(0.25, 0.25, 0.25);
+      }
+      Math.random = () =>
+        replayRandomValues.length > 0 ? replayRandomValues.shift() : 0.25;
+      replayGeneratedRecordedExperimentFast(
+        fourRegisterReplayCanvas,
+        {
+          initialQubits: [
+            {
+              itemId: "four-register-q0",
+              logicalQubitId: 1,
+              vector: [rootHalf, rootHalf],
+            },
+            {
+              itemId: "four-register-q1",
+              logicalQubitId: 2,
+              vector: [1, 0],
+            },
+            {
+              itemId: "four-register-q2",
+              logicalQubitId: 3,
+              vector: [1, 0],
+            },
+            {
+              itemId: "four-register-q3",
+              logicalQubitId: 4,
+              vector: [1, 0],
+            },
+          ],
+          actions: [
+            {
+              type: "cnot",
+              topQubitId: "four-register-q0",
+              topQubitLogicalId: 1,
+              bottomQubitId: "four-register-q1",
+              bottomQubitLogicalId: 2,
+            },
+            {
+              type: "cnot",
+              topQubitId: "four-register-q1",
+              topQubitLogicalId: 2,
+              bottomQubitId: "four-register-q2",
+              bottomQubitLogicalId: 3,
+            },
+            {
+              type: "cnot",
+              topQubitId: "four-register-q2",
+              topQubitLogicalId: 3,
+              bottomQubitId: "four-register-q3",
+              bottomQubitLogicalId: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q0",
+              logicalQubitId: 1,
+              orderIndex: 0,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q1",
+              logicalQubitId: 2,
+              orderIndex: 1,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q2",
+              logicalQubitId: 3,
+              orderIndex: 2,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q3",
+              logicalQubitId: 4,
+              orderIndex: 3,
+              registerQubitCount: 4,
+            },
+          ],
+        },
+        12,
+      );
+    } finally {
+      Math.random = originalMathRandom;
+    }
+    const fourRegisterReplayCounts = {
+      ...fourRegisterReplayRuntime.tubeCounts,
     };
-    deterministicFourCanvas.remove();
+    fourRegisterReplayCanvas.remove();
     const gateReplayCanvas = document.createElement("div");
     gateReplayCanvas.className = "generated-layout-canvas";
     gateReplayCanvas.dataset.generatedTabId = "gate-replay-smoke";
@@ -3958,7 +3987,7 @@ async function runEntangledMathSmoke(page) {
       bottomAfterTopBlueMeasurement,
       separatedCounts,
       separatedEjectionLanes,
-      deterministicFourCounts,
+      fourRegisterReplayCounts,
       liveInitialGateReplayCounts,
       recordedFutureGateReplayCounts,
       recordedInitialGateResetCounts,
@@ -4002,9 +4031,9 @@ async function runEntangledMathSmoke(page) {
     result.separatedCounts.bb !== 0 ||
     result.separatedCounts.rr !== 0 ||
     result.separatedCounts.rb !== 0 ||
-    result.deterministicFourCounts.rrbr !== 12 ||
-    result.deterministicFourCounts.bbbb !== 0 ||
-    result.deterministicFourCounts.rbrb !== 0 ||
+    result.fourRegisterReplayCounts.bbbb !== 6 ||
+    result.fourRegisterReplayCounts.rrrr !== 6 ||
+    result.fourRegisterReplayCounts.rbrb !== 0 ||
     !(result.separatedEjectionLanes.top.y < result.separatedEjectionLanes.base.y) ||
     !(
       result.separatedEjectionLanes.base.y <
@@ -7133,11 +7162,11 @@ async function runFourQubitRecordedReplaySmoke(page) {
     const rootHalf = Math.SQRT1_2;
     const canvas = document.createElement("div");
     canvas.className = "generated-layout-canvas";
-    canvas.dataset.generatedTabId = "four-qubit-recorded-replay-smoke";
+    canvas.dataset.generatedTabId = "four-qubit-register-replay-smoke";
     const measurement = createGeneratedLayoutItemNode(
       savedGroupComponentType(REGISTER_FOUR_QUBIT_MEASUREMENT_GROUP_ID),
       {
-        id: "four-recorded-replay-measure",
+        id: "four-register-replay-measure",
         left: 300,
         top: 30,
         width: 940,
@@ -7148,83 +7177,112 @@ async function runFourQubitRecordedReplaySmoke(page) {
     canvas.append(measurement);
     document.body.appendChild(canvas);
     const runtime = initializeGeneratedSeparatedPairMeasurementItem(measurement);
-    replayGeneratedRecordedExperimentFast(
-      canvas,
-      {
-        initialQubits: [
-          {
-            itemId: "four-recorded-q0",
-            logicalQubitId: 1,
-            vector: [rootHalf, rootHalf],
-          },
-          {
-            itemId: "four-recorded-q1",
-            logicalQubitId: 2,
-            vector: [rootHalf, rootHalf],
-          },
-          {
-            itemId: "four-recorded-q2",
-            logicalQubitId: 3,
-            vector: [rootHalf, rootHalf],
-          },
-          {
-            itemId: "four-recorded-q3",
-            logicalQubitId: 4,
-            vector: [rootHalf, rootHalf],
-          },
-        ],
-        actions: [
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-recorded-replay-measure",
-            qubitId: "four-recorded-q0",
-            logicalQubitId: 1,
-            orderIndex: 0,
-            registerQubitCount: 4,
-            color: "red",
-          },
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-recorded-replay-measure",
-            qubitId: "four-recorded-q1",
-            logicalQubitId: 2,
-            orderIndex: 1,
-            registerQubitCount: 4,
-            color: "red",
-          },
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-recorded-replay-measure",
-            qubitId: "four-recorded-q2",
-            logicalQubitId: 3,
-            orderIndex: 2,
-            registerQubitCount: 4,
-            color: "blue",
-          },
-          {
-            type: "separated-pair-measure",
-            measurementId: "four-recorded-replay-measure",
-            qubitId: "four-recorded-q3",
-            logicalQubitId: 4,
-            orderIndex: 3,
-            registerQubitCount: 4,
-            color: "red",
-          },
-        ],
-      },
-      12,
-    );
+    const originalMathRandom = Math.random;
+    try {
+      const replayRandomValues = [];
+      for (let index = 0; index < 12; index += 1) {
+        replayRandomValues.push(index % 2 === 0 ? 0.75 : 0.25);
+        replayRandomValues.push(0.25, 0.25, 0.25);
+      }
+      Math.random = () =>
+        replayRandomValues.length > 0 ? replayRandomValues.shift() : 0.25;
+      replayGeneratedRecordedExperimentFast(
+        canvas,
+        {
+          initialQubits: [
+            {
+              itemId: "four-register-q0",
+              logicalQubitId: 1,
+              vector: [rootHalf, rootHalf],
+            },
+            {
+              itemId: "four-register-q1",
+              logicalQubitId: 2,
+              vector: [1, 0],
+            },
+            {
+              itemId: "four-register-q2",
+              logicalQubitId: 3,
+              vector: [1, 0],
+            },
+            {
+              itemId: "four-register-q3",
+              logicalQubitId: 4,
+              vector: [1, 0],
+            },
+          ],
+          actions: [
+            {
+              type: "cnot",
+              topQubitId: "four-register-q0",
+              topQubitLogicalId: 1,
+              bottomQubitId: "four-register-q1",
+              bottomQubitLogicalId: 2,
+            },
+            {
+              type: "cnot",
+              topQubitId: "four-register-q1",
+              topQubitLogicalId: 2,
+              bottomQubitId: "four-register-q2",
+              bottomQubitLogicalId: 3,
+            },
+            {
+              type: "cnot",
+              topQubitId: "four-register-q2",
+              topQubitLogicalId: 3,
+              bottomQubitId: "four-register-q3",
+              bottomQubitLogicalId: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q0",
+              logicalQubitId: 1,
+              orderIndex: 0,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q1",
+              logicalQubitId: 2,
+              orderIndex: 1,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q2",
+              logicalQubitId: 3,
+              orderIndex: 2,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "four-register-replay-measure",
+              qubitId: "four-register-q3",
+              logicalQubitId: 4,
+              orderIndex: 3,
+              registerQubitCount: 4,
+            },
+          ],
+        },
+        12,
+      );
+    } finally {
+      Math.random = originalMathRandom;
+    }
     const counts = { ...(runtime?.tubeCounts || {}) };
     canvas.remove();
     return { counts };
   });
   if (
-    result.counts.rrbr !== 12 ||
-    result.counts.bbbb !== 0 ||
+    result.counts.bbbb !== 6 ||
+    result.counts.rrrr !== 6 ||
     result.counts.rbrb !== 0
   ) {
     throw new Error(
-      `Four-qubit recorded replay was not deterministic: ${JSON.stringify(result)}`,
+      `Four-qubit replay did not preserve the entangled register: ${JSON.stringify(result)}`,
     );
   }
 }
