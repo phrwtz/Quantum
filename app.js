@@ -6021,15 +6021,106 @@ function mailboxRoomRecordedGateKey(entry = {}) {
   );
 }
 
+function mailboxRoomRecordedActionScopedItemKey(action = {}, qubitId = null) {
+  return mailboxRoomScopedItemKey(
+    action.roomParticipantId || "",
+    qubitId || action.itemId || action.qubitId || "",
+  );
+}
+
+function mailboxRoomRecordedActionSourceKeys(action = {}) {
+  if (!action || typeof action !== "object") {
+    return [];
+  }
+  if (action.type === "gate") {
+    return [
+      {
+        qubitKey: mailboxRoomRecordedActionQubitKey(action),
+        sourceKey: mailboxRoomRecordedActionScopedItemKey(
+          action,
+          action.qubitId || action.itemId,
+        ),
+      },
+    ];
+  }
+  if (action.type === "cnot") {
+    return [
+      {
+        qubitKey: mailboxRoomRecordedCnotQubitKey(action, "top"),
+        sourceKey: mailboxRoomRecordedActionScopedItemKey(
+          action,
+          action.topQubitId,
+        ),
+      },
+      {
+        qubitKey: mailboxRoomRecordedCnotQubitKey(action, "bottom"),
+        sourceKey: mailboxRoomRecordedActionScopedItemKey(
+          action,
+          action.bottomQubitId,
+        ),
+      },
+    ];
+  }
+  return [];
+}
+
+function mailboxRoomRecordedPreparationSources(experiment) {
+  const sources = new Map();
+  (Array.isArray(experiment?.actions) ? experiment.actions : []).forEach(
+    (action) => {
+      if (action?.type !== "gate" && action?.type !== "cnot") {
+        return;
+      }
+      mailboxRoomRecordedActionSourceKeys(action).forEach(
+        ({ qubitKey, sourceKey }) => {
+          if (!qubitKey || !sourceKey) {
+            return;
+          }
+          const existing = sources.get(qubitKey) || new Set();
+          existing.add(sourceKey);
+          sources.set(qubitKey, existing);
+        },
+      );
+    },
+  );
+  return sources;
+}
+
+function mailboxRoomRecordedInitialEntryScore(entry, preferredSources) {
+  const qubitKey = mailboxRoomRecordedQubitKey(entry);
+  const sourceKey = mailboxRoomScopedItemKey(
+    entry.roomParticipantId || "",
+    entry.itemId || entry.qubitId || "",
+  );
+  if (
+    qubitKey &&
+    sourceKey &&
+    preferredSources instanceof Map &&
+    preferredSources.get(qubitKey)?.has(sourceKey)
+  ) {
+    return 2;
+  }
+  return 1;
+}
+
 function mailboxRoomRecordedExperimentInitialVectorMap(experiment) {
   const vectors = new Map();
+  const scores = new Map();
+  const preferredSources = mailboxRoomRecordedPreparationSources(experiment);
   (Array.isArray(experiment?.initialQubits)
     ? experiment.initialQubits
     : []
   ).forEach((entry) => {
     const key = mailboxRoomRecordedQubitKey(entry);
     if (key) {
-      vectors.set(key, normalizeVector2(entry.vector || [1, 0]));
+      const score = mailboxRoomRecordedInitialEntryScore(
+        entry,
+        preferredSources,
+      );
+      if (!vectors.has(key) || score > (scores.get(key) || 0)) {
+        vectors.set(key, normalizeVector2(entry.vector || [1, 0]));
+        scores.set(key, score);
+      }
     }
   });
   return vectors;
@@ -6103,6 +6194,31 @@ function mailboxRoomNextRecordedOrderIndex(pending, requiredCount) {
     }
   }
   return requiredCount - 1;
+}
+
+function mailboxRoomRecordedReplayActionPhase(action = {}) {
+  if (action.type === "gate-setting") {
+    return 0;
+  }
+  if (action.type === "gate" || action.type === "cnot") {
+    return 1;
+  }
+  if (action.type === "separated-pair-measure") {
+    return 2;
+  }
+  return 3;
+}
+
+function mailboxRoomRecordedReplayActions(actions) {
+  return generatedExperimentLowLevelActions(actions || [])
+    .map((action, index) => ({ action, index }))
+    .sort((left, right) => {
+      const phaseDelta =
+        mailboxRoomRecordedReplayActionPhase(left.action) -
+        mailboxRoomRecordedReplayActionPhase(right.action);
+      return phaseDelta || left.index - right.index;
+    })
+    .map((entry) => entry.action);
 }
 
 function roomReplaySingleQubitState(vector) {
@@ -6222,7 +6338,7 @@ function mailboxRoomRecordedMeasurementCounts(
   iterations,
   measurement,
 ) {
-  const actions = generatedExperimentLowLevelActions(experiment?.actions || []);
+  const actions = mailboxRoomRecordedReplayActions(experiment?.actions || []);
   const count = Math.max(1, Number(iterations) || 1);
   if (!actions.length) {
     return null;

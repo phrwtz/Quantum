@@ -7405,6 +7405,158 @@ async function runEntanglementThreeRoomReplayIdentitySmoke(page) {
   }
 }
 
+async function runEntanglementThreeTransferredPurpleReplaySmoke(page) {
+  const result = await page.evaluate(() => {
+    const originalMathRandom = Math.random;
+    const outcomeKeys = registerMeasurementOutcomeKeys(4);
+    const randomValues = [];
+    outcomeKeys.forEach((key) => {
+      [2, 3, 0, 1].forEach((index) => {
+        randomValues.push(key[index] === "b" ? 0.25 : 0.75);
+      });
+    });
+    try {
+      Math.random = () =>
+        randomValues.length > 0 ? randomValues.shift() : 0.25;
+      const counts = mailboxRoomRecordedMeasurementCounts(
+        {
+          initialQubits: [
+            {
+              itemId: "alice-received-bob-q0",
+              logicalQubitId: 9,
+              roomQubitIndex: 0,
+              roomParticipantId: "alice",
+              vector: [0, 1],
+            },
+            {
+              itemId: "alice-q2",
+              logicalQubitId: 3,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              vector: [1, 0],
+            },
+            {
+              itemId: "alice-q3",
+              logicalQubitId: 4,
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+              vector: [1, 0],
+            },
+            {
+              itemId: "bob-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              vector: [1, 0],
+            },
+            {
+              itemId: "bob-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+              vector: [1, 0],
+            },
+          ],
+          actions: [
+            {
+              type: "gate",
+              qubitId: "alice-q2",
+              qubitLogicalId: 3,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              tickIndex: 3,
+            },
+            {
+              type: "gate",
+              qubitId: "alice-q3",
+              qubitLogicalId: 4,
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+              tickIndex: 3,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "alice-q2",
+              logicalQubitId: 3,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              orderIndex: 2,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "alice-q3",
+              logicalQubitId: 4,
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+              orderIndex: 3,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "alice-received-bob-q0",
+              logicalQubitId: 9,
+              roomQubitIndex: 0,
+              roomParticipantId: "alice",
+              orderIndex: 0,
+              registerQubitCount: 4,
+            },
+            {
+              type: "mailbox-send",
+              qubitId: "bob-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+            },
+            {
+              type: "gate",
+              qubitId: "bob-q1",
+              qubitLogicalId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+              tickIndex: 3,
+            },
+            {
+              type: "gate",
+              qubitId: "bob-q0",
+              qubitLogicalId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              tickIndex: 3,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "bob-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+              orderIndex: 1,
+              registerQubitCount: 4,
+            },
+          ],
+        },
+        outcomeKeys.length,
+        { numQubits: 4 },
+      );
+      return { counts, outcomeKeys };
+    } finally {
+      Math.random = originalMathRandom;
+    }
+  });
+  const missing = result.outcomeKeys.filter(
+    (key) => Number(result.counts?.[key] || 0) !== 1,
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `Entanglement 3 transferred purple replay did not fill all outcomes: ${JSON.stringify({ missing, counts: result.counts })}`,
+    );
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -7437,7 +7589,13 @@ async function runSmokeTest(baseUrl) {
       await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
       await runFourQubitRecordedReplaySmoke(page);
       await runEntanglementThreeRoomReplayIdentitySmoke(page);
-      return { ok: true, fourReplay: true, entanglementThreeRoomReplay: true };
+      await runEntanglementThreeTransferredPurpleReplaySmoke(page);
+      return {
+        ok: true,
+        fourReplay: true,
+        entanglementThreeRoomReplay: true,
+        entanglementThreeTransferredPurpleReplay: true,
+      };
     }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
