@@ -7287,6 +7287,124 @@ async function runFourQubitRecordedReplaySmoke(page) {
   }
 }
 
+async function runEntanglementThreeRoomReplayIdentitySmoke(page) {
+  const result = await page.evaluate(() => {
+    const originalMathRandom = Math.random;
+    try {
+      Math.random = () => 0.25;
+      const counts = mailboxRoomRecordedMeasurementCounts(
+        {
+          initialQubits: [
+            {
+              itemId: "bob-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              vector: [1, 0],
+            },
+            {
+              itemId: "bob-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+              vector: [1, 0],
+            },
+            {
+              itemId: "alice-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              vector: [1, 0],
+            },
+            {
+              itemId: "alice-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+              vector: [1, 0],
+            },
+          ],
+          actions: [
+            {
+              type: "gate",
+              qubitId: "bob-q0",
+              qubitLogicalId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              tickIndex: 6,
+            },
+            {
+              type: "gate",
+              qubitId: "bob-q1",
+              qubitLogicalId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+              tickIndex: 6,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "bob-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              orderIndex: 0,
+              registerQubitCount: 4,
+            },
+            {
+              type: "mailbox-send",
+              qubitId: "bob-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "alice-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              orderIndex: 2,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "alice-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+              orderIndex: 3,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              measurementId: "room-measure",
+              qubitId: "alice-received-bob-q1",
+              logicalQubitId: 9,
+              roomQubitIndex: 1,
+              roomParticipantId: "alice",
+              orderIndex: 1,
+              registerQubitCount: 4,
+            },
+          ],
+        },
+        1,
+        { numQubits: 4 },
+      );
+      return { counts };
+    } finally {
+      Math.random = originalMathRandom;
+    }
+  });
+  if (result.counts?.rrbb !== 1 || result.counts?.rbbb || result.counts?.brbb) {
+    throw new Error(
+      `Entanglement 3 room replay lost transferred qubit identity: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -7318,7 +7436,8 @@ async function runSmokeTest(baseUrl) {
       await installContentApiHelpers(page);
       await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
       await runFourQubitRecordedReplaySmoke(page);
-      return { ok: true, fourReplay: true };
+      await runEntanglementThreeRoomReplayIdentitySmoke(page);
+      return { ok: true, fourReplay: true, entanglementThreeRoomReplay: true };
     }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });

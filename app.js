@@ -5649,6 +5649,7 @@ function mailboxRoomRebindContextForCanvas(canvas) {
 }
 
 function mailboxRoomGateActionDetails(canvas, gateItem, tickIndex) {
+  const gateId = ensureGeneratedItemId(gateItem, "single-gate");
   const gates = generatedItemsOfType(canvas, "single-gate").sort(
     (left, right) =>
       Number.parseFloat(left.style.top || "0") -
@@ -5664,6 +5665,8 @@ function mailboxRoomGateActionDetails(canvas, gateItem, tickIndex) {
   return {
     actionType: "gate-setting",
     participantId: mailboxRoomState.participantId || null,
+    gateId,
+    itemId: gateId,
     gateLabel: `flipper gate ${gateIndex + 1}`,
     qubitLabel: qubit instanceof HTMLElement
       ? qubitDisplayLabelForItem(qubit, gateIndex)
@@ -5992,6 +5995,10 @@ function mailboxRoomScopedItemKey(participantId, itemId) {
 }
 
 function mailboxRoomRecordedQubitKey(entry = {}) {
+  const roomQubitIndex = normalizeRoomQubitIndex(entry.roomQubitIndex);
+  if (Number.isInteger(roomQubitIndex)) {
+    return `room:${roomQubitIndex}`;
+  }
   const logicalQubitId = normalizeQubitId(
     entry.logicalQubitId ??
       entry.qubitLogicalId ??
@@ -6059,6 +6066,13 @@ function mailboxRoomRecordedActionQubitKey(action) {
 }
 
 function mailboxRoomRecordedCnotQubitKey(action, side) {
+  const roomQubitIndex =
+    side === "top"
+      ? normalizeRoomQubitIndex(action?.topRoomQubitIndex)
+      : normalizeRoomQubitIndex(action?.bottomRoomQubitIndex);
+  if (Number.isInteger(roomQubitIndex)) {
+    return `room:${roomQubitIndex}`;
+  }
   const logicalKey =
     side === "top"
       ? normalizeQubitId(action?.topQubitLogicalId)
@@ -6091,6 +6105,118 @@ function mailboxRoomNextRecordedOrderIndex(pending, requiredCount) {
   return requiredCount - 1;
 }
 
+function roomReplaySingleQubitState(vector) {
+  return {
+    numQubits: 1,
+    amplitudes: normalizeVector2(vector || [1, 0]),
+    qubitKeys: [],
+  };
+}
+
+function roomReplayStateForQubit(vectors, registers, qubitKey) {
+  const existing = registers.get(qubitKey);
+  if (existing?.state && Number.isInteger(existing.index)) {
+    return existing;
+  }
+  const state = roomReplaySingleQubitState(vectors.get(qubitKey) || [1, 0]);
+  state.qubitKeys = [qubitKey];
+  const reference = { state, index: 0 };
+  registers.set(qubitKey, reference);
+  return reference;
+}
+
+function syncRoomReplayVectorsFromState(vectors, registers, state) {
+  const keys = Array.isArray(state?.qubitKeys) ? state.qubitKeys : [];
+  keys.forEach((qubitKey, index) => {
+    registers.set(qubitKey, { state, index });
+    vectors.set(qubitKey, sharedRegisterMarginalVector(state, index));
+  });
+}
+
+function clearRoomReplayStateForQubit(registers, qubitKey) {
+  const reference = registers.get(qubitKey);
+  if (!reference?.state) {
+    registers.delete(qubitKey);
+    return;
+  }
+  (reference.state.qubitKeys || []).forEach((key) => registers.delete(key));
+}
+
+function applyRoomReplayGateToState(vectors, registers, qubitKey, tickIndex) {
+  const reference = registers.get(qubitKey);
+  if (reference?.state && Number.isInteger(reference.index)) {
+    sharedRegisterApplySingleGate(
+      reference.state,
+      reference.index,
+      gateMatrixForTick(tickIndex),
+    );
+    syncRoomReplayVectorsFromState(vectors, registers, reference.state);
+    return;
+  }
+  vectors.set(
+    qubitKey,
+    normalizeVector2(
+      vectorTimesMatrix2(
+        vectors.get(qubitKey) || [1, 0],
+        gateMatrixForTick(tickIndex),
+      ),
+    ),
+  );
+}
+
+function applyRoomReplayCnotToState(vectors, registers, topKey, bottomKey) {
+  const topReference = roomReplayStateForQubit(vectors, registers, topKey);
+  const bottomReference = roomReplayStateForQubit(vectors, registers, bottomKey);
+  if (topReference.state === bottomReference.state) {
+    sharedRegisterApplyCnot(
+      topReference.state,
+      topReference.index,
+      bottomReference.index,
+    );
+    syncRoomReplayVectorsFromState(vectors, registers, topReference.state);
+    return;
+  }
+  const topHasRegister = (topReference.state?.numQubits || 1) > 1;
+  const bottomHasRegister = (bottomReference.state?.numQubits || 1) > 1;
+  const preserveBottomRegisterOrder = bottomHasRegister && !topHasRegister;
+  const firstReference = preserveBottomRegisterOrder
+    ? bottomReference
+    : topReference;
+  const secondReference = preserveBottomRegisterOrder
+    ? topReference
+    : bottomReference;
+  const firstRegister = registerStateAsQuantumRegister(firstReference.state);
+  const secondRegister = registerStateAsQuantumRegister(secondReference.state);
+  const combinedRegister = sharedRegisterTensor([firstRegister, secondRegister]);
+  if (!combinedRegister) {
+    return;
+  }
+  const offset = firstRegister.numQubits;
+  const firstKeys = Array.isArray(firstReference.state.qubitKeys)
+    ? firstReference.state.qubitKeys
+    : [];
+  const secondKeys = Array.isArray(secondReference.state.qubitKeys)
+    ? secondReference.state.qubitKeys
+    : [];
+  const nextState = {
+    numQubits: combinedRegister.numQubits,
+    amplitudes: realAmplitudesFromQuantumRegister(
+      combinedRegister,
+      2 ** combinedRegister.numQubits,
+    ),
+    displayMode: "conditional",
+    qubitKeys: [...firstKeys, ...secondKeys],
+  };
+  const controlIndex = preserveBottomRegisterOrder
+    ? offset + topReference.index
+    : topReference.index;
+  const targetIndex = preserveBottomRegisterOrder
+    ? bottomReference.index
+    : offset + bottomReference.index;
+  sharedRegisterApplyCnot(nextState, controlIndex, targetIndex);
+  syncRoomReplayVectorsFromState(vectors, registers, nextState);
+}
+
 function mailboxRoomRecordedMeasurementCounts(
   experiment,
   iterations,
@@ -6119,7 +6245,7 @@ function mailboxRoomRecordedMeasurementCounts(
       ]),
     );
     const gateTicks = new Map(baseGateTicks);
-    let pairState = null;
+    const registers = new Map();
     const pendingByMeasurement = new Map();
 
     actions.forEach((action) => {
@@ -6139,26 +6265,7 @@ function mailboxRoomRecordedMeasurementCounts(
           return;
         }
         const tickIndex = mailboxRoomRecordedGateTickForAction(action, gateTicks);
-        if (
-          pairState &&
-          (qubitKey === pairState.topKey || qubitKey === pairState.bottomKey)
-        ) {
-          applySingleQubitGateToPair(
-            pairState.state,
-            qubitKey === pairState.topKey ? 0 : 1,
-            gateMatrixForTick(tickIndex),
-          );
-        } else {
-          vectors.set(
-            qubitKey,
-            normalizeVector2(
-              vectorTimesMatrix2(
-                vectors.get(qubitKey) || [1, 0],
-                gateMatrixForTick(tickIndex),
-              ),
-            ),
-          );
-        }
+        applyRoomReplayGateToState(vectors, registers, qubitKey, tickIndex);
         return;
       }
       if (action.type === "cnot") {
@@ -6167,17 +6274,7 @@ function mailboxRoomRecordedMeasurementCounts(
         if (!topKey || !bottomKey) {
           return;
         }
-        pairState = {
-          topKey,
-          bottomKey,
-          state: {
-            amplitudes: entangledAmplitudesFromQubitVectors(
-              vectors.get(topKey) || [1, 0],
-              vectors.get(bottomKey) || [1, 0],
-            ),
-          },
-        };
-        applyCNOTToPair(pairState.state);
+        applyRoomReplayCnotToState(vectors, registers, topKey, bottomKey);
         return;
       }
       if (action.type !== "separated-pair-measure") {
@@ -6208,36 +6305,20 @@ function mailboxRoomRecordedMeasurementCounts(
       }
 
       let color = "blue";
-      if (
-        pairState &&
-        (qubitKey === pairState.topKey || qubitKey === pairState.bottomKey)
-      ) {
-        const qubitIndex = qubitKey === pairState.topKey ? 0 : 1;
-        color = sampleSingleQubitOutcomeFromPairState(
-          pairState.state,
-          qubitIndex,
+      const reference = registers.get(qubitKey);
+      if (reference?.state && Number.isInteger(reference.index)) {
+        const result = sharedRegisterMeasureMember(
+          reference.state,
+          reference.index,
         );
-        const otherVector = conditionalVectorAfterPairMeasurement(
-          pairState.state,
-          qubitIndex,
-          color,
-        );
-        collapsePairStateBySingleQubitMeasurement(
-          pairState.state,
-          qubitIndex,
-          color,
-        );
-        vectors.set(qubitKey, color === "blue" ? [1, 0] : [0, 1]);
-        vectors.set(
-          qubitIndex === 0 ? pairState.bottomKey : pairState.topKey,
-          otherVector,
-        );
-        pairState = null;
+        color = result?.color || "blue";
+        syncRoomReplayVectorsFromState(vectors, registers, reference.state);
       } else {
         color = sampleSingleQubitOutcomeFromVector(
           vectors.get(qubitKey) || [1, 0],
         );
         vectors.set(qubitKey, color === "blue" ? [1, 0] : [0, 1]);
+        clearRoomReplayStateForQubit(registers, qubitKey);
       }
 
       const nextPending = pending
@@ -7986,6 +8067,7 @@ async function mailboxRoomSendQubit(context, { toParticipantId, message }) {
         mailboxId: ensureGeneratedItemId(context.mailboxItem, "mailbox"),
         qubitId: ensureGeneratedItemId(qubitItem, "qubit"),
         qubitLogicalId: qubitLogicalIdForItem(qubitItem),
+        roomQubitIndex: roomQubitIndexForItem(qubitItem),
         toParticipantId: toParticipantId || null,
       });
     }
@@ -9410,12 +9492,19 @@ function generatedRuntimeVectorSnapshot(item) {
 }
 
 function captureGeneratedInitialQubits(canvas) {
-  return generatedItemsOfType(canvas, "qubit").map((item) => ({
-    itemId: ensureGeneratedItemId(item, "qubit"),
-    logicalQubitId: ensureQubitLogicalId(item),
-    center: generatedItemCenterSnapshot(canvas, item),
-    vector: generatedRuntimeVectorSnapshot(item),
-  }));
+  return generatedItemsOfType(canvas, "qubit").map((item) => {
+    const entry = {
+      itemId: ensureGeneratedItemId(item, "qubit"),
+      logicalQubitId: ensureQubitLogicalId(item),
+      center: generatedItemCenterSnapshot(canvas, item),
+      vector: generatedRuntimeVectorSnapshot(item),
+    };
+    const roomQubitIndex = roomQubitIndexForItem(item);
+    if (Number.isInteger(roomQubitIndex)) {
+      entry.roomQubitIndex = roomQubitIndex;
+    }
+    return entry;
+  });
 }
 
 function captureGeneratedGateSettings(canvas) {
@@ -13761,6 +13850,7 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
       type: "gate",
       qubitId: ensureGeneratedItemId(qubitItem, "qubit"),
       qubitLogicalId: qubitLogicalIdForItem(qubitItem),
+      roomQubitIndex: roomQubitIndexForItem(qubitItem),
       gateId: ensureGeneratedItemId(gateRuntime.item, "single-gate"),
       tickIndex,
     });
@@ -13972,6 +14062,8 @@ async function runGeneratedCnotCycle(canvas, runtime) {
         bottomQubitId: ensureGeneratedItemId(bottomQubit, "qubit"),
         topQubitLogicalId: ensureQubitLogicalId(topQubit),
         bottomQubitLogicalId: ensureQubitLogicalId(bottomQubit),
+        topRoomQubitIndex: roomQubitIndexForItem(topQubit),
+        bottomRoomQubitIndex: roomQubitIndexForItem(bottomQubit),
       });
       applyGeneratedCnotToQubitStates(topQubit, bottomQubit);
       topState.cnotSourceSlot = "top";
@@ -15693,6 +15785,7 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       ),
       qubitId,
       logicalQubitId,
+      roomQubitIndex: roomQubitIndexForItem(qubitItem),
       partnerLogicalQubitId: partnerInfo?.logicalQubitId,
       magnifierIndex: target.index,
       orderIndex,
@@ -15740,6 +15833,7 @@ async function runGeneratedSeparatedPairMeasurementTransit(
       qubitId,
       qubitItem,
       logicalQubitId,
+      roomQubitIndex: roomQubitIndexForItem(qubitItem),
       color: collapsedColor,
       orderIndex,
       startPoint: lensCenter,
