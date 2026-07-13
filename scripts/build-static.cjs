@@ -5,10 +5,6 @@ const { syncContentBundle } = require("./sync-content-bundle.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const distDir = path.join(rootDir, "dist");
-const quantumTarget = String(process.env.QUANTUM_TARGET || "github-pages")
-  .trim()
-  .replace(/[^a-z0-9-]/gi, "-")
-  .toLowerCase() || "github-pages";
 
 const assetFiles = [
   "app.js",
@@ -53,7 +49,7 @@ html = html.replace(
 );
 html = html.replace(
   '<html lang="en">',
-  `<html lang="en" data-quantum-target="${quantumTarget}" data-quantum-content-version="${buildVersion}">`,
+  `<html lang="en" data-quantum-content-version="${buildVersion}">`,
 );
 html = html.replace(
   'href="styles.css"',
@@ -76,6 +72,4 @@ fs.writeFileSync(path.join(distDir, "index.html"), html);
 assetFiles.forEach(copyFile);
 fs.writeFileSync(path.join(distDir, ".nojekyll"), "");
 
-console.log(
-  `Built ${quantumTarget} site in ${path.relative(rootDir, distDir)}`,
-);
+console.log(`Built static site in ${path.relative(rootDir, distDir)}`);

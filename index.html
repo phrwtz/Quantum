@@ -5,23 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quantum Gate Console</title>
     <script>
-      (() => {
-        const params = new URLSearchParams(window.location.search);
-        const target = params.get("quantumTarget");
-        if (
-          window.location.hostname.endsWith(".github.io") ||
-          target === "github-pages"
-        ) {
-          document.documentElement.dataset.quantumTarget = "github-pages";
-        } else if (
-          window.location.hostname.endsWith(".onrender.com") ||
-          target === "render"
-        ) {
-          document.documentElement.dataset.quantumTarget = "render";
-        }
-      })();
-    </script>
-    <script>
       window.QUANTUM_BACKEND_URL = "__PUBLIC_BACKEND_URL__";
     </script>
     <link rel="stylesheet" href="styles.css" />

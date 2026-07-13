@@ -5,7 +5,7 @@
   "description": "Interactive quantum gate console",
   "scripts": {
     "backend": "node backend/server.cjs",
-    "build:pages": "node scripts/build-pages.cjs",
+    "build:static": "node scripts/build-static.cjs",
     "check": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs",
     "serve": "node scripts/serve-local.cjs",
     "sync:content": "node scripts/sync-content-bundle.cjs",
@@ -14,7 +14,7 @@
     "test:editor": "node scripts/smoke-generated-tabs.cjs --editor-open-only",
     "test:entanglement3:repro": "node scripts/repro-entanglement3-bugs.cjs",
     "test:mailbox": "node scripts/smoke-generated-tabs.cjs --mailbox-only",
-    "test:pages": "node scripts/build-pages.cjs && node scripts/smoke-pages-build.cjs",
+    "test:static": "node scripts/build-static.cjs && node scripts/smoke-static-build.cjs",
     "test:smoke": "node scripts/smoke-generated-tabs.cjs"
   },
   "devDependencies": {

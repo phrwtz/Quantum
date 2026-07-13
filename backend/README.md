@@ -28,7 +28,7 @@ The address typed in the mailbox `From:` field, or the participant that created 
 
 `render.yaml` defines two services:
 
-- `qubit-lab`: a static site built with `npm run build:pages`.
+- `qubit-lab`: a static site built with `npm run build:static`.
 - `qubit-lab-backend`: a Node web service running `npm run backend`.
 
 Set `PUBLIC_BACKEND_URL` on the static site to the public backend service URL. Set `PUBLIC_APP_URL` on the backend to the public static site URL.

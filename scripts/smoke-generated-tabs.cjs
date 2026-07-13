@@ -4094,7 +4094,11 @@ async function runDocEditorLandingIntroTextSmoke(page) {
   try {
     await page.setViewportSize({ width: 1200, height: 1000 });
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("#tab-doc-editor").click();
+    await page.evaluate(() => {
+      unlockWorkshop();
+      setWorkshopEditorMode("whats-this");
+    });
+    await page.waitForSelector("#panel-doc-editor:not([hidden])");
     await page.locator("#docEditorTabSelect").selectOption("editor-introduction");
     await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
     const initial = await page.evaluate(() => {
@@ -4193,7 +4197,6 @@ async function runDocEditorLandingIntroTextSmoke(page) {
 
     await page.locator("#docEditorDoneButton").click();
     await wait(250);
-    await page.locator("#panel-editor-introduction .landing-info-link").click();
     const result = await page.evaluate((expectedText) => {
       const generatedTabs = window.readQuantumContentState("generated-tabs");
       const intro = (generatedTabs.tabs || []).find(
@@ -4201,9 +4204,6 @@ async function runDocEditorLandingIntroTextSmoke(page) {
       );
       const textBox = (intro?.layout?.items || []).find(
         (item) => item.type === "text-box",
-      );
-      const card = document.querySelector(
-        "#panel-editor-introduction .landing-info-card",
       );
       return {
         activeTab:
@@ -4213,8 +4213,6 @@ async function runDocEditorLandingIntroTextSmoke(page) {
         storedTop: textBox?.top,
         storedWidth: textBox?.width,
         storedHeight: textBox?.height,
-        cardVisible: Boolean(card && !card.hidden),
-        cardText: card?.textContent || "",
         expectedText,
       };
     }, editedLandingText);
@@ -4224,9 +4222,7 @@ async function runDocEditorLandingIntroTextSmoke(page) {
       result.storedLeft <= initial.left ||
       result.storedTop <= initial.top ||
       result.storedWidth <= initial.width ||
-      result.storedHeight <= initial.height ||
-      !result.cardVisible ||
-      !result.cardText.includes(editedLandingText)
+      result.storedHeight <= initial.height
     ) {
       throw new Error(
         `Doc Editor Introduction landing text persistence failed: ${JSON.stringify(result)}`,

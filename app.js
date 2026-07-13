@@ -294,20 +294,9 @@ const MAILBOX_ROOM_ACTIVE_MS = 15000;
 const MAILBOX_ROOM_AUTO_NAMES = ["Bob", "Alice"];
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
-const QUANTUM_TARGET_PARAM =
-  new URLSearchParams(window.location.search).get("quantumTarget") || "";
-const QUANTUM_TARGET =
-  QUANTUM_TARGET_PARAM ||
-  (window.location.hostname.endsWith(".onrender.com")
-    ? "render"
-    : document.documentElement?.dataset?.quantumTarget) ||
-  "";
-const IS_RENDER_BUILD = QUANTUM_TARGET === "render";
-const IS_GITHUB_PAGES_BUILD =
-  window.location.hostname.endsWith(".github.io") ||
-  QUANTUM_TARGET === "github-pages";
 const CONTENT_FILE_CACHE_BUST =
   document.documentElement?.dataset?.quantumContentVersion || "";
+const IS_STATIC_BUILD = Boolean(CONTENT_FILE_CACHE_BUST);
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -2225,7 +2214,7 @@ function normalizeGeneratedTabsState(state) {
 
 function localContentApiEndpoints(contentName) {
   const name = String(contentName || "").replace(/[^a-z-]/g, "");
-  if (!name || IS_GITHUB_PAGES_BUILD || IS_RENDER_BUILD) {
+  if (!name || IS_STATIC_BUILD) {
     return [];
   }
   const path = `${LOCAL_CONTENT_API_ROOT}/${name}`;
@@ -2372,9 +2361,6 @@ function readRepositoryContentState(contentName, relativePath) {
   if (window.location.protocol === "file:" && bundledState) {
     return readBrowserContentState(contentName) || bundledState;
   }
-  if (IS_GITHUB_PAGES_BUILD) {
-    return readContentFileState(relativePath);
-  }
   return (
     readLocalContentState(contentName) ||
     readBrowserContentState(contentName) ||
@@ -2391,7 +2377,7 @@ function readGeneratedTabsState() {
     return { tabs: [] };
   }
   const normalized = normalizeGeneratedTabsState(fileState);
-  if (normalized.changed && !IS_GITHUB_PAGES_BUILD) {
+  if (normalized.changed && !IS_STATIC_BUILD) {
     writeLocalContentState("generated-tabs", normalized.state);
   }
   return normalized.state;
@@ -2399,9 +2385,6 @@ function readGeneratedTabsState() {
 
 function writeGeneratedTabsState(state) {
   const normalized = normalizeGeneratedTabsState(state).state;
-  if (IS_GITHUB_PAGES_BUILD) {
-    return true;
-  }
   if (writeLocalContentState("generated-tabs", normalized)) {
     return true;
   }
@@ -2498,10 +2481,6 @@ function readDocumentsState() {
 
 function writeDocumentsState(state) {
   const normalized = normalizeDocumentsState(state);
-  if (IS_GITHUB_PAGES_BUILD) {
-    documentsState = normalized;
-    return true;
-  }
   if (writeLocalContentState("documents", normalized)) {
     documentsState = normalized;
     return true;
@@ -7804,7 +7783,11 @@ async function autoJoinEntanglementThreeRoom(canvas) {
 }
 
 function maybeAutoJoinEntanglementThreeRoom(tabTarget = "") {
-  if (IS_GITHUB_PAGES_BUILD) {
+  if (
+    IS_STATIC_BUILD &&
+    !localLabBackendUrlFromConfig() &&
+    !localLabBackendUrlFromLocation()
+  ) {
     return false;
   }
   const canvas = entanglementThreeCanvasForTab(tabTarget);
@@ -9685,10 +9668,7 @@ function updateGeneratedExperimentToolbar(canvas) {
         : state.experiment
           ? "Experiment ready"
           : "No experiment recorded";
-    state.status.textContent =
-      IS_GITHUB_PAGES_BUILD && statusText === "No experiment recorded"
-        ? ""
-        : statusText;
+    state.status.textContent = statusText;
   }
 }
 
@@ -12245,7 +12225,7 @@ function removeSelectedGeneratedLayoutItem() {
 }
 
 function createGeneratedEditorToolbar(entry, canvas) {
-  if (IS_GITHUB_PAGES_BUILD || isGeneratedLandingPageTab(entry)) {
+  if (isGeneratedLandingPageTab(entry)) {
     return null;
   }
   const toolbar = document.createElement("div");
@@ -18734,7 +18714,6 @@ function beginGeneratedTabPointerDrag(button, event) {
 
 function setupGeneratedTabDrag(button) {
   if (
-    IS_GITHUB_PAGES_BUILD ||
     !(button instanceof HTMLButtonElement) ||
     button.dataset.generatedTab !== "true" ||
     button.dataset.tabDragRegistered === "true"
@@ -26231,8 +26210,7 @@ function localLabRenderProtocolSteps(protocol, definition) {
 async function localLabLoadProtocolDefinitions({ quiet = false } = {}) {
   if (
     window.location.protocol === "file:" ||
-    IS_GITHUB_PAGES_BUILD ||
-    (IS_RENDER_BUILD &&
+    (IS_STATIC_BUILD &&
       !localLabBackendUrlFromConfig() &&
       !localLabBackendUrlFromLocation())
   ) {
@@ -26526,7 +26504,7 @@ function localLabMailboxFailureMessage(action, error) {
     return "Mailbox token already claimed. Send selected q to create a fresh link.";
   }
   if (/Failed to fetch|not reachable|NetworkError|Load failed/i.test(message)) {
-    if (IS_GITHUB_PAGES_BUILD) {
+    if (IS_STATIC_BUILD) {
       return `Mailbox ${action} failed: back end at ${localLabBackendBaseUrl()} is not available. Check that the Render backend service is deployed and awake, then reload Entanglement 3.`;
     }
     return `Mailbox ${action} failed: backend at ${localLabBackendBaseUrl()} is not reachable. Start it with npm run backend and try again.`;
@@ -27341,7 +27319,7 @@ async function localLabCopyClassroomLink() {
 
 function localLabHandleMailboxRoute() {
   const token = localLabMailboxTokenFromLocation();
-  if (!token || IS_GITHUB_PAGES_BUILD) {
+  if (!token) {
     return;
   }
   if (localLabMailboxToken instanceof HTMLInputElement) {
@@ -27477,15 +27455,10 @@ function localLabApplySingleGate(gateKey) {
     register.numQubits,
   );
   localLabState.selectedQubit = target;
-  const state = {
-    numQubits: register.numQubits,
-    amplitudes: realAmplitudesFromQuantumRegister(
-      register,
-      2 ** register.numQubits,
-    ),
-  };
-  sharedRegisterApplySingleGate(state, target, matrix);
-  localLabSetRegister(state, `${gateKey} applied to q${target}`);
+  localLabSetRegister(
+    quantumCore.applySingleQubitGate(register, target, matrix),
+    `${gateKey} applied to q${target}`,
+  );
 }
 
 function localLabApplyCnot() {
@@ -27507,15 +27480,10 @@ function localLabApplyCnot() {
     return;
   }
   localLabState.selectedQubit = target;
-  const state = {
-    numQubits: register.numQubits,
-    amplitudes: realAmplitudesFromQuantumRegister(
-      register,
-      2 ** register.numQubits,
-    ),
-  };
-  sharedRegisterApplyCnot(state, control, target);
-  localLabSetRegister(state, `C-NOT q${control} -> q${target}`);
+  localLabSetRegister(
+    quantumCore.applyCnot(register, control, target),
+    `C-NOT q${control} -> q${target}`,
+  );
 }
 
 function localLabMeasureSelectedQubit() {
@@ -27528,17 +27496,10 @@ function localLabMeasureSelectedQubit() {
     localLabSelectValue(localLabMeasureQubit, localLabState.selectedQubit),
     register.numQubits,
   );
-  const state = {
-    numQubits: register.numQubits,
-    amplitudes: realAmplitudesFromQuantumRegister(
-      register,
-      2 ** register.numQubits,
-    ),
-  };
-  const result = sharedRegisterMeasureMember(state, target);
+  const result = quantumCore.measureQubit(register, target);
   localLabState.selectedQubit = target;
   localLabSetRegister(
-    state,
+    result.register,
     `Measured q${target}: ${result.color} (p=${localLabFormatProbability(result.probability)})`,
   );
 }
@@ -27551,20 +27512,14 @@ function localLabMeasureAllQubits() {
   localLabClearTeleportation();
   const bits = [];
   let probability = 1;
-  const state = {
-    numQubits: register.numQubits,
-    amplitudes: realAmplitudesFromQuantumRegister(
-      register,
-      2 ** register.numQubits,
-    ),
-  };
   for (let qubitIndex = 0; qubitIndex < register.numQubits; qubitIndex += 1) {
-    const result = sharedRegisterMeasureMember(state, qubitIndex);
+    const result = quantumCore.measureQubit(register, qubitIndex);
     bits.push(String(result.outcome));
     probability *= result.probability;
+    register = result.register;
   }
   localLabSetRegister(
-    state,
+    register,
     `Measured |${bits.join("")}> (p=${localLabFormatProbability(probability)})`,
   );
 }
@@ -27826,10 +27781,8 @@ playgroundComponentDefaultsCache = readPlaygroundComponentDefaultsPayload();
 playgroundGroupComponentsCache = readPlaygroundGroupComponentsPayload();
 documentsState = readDocumentsState();
 
-const plagroundComposer = IS_GITHUB_PAGES_BUILD ? null : setupPlagroundComposer();
-const documentEditorComposer = IS_GITHUB_PAGES_BUILD
-  ? null
-  : setupDocumentEditor();
+const plagroundComposer = setupPlagroundComposer();
+const documentEditorComposer = setupDocumentEditor();
 const editorComposers = [plagroundComposer, documentEditorComposer].filter(
   Boolean,
 );
@@ -27879,10 +27832,6 @@ function setActiveTab(tabTarget) {
   document.documentElement.classList.toggle(
     "landing-page-active",
     isLandingPage,
-  );
-  document.documentElement.classList.toggle(
-    "github-pages-experiment-active",
-    IS_GITHUB_PAGES_BUILD && !isLandingPage,
   );
 
   const previousActiveTarget =
@@ -27937,35 +27886,6 @@ function setActiveTab(tabTarget) {
   refreshVisibleEditorsAfterTabSwitch();
 }
 
-function removeAuthoringTabsForGithubPages() {
-  if (!IS_GITHUB_PAGES_BUILD) {
-    return;
-  }
-  document.body.classList.add("github-pages-build");
-  ["plaground", "doc-editor", "local-lab"].forEach((tabTarget) => {
-    const button = document.querySelector(
-      `.tab-btn[data-tab-target="${tabTarget}"]`,
-    );
-    if (button instanceof HTMLButtonElement) {
-      const buttonIndex = tabButtons.indexOf(button);
-      if (buttonIndex >= 0) {
-        tabButtons.splice(buttonIndex, 1);
-      }
-      button.remove();
-    }
-    const panel = document.getElementById(`panel-${tabTarget}`);
-    if (panel instanceof HTMLElement) {
-      const panelIndex = tabPanels.indexOf(panel);
-      if (panelIndex >= 0) {
-        tabPanels.splice(panelIndex, 1);
-      }
-      panel.remove();
-    }
-  });
-  syncTabButtonsFromDom();
-}
-
-removeAuthoringTabsForGithubPages();
 document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
 syncWorkshopModeButtons();
 workshopModeButtons.forEach((button) => {
@@ -28023,14 +27943,6 @@ window.addEventListener("resize", () => {
   refreshVisibleEditors();
 });
 
-function initialGithubPagesTabTarget() {
-  return (
-    (generatedTabsState.tabs || []).find(
-      (entry) => typeof entry?.id === "string" && entry.id,
-    )?.id || ""
-  );
-}
-
 function initialLocalTabTarget() {
   if (localLabMailboxTokenFromLocation()) {
     return "local-lab";
@@ -28045,8 +27957,6 @@ function initialLocalTabTarget() {
   return introductionEntry?.id || "plaground";
 }
 
-setActiveTab(
-  IS_GITHUB_PAGES_BUILD ? initialGithubPagesTabTarget() : initialLocalTabTarget(),
-);
+setActiveTab(initialLocalTabTarget());
 mailboxRoomStartBootCleanup();
 localLabHandleMailboxRoute();

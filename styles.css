@@ -184,22 +184,10 @@ body.layout-edit-active *::after {
     0 2px 4px rgba(16, 41, 63, 0.2);
 }
 
-html[data-quantum-target="github-pages"] #tab-plaground,
-html[data-quantum-target="github-pages"] #tab-doc-editor,
-html[data-quantum-target="github-pages"] #panel-plaground,
-html[data-quantum-target="github-pages"] #panel-doc-editor,
-html[data-quantum-target="github-pages"] .generated-editor-toolbar {
-  display: none;
-}
-
 #tab-doc-editor,
 body:not(.workshop-unlocked) #tab-plaground,
 body:not(.workshop-unlocked) #panel-plaground,
 body:not(.workshop-unlocked) #panel-doc-editor {
-  display: none;
-}
-
-html[data-quantum-target="github-pages"] .tab-strip {
   display: none;
 }
 
@@ -209,16 +197,6 @@ html.landing-page-active .tab-strip {
 
 body.workshop-unlocked .tab-strip {
   display: none;
-}
-
-html[data-quantum-target="github-pages"].github-pages-experiment-active
-  .tab-strip {
-  display: flex;
-}
-
-html[data-quantum-target="github-pages"] .tabs-shell {
-  max-width: 100vw;
-  padding-top: 0.5rem;
 }
 
 .tab-panel {
