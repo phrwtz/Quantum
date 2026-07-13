@@ -11,6 +11,7 @@ const assetFiles = [
   "quantum-core.js",
   "styles.css",
   "assets/landing-lab-hero.png",
+  "assets/wide-magnifier.png",
   "Magnifying glass transparent.png",
   "Wide magnifying glass transparent.png",
   "New magnifying glass.png",

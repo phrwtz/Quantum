@@ -97,7 +97,7 @@ async function runSmoke(baseUrl) {
     });
 
     const wideMagnifierResponse = await page.request.get(
-      `${baseUrl}/Wide%20magnifying%20glass%20transparent.png`,
+      `${baseUrl}/assets/wide-magnifier.png`,
     );
     if (!wideMagnifierResponse.ok()) {
       throw new Error(
@@ -117,10 +117,26 @@ async function runSmoke(baseUrl) {
       const landingHeroStyle = landingHero
         ? window.getComputedStyle(landingHero)
         : null;
+      const activeTarget =
+        document.querySelector(".tab-btn.active")?.dataset.tabTarget || "";
+      const topTabsVisible = Boolean(
+        tabStrip &&
+          window.getComputedStyle(tabStrip).display !== "none" &&
+          tabStrip.getClientRects().length > 0,
+      );
+      const landingHeroVisible = Boolean(
+        landingHero && landingHero.getClientRects().length > 0,
+      );
+      const landingHeroHasGraphic = Boolean(
+        landingHeroStyle?.backgroundImage?.includes("landing-lab-hero.png"),
+      );
+      const landingTourSignText =
+        landingPanel
+          ?.querySelector(".landing-tour-sign .landing-sign-label")
+          ?.textContent?.trim() || "";
       return {
         labels,
-        activeTarget:
-          document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+        activeTarget,
         contentVersion:
           document.documentElement.dataset.quantumContentVersion || "",
         authoringButtons: Boolean(
@@ -134,21 +150,10 @@ async function runSmoke(baseUrl) {
         editorHidden:
           getComputedStyle(document.querySelector("#panel-plaground")).display ===
           "none",
-        topTabsVisible: Boolean(
-          tabStrip &&
-            window.getComputedStyle(tabStrip).display !== "none" &&
-            tabStrip.getClientRects().length > 0,
-        ),
-        landingHeroVisible: Boolean(
-          landingHero && landingHero.getClientRects().length > 0,
-        ),
-        landingHeroHasGraphic: Boolean(
-          landingHeroStyle?.backgroundImage?.includes("landing-lab-hero.png"),
-        ),
-        landingTourSignText:
-          landingPanel
-            ?.querySelector(".landing-tour-sign .landing-sign-label")
-            ?.textContent?.trim() || "",
+        topTabsVisible,
+        landingHeroVisible,
+        landingHeroHasGraphic,
+        landingTourSignText,
       };
     });
 
@@ -166,6 +171,29 @@ async function runSmoke(baseUrl) {
     ) {
       throw new Error(`Static site initial state failed: ${JSON.stringify(initial)}`);
     }
+
+    await page.evaluate(() => setActiveTab("custom-two-qubits"));
+    await page.waitForSelector("#panel-custom-two-qubits:not([hidden])");
+    await page.waitForSelector("#panel-custom-two-qubits .pair-magnifier");
+    const pairMagnifier = await page.evaluate(() => {
+      const element = document.querySelector(
+        "#panel-custom-two-qubits .pair-magnifier",
+      );
+      const style = element ? window.getComputedStyle(element) : null;
+      return {
+        visible: Boolean(element && element.getClientRects().length > 0),
+        backgroundImage: style?.backgroundImage || "",
+      };
+    });
+    if (
+      !pairMagnifier.visible ||
+      !pairMagnifier.backgroundImage.includes("assets/wide-magnifier.png")
+    ) {
+      throw new Error(
+        `Two-qubit magnifier graphic missing: ${JSON.stringify(pairMagnifier)}`,
+      );
+    }
+    await page.evaluate(() => setActiveTab("editor-introduction"));
 
     await page.locator("#panel-editor-introduction .landing-workshop-sign").click();
     await page.waitForSelector("#workshopPasswordOverlay:not([hidden])");
