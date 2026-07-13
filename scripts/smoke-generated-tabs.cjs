@@ -4427,6 +4427,129 @@ async function runFileModeRepositoryContentSmoke(browser) {
   }
 }
 
+async function runWorkshopPasswordSessionSmoke(browser, baseUrl) {
+  const assertWorkshopOpen = async (page, label) => {
+    const state = await page.evaluate(() => ({
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      editorVisible: Boolean(
+        document.querySelector("#panel-plaground:not([hidden])"),
+      ),
+      unlocked: document.body.classList.contains("workshop-unlocked"),
+      mode: document.documentElement.dataset.workshopEditorMode || "",
+      passwordOpen: Boolean(
+        document.querySelector("#workshopPasswordOverlay:not([hidden])"),
+      ),
+      hasTabEditorButton: Boolean(document.querySelector("#editorNewTabButton")),
+      hasComponentEditorButton: Boolean(
+        document.querySelector("[data-workshop-mode='component']"),
+      ),
+      hasDocEditorButton: Boolean(
+        document.querySelector("[data-workshop-mode='whats-this']"),
+      ),
+    }));
+    if (
+      state.activeTab !== "plaground" ||
+      !state.editorVisible ||
+      !state.unlocked ||
+      state.mode !== "tab" ||
+      state.passwordOpen ||
+      !state.hasTabEditorButton ||
+      !state.hasComponentEditorButton ||
+      !state.hasDocEditorButton
+    ) {
+      throw new Error(
+        `${label} did not open the Workshop editors: ${JSON.stringify(state)}`,
+      );
+    }
+  };
+
+  const page = await browser.newPage({ viewport: { width: 1200, height: 820 } });
+  try {
+    await installContentApiHelpers(page);
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await page.locator("#panel-editor-introduction .landing-workshop-sign").click();
+    await page.waitForSelector("#workshopPasswordOverlay:not([hidden])");
+    await page.locator("#workshopPasswordInput").fill("142857");
+    await page.locator("#workshopPasswordForm").evaluate((form) => {
+      form.requestSubmit();
+    });
+    await page.waitForSelector("#panel-plaground:not([hidden])");
+    await assertWorkshopOpen(page, "Password unlock");
+
+    await page.locator("[data-workshop-mode='component']").first().click();
+    const componentMode = await page.evaluate(() => ({
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      mode: document.documentElement.dataset.workshopEditorMode || "",
+    }));
+    if (componentMode.activeTab !== "plaground" || componentMode.mode !== "component") {
+      throw new Error(
+        `Workshop component editor mode failed: ${JSON.stringify(componentMode)}`,
+      );
+    }
+
+    await page.locator("[data-workshop-mode='whats-this']").first().click();
+    const docMode = await page.evaluate(() => ({
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      docEditorVisible: Boolean(
+        document.querySelector("#panel-doc-editor:not([hidden])"),
+      ),
+      mode: document.documentElement.dataset.workshopEditorMode || "",
+    }));
+    if (
+      docMode.activeTab !== "doc-editor" ||
+      !docMode.docEditorVisible ||
+      docMode.mode !== "whats-this"
+    ) {
+      throw new Error(`Workshop Doc Editor mode failed: ${JSON.stringify(docMode)}`);
+    }
+
+    await page.locator("#panel-doc-editor [data-workshop-mode='back']").click();
+    await page.waitForSelector("#panel-editor-introduction:not([hidden])");
+    await page.locator("#panel-editor-introduction .landing-workshop-sign").click();
+    await page.waitForSelector("#panel-plaground:not([hidden])");
+    await assertWorkshopOpen(page, "Same-session unlock after Back");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#panel-editor-introduction .landing-workshop-sign").click();
+    await page.waitForSelector("#panel-plaground:not([hidden])");
+    await assertWorkshopOpen(page, "Same-session unlock after reload");
+  } finally {
+    await page.close();
+  }
+
+  const freshPage = await browser.newPage({ viewport: { width: 1200, height: 820 } });
+  try {
+    await installContentApiHelpers(freshPage);
+    await freshPage.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await freshPage
+      .locator("#panel-editor-introduction .landing-workshop-sign")
+      .click();
+    await freshPage.waitForSelector("#workshopPasswordOverlay:not([hidden])");
+    const freshState = await freshPage.evaluate(() => ({
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      editorVisible: Boolean(
+        document.querySelector("#panel-plaground:not([hidden])"),
+      ),
+      passwordOpen: Boolean(
+        document.querySelector("#workshopPasswordOverlay:not([hidden])"),
+      ),
+      unlocked: document.body.classList.contains("workshop-unlocked"),
+    }));
+    if (
+      freshState.activeTab === "plaground" ||
+      freshState.editorVisible ||
+      !freshState.passwordOpen ||
+      freshState.unlocked
+    ) {
+      throw new Error(
+        `Fresh session skipped Workshop password: ${JSON.stringify(freshState)}`,
+      );
+    }
+  } finally {
+    await freshPage.close();
+  }
+}
+
 async function runLocalMultiQubitLabSmoke(page) {
   await activateTab(page, "local-lab");
   await page.waitForSelector("#panel-local-lab:not([hidden])");
@@ -7568,6 +7691,10 @@ async function runSmokeTest(baseUrl) {
       await runEditorOpenTabSmoke(browser, baseUrl);
       return { ok: true, editorOpenTab: true };
     }
+    if (process.argv.includes("--workshop-only")) {
+      await runWorkshopPasswordSessionSmoke(browser, baseUrl);
+      return { ok: true, workshopPasswordSession: true };
+    }
     if (process.argv.includes("--entanglement-three-only")) {
       await runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl);
       return { ok: true, entanglementThreeRoomMeasurement: true };
@@ -7617,6 +7744,7 @@ async function runSmokeTest(baseUrl) {
     await runMailboxRoomDeliverySmoke(browser, baseUrl);
     await runQuantumInspectorSmoke(page);
     await runDocEditorLandingIntroTextSmoke(page);
+    await runWorkshopPasswordSessionSmoke(browser, baseUrl);
     await runEntangledMathSmoke(page);
     await runEditorDoubleMeasurementSmoke(page);
     await runSequentialMeasurementEditorSmoke(page);
