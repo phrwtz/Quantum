@@ -4511,8 +4511,27 @@ async function runWorkshopPasswordSessionSmoke(browser, baseUrl) {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("#panel-editor-introduction .landing-workshop-sign").click();
-    await page.waitForSelector("#panel-plaground:not([hidden])");
-    await assertWorkshopOpen(page, "Same-session unlock after reload");
+    await page.waitForSelector("#workshopPasswordOverlay:not([hidden])");
+    const reloadState = await page.evaluate(() => ({
+      activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      editorVisible: Boolean(
+        document.querySelector("#panel-plaground:not([hidden])"),
+      ),
+      passwordOpen: Boolean(
+        document.querySelector("#workshopPasswordOverlay:not([hidden])"),
+      ),
+      unlocked: document.body.classList.contains("workshop-unlocked"),
+    }));
+    if (
+      reloadState.activeTab === "plaground" ||
+      reloadState.editorVisible ||
+      !reloadState.passwordOpen ||
+      reloadState.unlocked
+    ) {
+      throw new Error(
+        `Reload skipped Workshop password: ${JSON.stringify(reloadState)}`,
+      );
+    }
   } finally {
     await page.close();
   }

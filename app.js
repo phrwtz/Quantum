@@ -278,8 +278,6 @@ const LOCAL_CONTENT_API_PORT = "8124";
 const LOCAL_CONTENT_API_ROOT = "/__quantum-content";
 const BROWSER_CONTENT_STORAGE_PREFIX = "quantum_editor_content_state_v1";
 const WORKSHOP_PASSWORD = "142857";
-const WORKSHOP_SESSION_UNLOCKED_STORAGE_KEY =
-  "quantum_workshop_unlocked_session_v1";
 const MAILBOX_DEFAULT_MESSAGE =
   "Paul is sending you an entangled qubit. Click on the link below to get it. You can modify it before you measure it if you want to. As soon as you measure it you will break the entanglement.";
 const MAILBOX_LINK_PLACEHOLDER = "__MAILBOX_LINK__";
@@ -296,9 +294,13 @@ const MAILBOX_ROOM_ACTIVE_MS = 15000;
 const MAILBOX_ROOM_AUTO_NAMES = ["Bob", "Alice"];
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
+const QUANTUM_TARGET_PARAM =
+  new URLSearchParams(window.location.search).get("quantumTarget") || "";
 const QUANTUM_TARGET =
-  document.documentElement?.dataset?.quantumTarget ||
-  new URLSearchParams(window.location.search).get("quantumTarget") ||
+  QUANTUM_TARGET_PARAM ||
+  (window.location.hostname.endsWith(".onrender.com")
+    ? "render"
+    : document.documentElement?.dataset?.quantumTarget) ||
   "";
 const IS_RENDER_BUILD = QUANTUM_TARGET === "render";
 const IS_GITHUB_PAGES_BUILD =
@@ -12573,7 +12575,6 @@ function introductionLandingTabId() {
 }
 
 function returnToIntroductionLandingPage() {
-  workshopUnlocked = false;
   document.body.classList.remove("workshop-unlocked");
   workshopEditorMode = "tab";
   document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
@@ -12606,44 +12607,15 @@ function setWorkshopEditorMode(mode, { activate = true } = {}) {
   plagroundComposer?.handleWorkshopModeChanged?.(normalized);
 }
 
-function readWorkshopSessionUnlocked() {
-  try {
-    return (
-      window.sessionStorage.getItem(WORKSHOP_SESSION_UNLOCKED_STORAGE_KEY) ===
-      "true"
-    );
-  } catch (_error) {
-    return false;
-  }
-}
-
-function writeWorkshopSessionUnlocked(unlocked) {
-  try {
-    if (unlocked) {
-      window.sessionStorage.setItem(
-        WORKSHOP_SESSION_UNLOCKED_STORAGE_KEY,
-        "true",
-      );
-    } else {
-      window.sessionStorage.removeItem(WORKSHOP_SESSION_UNLOCKED_STORAGE_KEY);
-    }
-  } catch (_error) {
-    // Session persistence is a convenience; the password dialog still works.
-  }
-}
-
-function openWorkshop({ remember = false } = {}) {
+function openWorkshop() {
   workshopUnlocked = true;
-  if (remember) {
-    writeWorkshopSessionUnlocked(true);
-  }
   document.body.classList.add("workshop-unlocked");
   closeWorkshopPasswordDialog();
   setWorkshopEditorMode("tab");
 }
 
 function openWorkshopPasswordDialog() {
-  if (workshopUnlocked || readWorkshopSessionUnlocked()) {
+  if (workshopUnlocked) {
     openWorkshop();
     return;
   }
@@ -12667,7 +12639,7 @@ function closeWorkshopPasswordDialog() {
 }
 
 function unlockWorkshop() {
-  openWorkshop({ remember: true });
+  openWorkshop();
 }
 
 function createGeneratedLandingPanel(entry) {
@@ -27991,10 +27963,6 @@ function removeAuthoringTabsForGithubPages() {
 }
 
 removeAuthoringTabsForGithubPages();
-if (readWorkshopSessionUnlocked()) {
-  workshopUnlocked = true;
-  document.body.classList.add("workshop-unlocked");
-}
 document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
 syncWorkshopModeButtons();
 workshopModeButtons.forEach((button) => {

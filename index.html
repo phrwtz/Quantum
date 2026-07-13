@@ -7,11 +7,17 @@
     <script>
       (() => {
         const params = new URLSearchParams(window.location.search);
+        const target = params.get("quantumTarget");
         if (
           window.location.hostname.endsWith(".github.io") ||
-          params.get("quantumTarget") === "github-pages"
+          target === "github-pages"
         ) {
           document.documentElement.dataset.quantumTarget = "github-pages";
+        } else if (
+          window.location.hostname.endsWith(".onrender.com") ||
+          target === "render"
+        ) {
+          document.documentElement.dataset.quantumTarget = "render";
         }
       })();
     </script>
