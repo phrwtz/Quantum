@@ -8,6 +8,8 @@
     "build:pages": "npm run build:static",
     "build:static": "node scripts/build-static.cjs",
     "check": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs",
+    "import:render-docs": "node scripts/import-chrome-editor-content.cjs --content documents",
+    "import:render-tabs": "node scripts/import-chrome-editor-content.cjs --content generated-tabs",
     "serve": "node scripts/serve-local.cjs",
     "sync:content": "node scripts/sync-content-bundle.cjs",
     "test": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs && node scripts/test-quantum-core.cjs && node scripts/test-backend.cjs && node scripts/smoke-generated-tabs.cjs",
