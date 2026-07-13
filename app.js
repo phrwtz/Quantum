@@ -296,11 +296,14 @@ const MAILBOX_ROOM_ACTIVE_MS = 15000;
 const MAILBOX_ROOM_AUTO_NAMES = ["Bob", "Alice"];
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
+const QUANTUM_TARGET =
+  document.documentElement?.dataset?.quantumTarget ||
+  new URLSearchParams(window.location.search).get("quantumTarget") ||
+  "";
+const IS_RENDER_BUILD = QUANTUM_TARGET === "render";
 const IS_GITHUB_PAGES_BUILD =
   window.location.hostname.endsWith(".github.io") ||
-  document.documentElement?.dataset?.quantumTarget === "github-pages" ||
-  new URLSearchParams(window.location.search).get("quantumTarget") ===
-    "github-pages";
+  QUANTUM_TARGET === "github-pages";
 const CONTENT_FILE_CACHE_BUST =
   document.documentElement?.dataset?.quantumContentVersion || "";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
@@ -2220,7 +2223,7 @@ function normalizeGeneratedTabsState(state) {
 
 function localContentApiEndpoints(contentName) {
   const name = String(contentName || "").replace(/[^a-z-]/g, "");
-  if (!name || IS_GITHUB_PAGES_BUILD) {
+  if (!name || IS_GITHUB_PAGES_BUILD || IS_RENDER_BUILD) {
     return [];
   }
   const path = `${LOCAL_CONTENT_API_ROOT}/${name}`;
@@ -2351,7 +2354,7 @@ function readContentFileState(relativePath) {
   if (window.location.protocol === "file:" && bundledState) {
     return bundledState;
   }
-  if (!IS_GITHUB_PAGES_BUILD || !CONTENT_FILE_CACHE_BUST) {
+  if (!CONTENT_FILE_CACHE_BUST) {
     return readJsonResourceSync(relativePath) || bundledState;
   }
   const separator = relativePath.includes("?") ? "&" : "?";
@@ -2498,6 +2501,10 @@ function writeDocumentsState(state) {
     return true;
   }
   if (writeLocalContentState("documents", normalized)) {
+    documentsState = normalized;
+    return true;
+  }
+  if (writeBrowserContentState("documents", normalized)) {
     documentsState = normalized;
     return true;
   }
@@ -26247,7 +26254,13 @@ function localLabRenderProtocolSteps(protocol, definition) {
 }
 
 async function localLabLoadProtocolDefinitions({ quiet = false } = {}) {
-  if (window.location.protocol === "file:" || IS_GITHUB_PAGES_BUILD) {
+  if (
+    window.location.protocol === "file:" ||
+    IS_GITHUB_PAGES_BUILD ||
+    (IS_RENDER_BUILD &&
+      !localLabBackendUrlFromConfig() &&
+      !localLabBackendUrlFromLocation())
+  ) {
     localLabState.protocolFramework.definitions =
       LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS;
     localLabPopulateProtocolRecipeSelect(LOCAL_LAB_PROTOCOL_FALLBACK_DEFINITIONS);

@@ -14,6 +14,12 @@ const expectedPublishedTabLabels = [
   "Entanglement 2",
   "Entanglement 3",
 ];
+const expectedRenderTabLabels = [
+  "Editor",
+  "Doc Editor",
+  "Local Lab",
+  ...expectedPublishedTabLabels,
+];
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -74,12 +80,18 @@ function closeServer(server) {
 async function runSmoke(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
+    const isRenderTarget = process.argv.includes("--render-target");
     const page = await browser.newPage({ viewport: { width: 1180, height: 760 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
       if (message.type() === "error") {
-        errors.push(message.text());
+        const location = message.location();
+        errors.push(
+          [message.text(), location?.url, location?.lineNumber]
+            .filter((value) => value !== undefined && value !== "")
+            .join(" @ "),
+        );
       }
     });
     await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
@@ -94,8 +106,10 @@ async function runSmoke(baseUrl) {
       const publicTargets = Array.from(document.querySelectorAll(".tab-btn")).map(
         (button) => button.dataset.tabTarget || "",
       );
-      const landingPanel = publicTargets[0]
-        ? document.getElementById(`panel-${publicTargets[0]}`)
+      const activeTarget =
+        document.querySelector(".tab-btn.active")?.dataset.tabTarget || "";
+      const landingPanel = activeTarget
+        ? document.getElementById(`panel-${activeTarget}`)
         : null;
       const landingButtonLabels = Array.from(
         landingPanel?.querySelectorAll(
@@ -241,7 +255,7 @@ async function runSmoke(baseUrl) {
           "leave it to you to experiment but here are some questions to get you started",
         ),
         cnotLayoutAudit: auditCnotLayouts(),
-        activeTarget: document.querySelector(".tab-btn.active")?.dataset.tabTarget,
+        activeTarget,
         authoringButtons: Boolean(
           document.querySelector("#tab-plaground, #tab-doc-editor"),
         ),
@@ -254,6 +268,108 @@ async function runSmoke(baseUrl) {
           .length,
       };
     });
+
+    if (isRenderTarget) {
+      if (
+        result.target !== "render" ||
+        result.labels.join("|") !== expectedRenderTabLabels.join("|") ||
+        !result.authoringButtons ||
+        !result.authoringPanels ||
+        result.generatedPanels !== expectedPublishedTabLabels.length ||
+        result.topTabsVisible ||
+        result.landingTourSignText !== "To the Tour" ||
+        result.landingClosedSignText !== "Closed"
+      ) {
+        throw new Error(`Render static smoke failed: ${JSON.stringify(result)}`);
+      }
+
+      await page
+        .locator("#panel-editor-introduction .landing-workshop-sign")
+        .click();
+      await page.waitForSelector("#workshopPasswordOverlay:not([hidden])");
+      await page.locator("#workshopPasswordInput").fill("142857");
+      await page.locator("#workshopPasswordForm").evaluate((form) => {
+        form.requestSubmit();
+      });
+      await page.waitForFunction(() => {
+        const panel = document.querySelector("#panel-plaground");
+        return (
+          panel &&
+          !panel.hidden &&
+          getComputedStyle(panel).display !== "none" &&
+          document.body.classList.contains("workshop-unlocked")
+        );
+      });
+      const workshopState = await page.evaluate(() => ({
+        activeTab:
+          document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+        mode: document.documentElement.dataset.workshopEditorMode || "",
+        editorVisible:
+          getComputedStyle(document.querySelector("#panel-plaground")).display !==
+          "none",
+        hasCanvas: Boolean(document.querySelector("#playgroundCanvas")),
+        hasTabControls: Boolean(document.querySelector("#editorNewTabButton")),
+        hasComponentMode: Boolean(
+          document.querySelector("[data-workshop-mode='component']"),
+        ),
+        hasDocMode: Boolean(
+          document.querySelector("[data-workshop-mode='whats-this']"),
+        ),
+      }));
+      if (
+        workshopState.activeTab !== "plaground" ||
+        workshopState.mode !== "tab" ||
+        !workshopState.editorVisible ||
+        !workshopState.hasCanvas ||
+        !workshopState.hasTabControls ||
+        !workshopState.hasComponentMode ||
+        !workshopState.hasDocMode
+      ) {
+        throw new Error(
+          `Render Workshop did not open editors: ${JSON.stringify(workshopState)}`,
+        );
+      }
+
+      await page.locator("#panel-plaground [data-workshop-mode='component']").click();
+      const componentState = await page.evaluate(() => ({
+        activeTab:
+          document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+        mode: document.documentElement.dataset.workshopEditorMode || "",
+      }));
+      if (
+        componentState.activeTab !== "plaground" ||
+        componentState.mode !== "component"
+      ) {
+        throw new Error(
+          `Render Workshop component mode failed: ${JSON.stringify(componentState)}`,
+        );
+      }
+
+      await page.locator("#panel-plaground [data-workshop-mode='whats-this']").click();
+      const docState = await page.evaluate(() => ({
+        activeTab:
+          document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+        mode: document.documentElement.dataset.workshopEditorMode || "",
+        docEditorVisible:
+          getComputedStyle(document.querySelector("#panel-doc-editor")).display !==
+          "none" &&
+          !document.querySelector("#panel-doc-editor").hidden,
+      }));
+      if (
+        docState.activeTab !== "doc-editor" ||
+        docState.mode !== "whats-this" ||
+        !docState.docEditorVisible
+      ) {
+        throw new Error(
+          `Render Workshop Doc Editor mode failed: ${JSON.stringify(docState)}`,
+        );
+      }
+
+      if (errors.length > 0) {
+        throw new Error(`Browser errors: ${errors.join(" | ")}`);
+      }
+      return result;
+    }
 
     if (
       result.target !== "github-pages" ||

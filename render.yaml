@@ -2,7 +2,7 @@ services:
   - type: web
     name: qubit-lab
     runtime: static
-    buildCommand: npm ci && npm run build:pages
+    buildCommand: npm ci && QUANTUM_TARGET=render npm run build:pages
     staticPublishPath: dist
     envVars:
       - key: PUBLIC_BACKEND_URL
