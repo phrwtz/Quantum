@@ -98,6 +98,14 @@ async function runSmoke(baseUrl) {
     await page.waitForSelector(".tab-btn.generated-tab-btn", {
       state: "attached",
     });
+    const wideMagnifierResponse = await page.request.get(
+      `${baseUrl}/Wide%20magnifying%20glass%20transparent.png`,
+    );
+    if (!wideMagnifierResponse.ok()) {
+      throw new Error(
+        `Wide magnifier asset missing: ${wideMagnifierResponse.status()}`,
+      );
+    }
 
     const result = await page.evaluate(() => {
       const labels = Array.from(document.querySelectorAll(".tab-btn")).map(

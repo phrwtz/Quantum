@@ -7804,6 +7804,9 @@ async function autoJoinEntanglementThreeRoom(canvas) {
 }
 
 function maybeAutoJoinEntanglementThreeRoom(tabTarget = "") {
+  if (IS_GITHUB_PAGES_BUILD) {
+    return false;
+  }
   const canvas = entanglementThreeCanvasForTab(tabTarget);
   if (!(canvas instanceof HTMLElement)) {
     return false;

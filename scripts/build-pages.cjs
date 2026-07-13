@@ -16,6 +16,7 @@ const assetFiles = [
   "styles.css",
   "assets/landing-lab-hero.png",
   "Magnifying glass transparent.png",
+  "Wide magnifying glass transparent.png",
   "New magnifying glass.png",
   "data/generated-tabs.json",
   "data/whats-this-documents.json",
