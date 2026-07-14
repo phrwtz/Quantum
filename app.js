@@ -8266,24 +8266,42 @@ async function animateMailboxQubitIntoMailbox(context) {
   return true;
 }
 
+async function waitForEntanglementThreeRoomJoin(canvas, timeoutMs = 15000) {
+  if (mailboxRoomIsJoined()) {
+    return true;
+  }
+  if (!mailboxRoomState.entanglementThreeJoinStarted) {
+    await autoJoinEntanglementThreeRoom(canvas);
+  }
+  const deadline = Date.now() + timeoutMs;
+  while (
+    !mailboxRoomIsJoined() &&
+    mailboxRoomState.entanglementThreeJoinStarted &&
+    Date.now() < deadline
+  ) {
+    await waitForDuration(50);
+  }
+  return mailboxRoomIsJoined();
+}
+
 async function sendMailboxQubitWithoutDialog(context) {
   const mailboxItem = context?.mailboxItem;
   const qubitItem = context?.qubitItem;
   try {
-    if (!mailboxRoomIsJoined()) {
-      const canvas = generatedCanvasForItem(mailboxItem || qubitItem);
-      if (isEntanglementThreeCanvas(canvas)) {
-        await autoJoinEntanglementThreeRoom(canvas);
-      }
-    }
-    if (!mailboxRoomIsJoined()) {
-      throw new Error("The mailbox is still connecting to the room");
-    }
+    const canvas = generatedCanvasForItem(mailboxItem || qubitItem);
+    const roomReady = mailboxRoomIsJoined()
+      ? Promise.resolve(true)
+      : isEntanglementThreeCanvas(canvas)
+        ? waitForEntanglementThreeRoomJoin(canvas)
+        : Promise.resolve(false);
     setMailboxComponentStatus(
       mailboxItem,
       `Sending ${mailboxRoomQubitLabel(context)}...`,
     );
     await animateMailboxQubitIntoMailbox(context);
+    if (!(await roomReady)) {
+      throw new Error("Unable to connect the mailbox to the room");
+    }
     await mailboxRoomSendQubit(context, {
       toParticipantId: "",
       message: "",
@@ -8303,7 +8321,8 @@ function handleMailboxQubitPlaced(context) {
   }
   if (
     context.qubitItem instanceof HTMLElement &&
-    mailboxRoomSendingQubits.has(context.qubitItem)
+    (mailboxRoomSendingQubits.has(context.qubitItem) ||
+      context.qubitItem.classList.contains("mailbox-sending"))
   ) {
     return;
   }
