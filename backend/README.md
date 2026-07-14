@@ -63,7 +63,9 @@ Set `PUBLIC_BACKEND_URL` on the static site to the public backend service URL. S
 - `GET /rooms/:roomId/events` returns the room event log.
 - `POST /rooms/:roomId/messages` appends a lightweight room chat message to the event log.
 - `POST /rooms/:roomId/actions` appends a structured experiment action such as a flipper-gate setting change.
-- `POST /rooms/:roomId/mailbox-notifications` appends a Stage 1 mailbox notification such as “Paul sent q0” to the event log.
+- `POST /rooms/:roomId/mailbox-notifications` queues a qubit notification such as “Bob sent q0” and appends it to the room event log.
+- `GET /rooms/:roomId/mailbox-notifications?participantId=:participantId` returns unclaimed queued qubits for a participant, including qubits sent before they joined.
+- `POST /rooms/:roomId/mailbox-notifications/:eventId/claim` marks a queued qubit as delivered.
 
 ## Deliberate Stage 5 Limits
 
@@ -72,7 +74,7 @@ Set `PUBLIC_BACKEND_URL` on the static site to the public backend service URL. S
 - There is no authentication or authorization yet.
 - Register amplitudes are validated and stored, but no server-side quantum operations run yet.
 - Mailbox transfer preserves a register snapshot; later stages can replace that with durable distributed entanglement ownership.
-- Stage 1 room mailbox notifications are demo events only; they announce a qubit send in the shared room but do not yet transfer/import quantum state.
+- Room mailbox notifications retain their transfer snapshots until a receiving participant claims them.
 - Register writes carry monotonically increasing `version` values. Clients can pass `expectedVersion` on `PUT /rooms/:roomId/registers/:registerId` to reject stale writes with `register_version_conflict`.
 - Local Lab Stage 7 sync uses short polling instead of WebSockets; WebSockets can replace polling once the shared-register model settles.
 - Distributed teleportation protocol records coordinate Bob's Bell-pair/mailbox step, Alice's classical bits, Bob's correction, and final fidelity verification.

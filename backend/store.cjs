@@ -669,7 +669,10 @@ function createMemoryStore(options = {}) {
     return event;
   }
 
-  function clearRoomCollaborationState(room) {
+  function clearRoomCollaborationState(
+    room,
+    { preserveMailboxQueue = false } = {},
+  ) {
     room.registers = {};
     room.entanglementGroups = {};
     room.sharedEntanglements = {};
@@ -679,6 +682,9 @@ function createMemoryStore(options = {}) {
     room.nextQubitIndex = 0;
     room.protocols = {};
     room.events = [];
+    if (!preserveMailboxQueue) {
+      room.mailboxQueue = [];
+    }
     room.participants = {};
     room.ownerId = null;
     room.resetVersion = Math.max(0, Number(room.resetVersion) || 0) + 1;
@@ -718,6 +724,7 @@ function createMemoryStore(options = {}) {
       nextQubitIndex: 0,
       protocols: {},
       events: [],
+      mailboxQueue: [],
       resetVersion: 0,
       lastReset: null,
     };
@@ -992,11 +999,12 @@ function createMemoryStore(options = {}) {
     if (
       id === "send-receive-room" &&
       Object.keys(room.participants).length > 0 &&
+      !(room.mailboxQueue || []).some((event) => !event.claimedAt) &&
       !Object.values(room.participants).some((participant) =>
         participantHasActiveSession(participant),
       )
     ) {
-      clearRoomCollaborationState(room);
+      clearRoomCollaborationState(room, { preserveMailboxQueue: true });
     }
     const requestedId = validateString(input.participantId, "participantId", {
       required: false,
@@ -1705,7 +1713,7 @@ function createMemoryStore(options = {}) {
       maxLength: 200,
     });
     if (dedupeKey) {
-      const existing = room.events.find(
+      const existing = (room.mailboxQueue || []).find(
         (event) =>
           event?.type === "roomMailbox.sent" &&
           event.payload?.dedupeKey === dedupeKey,
@@ -1725,7 +1733,52 @@ function createMemoryStore(options = {}) {
       transfer,
       dedupeKey: dedupeKey || null,
     };
-    return clone(appendEvent(room, "roomMailbox.sent", notification));
+    const event = appendEvent(room, "roomMailbox.sent", notification);
+    room.mailboxQueue = Array.isArray(room.mailboxQueue)
+      ? room.mailboxQueue
+      : [];
+    room.mailboxQueue.push({
+      ...clone(event),
+      claimedAt: null,
+      claimedBy: null,
+    });
+    return clone(event);
+  }
+
+  function listPendingRoomMailboxNotifications(roomId, participantId = "") {
+    const room = requireRoom(roomId);
+    const recipientId = validateString(participantId, "participantId", {
+      required: false,
+      maxLength: 80,
+    });
+    return clone(
+      (Array.isArray(room.mailboxQueue) ? room.mailboxQueue : []).filter(
+        (event) =>
+          !event.claimedAt &&
+          (!recipientId || event.payload?.fromParticipantId !== recipientId) &&
+          (!event.payload?.toParticipantId ||
+            event.payload.toParticipantId === recipientId),
+      ),
+    );
+  }
+
+  function claimRoomMailboxNotification(roomId, eventId, input = {}) {
+    const room = requireRoom(roomId);
+    const id = validateString(eventId, "eventId", { maxLength: 100 });
+    const event = (room.mailboxQueue || []).find((entry) => entry.id === id);
+    if (!event) {
+      throw new BackendError(404, "mailbox_notification_not_found", "mailbox notification not found");
+    }
+    if (!event.claimedAt) {
+      event.claimedAt = timestamp();
+      event.claimedBy =
+        validateString(input.participantId, "participantId", {
+          required: false,
+          maxLength: 80,
+        }) || null;
+      room.updatedAt = event.claimedAt;
+    }
+    return clone(event);
   }
 
   function roomMeasurementQueues(measurement, numQubits) {
@@ -2265,6 +2318,8 @@ function createMemoryStore(options = {}) {
     createTeleportInvite,
     createMailboxTransfer,
     createRoomMailboxNotification,
+    listPendingRoomMailboxNotifications,
+    claimRoomMailboxNotification,
     createRoomAction,
     recordRoomMeasurement,
     updateRoomMeasurementControl,

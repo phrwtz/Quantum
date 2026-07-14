@@ -610,6 +610,87 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
   });
 });
 
+test("backend queues qubits sent before Alice joins and delivers them on entry", async () => {
+  let nowMs = Date.parse("2026-02-01T00:00:00.000Z");
+  const store = createMemoryStore({
+    now: () => nowMs,
+    sendReceiveRoomStaleMs: 1000,
+  });
+  await withBackend(async (baseUrl) => {
+    const bob = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: { clientSessionId: "early-bob-screen" },
+    });
+    assert.equal(bob.response.status, 200);
+    assert.equal(bob.body.participant.id, "bob");
+
+    const sent = [];
+    for (const [index, vector] of [
+      [0, [1, 0]],
+      [1, [Math.SQRT1_2, Math.SQRT1_2]],
+    ]) {
+      const response = await api(
+        baseUrl,
+        "/rooms/send-receive-room/mailbox-notifications",
+        {
+          method: "POST",
+          body: {
+            fromParticipantId: "bob",
+            fromName: "Bob",
+            qubitLabel: `q${index}`,
+            transfer: {
+              kind: "single-qubit",
+              version: 1,
+              vector,
+              roomQubit: { roomQubitIndex: index, qubitId: index + 1 },
+            },
+          },
+        },
+      );
+      assert.equal(response.response.status, 201);
+      sent.push(response.body.event);
+    }
+
+    const beforeAlice = await api(
+      baseUrl,
+      "/rooms/send-receive-room/mailbox-notifications?participantId=alice",
+    );
+    assert.equal(beforeAlice.response.status, 200);
+    assert.deepEqual(
+      beforeAlice.body.notifications.map((event) => event.payload.qubitLabel),
+      ["q0", "q1"],
+    );
+
+    nowMs += 2000;
+    const alice = await api(baseUrl, "/rooms/send-receive-room/auto-join", {
+      method: "POST",
+      body: { clientSessionId: "late-alice-screen" },
+    });
+    assert.equal(alice.response.status, 200);
+    assert.equal(alice.body.participant.id, "alice");
+
+    for (const event of sent) {
+      const claim = await api(
+        baseUrl,
+        `/rooms/send-receive-room/mailbox-notifications/${event.id}/claim`,
+        {
+          method: "POST",
+          body: { participantId: "alice" },
+        },
+      );
+      assert.equal(claim.response.status, 200);
+      assert.equal(claim.body.notification.claimedBy, "alice");
+    }
+
+    const afterClaims = await api(
+      baseUrl,
+      "/rooms/send-receive-room/mailbox-notifications?participantId=alice",
+    );
+    assert.equal(afterClaims.response.status, 200);
+    assert.deepEqual(afterClaims.body.notifications, []);
+  }, { store });
+});
+
 test("backend clears stale send-receive-room before a new Bob joins", async () => {
   let nowMs = Date.parse("2026-01-01T00:00:00.000Z");
   const store = createMemoryStore({

@@ -276,6 +276,20 @@ function createApp(options = {}) {
       }
 
       if (
+        method === "GET" &&
+        segments.length === 3 &&
+        segments[0] === "rooms" &&
+        segments[2] === "mailbox-notifications"
+      ) {
+        const notifications = store.listPendingRoomMailboxNotifications(
+          segments[1],
+          url.searchParams.get("participantId") || "",
+        );
+        sendJson(res, 200, { notifications });
+        return;
+      }
+
+      if (
         method === "POST" &&
         segments.length === 3 &&
         segments[0] === "rooms" &&
@@ -283,6 +297,22 @@ function createApp(options = {}) {
       ) {
         const payload = store.autoJoinRoom(segments[1], await readJson(req));
         sendJson(res, 200, payload);
+        return;
+      }
+
+      if (
+        method === "POST" &&
+        segments.length === 5 &&
+        segments[0] === "rooms" &&
+        segments[2] === "mailbox-notifications" &&
+        segments[4] === "claim"
+      ) {
+        const notification = store.claimRoomMailboxNotification(
+          segments[1],
+          segments[3],
+          await readJson(req),
+        );
+        sendJson(res, 200, { notification });
         return;
       }
 

@@ -7298,6 +7298,25 @@ function mailboxRoomTransferReceived(eventId) {
   return mailboxRoomReceivedTransferIds().has(eventId);
 }
 
+function mailboxRoomClaimBackendNotification(eventId) {
+  if (
+    !eventId ||
+    eventId.startsWith("local-mailbox-") ||
+    !mailboxRoomIsJoined()
+  ) {
+    return;
+  }
+  localLabRequest(
+    `/rooms/${encodeURIComponent(mailboxRoomState.roomId)}/mailbox-notifications/${encodeURIComponent(eventId)}/claim`,
+    {
+      method: "POST",
+      body: { participantId: mailboxRoomState.participantId },
+    },
+  ).catch((error) => {
+    console.warn?.("[Qubit Lab] mailbox claim failed", error);
+  });
+}
+
 function mailboxRoomReceivedItemForEvent(canvas, eventId) {
   if (!(canvas instanceof HTMLElement) || !eventId) {
     return null;
@@ -7473,6 +7492,7 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
         }, 650);
       }, 200);
     });
+    mailboxRoomClaimBackendNotification(eventId);
     return item;
   } catch (error) {
     if (eventId) {
@@ -8078,11 +8098,15 @@ async function mailboxRoomRefresh({ render = true } = {}) {
     participantsPayload,
     eventsPayload,
     measurementsPayload,
+    mailboxPayload,
   ] = await Promise.all([
     localLabRequest(roomPath),
     localLabRequest(`${roomPath}/participants`),
     localLabRequest(`${roomPath}/events`),
     localLabRequest(`${roomPath}/measurements`),
+    localLabRequest(
+      `${roomPath}/mailbox-notifications?participantId=${encodeURIComponent(mailboxRoomState.participantId)}`,
+    ),
   ]);
   const resetApplied = await mailboxRoomApplyRoomReset(roomPayload.room);
   mailboxRoomState.participants = Array.isArray(participantsPayload.participants)
@@ -8099,6 +8123,15 @@ async function mailboxRoomRefresh({ render = true } = {}) {
       : Array.isArray(eventsPayload.events)
         ? eventsPayload.events
         : [];
+  const queuedMailboxEvents = Array.isArray(mailboxPayload.notifications)
+    ? mailboxPayload.notifications
+    : [];
+  const knownEventIds = new Set(mailboxRoomState.events.map((event) => event?.id));
+  queuedMailboxEvents.forEach((event) => {
+    if (event?.id && !knownEventIds.has(event.id)) {
+      mailboxRoomState.events.push(event);
+    }
+  });
   mailboxRoomState.measurements = resetApplied
     ? mailboxRoomMergeRoomMeasurements(roomMeasurements)
     : mailboxRoomMergeRoomMeasurements(
