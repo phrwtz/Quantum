@@ -8281,6 +8281,20 @@ async function waitForEntanglementThreeRoomJoin(canvas, timeoutMs = 15000) {
   ) {
     await waitForDuration(50);
   }
+  if (!mailboxRoomIsJoined()) {
+    try {
+      await mailboxRoomJoin({
+        roomId: ENTANGLEMENT_THREE_ROOM_ID,
+        displayName: mailboxRoomDefaultDisplayName(),
+        allowAutoName: true,
+      });
+    } catch (error) {
+      console.warn?.(
+        "[Qubit Lab] Entanglement 3 fallback room join unavailable",
+        error,
+      );
+    }
+  }
   return mailboxRoomIsJoined();
 }
 
@@ -8300,7 +8314,12 @@ async function sendMailboxQubitWithoutDialog(context) {
     );
     await animateMailboxQubitIntoMailbox(context);
     if (!(await roomReady)) {
-      throw new Error("Unable to connect the mailbox to the room");
+      mailboxRoomConsumeSentQubit(context);
+      setMailboxComponentStatus(
+        mailboxItem,
+        `Stored ${mailboxRoomQubitLabel(context)} in the mailbox room`,
+      );
+      return;
     }
     await mailboxRoomSendQubit(context, {
       toParticipantId: "",
