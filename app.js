@@ -6472,8 +6472,6 @@ function mailboxRoomRecordedMeasurementCounts(
         return;
       }
 
-      const measurementId = action.measurementId || "room-measurement";
-      const pending = pendingByMeasurement.get(measurementId) || [];
       const qubitKey = mailboxRoomRecordedActionQubitKey(action);
       if (!qubitKey) {
         return;
@@ -6482,6 +6480,14 @@ function mailboxRoomRecordedMeasurementCounts(
         2,
         Math.min(4, Number(action.registerQubitCount) || numQubits),
       );
+      // Alice and Bob render separate copies of the Entanglement 3 apparatus,
+      // so their recorded actions have different local measurement IDs. They
+      // nevertheless feed one shared four-qubit room measurement.
+      const measurementId =
+        requiredCount === 4
+          ? measurement?.id || "room-four-qubit-measurement"
+          : action.measurementId || "room-measurement";
+      const pending = pendingByMeasurement.get(measurementId) || [];
       let orderIndex = Number.isFinite(action.orderIndex)
         ? clamp(Math.round(action.orderIndex), 0, requiredCount - 1)
         : null;

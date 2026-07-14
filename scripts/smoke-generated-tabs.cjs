@@ -7623,7 +7623,7 @@ async function runEntanglementThreeRoomReplayIdentitySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "alice-local-measurement",
               qubitId: "bob-q0",
               logicalQubitId: 1,
               roomQubitIndex: 0,
@@ -7640,7 +7640,7 @@ async function runEntanglementThreeRoomReplayIdentitySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "alice-local-measurement",
               qubitId: "alice-q0",
               logicalQubitId: 1,
               roomQubitIndex: 2,
@@ -7650,7 +7650,7 @@ async function runEntanglementThreeRoomReplayIdentitySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "alice-local-measurement",
               qubitId: "alice-q1",
               logicalQubitId: 2,
               roomQubitIndex: 3,
@@ -7660,7 +7660,7 @@ async function runEntanglementThreeRoomReplayIdentitySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "bob-local-measurement",
               qubitId: "alice-received-bob-q1",
               logicalQubitId: 9,
               roomQubitIndex: 1,
@@ -7756,7 +7756,7 @@ async function runEntanglementThreeTransferredPurpleReplaySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "alice-local-measurement",
               qubitId: "alice-q2",
               logicalQubitId: 3,
               roomQubitIndex: 2,
@@ -7766,7 +7766,7 @@ async function runEntanglementThreeTransferredPurpleReplaySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "alice-local-measurement",
               qubitId: "alice-q3",
               logicalQubitId: 4,
               roomQubitIndex: 3,
@@ -7776,7 +7776,7 @@ async function runEntanglementThreeTransferredPurpleReplaySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "alice-local-measurement",
               qubitId: "alice-received-bob-q0",
               logicalQubitId: 9,
               roomQubitIndex: 0,
@@ -7809,7 +7809,7 @@ async function runEntanglementThreeTransferredPurpleReplaySmoke(page) {
             },
             {
               type: "separated-pair-measure",
-              measurementId: "room-measure",
+              measurementId: "bob-local-measurement",
               qubitId: "bob-q1",
               logicalQubitId: 2,
               roomQubitIndex: 1,
