@@ -988,6 +988,7 @@ function createMemoryStore(options = {}) {
       maxLength: 80,
     }) || "send-receive-room";
     let room = rooms.get(id) || null;
+    let roomWasCreated = false;
     if (!room) {
       room = createRoom({
         id,
@@ -998,6 +999,23 @@ function createMemoryStore(options = {}) {
           }) || id,
       });
       room = rooms.get(id);
+      roomWasCreated = true;
+    }
+    const clientBuildVersion = validateString(
+      input.clientBuildVersion,
+      "clientBuildVersion",
+      { required: false, maxLength: 120 },
+    );
+    if (
+      id === "send-receive-room" &&
+      clientBuildVersion &&
+      !roomWasCreated &&
+      room.collaborationBuildVersion !== clientBuildVersion
+    ) {
+      clearRoomCollaborationState(room);
+    }
+    if (clientBuildVersion) {
+      room.collaborationBuildVersion = clientBuildVersion;
     }
     if (
       id === "send-receive-room" &&

@@ -610,6 +610,90 @@ test("backend auto-joins send-receive-room as Bob then Alice", async () => {
   });
 });
 
+test("backend starts a fresh room for a newly deployed frontend build", async () => {
+  await withBackend(async (baseUrl) => {
+    for (const [clientSessionId, participantId] of [
+      ["old-bob-screen", "bob"],
+      ["old-alice-screen", "alice"],
+    ]) {
+      const joined = await api(
+        baseUrl,
+        "/rooms/send-receive-room/auto-join",
+        {
+          method: "POST",
+          body: { clientSessionId, clientBuildVersion: "build-a" },
+        },
+      );
+      assert.equal(joined.body.participant.id, participantId);
+    }
+    await api(baseUrl, "/rooms/send-receive-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        baseRoomQubitIndex: 2,
+        qubits: [{ clientId: "alice-q2" }, { clientId: "alice-q3" }],
+      },
+    });
+    await api(
+      baseUrl,
+      "/rooms/send-receive-room/measurements/deployment-room-measurement",
+      {
+        method: "POST",
+        body: {
+          numQubits: 4,
+          qubitIndex: 2,
+          color: "red",
+          participantId: "alice",
+          experiment: {
+            actions: [{ type: "gate", qubitId: "alice-q2", tickIndex: 3 }],
+          },
+        },
+      },
+    );
+
+    const freshBob = await api(
+      baseUrl,
+      "/rooms/send-receive-room/auto-join",
+      {
+        method: "POST",
+        body: {
+          clientSessionId: "new-bob-screen",
+          clientBuildVersion: "build-b",
+          resetIfFull: true,
+        },
+      },
+    );
+    assert.equal(freshBob.response.status, 200);
+    assert.equal(freshBob.body.participant.id, "bob");
+    assert.equal(freshBob.body.room.collaborationBuildVersion, "build-b");
+    assert.deepEqual(Object.keys(freshBob.body.room.participants), ["bob"]);
+    assert.deepEqual(freshBob.body.room.roomMeasurements, {});
+    assert.equal(freshBob.body.room.recordedExperiment, null);
+    assert.deepEqual(freshBob.body.room.qubitIdentities, {});
+    const resetVersion = freshBob.body.room.resetVersion;
+
+    const freshAlice = await api(
+      baseUrl,
+      "/rooms/send-receive-room/auto-join",
+      {
+        method: "POST",
+        body: {
+          clientSessionId: "new-alice-screen",
+          clientBuildVersion: "build-b",
+          resetIfFull: true,
+        },
+      },
+    );
+    assert.equal(freshAlice.response.status, 200);
+    assert.equal(freshAlice.body.participant.id, "alice");
+    assert.equal(freshAlice.body.room.resetVersion, resetVersion);
+    assert.deepEqual(Object.keys(freshAlice.body.room.participants), [
+      "bob",
+      "alice",
+    ]);
+  });
+});
+
 test("backend queues qubits sent before Alice joins and delivers them on entry", async () => {
   let nowMs = Date.parse("2026-02-01T00:00:00.000Z");
   const store = createMemoryStore({

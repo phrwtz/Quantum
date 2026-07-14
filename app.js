@@ -7962,6 +7962,7 @@ async function autoJoinEntanglementThreeRoom(canvas) {
         body: {
           participantId: null,
           clientSessionId,
+          clientBuildVersion: CONTENT_FILE_CACHE_BUST || null,
           label: ENTANGLEMENT_THREE_ROOM_ID,
           resetIfFull: true,
         },
