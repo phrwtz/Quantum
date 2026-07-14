@@ -5,6 +5,9 @@ const { syncContentBundle } = require("./sync-content-bundle.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const distDir = path.join(rootDir, "dist");
+const OBSOLETE_RENDER_BACKEND_URL =
+  "https://qubit-lab-backend.onrender.com";
+const QUBIT_LAB_RENDER_BACKEND_URL = "https://qubit-lab.onrender.com";
 
 const assetFiles = [
   "app.js",
@@ -42,11 +45,18 @@ function buildVersionForFiles(relativePaths) {
 }
 
 const buildVersion = buildVersionForFiles(assetFiles);
+const configuredBackendUrl = String(
+  process.env.PUBLIC_BACKEND_URL || "",
+).trim();
+const publicBackendUrl =
+  configuredBackendUrl === OBSOLETE_RENDER_BACKEND_URL
+    ? QUBIT_LAB_RENDER_BACKEND_URL
+    : configuredBackendUrl;
 
 let html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
 html = html.replace(
   "__PUBLIC_BACKEND_URL__",
-  String(process.env.PUBLIC_BACKEND_URL || ""),
+  publicBackendUrl,
 );
 html = html.replace(
   '<html lang="en">',
