@@ -289,6 +289,8 @@ const ENTANGLEMENT_THREE_SESSION_STORAGE_KEY =
   "quantum_entanglement_three_session_v1";
 const ENTANGLEMENT_THREE_SESSION_CHANNEL =
   "quantum_entanglement_three_sessions_v1";
+const ENTANGLEMENT_THREE_SESSION_LOCK_PREFIX =
+  "quantum_entanglement_three_session_lock_v1:";
 const MAILBOX_ROOM_DEFAULT_ID = "qubit-lab-demo";
 const ENTANGLEMENT_THREE_ROOM_ID = "send-receive-room";
 const MAILBOX_ROOM_POLL_MS = 2500;
@@ -4436,6 +4438,8 @@ const mailboxRoomSendingKeys = new Set();
 const mailboxRoomReceivingEventIds = new Set();
 const mailboxRoomReceivedEventItems = new Map();
 let entanglementThreeSessionChannel = null;
+let entanglementThreeClientSessionPromise = null;
+let entanglementThreeSessionStorageWasRead = false;
 const entanglementThreeWindowId = `ent3-window-${Date.now().toString(36)}-${Math.random()
   .toString(36)
   .slice(2, 10)}`;
@@ -4493,18 +4497,42 @@ function entanglementThreeNewClientSessionId() {
         .slice(2, 10)}`;
 }
 
+function entanglementThreeNavigationIsReload() {
+  try {
+    const navigation = window.performance
+      ?.getEntriesByType?.("navigation")
+      ?.[0];
+    if (navigation?.type) {
+      return navigation.type === "reload";
+    }
+    return window.performance?.navigation?.type === 1;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function entanglementThreeStoredClientSessionId() {
   try {
     const existing = window.sessionStorage.getItem(
       ENTANGLEMENT_THREE_SESSION_STORAGE_KEY,
     );
-    if (existing) {
+    // Chrome, Firefox, and Safari may copy sessionStorage when a tab is
+    // duplicated or opened with an opener. Keep the id only for a true reload;
+    // a newly loaded document must represent a new participant.
+    if (
+      existing &&
+      (entanglementThreeSessionStorageWasRead ||
+        entanglementThreeNavigationIsReload())
+    ) {
+      entanglementThreeSessionStorageWasRead = true;
       return existing;
     }
     const next = entanglementThreeNewClientSessionId();
     window.sessionStorage.setItem(ENTANGLEMENT_THREE_SESSION_STORAGE_KEY, next);
+    entanglementThreeSessionStorageWasRead = true;
     return next;
   } catch (_error) {
+    entanglementThreeSessionStorageWasRead = true;
     return entanglementThreeNewClientSessionId();
   }
 }
@@ -4550,7 +4578,7 @@ function entanglementThreeEnsureSessionChannel() {
   return entanglementThreeSessionChannel;
 }
 
-async function entanglementThreeClientSessionId() {
+async function entanglementThreeClientSessionIdFromChannel() {
   let sessionId = entanglementThreeStoredClientSessionId();
   const channel = entanglementThreeEnsureSessionChannel();
   if (!channel) {
@@ -4599,6 +4627,61 @@ async function entanglementThreeClientSessionId() {
     );
   }
   return sessionId;
+}
+
+function entanglementThreeTryClaimSessionLock(sessionId) {
+  if (typeof navigator?.locks?.request !== "function") {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    navigator.locks
+      .request(
+        `${ENTANGLEMENT_THREE_SESSION_LOCK_PREFIX}${sessionId}`,
+        { ifAvailable: true },
+        (lock) => {
+          settled = true;
+          if (!lock) {
+            resolve(false);
+            return undefined;
+          }
+          resolve(true);
+          // Keep the lock for this page's lifetime. The browser releases it
+          // automatically when the document unloads.
+          return new Promise(() => {});
+        },
+      )
+      .catch(() => {
+        if (!settled) {
+          resolve(null);
+        }
+      });
+  });
+}
+
+async function entanglementThreeClaimClientSessionId() {
+  let sessionId = entanglementThreeStoredClientSessionId();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const claimed = await entanglementThreeTryClaimSessionLock(sessionId);
+    if (claimed === true) {
+      return sessionId;
+    }
+    if (claimed === null) {
+      return entanglementThreeClientSessionIdFromChannel();
+    }
+    sessionId = entanglementThreeSetClientSessionId(
+      entanglementThreeNewClientSessionId(),
+    );
+  }
+  return sessionId;
+}
+
+function entanglementThreeClientSessionId() {
+  if (!entanglementThreeClientSessionPromise) {
+    entanglementThreeClientSessionPromise =
+      entanglementThreeClaimClientSessionId();
+  }
+  return entanglementThreeClientSessionPromise;
 }
 
 async function mailboxRoomCleanupOwnedRoomOnBoot() {
@@ -8223,7 +8306,9 @@ async function mailboxRoomJoin({ roomId, displayName, allowAutoName = false }) {
       )]: mailboxRoomState.participantId,
     },
   });
-  await mailboxRoomAssignLocalQubitsForRoom();
+  await mailboxRoomAssignLocalQubitsForRoom(
+    mailboxRoomCanvasForCurrentContext() || activeGeneratedLayoutCanvas(),
+  );
   mailboxRoomStartPolling();
   await mailboxRoomRefresh({ render: false });
   updateEntanglementThreeRoomReviewToolbars();
@@ -14957,6 +15042,14 @@ function maybeSnapGeneratedQubitToMailbox(qubitItem) {
   if (mailboxFunnel instanceof HTMLElement) {
     const center = generatedCanvasPointForElementCenter(canvas, mailboxFunnel);
     setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
+  }
+  // The mailbox owns the qubit from this point onward. Ending the drag here
+  // prevents trailing pointer events from overwriting the funnel-to-window
+  // animation coordinates.
+  if (generatedRuntimeDrag?.item === qubitItem) {
+    commitGeneratedDragRecord(generatedRuntimeDrag);
+    qubitItem.classList.remove("dragging");
+    generatedRuntimeDrag = null;
   }
   setMailboxComponentStatus(mailboxItem, "");
   handleMailboxQubitPlaced({

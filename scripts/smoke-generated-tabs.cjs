@@ -5170,10 +5170,17 @@ async function runLocalLabSharedSyncSmoke(browser, baseUrl) {
   }
 }
 
-async function openEntanglementThreeRoomPage(browser, baseUrl, backendUrl) {
-  const context = await browser.newContext({
-    viewport: { width: 1600, height: 900 },
-  });
+async function openEntanglementThreeRoomPage(
+  browser,
+  baseUrl,
+  backendUrl,
+  sharedContext = null,
+) {
+  const context =
+    sharedContext ||
+    (await browser.newContext({
+      viewport: { width: 1600, height: 900 },
+    }));
   const page = await context.newPage();
   await installContentApiHelpers(page);
   await page.goto(
@@ -5198,6 +5205,22 @@ async function openEntanglementThreeRoomPage(browser, baseUrl, backendUrl) {
 
 async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
   const backend = await startBackendServer();
+  const sharedContext = await browser.newContext({
+    viewport: { width: 1600, height: 900 },
+  });
+  await sharedContext.addInitScript(() => {
+    window.sessionStorage.setItem(
+      "quantum_entanglement_three_session_v1",
+      "deliberately-cloned-tab-session",
+    );
+    // Exercise the browser-neutral path instead of relying on Chromium's
+    // implementations of Web Locks or BroadcastChannel.
+    Object.defineProperty(window.navigator, "locks", {
+      configurable: true,
+      value: undefined,
+    });
+    window.BroadcastChannel = undefined;
+  });
   let bob = null;
   let alice = null;
   try {
@@ -5205,11 +5228,13 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       browser,
       baseUrl,
       backend.baseUrl,
+      sharedContext,
     );
     alice = await openEntanglementThreeRoomPage(
       browser,
       baseUrl,
       backend.baseUrl,
+      sharedContext,
     );
 
     const initial = await Promise.all(
@@ -5905,8 +5930,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       );
     }
   } finally {
-    await bob?.context.close();
-    await alice?.context.close();
+    await sharedContext.close();
     await closeServer(backend.server);
   }
 }
@@ -5979,35 +6003,22 @@ async function openMailboxDeliverySmokePage(
   await page.waitForFunction(
     () => !document.querySelector("#panel-mailbox-delivery-smoke")?.hidden,
   );
-  const mailbox = page.locator(
-    '#panel-mailbox-delivery-smoke [data-component="mailbox"]',
+  await page.evaluate(
+    ({ roomId, displayName }) =>
+      mailboxRoomJoin({
+        roomId,
+        displayName,
+        allowAutoName: true,
+      }),
+    { roomId, displayName },
   );
-  await mailbox.click();
-  await page.locator(".mailbox-room-id").fill(roomId);
-  if (displayName) {
-    await page.locator(".mailbox-room-name").fill(displayName);
-  } else if (expectedDefaultName) {
-    await page.waitForFunction(
-      (expected) =>
-        document.querySelector(".mailbox-room-name")?.value.trim() === expected,
-      expectedDefaultName,
-      { timeout: 5000 },
-    );
-  } else {
-    await page.waitForFunction(
-      () => document.querySelector(".mailbox-room-name")?.value.trim(),
-      null,
-      { timeout: 5000 },
-    );
+  if (
+    expectedDefaultName &&
+    (await page.evaluate(() => mailboxRoomState.displayName)) !==
+      expectedDefaultName
+  ) {
+    throw new Error(`Expected mailbox participant ${expectedDefaultName}`);
   }
-  await page.locator(".mailbox-room-join-button").click();
-  await page.waitForFunction(
-    () =>
-      !document.querySelector(".mailbox-room-panel")?.hasAttribute("hidden"),
-    null,
-    { timeout: 5000 },
-  );
-  await page.locator(".mailbox-send-cancel").click();
   return { context, page };
 }
 
@@ -6465,6 +6476,36 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
     const bobMailboxFunnel = bob.page.locator(
       '#panel-mailbox-delivery-smoke [data-component="mailbox"] [data-role="mailbox-input-funnel"]',
     );
+    await bob.page.evaluate(() => {
+      window.__mailboxSendTrace = [];
+      const capture = () => {
+        const panel = document.querySelector("#panel-mailbox-delivery-smoke");
+        const qubit = panel?.querySelector(
+          '[data-generated-item-id="mailbox-smoke-qubit-b"]',
+        );
+        const funnel = panel?.querySelector('[data-role="mailbox-input-funnel"]');
+        const mailboxWindow = panel?.querySelector('[data-role="mailbox-window"]');
+        if (qubit instanceof HTMLElement) {
+          const center = (element) => {
+            const rect = element.getBoundingClientRect();
+            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          };
+          const qubitCenter = center(qubit);
+          const distance = (element) => {
+            const target = center(element);
+            return Math.hypot(qubitCenter.x - target.x, qubitCenter.y - target.y);
+          };
+          window.__mailboxSendTrace.push({
+            sending: qubit.classList.contains("mailbox-sending"),
+            fading: qubit.classList.contains("mailbox-sending-fade"),
+            funnelDistance: distance(funnel),
+            windowDistance: distance(mailboxWindow),
+          });
+          window.requestAnimationFrame(capture);
+        }
+      };
+      window.requestAnimationFrame(capture);
+    });
     const [qubitCenter, mailboxCenter] = await Promise.all([
       rectCenter(bobQubit),
       rectCenter(bobMailboxFunnel),
@@ -6481,6 +6522,22 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
       null,
       { timeout: 6000 },
     );
+    const sendTrace = await bob.page.evaluate(() => window.__mailboxSendTrace || []);
+    const sendingTrace = sendTrace.filter((sample) => sample.sending);
+    const beganAtFunnel = sendingTrace.some(
+      (sample) => sample.funnelDistance < sample.windowDistance,
+    );
+    const reachedWindowBeforeFade = sendingTrace.some(
+      (sample) => !sample.fading && sample.windowDistance < 8,
+    );
+    const fadedAtWindow = sendingTrace.some(
+      (sample) => sample.fading && sample.windowDistance < 8,
+    );
+    if (!beganAtFunnel || !reachedWindowBeforeFade || !fadedAtWindow) {
+      throw new Error(
+        `Mailbox qubit did not animate funnel to window before fading: ${JSON.stringify({ beganAtFunnel, reachedWindowBeforeFade, fadedAtWindow, sendingTrace })}`,
+      );
+    }
 
     await alice.page.waitForFunction(
       () =>
