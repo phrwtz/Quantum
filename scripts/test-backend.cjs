@@ -1066,6 +1066,14 @@ test("backend resets room collaboration state without removing participants", as
         participantId: "alice",
       },
     });
+    await api(baseUrl, "/rooms/reset-room/qubits/allocate", {
+      method: "POST",
+      body: {
+        participantId: "alice",
+        baseRoomQubitIndex: 2,
+        qubits: [{ clientId: "alice-a" }, { clientId: "alice-b" }],
+      },
+    });
 
     const reset = await api(baseUrl, "/rooms/reset-room/reset", {
       method: "POST",
@@ -1084,6 +1092,9 @@ test("backend resets room collaboration state without removing participants", as
     assert.deepEqual(reset.body.room.sharedEntanglements, {});
     assert.deepEqual(reset.body.room.entanglementGroups, {});
     assert.deepEqual(reset.body.room.registers, {});
+    assert.deepEqual(reset.body.room.qubitIdentities, {});
+    assert.equal(reset.body.room.nextQubitIndex, 0);
+    assert.deepEqual(reset.body.room.mailboxQueue, []);
     assert.equal(reset.body.room.events.length, 1);
     assert.equal(reset.body.room.events[0].type, "room.reset");
 

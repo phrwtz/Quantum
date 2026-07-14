@@ -5956,6 +5956,68 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
         `Entanglement 3 replay/run review flow failed: ${JSON.stringify({ replay, run })}`,
       );
     }
+
+    await alice.page.evaluate(async () => {
+      const canvas = document.querySelector(
+        "#panel-editor-entanglement-3 .generated-layout-canvas",
+      );
+      await mailboxRoomPublishRoomReset(canvas);
+    });
+    await bob.page.evaluate(() => mailboxRoomRefresh({ render: false }));
+    const resetSites = await Promise.all(
+      [bob.page, alice.page].map((page) =>
+        page.evaluate(() => {
+          const canvas = document.querySelector(
+            "#panel-editor-entanglement-3 .generated-layout-canvas",
+          );
+          const measurement = canvas?.querySelector(
+            '[data-generated-item-id="entanglement-3-register-measurement"]',
+          );
+          const runtime = initializeGeneratedSeparatedPairMeasurementItem(
+            measurement,
+          );
+          return {
+            name: mailboxRoomState.displayName,
+            labels: Array.from(
+              canvas?.querySelectorAll('[data-component="qubit"]') || [],
+            ).map((qubit) => qubit.dataset.qubitLabel || ""),
+            measurementTotal: Object.values(runtime?.tubeCounts || {}).reduce(
+              (sum, count) => sum + Number(count || 0),
+              0,
+            ),
+            sharedMeasurements: mailboxRoomState.measurements.length,
+            experiment:
+              generatedExperimentStateForCanvas(canvas)?.experiment || null,
+            reviewRuns: mailboxRoomState.reviewRuns,
+          };
+        }),
+      ),
+    );
+    const resetRoom = await api(
+      backend.baseUrl,
+      "/rooms/send-receive-room",
+    );
+    if (
+      resetSites[0].name !== "Bob" ||
+      resetSites[0].labels.join(",") !== "q0,q1" ||
+      resetSites[1].name !== "Alice" ||
+      resetSites[1].labels.join(",") !== "q2,q3" ||
+      resetSites.some(
+        (site) =>
+          site.measurementTotal !== 0 ||
+          site.sharedMeasurements !== 0 ||
+          site.experiment !== null ||
+          site.reviewRuns !== 0,
+      ) ||
+      Object.keys(resetRoom.body.room?.roomMeasurements || {}).length !== 0 ||
+      resetRoom.body.room?.recordedExperiment !== null ||
+      Object.keys(resetRoom.body.room?.sharedEntanglements || {}).length !== 0 ||
+      (resetRoom.body.room?.mailboxQueue || []).length !== 0
+    ) {
+      throw new Error(
+        `Entanglement 3 room reset did not clear and reassign both sites: ${JSON.stringify({ resetSites, room: resetRoom.body.room })}`,
+      );
+    }
   } finally {
     await sharedContext.close();
     await closeServer(backend.server);

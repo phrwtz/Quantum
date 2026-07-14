@@ -759,8 +759,11 @@ function createMemoryStore(options = {}) {
     room.sharedEntanglements = {};
     room.roomMeasurements = {};
     room.recordedExperiment = null;
+    room.qubitIdentities = {};
+    room.nextQubitIndex = 0;
     room.protocols = {};
     room.events = [];
+    room.mailboxQueue = [];
     room.resetVersion = Math.max(0, Number(room.resetVersion) || 0) + 1;
     room.lastReset = {
       id:
