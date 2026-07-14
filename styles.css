@@ -3372,13 +3372,13 @@ body.layout-edit-active .generated-layout-canvas .pair-measurement-platform {
 }
 
 .pair-slot-left {
-  left: 50%;
-  top: calc(50% - 41px);
+  left: calc(50% - 41px);
+  top: 50%;
 }
 
 .pair-slot-right {
-  left: 50%;
-  top: calc(50% + 41px);
+  left: calc(50% + 41px);
+  top: 50%;
 }
 
 .pair-ejection-site {
@@ -4531,11 +4531,13 @@ body.layout-edit-active .pair-ejection-site {
   }
 
   .pair-slot-left {
-    top: calc(50% - 33px);
+    left: calc(50% - 33px);
+    top: 50%;
   }
 
   .pair-slot-right {
-    top: calc(50% + 33px);
+    left: calc(50% + 33px);
+    top: 50%;
   }
 
   .pair-ejection-site {

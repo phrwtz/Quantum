@@ -2687,6 +2687,25 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
       }
       const measurementRuntime =
         initializeGeneratedDoubleMeasurementItem(measurement);
+      const lensCenter = generatedCanvasPointForElementCenter(
+        canvas,
+        measurementRuntime.measurementTool,
+      );
+      const leftSlotCenter = generatedDoubleMeasurementSlotCenter(
+        canvas,
+        measurementRuntime,
+        "left",
+      );
+      const rightSlotCenter = generatedDoubleMeasurementSlotCenter(
+        canvas,
+        measurementRuntime,
+        "right",
+      );
+      const measurementSlotGeometry = {
+        leftOffset: leftSlotCenter.x - lensCenter.x,
+        rightOffset: rightSlotCenter.x - lensCenter.x,
+        verticalDifference: leftSlotCenter.y - rightSlotCenter.y,
+      };
       await runGeneratedDoubleMeasurementIngress(canvas, q1, measurementRuntime);
       const firstSlotLayer = {
         active: q1.classList.contains("generated-transit-active"),
@@ -2768,6 +2787,7 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
         cnotFirstSlotLayer,
         cnotSecondSlotLayer,
         cnotSpringGeometry,
+        measurementSlotGeometry,
         replayCnotLayer,
         directCnotCompleted,
         firstSlotLayer,
@@ -2820,6 +2840,13 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
     result.cnotSpringGeometry.flangeOverflow !== "visible" ||
     Math.abs(result.cnotSpringGeometry.springLeftMinusFlangeRight) > 4 ||
     result.cnotSpringGeometry.springRightMinusItemRight < 40 ||
+    result.measurementSlotGeometry.leftOffset >= 0 ||
+    result.measurementSlotGeometry.rightOffset <= 0 ||
+    Math.abs(
+      result.measurementSlotGeometry.leftOffset +
+        result.measurementSlotGeometry.rightOffset,
+    ) > 1 ||
+    Math.abs(result.measurementSlotGeometry.verticalDifference) > 1 ||
     !result.replayCnotLayer.topActive ||
     !result.replayCnotLayer.bottomActive ||
     result.replayCnotLayer.topZIndex < 10000 ||
@@ -7766,6 +7793,14 @@ async function runSmokeTest(baseUrl) {
     if (process.argv.includes("--entanglement-three-only")) {
       await runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl);
       return { ok: true, entanglementThreeRoomMeasurement: true };
+    }
+    if (process.argv.includes("--two-qubit-measurement-only")) {
+      const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+      await installBrowserLocalContentTrap(page);
+      await installContentApiHelpers(page);
+      await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+      await runDocEditorTwoQubitPlaybackSmoke(page);
+      return { ok: true, twoQubitMeasurement: true };
     }
     if (process.argv.includes("--replay-core-only")) {
       const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
