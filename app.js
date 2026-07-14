@@ -4390,7 +4390,6 @@ function createMailboxElement() {
   ].join("");
   node.addEventListener("click", (event) => {
     event.stopPropagation();
-    openMailboxSendDialog({ mailboxItem: node });
   });
   return node;
 }
@@ -7366,12 +7365,16 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
     }
     setGeneratedQubitCenter(canvas, item, origin.x, origin.y);
     window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
+      item.classList.add("mailbox-arriving-visible");
+      window.setTimeout(() => {
         setGeneratedQubitCenter(canvas, item, destination.x, destination.y);
-        const finishArrival = () => item.classList.remove("mailbox-arriving");
-        item.addEventListener("transitionend", finishArrival, { once: true });
-        window.setTimeout(finishArrival, 900);
-      });
+        window.setTimeout(() => {
+          item.classList.remove(
+            "mailbox-arriving",
+            "mailbox-arriving-visible",
+          );
+        }, 650);
+      }, 200);
     });
     return item;
   } catch (error) {
@@ -7433,9 +7436,14 @@ function mailboxRoomReceivePendingQubits() {
         : `${received.length} qubits`;
     const senderLabel =
       received.length === 1 && latest.fromName ? ` from ${latest.fromName}` : "";
-    const message = `Received ${countLabel}${senderLabel} - close mailbox to use ${received.length === 1 ? "it" : "them"}`;
-    if (activeMailboxSendContext?.mailboxItem) {
-      setMailboxComponentStatus(activeMailboxSendContext.mailboxItem, message);
+    const message = `Received ${countLabel}${senderLabel}`;
+    const statusMailbox =
+      activeMailboxSendContext?.mailboxItem ||
+      receiveCanvas.querySelector(
+        ':scope > .playground-node[data-component="mailbox"]',
+      );
+    if (statusMailbox instanceof HTMLElement) {
+      setMailboxComponentStatus(statusMailbox, message);
     }
     if (mailboxSendDialog?.status instanceof HTMLElement) {
       mailboxSendDialog.status.textContent = message;
@@ -8226,6 +8234,69 @@ function mailboxRoomConsumeSentQubit(context) {
   qubitItem.remove();
 }
 
+async function animateMailboxQubitIntoMailbox(context) {
+  const mailboxItem = context?.mailboxItem;
+  const qubitItem = context?.qubitItem;
+  if (
+    !(mailboxItem instanceof HTMLElement) ||
+    !(qubitItem instanceof HTMLElement)
+  ) {
+    return false;
+  }
+  const mailboxWindow = mailboxItem.querySelector('[data-role="mailbox-window"]');
+  if (!(mailboxWindow instanceof HTMLElement)) {
+    return false;
+  }
+  const generatedCanvas = generatedCanvasForItem(qubitItem);
+  qubitItem.classList.add("mailbox-sending");
+  if (generatedCanvas instanceof HTMLElement) {
+    const center = generatedCanvasPointForElementCenter(
+      generatedCanvas,
+      mailboxWindow,
+    );
+    setGeneratedQubitCenter(generatedCanvas, qubitItem, center.x, center.y);
+  } else {
+    const center = canvasPointForElementCenter(mailboxWindow);
+    setPlaygroundQubitCenter(qubitItem, center.x, center.y);
+  }
+  await waitForDuration(220);
+  await waitForDuration(300);
+  qubitItem.classList.add("mailbox-sending-fade");
+  await waitForDuration(200);
+  return true;
+}
+
+async function sendMailboxQubitWithoutDialog(context) {
+  const mailboxItem = context?.mailboxItem;
+  const qubitItem = context?.qubitItem;
+  try {
+    if (!mailboxRoomIsJoined()) {
+      const canvas = generatedCanvasForItem(mailboxItem || qubitItem);
+      if (isEntanglementThreeCanvas(canvas)) {
+        await autoJoinEntanglementThreeRoom(canvas);
+      }
+    }
+    if (!mailboxRoomIsJoined()) {
+      throw new Error("The mailbox is still connecting to the room");
+    }
+    setMailboxComponentStatus(
+      mailboxItem,
+      `Sending ${mailboxRoomQubitLabel(context)}...`,
+    );
+    await animateMailboxQubitIntoMailbox(context);
+    await mailboxRoomSendQubit(context, {
+      toParticipantId: "",
+      message: "",
+    });
+  } catch (error) {
+    qubitItem?.classList?.remove("mailbox-sending", "mailbox-sending-fade");
+    setMailboxComponentStatus(
+      mailboxItem,
+      localLabMailboxFailureMessage("send", error),
+    );
+  }
+}
+
 function handleMailboxQubitPlaced(context) {
   if (!context?.mailboxItem) {
     return;
@@ -8237,34 +8308,7 @@ function handleMailboxQubitPlaced(context) {
     return;
   }
   activeMailboxSendContext = context;
-  if (!mailboxRoomIsJoined()) {
-    openMailboxSendDialog(context);
-    return;
-  }
-  setMailboxComponentStatus(
-    context.mailboxItem,
-    `Sending ${mailboxRoomQubitLabel(context)}...`,
-  );
-  mailboxRoomSendQubit(context, {
-    toParticipantId: "",
-    message: "",
-  })
-    .then(() => {
-      openMailboxSendDialog({ mailboxItem: context.mailboxItem });
-    })
-    .catch((error) => {
-      setMailboxComponentStatus(
-        context.mailboxItem,
-        localLabMailboxFailureMessage("send", error),
-      );
-      openMailboxSendDialog(context);
-      if (mailboxSendDialog?.status instanceof HTMLElement) {
-        mailboxSendDialog.status.textContent = localLabMailboxFailureMessage(
-          "send",
-          error,
-        );
-      }
-    });
+  sendMailboxQubitWithoutDialog(context).catch(() => {});
 }
 
 function renderMailboxRoomDialog() {

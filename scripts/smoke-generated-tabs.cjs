@@ -6482,10 +6482,6 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
       { timeout: 6000 },
     );
 
-    const aliceMailbox = alice.page.locator(
-      '#panel-mailbox-delivery-smoke [data-component="mailbox"]',
-    );
-    await aliceMailbox.click();
     await alice.page.waitForFunction(
       () =>
         document.querySelectorAll(
@@ -6527,7 +6523,9 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
         receivedZ: Number(received?.style.zIndex || 0),
         mailboxZ: Number(mailbox?.style.zIndex || 0),
         overlapArea: overlapWidth * overlapHeight,
-        status: document.querySelector(".mailbox-send-status")?.textContent || "",
+        status:
+          mailbox?.querySelector('[data-role="mailbox-status"]')?.textContent ||
+          "",
       };
     });
     if (
@@ -6545,9 +6543,7 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
       );
     }
 
-    await alice.page.locator(".mailbox-send-cancel").click();
-    await aliceMailbox.click();
-    await wait(500);
+    await wait(3000);
     const duplicateCount = await alice.page
       .locator('#panel-mailbox-delivery-smoke [data-component="qubit"]')
       .count();

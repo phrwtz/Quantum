@@ -2296,17 +2296,18 @@ body.layout-edit-active
 }
 
 .generated-layout-canvas .playground-node.playground-qubit-shell.mailbox-arriving {
+  opacity: 0;
   z-index: 10001 !important;
   pointer-events: none;
   transition:
+    opacity 200ms ease-out,
     left 620ms cubic-bezier(0.2, 0.8, 0.2, 1),
     top 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .generated-layout-canvas
-  .playground-node.playground-qubit-shell.mailbox-arriving
-  .playground-qubit-core {
-  animation: mailbox-qubit-arrival 620ms ease-out;
+  .playground-node.playground-qubit-shell.mailbox-arriving-visible {
+  opacity: 1;
 }
 
 .generated-layout-canvas
@@ -2318,19 +2319,21 @@ body.layout-edit-active
     inset 0 0 12px rgba(255, 255, 255, 0.46);
 }
 
-@keyframes mailbox-qubit-arrival {
-  0% {
-    opacity: 0.15;
-    scale: 0.35;
-  }
-  65% {
-    opacity: 1;
-    scale: 1.12;
-  }
-  100% {
-    opacity: 1;
-    scale: 1;
-  }
+.generated-layout-canvas .playground-node.playground-qubit-shell.mailbox-sending,
+#panel-plaground .playground-node.playground-qubit-shell.mailbox-sending {
+  z-index: 10001 !important;
+  pointer-events: none;
+  transition:
+    left 220ms ease-in,
+    top 220ms ease-in,
+    opacity 200ms ease-out;
+}
+
+.generated-layout-canvas
+  .playground-node.playground-qubit-shell.mailbox-sending-fade,
+#panel-plaground
+  .playground-node.playground-qubit-shell.mailbox-sending-fade {
+  opacity: 0;
 }
 
 .generated-layout-canvas
