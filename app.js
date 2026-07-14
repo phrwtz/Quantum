@@ -4382,6 +4382,7 @@ function createMailboxElement() {
   node.className = "qubit-mailbox";
   node.setAttribute("aria-label", "Qubit mailbox");
   node.innerHTML = [
+    '<div class="mailbox-input-funnel" data-role="mailbox-input-funnel" aria-hidden="true"></div>',
     '<div class="mailbox-shell" aria-hidden="true"></div>',
     '<div class="mailbox-window" data-role="mailbox-window"></div>',
     '<div class="mailbox-status" data-role="mailbox-status" aria-live="polite"></div>',
@@ -7245,7 +7246,12 @@ function mailboxRoomImportMailboxWindow(canvas) {
   return mailboxWindow instanceof HTMLElement ? mailboxWindow : null;
 }
 
-function mailboxRoomImportPoint(canvas) {
+function mailboxRoomLandingOffset(roomQubitIndex) {
+  const offsets = [-36, 36, -72, 72];
+  return offsets[normalizeRoomQubitIndex(roomQubitIndex)] || 0;
+}
+
+function mailboxRoomImportPoint(canvas, roomQubitIndex = null) {
   if (!canvas) {
     return { x: 66, y: 66 };
   }
@@ -7262,9 +7268,10 @@ function mailboxRoomImportPoint(canvas) {
     const qubitRadius = 36;
     const mailboxGap = 22;
     const offset = qubitRadius + mailboxGap;
+    const landingY = origin.y + mailboxRoomLandingOffset(roomQubitIndex);
     const candidates = [
-      { x: mailboxBounds.right + offset, y: origin.y },
-      { x: mailboxBounds.left - offset, y: origin.y },
+      { x: mailboxBounds.right + offset, y: landingY },
+      { x: mailboxBounds.left - offset, y: landingY },
       { x: origin.x, y: mailboxBounds.bottom + offset },
       { x: origin.x, y: mailboxBounds.top - offset },
     ];
@@ -7321,7 +7328,10 @@ function mailboxRoomReceiveQubitEvent(event, options = {}) {
     const origin = mailboxWindow
       ? generatedCanvasPointForElementCenter(canvas, mailboxWindow)
       : mailboxRoomImportPoint(canvas);
-    const destination = mailboxRoomImportPoint(canvas);
+    const destination = mailboxRoomImportPoint(
+      canvas,
+      transfer.roomQubit?.roomQubitIndex,
+    );
     const maxZ = Array.from(
       canvas.querySelectorAll(":scope > .playground-node"),
     ).reduce(
@@ -14691,15 +14701,15 @@ function findBestGeneratedMailboxForQubit(canvas, qubitItem) {
       if (!isGeneratedMailboxItem(mailboxItem)) {
         return;
       }
-      const mailboxWindow = mailboxItem.querySelector(
-        '[data-role="mailbox-window"]',
+      const mailboxFunnel = mailboxItem.querySelector(
+        '[data-role="mailbox-input-funnel"]',
       );
-      if (!(mailboxWindow instanceof HTMLElement)) {
+      if (!(mailboxFunnel instanceof HTMLElement)) {
         return;
       }
       const overlap = generatedQubitOverlapRatioWithRect(
         qubitItem,
-        mailboxWindow,
+        mailboxFunnel,
       );
       if (overlap >= bestOverlap) {
         bestOverlap = overlap;
@@ -14725,9 +14735,11 @@ function maybeSnapGeneratedQubitToMailbox(qubitItem) {
   if (!mailboxItem) {
     return false;
   }
-  const mailboxWindow = mailboxItem.querySelector('[data-role="mailbox-window"]');
-  if (mailboxWindow instanceof HTMLElement) {
-    const center = generatedCanvasPointForElementCenter(canvas, mailboxWindow);
+  const mailboxFunnel = mailboxItem.querySelector(
+    '[data-role="mailbox-input-funnel"]',
+  );
+  if (mailboxFunnel instanceof HTMLElement) {
+    const center = generatedCanvasPointForElementCenter(canvas, mailboxFunnel);
     setGeneratedQubitCenter(canvas, qubitItem, center.x, center.y);
   }
   setMailboxComponentStatus(mailboxItem, "");
@@ -20718,13 +20730,13 @@ function setupPlagroundComposer() {
         if (!isPlaygroundMailboxItem(mailboxItem)) {
           return;
         }
-        const mailboxWindow = mailboxItem.querySelector(
-          '[data-role="mailbox-window"]',
+        const mailboxFunnel = mailboxItem.querySelector(
+          '[data-role="mailbox-input-funnel"]',
         );
-        if (!(mailboxWindow instanceof HTMLElement)) {
+        if (!(mailboxFunnel instanceof HTMLElement)) {
           return;
         }
-        const overlap = qubitOverlapRatioWithRect(qubitItem, mailboxWindow);
+        const overlap = qubitOverlapRatioWithRect(qubitItem, mailboxFunnel);
         if (overlap >= bestOverlap) {
           bestOverlap = overlap;
           bestMailbox = mailboxItem;
@@ -20745,9 +20757,11 @@ function setupPlagroundComposer() {
     if (!mailboxItem) {
       return false;
     }
-    const mailboxWindow = mailboxItem.querySelector('[data-role="mailbox-window"]');
-    if (mailboxWindow instanceof HTMLElement) {
-      const center = canvasPointForElementCenter(mailboxWindow);
+    const mailboxFunnel = mailboxItem.querySelector(
+      '[data-role="mailbox-input-funnel"]',
+    );
+    if (mailboxFunnel instanceof HTMLElement) {
+      const center = canvasPointForElementCenter(mailboxFunnel);
       setPlaygroundQubitCenter(qubitItem, center.x, center.y);
     }
     setMailboxComponentStatus(mailboxItem, "");

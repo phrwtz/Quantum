@@ -6462,12 +6462,12 @@ async function runMailboxRoomDeliverySmoke(browser, baseUrl) {
     const bobQubit = bob.page.locator(
       '#panel-mailbox-delivery-smoke [data-generated-item-id="mailbox-smoke-qubit-b"]',
     );
-    const bobMailboxWindow = bob.page.locator(
-      '#panel-mailbox-delivery-smoke [data-component="mailbox"] [data-role="mailbox-window"]',
+    const bobMailboxFunnel = bob.page.locator(
+      '#panel-mailbox-delivery-smoke [data-component="mailbox"] [data-role="mailbox-input-funnel"]',
     );
     const [qubitCenter, mailboxCenter] = await Promise.all([
       rectCenter(bobQubit),
-      rectCenter(bobMailboxWindow),
+      rectCenter(bobMailboxFunnel),
     ]);
     await bob.page.mouse.move(qubitCenter.x, qubitCenter.y);
     await bob.page.mouse.down();
