@@ -283,6 +283,8 @@ const MAILBOX_DEFAULT_MESSAGE =
 const MAILBOX_LINK_PLACEHOLDER = "__MAILBOX_LINK__";
 const MAILBOX_WINDOW_OVERLAP_THRESHOLD = 0.35;
 const MAILBOX_ROOM_STORAGE_KEY = "quantum_mailbox_room_v1";
+const MAILBOX_LOCAL_ROOM_EVENTS_STORAGE_KEY =
+  "quantum_mailbox_local_room_events_v1";
 const ENTANGLEMENT_THREE_SESSION_STORAGE_KEY =
   "quantum_entanglement_three_session_v1";
 const ENTANGLEMENT_THREE_SESSION_CHANNEL =
@@ -7179,6 +7181,101 @@ function mailboxRoomTransferIsForThisParticipant(payload = {}) {
   );
 }
 
+function mailboxLocalRoomEvents() {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(MAILBOX_LOCAL_ROOM_EVENTS_STORAGE_KEY) || "[]",
+    );
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function mailboxRoomLocalTransferForQubit(context) {
+  const qubitItem = context?.qubitItem;
+  const state = isGeneratedQubitItem(qubitItem)
+    ? ensureGeneratedQubitRuntimeState(qubitItem)
+    : null;
+  let vector = Array.isArray(state?.vector) ? normalizeVector2(state.vector) : null;
+  if (!vector && qubitItem instanceof HTMLElement) {
+    try {
+      vector = normalizeVector2(
+        JSON.parse(qubitItem.dataset.initialVector || "null"),
+      );
+    } catch (_error) {
+      vector = null;
+    }
+  }
+  return {
+    kind: "single-qubit",
+    version: 1,
+    vector: vector || [1, 0],
+    sourceQubitLabel: mailboxRoomQubitLabel(context),
+    roomQubit: roomQubitIdentityForItem(qubitItem),
+    paired: false,
+    entanglement: null,
+  };
+}
+
+function mailboxRoomStoreLocalTransfer(context) {
+  const event = {
+    id: `local-mailbox-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+    type: "roomMailbox.sent",
+    at: new Date().toISOString(),
+    payload: {
+      fromParticipantId: entanglementThreeWindowId,
+      fromName: mailboxRoomState.displayName || "Other tab",
+      qubitLabel: mailboxRoomQubitLabel(context),
+      localSenderWindowId: entanglementThreeWindowId,
+      transfer: mailboxRoomLocalTransferForQubit(context),
+    },
+  };
+  const events = mailboxLocalRoomEvents();
+  events.push(event);
+  window.localStorage.setItem(
+    MAILBOX_LOCAL_ROOM_EVENTS_STORAGE_KEY,
+    JSON.stringify(events.slice(-60)),
+  );
+  return event;
+}
+
+function mailboxRoomReceivePendingLocalQubits() {
+  const canvas = entanglementThreeCanvasForTab();
+  if (!(canvas instanceof HTMLElement)) {
+    return [];
+  }
+  const received = [];
+  mailboxLocalRoomEvents().forEach((event) => {
+    if (
+      event?.payload?.localSenderWindowId === entanglementThreeWindowId ||
+      mailboxRoomTransferReceived(event?.id)
+    ) {
+      return;
+    }
+    try {
+      const item = mailboxRoomReceiveQubitEvent(event, { canvas });
+      if (item instanceof HTMLElement) {
+        received.push(item);
+      }
+    } catch (error) {
+      console.warn?.("[Qubit Lab] local mailbox receive failed", error);
+    }
+  });
+  if (received.length) {
+    const mailbox = canvas.querySelector(
+      ':scope > .playground-node[data-component="mailbox"]',
+    );
+    if (mailbox instanceof HTMLElement) {
+      setMailboxComponentStatus(
+        mailbox,
+        `Received ${received.length === 1 ? "a qubit" : `${received.length} qubits`} from another tab`,
+      );
+    }
+  }
+  return received;
+}
+
 function mailboxRoomReceivedTransferIds() {
   const stored = readMailboxRoomStorage();
   return Array.isArray(stored.receivedTransfers)
@@ -8249,6 +8346,9 @@ async function animateMailboxQubitIntoMailbox(context) {
   }
   const generatedCanvas = generatedCanvasForItem(qubitItem);
   qubitItem.classList.add("mailbox-sending");
+  // Commit the funnel position before changing coordinates so the browser
+  // always renders the movement into the mailbox window.
+  qubitItem.getBoundingClientRect();
   if (generatedCanvas instanceof HTMLElement) {
     const center = generatedCanvasPointForElementCenter(
       generatedCanvas,
@@ -8314,10 +8414,11 @@ async function sendMailboxQubitWithoutDialog(context) {
     );
     await animateMailboxQubitIntoMailbox(context);
     if (!(await roomReady)) {
+      mailboxRoomStoreLocalTransfer(context);
       mailboxRoomConsumeSentQubit(context);
       setMailboxComponentStatus(
         mailboxItem,
-        `Stored ${mailboxRoomQubitLabel(context)} in the mailbox room`,
+        `Sent ${mailboxRoomQubitLabel(context)} to the mailbox room`,
       );
       return;
     }
@@ -28056,3 +28157,11 @@ function initialLocalTabTarget() {
 setActiveTab(initialLocalTabTarget());
 mailboxRoomStartBootCleanup();
 localLabHandleMailboxRoute();
+window.addEventListener("storage", (event) => {
+  if (event.key === MAILBOX_LOCAL_ROOM_EVENTS_STORAGE_KEY) {
+    mailboxRoomReceivePendingLocalQubits();
+  }
+});
+window.setInterval(() => {
+  mailboxRoomReceivePendingLocalQubits();
+}, 750);
