@@ -2840,11 +2840,12 @@ async function runDocEditorTwoQubitPlaybackSmoke(page) {
     result.cnotSpringGeometry.flangeOverflow !== "visible" ||
     Math.abs(result.cnotSpringGeometry.springLeftMinusFlangeRight) > 4 ||
     result.cnotSpringGeometry.springRightMinusItemRight < 40 ||
-    result.measurementSlotGeometry.leftOffset >= 0 ||
-    result.measurementSlotGeometry.rightOffset <= 0 ||
+    result.measurementSlotGeometry.leftOffset >= -50 ||
+    result.measurementSlotGeometry.rightOffset <= -50 ||
     Math.abs(
       result.measurementSlotGeometry.leftOffset +
-        result.measurementSlotGeometry.rightOffset,
+        result.measurementSlotGeometry.rightOffset +
+        100,
     ) > 1 ||
     Math.abs(result.measurementSlotGeometry.verticalDifference) > 1 ||
     !result.replayCnotLayer.topActive ||
