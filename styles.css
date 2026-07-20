@@ -312,6 +312,36 @@ html[data-workshop-editor-mode="tab"]
   display: none;
 }
 
+/* In the tab editor, compound components are single editable groups. */
+html[data-workshop-editor-mode="tab"]
+  #panel-plaground
+  .playground-node[data-layout-edit-target="true"] {
+  outline: 2px dashed rgba(237, 170, 59, 0.9);
+  cursor: grab;
+}
+
+html[data-workshop-editor-mode="tab"]
+  #panel-plaground
+  .playground-node[data-layout-resizable="true"]
+  > .layout-resize-handle {
+  display: block;
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+}
+
+html:not([data-workshop-editor-mode="component"])
+  [data-playground-measurement-part]
+  > .layout-resize-handle,
+html:not([data-workshop-editor-mode="component"])
+  [data-playground-cnot-part]
+  > .layout-resize-handle,
+html:not([data-workshop-editor-mode="component"])
+  .saved-group-child
+  > .layout-resize-handle {
+  display: none !important;
+}
+
 .editor-action-panel {
   display: inline-flex;
   align-items: center;

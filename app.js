@@ -298,6 +298,7 @@ const MAILBOX_ROOM_ACTIVE_MS = 15000;
 const MAILBOX_ROOM_AUTO_NAMES = ["Bob", "Alice"];
 const GENERATED_TABS_CONTENT_FILE = "data/generated-tabs.json";
 const DOCUMENTS_CONTENT_FILE = "data/whats-this-documents.json";
+const COMPONENT_GROUPS_CONTENT_FILE = "data/component-groups.json";
 const CONTENT_FILE_CACHE_BUST =
   document.documentElement?.dataset?.quantumContentVersion || "";
 const IS_STATIC_BUILD = Boolean(CONTENT_FILE_CACHE_BUST);
@@ -1911,14 +1912,33 @@ function mergeBuiltInGroupComponentsPayload(payload) {
 
 function readPlaygroundGroupComponentsPayload() {
   try {
+    const repositoryPayload = readRepositoryContentState(
+      "component-groups",
+      COMPONENT_GROUPS_CONTENT_FILE,
+    );
     const serialized = window.localStorage.getItem(
       PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
     );
-    if (!serialized) {
+    if (!serialized && !repositoryPayload) {
       legacyGroupComponentIdRedirects = new Map();
       return mergeBuiltInGroupComponentsPayload({ groups: [] });
     }
-    const parsed = JSON.parse(serialized);
+    const browserPayload = serialized ? JSON.parse(serialized) : null;
+    const repositoryGroups = Array.isArray(repositoryPayload?.groups)
+      ? repositoryPayload.groups
+      : [];
+    const browserGroups = Array.isArray(browserPayload?.groups)
+      ? browserPayload.groups
+      : [];
+    const browserIds = new Set(browserGroups.map((group) => group?.id));
+    const parsed = {
+      ...(repositoryPayload || {}),
+      ...(browserPayload || {}),
+      groups: [
+        ...repositoryGroups.filter((group) => !browserIds.has(group?.id)),
+        ...browserGroups,
+      ],
+    };
     const normalized = normalizePlaygroundGroupComponentsPayload(parsed);
     if (normalized.changed) {
       window.localStorage.setItem(
@@ -1936,12 +1956,16 @@ function readPlaygroundGroupComponentsPayload() {
 function writePlaygroundGroupComponentsPayload(payload) {
   try {
     const normalized = normalizePlaygroundGroupComponentsPayload(payload);
+    const repositorySaved = writeLocalContentState(
+      "component-groups",
+      normalized.payload,
+    );
     window.localStorage.setItem(
       PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
       JSON.stringify(normalized.payload),
     );
     playgroundGroupComponentsCache = normalized.payload;
-    return true;
+    return repositorySaved || Boolean(window.localStorage);
   } catch (_error) {
     return false;
   }
@@ -2176,13 +2200,32 @@ function normalizeGeneratedTabLayout(layout) {
     legacyGroupComponentIdRedirects,
   );
   const separated = normalizeSeparatedPairMeasurementLayoutItems(remapped.items);
-  if (!remapped.changed && !separated.changed) {
+  let strippedGroupSnapshots = false;
+  const normalizedItems = separated.items.map((item) => {
+    if (
+      item?.type !== PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE ||
+      !item.groupComponentId ||
+      !playgroundGroupComponentById(item.groupComponentId) ||
+      (!Array.isArray(item.items) &&
+        item.itemsWidth === undefined &&
+        item.itemsHeight === undefined)
+    ) {
+      return item;
+    }
+    const nextItem = { ...item };
+    delete nextItem.items;
+    delete nextItem.itemsWidth;
+    delete nextItem.itemsHeight;
+    strippedGroupSnapshots = true;
+    return nextItem;
+  });
+  if (!remapped.changed && !separated.changed && !strippedGroupSnapshots) {
     return { layout, changed: false };
   }
   return {
     layout: {
       ...layout,
-      items: separated.items,
+      items: normalizedItems,
     },
     changed: true,
   };
@@ -9078,6 +9121,77 @@ function persistSavedGroupComponentDefinitionFromElement(item) {
   }
   const saved = writePlaygroundGroupComponentsPayload({ groups });
   if (saved) {
+    const removeInstanceSnapshot = (layoutItem) => {
+      if (!layoutItem || typeof layoutItem !== "object") {
+        return { item: layoutItem, changed: false };
+      }
+      let changed = false;
+      let replacement = layoutItem;
+      if (layoutItem.groupComponentId === nextGroup.id) {
+        replacement = { ...layoutItem };
+        delete replacement.items;
+        delete replacement.itemsWidth;
+        delete replacement.itemsHeight;
+        changed = true;
+      } else if (Array.isArray(layoutItem.items)) {
+        const nested = layoutItem.items.map(removeInstanceSnapshot);
+        if (nested.some((result) => result.changed)) {
+          replacement = {
+            ...layoutItem,
+            items: nested.map((result) => result.item),
+          };
+          changed = true;
+        }
+      }
+      return { item: replacement, changed };
+    };
+    const nextTabs = cloneJson(generatedTabsState) || { tabs: [] };
+    let tabsChanged = false;
+    nextTabs.tabs = (nextTabs.tabs || []).map((entry) => {
+      if (!Array.isArray(entry?.layout?.items)) {
+        return entry;
+      }
+      let entryChanged = false;
+      const itemResults = entry.layout.items.map(removeInstanceSnapshot);
+      entryChanged = itemResults.some((result) => result.changed);
+      tabsChanged = entryChanged || tabsChanged;
+      const items = itemResults.map((result) => result.item);
+      return entryChanged
+        ? { ...entry, layout: { ...entry.layout, items, savedAt: Date.now() } }
+        : entry;
+    });
+    if (tabsChanged && !writeGeneratedTabsState(nextTabs)) {
+      return false;
+    }
+    if (tabsChanged) {
+      applyGeneratedTabsState(nextTabs);
+      plagroundComposer?.handleGeneratedTabsChanged?.();
+      documentEditorComposer?.handleGeneratedTabsChanged?.();
+    }
+    const nextDocuments = cloneJson(documentsState) || { documents: [] };
+    let documentsChanged = false;
+    nextDocuments.documents = (nextDocuments.documents || []).map((document) => ({
+      ...document,
+      scenes: (document.scenes || []).map((scene) => {
+        const itemResults = (scene.items || []).map(removeInstanceSnapshot);
+        if (!itemResults.some((result) => result.changed)) {
+          return scene;
+        }
+        documentsChanged = true;
+        return {
+          ...scene,
+          items: itemResults.map((result) => result.item),
+          savedAt: Date.now(),
+        };
+      }),
+    }));
+    if (documentsChanged && !writeDocumentsState(nextDocuments)) {
+      return false;
+    }
+    if (documentsChanged) {
+      documentsState = nextDocuments;
+      documentEditorComposer?.handleDocumentsChanged?.();
+    }
     refreshAllComponentPickers();
   }
   return saved;
@@ -12121,12 +12235,8 @@ function serializeGeneratedLayoutItem(item) {
   if (measurementLayout) {
     serialized.measurementLayout = measurementLayout;
   }
-  const savedGroupLayout = captureSavedGroupChildLayoutSnapshot(item);
-  if (savedGroupLayout) {
-    serialized.items = savedGroupLayout.items;
-    serialized.itemsWidth = savedGroupLayout.itemsWidth;
-    serialized.itemsHeight = savedGroupLayout.itemsHeight;
-  }
+  // Group instances store only their outer geometry and definition id. Child
+  // geometry belongs to the component definition and is edited only there.
   if (item.dataset.measurementGroupId) {
     serialized.measurementGroupId = item.dataset.measurementGroupId;
   }
@@ -18588,6 +18698,7 @@ function beginGeneratedLayoutEditGesture(event) {
   }
   const measurementPart = origin.closest("[data-playground-measurement-part]");
   if (
+    workshopEditorMode === "component" &&
     measurementPart instanceof HTMLElement &&
     measurementPart.closest(".generated-layout-canvas") === canvas
   ) {
@@ -22322,12 +22433,8 @@ function setupPlagroundComposer() {
     if (measurementLayout) {
       serialized.measurementLayout = measurementLayout;
     }
-    const savedGroupLayout = captureSavedGroupChildLayoutSnapshot(item);
-    if (savedGroupLayout) {
-      serialized.items = savedGroupLayout.items;
-      serialized.itemsWidth = savedGroupLayout.itemsWidth;
-      serialized.itemsHeight = savedGroupLayout.itemsHeight;
-    }
+    // Group instances intentionally do not serialize their children. Their
+    // component definition is the shared source of truth across tabs.
     if (isPlaygroundCnotItem(item)) {
       preparePlaygroundCnotParts(item);
       const cnotLayout = captureCnotComponentDefaultsFromElement(item);

@@ -5,6 +5,7 @@ const rootDir = path.resolve(__dirname, "..");
 const contentFiles = [
   "data/generated-tabs.json",
   "data/whats-this-documents.json",
+  "data/component-groups.json",
 ];
 const bundlePath = path.join(rootDir, "data", "repository-content.js");
 

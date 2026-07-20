@@ -12,11 +12,13 @@ const maxJsonBytes = 25 * 1024 * 1024;
 const contentFiles = new Map([
   ["generated-tabs", path.join(rootDir, "data", "generated-tabs.json")],
   ["documents", path.join(rootDir, "data", "whats-this-documents.json")],
+  ["component-groups", path.join(rootDir, "data", "component-groups.json")],
 ]);
 
 const fallbackPayloads = new Map([
   ["generated-tabs", { tabs: [] }],
   ["documents", { documents: [] }],
+  ["component-groups", { groups: [] }],
 ]);
 
 const mimeTypes = {
