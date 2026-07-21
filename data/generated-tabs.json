@@ -204,7 +204,7 @@
             "top": 156,
             "width": 72,
             "height": 72,
-            "z": 588,
+            "z": 1333,
             "qubitId": 130507,
             "roomQubitIndex": 0
           },
@@ -234,15 +234,15 @@
             "width": 338,
             "height": 208,
             "z": 213,
-            "singleGateTick": 6
+            "singleGateTick": 0
           },
           {
             "type": "cnot-gate",
-            "left": 572,
-            "top": 234,
+            "left": 598,
+            "top": 208,
             "width": 373,
             "height": 209,
-            "z": 1080,
+            "z": 1321,
             "cnotLayout": {
               "gate": {
                 "tx": 0,
@@ -251,26 +251,24 @@
                 "height": "209px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "572px",
-                  "top": "234px",
+                  "left": "598px",
+                  "top": "208px",
                   "width": "373px",
                   "height": "209px"
                 }
               },
               "body": {
                 "tx": 10,
-                "ty": 3,
+                "ty": 9,
                 "width": "327px",
-                "height": "164px",
+                "height": "163.98px",
                 "deleted": false,
                 "inlineStyle": {
                   "left": "38.36px",
-                  "right": "22px",
                   "top": "0px",
-                  "bottom": "0px",
                   "width": "327px",
-                  "height": "164px",
-                  "translate": "10px 3px"
+                  "height": "163.98px",
+                  "translate": "10px 9px"
                 }
               },
               "funnelTop": {
@@ -375,11 +373,11 @@
           },
           {
             "type": "double-measurement",
-            "left": 1014,
+            "left": 1066,
             "top": 52,
             "width": 546,
             "height": 650,
-            "z": 1206,
+            "z": 1316,
             "measurementLayout": {
               "parts": {
                 "magnifier": {
@@ -410,9 +408,9 @@
           }
         ],
         "gridSnap": true,
-        "canvasWidth": 1600,
-        "canvasHeight": 760,
-        "savedAt": 1783955173882
+        "canvasWidth": 1677,
+        "canvasHeight": 762,
+        "savedAt": 1784652558402
       }
     },
     {
@@ -427,7 +425,8 @@
             "width": 72,
             "height": 72,
             "z": 618,
-            "qubitId": 129730
+            "qubitId": 129730,
+            "roomQubitIndex": 0
           },
           {
             "type": "qubit",
@@ -436,7 +435,8 @@
             "width": 72,
             "height": 72,
             "z": 624,
-            "qubitId": 129731
+            "qubitId": 129731,
+            "roomQubitIndex": 1
           },
           {
             "type": "single-gate",
@@ -454,7 +454,7 @@
             "width": 338,
             "height": 208,
             "z": 213,
-            "singleGateTick": 6
+            "singleGateTick": 0
           },
           {
             "type": "cnot-gate",
@@ -471,8 +471,8 @@
                 "height": "209px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "350px",
-                  "top": "76px",
+                  "left": "649px",
+                  "top": "218px",
                   "width": "373px",
                   "height": "209px"
                 }
@@ -597,57 +597,17 @@
             "type": "component-group",
             "left": 1118,
             "top": 52,
-            "width": 442,
-            "height": 530,
-            "z": 598,
-            "items": [
-              {
-                "type": "measurement-capacity",
-                "left": 52,
-                "top": 0,
-                "width": 330,
-                "height": 70,
-                "z": 1,
-                "measurementRole": "capacity"
-              },
-              {
-                "type": "double-tube-array",
-                "left": 26,
-                "top": 52,
-                "width": 390,
-                "height": 260,
-                "z": 2,
-                "measurementRole": "double-tubes"
-              },
-              {
-                "type": "single-magnifier",
-                "left": 117,
-                "top": 333,
-                "width": 208,
-                "height": 156,
-                "z": 3,
-                "measurementRole": "single-magnifier"
-              },
-              {
-                "type": "measurement-count-menu",
-                "left": 156,
-                "top": 468,
-                "width": 110,
-                "height": 62,
-                "z": 5,
-                "measurementRole": "iteration-count"
-              }
-            ],
-            "itemsWidth": 442,
-            "itemsHeight": 530,
+            "width": 434,
+            "height": 585,
+            "z": 1305,
             "measurementGroupId": "separate-two-qubit-measurement-mpe5t5bg",
             "groupComponentId": "separate-two-qubit-measurement"
           }
         ],
         "gridSnap": false,
-        "canvasWidth": 1600,
-        "canvasHeight": 760,
-        "savedAt": 1782070411670
+        "canvasWidth": 1677,
+        "canvasHeight": 762,
+        "savedAt": 1784652583502
       }
     },
     {
@@ -656,118 +616,154 @@
       "layout": {
         "items": [
           {
-            "id": "entanglement-3-q0",
             "type": "qubit",
-            "left": 64,
-            "top": 164,
+            "left": 36,
+            "top": 59,
             "width": 72,
             "height": 72,
-            "z": 20,
+            "z": 1277,
             "qubitId": 1,
-            "vector": [
-              1,
-              0
-            ]
+            "roomQubitIndex": 0
           },
           {
-            "id": "entanglement-3-q1",
             "type": "qubit",
-            "left": 64,
-            "top": 424,
+            "left": 34,
+            "top": 185,
             "width": 72,
             "height": 72,
-            "z": 21,
+            "z": 1256,
             "qubitId": 2,
-            "vector": [
-              1,
-              0
-            ]
+            "roomQubitIndex": 1
           },
           {
-            "id": "entanglement-3-gate-0",
             "type": "single-gate",
-            "left": 190,
-            "top": 96,
+            "left": 188,
+            "top": 69,
             "width": 338,
             "height": 208,
-            "z": 15,
-            "singleGateTick": 0
+            "z": 1292,
+            "singleGateTick": 3
           },
           {
-            "id": "entanglement-3-cnot",
             "type": "cnot-gate",
-            "left": 190,
-            "top": 330,
+            "left": 186,
+            "top": 294,
             "width": 373,
             "height": 209,
-            "z": 16
+            "z": 1262,
+            "cnotLayout": {
+              "gate": {
+                "tx": 0,
+                "ty": 0,
+                "width": "373px",
+                "height": "209px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "186px",
+                  "top": "294px",
+                  "width": "373px",
+                  "height": "209px"
+                }
+              },
+              "body": {
+                "tx": 0,
+                "ty": 0,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "42px",
+                  "right": "22px",
+                  "top": "0px",
+                  "bottom": "0px",
+                  "translate": "0px"
+                }
+              },
+              "funnelTop": {
+                "tx": 13,
+                "ty": 2,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "translate": "13px 2px"
+                }
+              },
+              "funnelBottom": {
+                "tx": 15,
+                "ty": -6,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "translate": "15px -6px"
+                }
+              },
+              "windowTop": {
+                "tx": -15,
+                "ty": 4,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "translate": "-15px 4px"
+                }
+              },
+              "windowBottom": {
+                "tx": -9,
+                "ty": 4,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "translate": "-9px 4px"
+                }
+              },
+              "flangeTop": {
+                "tx": 14,
+                "ty": -3,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "translate": "14px -3px"
+                }
+              },
+              "flangeBottom": {
+                "tx": 15,
+                "ty": -11,
+                "width": "",
+                "height": "",
+                "deleted": false,
+                "inlineStyle": {
+                  "translate": "15px -11px"
+                }
+              }
+            }
           },
           {
-            "id": "entanglement-3-mailbox",
             "type": "mailbox",
-            "left": 530,
-            "top": 586,
-            "width": 300,
-            "height": 150,
-            "z": 12
+            "left": 226,
+            "top": 576,
+            "width": 296,
+            "height": 170,
+            "z": 1268
           },
           {
-            "id": "entanglement-3-register-measurement",
             "type": "component-group",
             "left": 640,
             "top": 80,
             "width": 940,
             "height": 472,
-            "z": 10,
-            "items": [
-              {
-                "type": "measurement-capacity",
-                "left": 290,
-                "top": 0,
-                "width": 360,
-                "height": 60,
-                "z": 1,
-                "measurementRole": "capacity"
-              },
-              {
-                "type": "quadruple-tube-array",
-                "left": 20,
-                "top": 68,
-                "width": 900,
-                "height": 210,
-                "z": 2,
-                "measurementRole": "quadruple-tubes"
-              },
-              {
-                "type": "single-magnifier",
-                "left": 390,
-                "top": 294,
-                "width": 160,
-                "height": 130,
-                "z": 3,
-                "measurementRole": "single-magnifier"
-              },
-              {
-                "type": "measurement-count-menu",
-                "left": 415,
-                "top": 410,
-                "width": 110,
-                "height": 62,
-                "z": 4,
-                "measurementRole": "iteration-count"
-              }
-            ],
-            "itemsWidth": 940,
-            "itemsHeight": 472,
-            "groupComponentId": "four-qubit-register-measurement",
+            "z": 1280,
             "measurementGroupId": "entanglement-3-register-measurement",
-            "measurementRegisterQubitCount": 4
+            "groupComponentId": "four-qubit-register-measurement"
           }
         ],
         "gridSnap": false,
-        "canvasWidth": 1600,
-        "canvasHeight": 760,
-        "savedAt": 1782241901945
+        "canvasWidth": 1677,
+        "canvasHeight": 762,
+        "savedAt": 1784652305551
       }
     }
   ]

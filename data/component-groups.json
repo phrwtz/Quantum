@@ -1,3 +1,48 @@
 {
-  "groups": []
+  "groups": [
+    {
+      "id": "separate-two-qubit-measurement",
+      "label": "Separate two qubit measurement",
+      "width": 442,
+      "height": 530,
+      "items": [
+        {
+          "type": "measurement-capacity",
+          "left": 52,
+          "top": 0,
+          "width": 330,
+          "height": 70,
+          "z": 1,
+          "measurementRole": "capacity"
+        },
+        {
+          "type": "double-tube-array",
+          "left": 26,
+          "top": 52,
+          "width": 390,
+          "height": 260,
+          "z": 2,
+          "measurementRole": "double-tubes"
+        },
+        {
+          "type": "single-magnifier",
+          "left": 117,
+          "top": 333,
+          "width": 208,
+          "height": 156,
+          "z": 3,
+          "measurementRole": "single-magnifier"
+        },
+        {
+          "type": "measurement-count-menu",
+          "left": 156,
+          "top": 468,
+          "width": 110,
+          "height": 62,
+          "z": 5,
+          "measurementRole": "iteration-count"
+        }
+      ]
+    }
+  ]
 }
