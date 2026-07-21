@@ -20,6 +20,7 @@ const assetFiles = [
   "New magnifying glass.png",
   "data/generated-tabs.json",
   "data/whats-this-documents.json",
+  "data/component-groups.json",
   "data/repository-content.js",
 ];
 

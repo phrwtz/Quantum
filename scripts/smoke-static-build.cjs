@@ -78,6 +78,20 @@ async function runSmoke(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1180, height: 760 } });
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "quantum_editor_content_state_v1_generated-tabs",
+        JSON.stringify({
+          tabs: [
+            {
+              id: "stale-browser-tab",
+              label: "Stale Browser Tab",
+              layout: { items: [], canvasWidth: 600, canvasHeight: 420 },
+            },
+          ],
+        }),
+      );
+    });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
@@ -119,6 +133,9 @@ async function runSmoke(baseUrl) {
         : null;
       const activeTarget =
         document.querySelector(".tab-btn.active")?.dataset.tabTarget || "";
+      const entanglementTwoText =
+        document.querySelector("#panel-custom-entanglement-3")?.textContent ||
+        "";
       const topTabsVisible = Boolean(
         tabStrip &&
           window.getComputedStyle(tabStrip).display !== "none" &&
@@ -137,6 +154,8 @@ async function runSmoke(baseUrl) {
       return {
         labels,
         activeTarget,
+        entanglementTwoHasUnavailableGroup:
+          entanglementTwoText.includes("Saved group unavailable"),
         contentVersion:
           document.documentElement.dataset.quantumContentVersion || "",
         authoringButtons: Boolean(
@@ -159,6 +178,7 @@ async function runSmoke(baseUrl) {
 
     if (
       initial.labels.join("|") !== expectedTabLabels.join("|") ||
+      initial.entanglementTwoHasUnavailableGroup ||
       initial.activeTarget !== "editor-introduction" ||
       !initial.contentVersion ||
       !initial.authoringButtons ||

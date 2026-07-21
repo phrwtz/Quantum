@@ -2408,6 +2408,9 @@ function readRepositoryContentState(contentName, relativePath) {
   if (window.location.protocol === "file:" && bundledState) {
     return readBrowserContentState(contentName) || bundledState;
   }
+  if (IS_STATIC_BUILD) {
+    return readContentFileState(relativePath);
+  }
   return (
     readLocalContentState(contentName) ||
     readBrowserContentState(contentName) ||
