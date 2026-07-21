@@ -640,8 +640,8 @@
             ],
             "itemsWidth": 442,
             "itemsHeight": 530,
-            "measurementGroupId": "separate-two-qubit-measurment-mpe5t5bg",
-            "groupComponentId": "separate-two-qubit-measurment"
+            "measurementGroupId": "separate-two-qubit-measurement-mpe5t5bg",
+            "groupComponentId": "separate-two-qubit-measurement"
           }
         ],
         "gridSnap": false,
