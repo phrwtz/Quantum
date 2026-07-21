@@ -749,6 +749,9 @@ function normalizePlaygroundComponentDefaultsPayload(payload) {
 }
 
 function readPlaygroundComponentDefaultsPayload() {
+  if (IS_STATIC_BUILD) {
+    return {};
+  }
   try {
     const serialized = window.localStorage.getItem(
       PLAYGROUND_COMPONENT_DEFAULTS_STORAGE_KEY,
@@ -1916,9 +1919,9 @@ function readPlaygroundGroupComponentsPayload() {
       "component-groups",
       COMPONENT_GROUPS_CONTENT_FILE,
     );
-    const serialized = window.localStorage.getItem(
-      PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
-    );
+    const serialized = IS_STATIC_BUILD
+      ? null
+      : window.localStorage.getItem(PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY);
     if (!serialized && !repositoryPayload) {
       legacyGroupComponentIdRedirects = new Map();
       return mergeBuiltInGroupComponentsPayload({ groups: [] });
@@ -1940,7 +1943,7 @@ function readPlaygroundGroupComponentsPayload() {
       ],
     };
     const normalized = normalizePlaygroundGroupComponentsPayload(parsed);
-    if (normalized.changed) {
+    if (normalized.changed && !IS_STATIC_BUILD) {
       window.localStorage.setItem(
         PLAYGROUND_GROUP_COMPONENTS_STORAGE_KEY,
         JSON.stringify(normalized.payload),

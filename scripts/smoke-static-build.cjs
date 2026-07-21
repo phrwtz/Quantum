@@ -91,6 +91,41 @@ async function runSmoke(baseUrl) {
           ],
         }),
       );
+      localStorage.setItem(
+        "quantum_playground_component_defaults_v1",
+        JSON.stringify({
+          "cnot-gate": {
+            funnelTop: { inlineStyle: { left: "80px", top: "80px" } },
+            funnelBottom: { inlineStyle: { left: "80px", top: "80px" } },
+            windowTop: { inlineStyle: { left: "90%", top: "80%" } },
+            windowBottom: { inlineStyle: { left: "90%", top: "80%" } },
+            flangeTop: { inlineStyle: { right: "-80px", top: "80%" } },
+            flangeBottom: { inlineStyle: { right: "-80px", top: "80%" } },
+          },
+        }),
+      );
+      localStorage.setItem(
+        "quantum_playground_group_components_v1",
+        JSON.stringify({
+          groups: [
+            {
+              id: "four-qubit-register-measurement",
+              label: "Stale register measurement",
+              width: 940,
+              height: 472,
+              items: [
+                {
+                  type: "single-magnifier",
+                  left: 0,
+                  top: 0,
+                  width: 160,
+                  height: 130,
+                },
+              ],
+            },
+          ],
+        }),
+      );
     });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -136,6 +171,27 @@ async function runSmoke(baseUrl) {
       const entanglementTwoText =
         document.querySelector("#panel-custom-entanglement-3")?.textContent ||
         "";
+      const entanglementThreePanel = document.querySelector(
+        "#panel-editor-entanglement-3",
+      );
+      const cnot = entanglementThreePanel?.querySelector(".cnot-gate");
+      const cnotFlanges = Array.from(
+        cnot?.querySelectorAll(".cnot-output-flange") || [],
+      );
+      const measurementGroup =
+        entanglementThreePanel?.querySelector(".component-group");
+      const registerMagnifier = measurementGroup?.querySelector(
+        ".measurement-piece-single-magnifier",
+      );
+      const registerMagnifierLeft = Number.parseFloat(
+        registerMagnifier?.style.left || "",
+      );
+      const registerMagnifierTop = Number.parseFloat(
+        registerMagnifier?.style.top || "",
+      );
+      const registerMagnifierWidth = Number.parseFloat(
+        registerMagnifier?.style.width || "",
+      );
       const topTabsVisible = Boolean(
         tabStrip &&
           window.getComputedStyle(tabStrip).display !== "none" &&
@@ -156,6 +212,18 @@ async function runSmoke(baseUrl) {
         activeTarget,
         entanglementTwoHasUnavailableGroup:
           entanglementTwoText.includes("Saved group unavailable"),
+        cnotFlangesInsideGate:
+          cnotFlanges.length === 2 &&
+          cnotFlanges.every(
+            (element) => Number.parseFloat(getComputedStyle(element).right) >= 0,
+          ),
+        registerMagnifierCentered:
+          Number.isFinite(registerMagnifierLeft) &&
+          Number.isFinite(registerMagnifierTop) &&
+          Number.isFinite(registerMagnifierWidth) &&
+          Math.abs(registerMagnifierLeft + registerMagnifierWidth / 2 - 50) <
+            0.1 &&
+          registerMagnifierTop > 50,
         contentVersion:
           document.documentElement.dataset.quantumContentVersion || "",
         authoringButtons: Boolean(
@@ -179,6 +247,8 @@ async function runSmoke(baseUrl) {
     if (
       initial.labels.join("|") !== expectedTabLabels.join("|") ||
       initial.entanglementTwoHasUnavailableGroup ||
+      !initial.cnotFlangesInsideGate ||
+      !initial.registerMagnifierCentered ||
       initial.activeTarget !== "editor-introduction" ||
       !initial.contentVersion ||
       !initial.authoringButtons ||
