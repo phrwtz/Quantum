@@ -751,11 +751,11 @@
           },
           {
             "type": "component-group",
-            "left": 640,
-            "top": 80,
-            "width": 940,
-            "height": 472,
-            "z": 1280,
+            "left": 635,
+            "top": 67,
+            "width": 963,
+            "height": 654,
+            "z": 1344,
             "measurementGroupId": "entanglement-3-register-measurement",
             "groupComponentId": "four-qubit-register-measurement"
           }
@@ -763,7 +763,7 @@
         "gridSnap": false,
         "canvasWidth": 1677,
         "canvasHeight": 762,
-        "savedAt": 1784652305551
+        "savedAt": 1784653875512
       }
     }
   ]
