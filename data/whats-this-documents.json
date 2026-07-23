@@ -5817,7 +5817,7 @@
           "canvasWidth": 1011,
           "canvasHeight": 420,
           "experiment": null,
-          "savedAt": 1784843426011
+          "savedAt": 1784845613961
         },
         {
           "id": "scene-mpvl703c-wpg7b",
@@ -5842,11 +5842,11 @@
             {
               "id": "qubit-mq5ig59f-23gt",
               "type": "qubit",
-              "left": 1141,
-              "top": 306,
+              "left": 1489,
+              "top": 418,
               "width": 65,
               "height": 65,
-              "z": 31,
+              "z": 39,
               "qubitId": 218874,
               "roomQubitIndex": 0
             },
@@ -5867,7 +5867,7 @@
               "top": 460,
               "width": 65,
               "height": 65,
-              "z": 33,
+              "z": 38,
               "qubitId": 218875,
               "roomQubitIndex": 1
             },
@@ -6036,14 +6036,14 @@
           "canvasHeight": 618,
           "experiment": {
             "version": 1,
-            "recordedAt": 1784843467226,
+            "recordedAt": 1784845664308,
             "initialQubits": [
               {
                 "itemId": "qubit-mq5ig59f-23gt",
                 "logicalQubitId": 218874,
                 "center": {
-                  "x": 88.16,
-                  "y": 325.16
+                  "x": 90.16,
+                  "y": 327.16
                 },
                 "vector": [
                   1,
@@ -6055,8 +6055,8 @@
                 "itemId": "qubit-mq5igida-249g",
                 "logicalQubitId": 218875,
                 "center": {
-                  "x": 93.16,
-                  "y": 469.17
+                  "x": 95.16,
+                  "y": 471.16
                 },
                 "vector": [
                   1,
@@ -6082,62 +6082,140 @@
                 "qubitLogicalId": 218874,
                 "path": [
                   {
-                    "x": 88.16,
-                    "y": 325.16,
+                    "x": 90.16,
+                    "y": 327.16,
                     "t": 0
                   },
                   {
-                    "x": 93.16,
-                    "y": 327.16,
+                    "x": 96.16,
+                    "y": 326.16,
+                    "t": 1202
+                  },
+                  {
+                    "x": 101.16,
+                    "y": 326.16,
+                    "t": 1235
+                  },
+                  {
+                    "x": 107.16,
+                    "y": 326.16,
+                    "t": 1252
+                  },
+                  {
+                    "x": 115.16,
+                    "y": 326.16,
+                    "t": 1268
+                  },
+                  {
+                    "x": 122.16,
+                    "y": 326.16,
                     "t": 1285
                   },
                   {
-                    "x": 98.16,
-                    "y": 327.16,
-                    "t": 1368
+                    "x": 135.16,
+                    "y": 326.16,
+                    "t": 1302
                   },
                   {
-                    "x": 106.16,
-                    "y": 327.16,
+                    "x": 140.16,
+                    "y": 326.16,
+                    "t": 1318
+                  },
+                  {
+                    "x": 144.17,
+                    "y": 326.16,
+                    "t": 1335
+                  },
+                  {
+                    "x": 149.17,
+                    "y": 326.16,
+                    "t": 1352
+                  },
+                  {
+                    "x": 156.16,
+                    "y": 326.16,
+                    "t": 1369
+                  },
+                  {
+                    "x": 164.17,
+                    "y": 325.16,
                     "t": 1385
                   },
                   {
-                    "x": 119.17,
+                    "x": 170.16,
                     "y": 325.16,
-                    "t": 1401
+                    "t": 1402
                   },
                   {
-                    "x": 129.17,
+                    "x": 174.17,
                     "y": 324.17,
-                    "t": 1418
-                  },
-                  {
-                    "x": 141.16,
-                    "y": 323.16,
                     "t": 1435
+                  }
+                ],
+                "t": 1503
+              },
+              {
+                "type": "drag",
+                "qubitId": "qubit-mq5igida-249g",
+                "qubitLogicalId": 218875,
+                "path": [
+                  {
+                    "x": 95.16,
+                    "y": 471.16,
+                    "t": 0
                   },
                   {
-                    "x": 152.16,
-                    "y": 323.16,
-                    "t": 1452
+                    "x": 100.16,
+                    "y": 473.16,
+                    "t": 2619
+                  },
+                  {
+                    "x": 109.17,
+                    "y": 476.16,
+                    "t": 2635
+                  },
+                  {
+                    "x": 119.17,
+                    "y": 479.17,
+                    "t": 2652
+                  },
+                  {
+                    "x": 128.16,
+                    "y": 480.16,
+                    "t": 2668
+                  },
+                  {
+                    "x": 138.16,
+                    "y": 480.16,
+                    "t": 2685
+                  },
+                  {
+                    "x": 147.16,
+                    "y": 480.16,
+                    "t": 2702
+                  },
+                  {
+                    "x": 155.16,
+                    "y": 480.16,
+                    "t": 2719
+                  },
+                  {
+                    "x": 160.16,
+                    "y": 480.16,
+                    "t": 2735
                   },
                   {
                     "x": 168.16,
-                    "y": 323.16,
-                    "t": 1468
+                    "y": 480.16,
+                    "t": 2752
                   },
                   {
-                    "x": 176.16,
-                    "y": 321.16,
-                    "t": 1485
-                  },
-                  {
-                    "x": 182.16,
-                    "y": 320.16,
-                    "t": 1501
+                    "x": 174.17,
+                    "y": 480.16,
+                    "t": 2768
                   }
                 ],
-                "t": 1502
+                "t": 2785
               },
               {
                 "type": "gate",
@@ -6149,91 +6227,13 @@
                 "t": 3125
               },
               {
-                "type": "drag",
-                "qubitId": "qubit-mq5igida-249g",
-                "qubitLogicalId": 218875,
-                "path": [
-                  {
-                    "x": 93.16,
-                    "y": 469.17,
-                    "t": 0
-                  },
-                  {
-                    "x": 97.16,
-                    "y": 471.16,
-                    "t": 3419
-                  },
-                  {
-                    "x": 103.16,
-                    "y": 471.16,
-                    "t": 3518
-                  },
-                  {
-                    "x": 109.17,
-                    "y": 471.16,
-                    "t": 3535
-                  },
-                  {
-                    "x": 117.16,
-                    "y": 471.16,
-                    "t": 3551
-                  },
-                  {
-                    "x": 122.16,
-                    "y": 471.16,
-                    "t": 3568
-                  },
-                  {
-                    "x": 126.16,
-                    "y": 473.16,
-                    "t": 3585
-                  },
-                  {
-                    "x": 132.16,
-                    "y": 473.16,
-                    "t": 3601
-                  },
-                  {
-                    "x": 138.16,
-                    "y": 473.16,
-                    "t": 3618
-                  },
-                  {
-                    "x": 146.16,
-                    "y": 474.17,
-                    "t": 3635
-                  },
-                  {
-                    "x": 156.16,
-                    "y": 474.17,
-                    "t": 3651
-                  },
-                  {
-                    "x": 170.16,
-                    "y": 475.16,
-                    "t": 3668
-                  },
-                  {
-                    "x": 176.16,
-                    "y": 476.16,
-                    "t": 3685
-                  },
-                  {
-                    "x": 185.16,
-                    "y": 476.16,
-                    "t": 3701
-                  }
-                ],
-                "t": 3701
-              },
-              {
                 "type": "gate",
                 "qubitId": "qubit-mq5igida-249g",
                 "qubitLogicalId": 218875,
                 "roomQubitIndex": 1,
                 "gateId": "single-gate-mq5igl2h-24a2",
                 "tickIndex": 0,
-                "t": 5325
+                "t": 4410
               },
               {
                 "type": "drag",
@@ -6246,22 +6246,32 @@
                     "t": 0
                   },
                   {
+                    "x": 646.16,
+                    "y": 321.16,
+                    "t": 6238
+                  },
+                  {
                     "x": 648.16,
-                    "y": 327.16,
-                    "t": 7285
+                    "y": 325.16,
+                    "t": 6252
                   },
                   {
-                    "x": 653.16,
+                    "x": 651.16,
+                    "y": 328.16,
+                    "t": 6269
+                  },
+                  {
+                    "x": 654.17,
+                    "y": 332.16,
+                    "t": 6285
+                  },
+                  {
+                    "x": 658.16,
                     "y": 338.16,
-                    "t": 7301
-                  },
-                  {
-                    "x": 657.16,
-                    "y": 350.16,
-                    "t": 7320
+                    "t": 6308
                   }
                 ],
-                "t": 7320
+                "t": 6308
               },
               {
                 "type": "drag",
@@ -6274,37 +6284,42 @@
                     "t": 0
                   },
                   {
-                    "x": 645.16,
-                    "y": 466.16,
-                    "t": 8435
+                    "x": 649.17,
+                    "y": 465.16,
+                    "t": 7169
                   },
                   {
-                    "x": 651.16,
-                    "y": 461.16,
-                    "t": 8552
+                    "x": 654.17,
+                    "y": 465.16,
+                    "t": 7185
                   },
                   {
-                    "x": 655.16,
-                    "y": 457.16,
-                    "t": 8568
+                    "x": 660.16,
+                    "y": 464.17,
+                    "t": 7202
                   },
                   {
-                    "x": 659.17,
-                    "y": 453.16,
-                    "t": 8585
-                  },
-                  {
-                    "x": 663.16,
-                    "y": 445.16,
-                    "t": 8601
+                    "x": 665.16,
+                    "y": 460.16,
+                    "t": 7219
                   },
                   {
                     "x": 666.16,
-                    "y": 442.16,
-                    "t": 8618
+                    "y": 455.16,
+                    "t": 7235
+                  },
+                  {
+                    "x": 668.16,
+                    "y": 451.16,
+                    "t": 7252
+                  },
+                  {
+                    "x": 669.17,
+                    "y": 446.16,
+                    "t": 7285
                   }
                 ],
-                "t": 8618
+                "t": 7286
               },
               {
                 "type": "cnot",
@@ -6315,7 +6330,7 @@
                 "bottomQubitLogicalId": 218875,
                 "topRoomQubitIndex": 0,
                 "bottomRoomQubitIndex": 1,
-                "t": 9742
+                "t": 8409
               },
               {
                 "type": "drag",
@@ -6328,82 +6343,52 @@
                     "t": 0
                   },
                   {
-                    "x": 1184.17,
+                    "x": 1183.16,
+                    "y": 423.16,
+                    "t": 11985
+                  },
+                  {
+                    "x": 1189.17,
+                    "y": 425.16,
+                    "t": 12002
+                  },
+                  {
+                    "x": 1195.16,
                     "y": 426.16,
-                    "t": 12820
+                    "t": 12019
                   },
                   {
-                    "x": 1192.16,
-                    "y": 427.16,
-                    "t": 12834
+                    "x": 1210.16,
+                    "y": 429.17,
+                    "t": 12035
                   },
                   {
-                    "x": 1199.17,
-                    "y": 428.16,
-                    "t": 12851
-                  },
-                  {
-                    "x": 1208.16,
+                    "x": 1227.16,
                     "y": 430.16,
-                    "t": 12868
+                    "t": 12052
                   },
                   {
-                    "x": 1215.16,
-                    "y": 431.16,
-                    "t": 12885
-                  },
-                  {
-                    "x": 1222.16,
-                    "y": 431.16,
-                    "t": 12901
-                  },
-                  {
-                    "x": 1230.16,
-                    "y": 431.16,
-                    "t": 12935
-                  },
-                  {
-                    "x": 1235.16,
-                    "y": 431.16,
-                    "t": 12951
-                  },
-                  {
-                    "x": 1246.16,
+                    "x": 1245.16,
                     "y": 432.16,
-                    "t": 12968
-                  },
-                  {
-                    "x": 1254.17,
-                    "y": 432.16,
-                    "t": 12985
+                    "t": 12069
                   },
                   {
                     "x": 1260.16,
                     "y": 432.16,
-                    "t": 13002
+                    "t": 12085
                   },
                   {
-                    "x": 1264.17,
+                    "x": 1270.16,
                     "y": 432.16,
-                    "t": 13018
+                    "t": 12102
                   },
                   {
-                    "x": 1269.17,
+                    "x": 1283.16,
                     "y": 432.16,
-                    "t": 13051
-                  },
-                  {
-                    "x": 1276.16,
-                    "y": 432.16,
-                    "t": 13101
-                  },
-                  {
-                    "x": 1284.17,
-                    "y": 432.16,
-                    "t": 13118
+                    "t": 12119
                   }
                 ],
-                "t": 13119
+                "t": 12119
               },
               {
                 "type": "separated-pair-measure",
@@ -6415,17 +6400,126 @@
                 "magnifierIndex": 0,
                 "orderIndex": 1,
                 "registerQubitCount": 2,
-                "t": 13741
+                "t": 12741
+              },
+              {
+                "type": "drag",
+                "qubitId": "qubit-mq5ig59f-23gt",
+                "qubitLogicalId": 218874,
+                "path": [
+                  {
+                    "x": 1175.16,
+                    "y": 340.16,
+                    "t": 0
+                  },
+                  {
+                    "x": 1177.16,
+                    "y": 344.17,
+                    "t": 13969
+                  },
+                  {
+                    "x": 1179.17,
+                    "y": 348.16,
+                    "t": 14002
+                  },
+                  {
+                    "x": 1182.16,
+                    "y": 353.16,
+                    "t": 14019
+                  },
+                  {
+                    "x": 1185.16,
+                    "y": 356.16,
+                    "t": 14035
+                  },
+                  {
+                    "x": 1192.16,
+                    "y": 361.16,
+                    "t": 14053
+                  },
+                  {
+                    "x": 1198.16,
+                    "y": 363.16,
+                    "t": 14068
+                  },
+                  {
+                    "x": 1204.17,
+                    "y": 367.16,
+                    "t": 14085
+                  },
+                  {
+                    "x": 1210.16,
+                    "y": 370.16,
+                    "t": 14102
+                  },
+                  {
+                    "x": 1219.17,
+                    "y": 373.16,
+                    "t": 14119
+                  },
+                  {
+                    "x": 1230.16,
+                    "y": 380.16,
+                    "t": 14135
+                  },
+                  {
+                    "x": 1238.16,
+                    "y": 383.16,
+                    "t": 14152
+                  },
+                  {
+                    "x": 1247.16,
+                    "y": 387.16,
+                    "t": 14169
+                  },
+                  {
+                    "x": 1254.17,
+                    "y": 389.17,
+                    "t": 14186
+                  },
+                  {
+                    "x": 1262.16,
+                    "y": 392.16,
+                    "t": 14202
+                  },
+                  {
+                    "x": 1275.16,
+                    "y": 399.17,
+                    "t": 14219
+                  },
+                  {
+                    "x": 1285.16,
+                    "y": 403.16,
+                    "t": 14235
+                  },
+                  {
+                    "x": 1296.16,
+                    "y": 407.16,
+                    "t": 14253
+                  }
+                ],
+                "t": 14254
+              },
+              {
+                "type": "separated-pair-measure",
+                "measurementId": "component-group-mq5ijuvg-26t4",
+                "qubitId": "qubit-mq5ig59f-23gt",
+                "logicalQubitId": 218874,
+                "roomQubitIndex": 0,
+                "magnifierIndex": 0,
+                "orderIndex": 0,
+                "registerQubitCount": 2,
+                "t": 14876
               },
               {
                 "type": "experiment-count",
                 "measurementId": "component-group-mq5ijuvg-26t4",
                 "iterations": 5,
-                "t": 17752
+                "t": 20068
               }
             ]
           },
-          "savedAt": 1784843471540
+          "savedAt": 1784845668855
         },
         {
           "id": "scene-mq5inazf-nw4hv",
@@ -6434,22 +6528,22 @@
             {
               "id": "text-box-mq5inqsq-273n",
               "type": "text-box",
-              "left": 116,
-              "top": 112,
+              "left": 128,
+              "top": 116,
               "width": 0,
               "height": 0,
               "z": 2,
-              "text": "That went by pretty quickly but I hope you noticed that once you measured one of the entangled qubits the other one suddenly changed its state from purple to either red or blue. Not only that, but the second qubit matched the color of the first. Do you think that will always happen?",
+              "text": "That went by pretty quickly but I hope you noticed that once you measured one of the entangled qubits the other one suddenly changed its state so that the second qubit matched the color of the first. Think about that. Measuring one of the entangled qubits changed the state of the other one! Einstein called this \"spukhafte Fernwirkung\" which translates as \"spooky action at a distance\" and he really didn't like it! In fact, he argued that quantum mechanics must be wrong because it predicts this weird phenomenon. That was in 1935 and today entanglement is routinely observed in experiments and even forms the basis for a new technology: quantum computing.",
               "buttons": [
-                "next"
+                "done"
               ],
-              "buttonMode": "next"
+              "buttonMode": "done"
             }
           ],
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1784843522624
+          "savedAt": 1784845674928
         },
         {
           "id": "scene-mpvlbwfl-9upvp",
@@ -8330,7 +8424,7 @@
           "savedAt": 1780942231456
         }
       ],
-      "updatedAt": 1784843522624
+      "updatedAt": 1784845674928
     }
   ]
 }
