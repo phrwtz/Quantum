@@ -564,6 +564,7 @@ const generatedSeparatedPairMeasurementRuntimes = new Map();
 const generatedCnotRuntimes = new Map();
 const generatedExperimentStates = new WeakMap();
 let generatedLayoutGesture = null;
+let generatedLayoutGestureSaveTimer = null;
 let generatedRuntimeDrag = null;
 let generatedItemIdCounter = 0;
 let playgroundGroupComponentsCache = null;
@@ -12214,8 +12215,8 @@ function serializeGeneratedLayoutItem(item) {
     type: item.dataset.component || "qubit",
     left: parseLayoutNumeric(item.style.left, 0),
     top: parseLayoutNumeric(item.style.top, 0),
-    width: item.offsetWidth,
-    height: item.offsetHeight,
+    width: parseLayoutNumeric(item.style.width, item.offsetWidth),
+    height: parseLayoutNumeric(item.style.height, item.offsetHeight),
     z: parseLayoutNumeric(item.style.zIndex, 1),
   };
   const singleGateRuntime = generatedSingleGateRuntimes.get(item);
@@ -18909,12 +18910,30 @@ function continueGeneratedLayoutEditGesture(event) {
   if (event.touches || gesture.item?.dataset?.component === "text-box") {
     event.preventDefault();
   }
+  if (isDocumentEditorCanvas(gesture.canvas) && gesture.edited) {
+    if (generatedLayoutGestureSaveTimer !== null) {
+      window.clearTimeout(generatedLayoutGestureSaveTimer);
+    }
+    generatedLayoutGestureSaveTimer = window.setTimeout(() => {
+      generatedLayoutGestureSaveTimer = null;
+      if (generatedLayoutGesture !== gesture || !gesture.edited) {
+        return;
+      }
+      markDocumentEditorCanvasEdited(gesture.canvas);
+      saveCurrentDocumentEditorScene();
+      updateDocEditorButtons();
+    }, 300);
+  }
 }
 
 function endGeneratedLayoutEditGesture() {
   const gesture = generatedLayoutGesture;
   if (!gesture) {
     return;
+  }
+  if (generatedLayoutGestureSaveTimer !== null) {
+    window.clearTimeout(generatedLayoutGestureSaveTimer);
+    generatedLayoutGestureSaveTimer = null;
   }
   const canvas = gesture.canvas;
   if (gesture.part) {

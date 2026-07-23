@@ -1642,7 +1642,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
     );
   }
 
-  await page.locator("#tab-doc-editor").click();
+  await activateTab(page, "doc-editor");
   await page.locator("#docEditorTabSelect").selectOption(saved.id);
   await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
   await page.waitForSelector("#docEditorCanvas [data-component='single-gate']");
@@ -2970,7 +2970,10 @@ async function runDocEditorTextPersistenceSmoke(page) {
     });
   });
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.locator("#tab-doc-editor").click();
+  await page.evaluate(() => {
+    document.body.classList.add("workshop-unlocked");
+  });
+  await activateTab(page, "doc-editor");
   await page.locator("#docEditorTabSelect").selectOption("doc-text-persist");
   await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
   const editedFirstSceneText = "Edited first scene.\nSecond line.";
@@ -3014,6 +3017,44 @@ async function runDocEditorTextPersistenceSmoke(page) {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await wait(120);
+  const insertedTextBoxBounds = await page
+    .locator("#docEditorCanvas [data-component='text-box']")
+    .boundingBox();
+  if (!insertedTextBoxBounds) {
+    throw new Error("Missing inserted Doc Editor text box bounds");
+  }
+  await page.mouse.move(
+    insertedTextBoxBounds.x + insertedTextBoxBounds.width - 2,
+    insertedTextBoxBounds.y + insertedTextBoxBounds.height - 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    insertedTextBoxBounds.x + insertedTextBoxBounds.width + 78,
+    insertedTextBoxBounds.y + insertedTextBoxBounds.height + 58,
+  );
+  await wait(450);
+  const checkpointedResize = await page.evaluate(() => {
+    const documents =
+      window.readQuantumContentState("documents")?.documents || [];
+    const documentEntry = documents.find(
+      (entry) => entry.tabId === "doc-text-persist",
+    );
+    const textBox = documentEntry?.scenes?.[1]?.items?.find(
+      (item) => item.type === "text-box",
+    );
+    return { width: textBox?.width, height: textBox?.height };
+  });
+  await page.mouse.up();
+  if (
+    checkpointedResize.width !== 380 ||
+    checkpointedResize.height !== 210
+  ) {
+    throw new Error(
+      `Doc Editor resize was not saved before mouseup: ${JSON.stringify(
+        checkpointedResize,
+      )}`,
+    );
+  }
   await page.locator("#docEditorSceneNextButton").click();
   await page.waitForSelector("#docEditorCanvas [data-component='text-box']");
   await page.locator("#docEditorCanvasWidth").fill("920");
@@ -7899,6 +7940,17 @@ async function runSmokeTest(baseUrl) {
         entanglementThreeRoomReplay: true,
         entanglementThreeTransferredPurpleReplay: true,
       };
+    }
+    if (process.argv.includes("--doc-text-only")) {
+      const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+      await installBrowserLocalContentTrap(page);
+      await installContentApiHelpers(page);
+      await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+      await page.evaluate(() => {
+        document.body.classList.add("workshop-unlocked");
+      });
+      await runDocEditorTextPersistenceSmoke(page);
+      return { ok: true, docEditorTextPersistence: true };
     }
     const fileMode = await runFileModeRepositoryContentSmoke(browser);
     const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });

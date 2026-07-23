@@ -5817,7 +5817,7 @@
           "canvasWidth": 1011,
           "canvasHeight": 420,
           "experiment": null,
-          "savedAt": 1784845931797
+          "savedAt": 1784847898411
         },
         {
           "id": "scene-mpvl703c-wpg7b",
@@ -6519,19 +6519,19 @@
               }
             ]
           },
-          "savedAt": 1784845932970
+          "savedAt": 1784847899508
         },
         {
-          "id": "scene-mq5inazf-nw4hv",
+          "id": "scene-mry3ycak-72g92",
           "title": "Scene",
           "items": [
             {
-              "id": "text-box-mq5inqsq-273n",
+              "id": "text-box-mry3yftp-cy",
               "type": "text-box",
-              "left": 124,
-              "top": 101,
-              "width": 650,
-              "height": 360,
+              "left": 74,
+              "top": 136,
+              "width": 716,
+              "height": 259,
               "z": 2,
               "text": "That went by pretty quickly but I hope you noticed that once you measured one of the entangled qubits the other one suddenly changed its state so that the second qubit matched the color of the first. Think about that. Measuring one of the entangled qubits changed the state of the other one! Einstein called this \"spukhafte Fernwirkung\" which translates as \"spooky action at a distance\" and he really didn't like it! In fact, he argued that quantum mechanics must be wrong because it predicts this weird phenomenon. That was in 1935 and today entanglement is routinely observed in experiments and even forms the basis for a new technology: quantum computing.",
               "buttons": [
@@ -6543,10 +6543,10 @@
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1784846010569
+          "savedAt": 1784847915273
         }
       ],
-      "updatedAt": 1784846481603
+      "updatedAt": 1784847915273
     }
   ]
 }
