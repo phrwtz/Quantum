@@ -13831,6 +13831,10 @@ function documentEditorDone() {
   }
   const targetId = documentEditorState.tabId || "plaground";
   refreshGeneratedDocumentToolbarForTabId(targetId);
+  document.body.classList.remove("workshop-unlocked");
+  workshopEditorMode = "tab";
+  document.documentElement.dataset.workshopEditorMode = workshopEditorMode;
+  syncWorkshopModeButtons();
   setActiveTab(targetId);
 }
 

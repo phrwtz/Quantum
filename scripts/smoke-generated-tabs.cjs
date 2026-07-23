@@ -3040,6 +3040,9 @@ async function runDocEditorTextPersistenceSmoke(page) {
     .locator("#docEditorCanvas [data-role='text-box-body']")
     .fill("Edited second scene.");
   await wait(120);
+  await page.evaluate(() => {
+    document.body.classList.add("workshop-unlocked");
+  });
   await page.locator("#docEditorDoneButton").click();
   await wait(250);
 
@@ -3052,6 +3055,10 @@ async function runDocEditorTextPersistenceSmoke(page) {
     );
     return {
       activeTab: document.querySelector(".tab-btn.active")?.dataset.tabTarget || "",
+      workshopOpen: document.body.classList.contains("workshop-unlocked"),
+      workshopMode: document.documentElement.dataset.workshopEditorMode || "",
+      tabStripVisible:
+        getComputedStyle(document.querySelector(".tab-strip")).display !== "none",
       sceneIds: (documentEntry?.scenes || []).map((scene) => scene.id),
       sceneTexts: (documentEntry?.scenes || []).map(
         (scene) => scene.items?.find((item) => item.type === "text-box")?.text,
@@ -3067,6 +3074,9 @@ async function runDocEditorTextPersistenceSmoke(page) {
   });
   if (
     stored.activeTab !== "doc-text-persist" ||
+    stored.workshopOpen ||
+    stored.workshopMode !== "tab" ||
+    !stored.tabStripVisible ||
     stored.sceneIds.length !== 3 ||
     stored.sceneIds[0] !== "doc-text-scene-1" ||
     stored.sceneIds[2] !== "doc-text-scene-2" ||
