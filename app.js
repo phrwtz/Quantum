@@ -2451,15 +2451,28 @@ function createDocumentScene(overrides = {}) {
       : `scene-${Date.now().toString(36)}-${Math.random()
           .toString(36)
           .slice(2, 7)}`;
+  const items = Array.isArray(overrides.items)
+    ? normalizeSavedGroupLayoutItems(overrides.items).map((item) => {
+        if (!item || item.type !== "text-box") {
+          return item;
+        }
+        const normalized = { ...item };
+        if (Number.isFinite(normalized.width) && normalized.width <= 0) {
+          normalized.width = PLAYGROUND_COMPONENT_LIBRARY["text-box"].width;
+        }
+        if (Number.isFinite(normalized.height) && normalized.height <= 0) {
+          normalized.height = PLAYGROUND_COMPONENT_LIBRARY["text-box"].height;
+        }
+        return normalized;
+      })
+    : [];
   return {
     id,
     title:
       typeof overrides.title === "string" && overrides.title
         ? overrides.title
         : "Scene",
-    items: Array.isArray(overrides.items)
-      ? normalizeSavedGroupLayoutItems(overrides.items)
-      : [],
+    items,
     canvasWidth: clamp(
       parseLayoutNumeric(overrides.canvasWidth, 900),
       520,
