@@ -3,46 +3,139 @@
     {
       "id": "separate-two-qubit-measurement",
       "label": "Separate two qubit measurement",
-      "width": 442,
-      "height": 530,
+      "width": 467.99,
+      "height": 572,
       "items": [
         {
           "type": "measurement-capacity",
-          "left": 52,
+          "left": 36.05,
           "top": 0,
-          "width": 330,
-          "height": 70,
+          "width": 400,
+          "height": 63.99,
           "z": 1,
           "measurementRole": "capacity"
         },
         {
           "type": "double-tube-array",
-          "left": 26,
-          "top": 52,
-          "width": 390,
-          "height": 260,
+          "left": 33.53,
+          "top": 76.12,
+          "width": 412.93,
+          "height": 280.6,
           "z": 2,
           "measurementRole": "double-tubes"
         },
         {
           "type": "single-magnifier",
-          "left": 117,
-          "top": 333,
-          "width": 208,
+          "left": 129.88,
+          "top": 378.72,
+          "width": 220.23,
+          "height": 168.36,
+          "z": 3,
+          "measurementRole": "single-magnifier"
+        },
+        {
+          "type": "measurement-count-menu",
+          "left": 184.17,
+          "top": 515.08,
+          "width": 115,
+          "height": 46,
+          "z": 5,
+          "measurementRole": "iteration-count"
+        }
+      ],
+      "savedAt": 1784838662762
+    },
+    {
+      "id": "three-qubit-register-measurement",
+      "label": "Three qubit register measurement",
+      "width": 467.99,
+      "height": 597.99,
+      "measurementRegisterQubitCount": 3,
+      "items": [
+        {
+          "type": "measurement-capacity",
+          "left": 13.57,
+          "top": 10,
+          "width": 438.99,
+          "height": 62.99,
+          "z": 1,
+          "measurementRole": "capacity"
+        },
+        {
+          "type": "triple-tube-array",
+          "left": 19.71,
+          "top": 90.15,
+          "width": 434.57,
+          "height": 266.05,
+          "z": 2,
+          "measurementRole": "triple-tubes"
+        },
+        {
+          "type": "single-magnifier",
+          "left": 131.14,
+          "top": 370.47,
+          "width": 208.99,
+          "height": 167,
+          "z": 3,
+          "measurementRole": "single-magnifier"
+        },
+        {
+          "type": "measurement-count-menu",
+          "left": 181.03,
+          "top": 534.44,
+          "width": 105,
+          "height": 53.99,
+          "z": 4,
+          "measurementRole": "iteration-count"
+        }
+      ],
+      "savedAt": 1784838746349
+    },
+    {
+      "id": "four-qubit-register-measurement",
+      "label": "Four qubit register measurement",
+      "width": 857.99,
+      "height": 597.99,
+      "measurementRegisterQubitCount": 4,
+      "items": [
+        {
+          "type": "measurement-capacity",
+          "left": 208.7,
+          "top": 5,
+          "width": 432.99,
+          "height": 67,
+          "z": 1,
+          "measurementRole": "capacity"
+        },
+        {
+          "type": "quadruple-tube-array",
+          "left": 18.26,
+          "top": 86.15,
+          "width": 821.48,
+          "height": 266.05,
+          "z": 2,
+          "measurementRole": "quadruple-tubes"
+        },
+        {
+          "type": "single-magnifier",
+          "left": 355.97,
+          "top": 372.47,
+          "width": 206,
           "height": 156,
           "z": 3,
           "measurementRole": "single-magnifier"
         },
         {
           "type": "measurement-count-menu",
-          "left": 156,
-          "top": 468,
-          "width": 110,
-          "height": 62,
-          "z": 5,
+          "left": 415.79,
+          "top": 540.44,
+          "width": 112,
+          "height": 47,
+          "z": 4,
           "measurementRole": "iteration-count"
         }
-      ]
+      ],
+      "savedAt": 1784838823837
     }
   ]
 }

@@ -4196,771 +4196,574 @@
     },
     {
       "version": 1,
+      "tabId": "editor-entanglement-3",
+      "title": "What's this?",
+      "scenes": [
+        {
+          "id": "scene-mqr0opvc-5kl8j",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mqr0r705-1q",
+              "type": "text-box",
+              "left": 224,
+              "top": 127,
+              "width": 447,
+              "height": 212,
+              "z": 2,
+              "text": "This tab is under construction.",
+              "buttons": [
+                "done"
+              ],
+              "buttonMode": "done"
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": null,
+          "savedAt": 1782241901945
+        }
+      ],
+      "updatedAt": 1782241901945
+    },
+    {
+      "version": 1,
       "tabId": "custom-entanglement-2",
       "title": "What's this?",
       "scenes": [
         {
-          "id": "scene-mpvipsjc-67yog",
+          "id": "scene-mrxyolrb-hsl3f",
           "title": "Scene",
           "items": [
             {
-              "id": "text-box-mpviq0yp-17",
+              "id": "text-box-mrxyzckr-2d2",
               "type": "text-box",
-              "left": 46,
-              "top": 31,
-              "width": 736,
-              "height": 188,
+              "left": 118,
+              "top": 117,
+              "width": 451,
+              "height": 167,
               "z": 2,
-              "text": "Meet the controlled-not (abbreviated C-NOT) gate! As you can see, it takes two qubits. The top qubit is the control qubit, the bottom one is the target qubit. Its action is very simple. If the control qubit is blue the C-NOT doesn't change the target qubit; if the control is red the C-NOT toggles the target from blue to red or from red to blue. In either case the control qubit is unchanged.",
+              "text": "Welcome to the Controlled Not gate, abbeviated C-NOT. This one operates on two qubits. It's operation is very simple, until it's not! ",
               "buttons": [
+                "back",
                 "next"
               ],
-              "buttonMode": "next"
-            },
-            {
-              "id": "cnot-gate-mq5hqqd1-z0f",
-              "type": "cnot-gate",
-              "left": 232,
-              "top": 276,
-              "width": 373,
-              "height": 209,
-              "z": 3,
-              "cnotLayout": {
-                "gate": {
-                  "tx": 0,
-                  "ty": 0,
-                  "width": "373px",
-                  "height": "209px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "232px",
-                    "top": "276px",
-                    "width": "373px",
-                    "height": "209px"
-                  }
-                },
-                "body": {
-                  "tx": 10,
-                  "ty": 3,
-                  "width": "327px",
-                  "height": "164px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "38.36px",
-                    "right": "22px",
-                    "top": "0px",
-                    "bottom": "0px",
-                    "width": "327px",
-                    "height": "164px",
-                    "translate": "10px 3px"
-                  }
-                },
-                "funnelTop": {
-                  "tx": 13,
-                  "ty": -17,
-                  "width": "62px",
-                  "height": "84px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "58.51px",
-                    "bottom": "82.58px",
-                    "width": "62px",
-                    "height": "84px",
-                    "translate": "13px -17px"
-                  }
-                },
-                "funnelBottom": {
-                  "tx": 14,
-                  "ty": -33,
-                  "width": "63px",
-                  "height": "94px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "150.47px",
-                    "bottom": "-9.38px",
-                    "width": "63px",
-                    "height": "94px",
-                    "translate": "14px -33px"
-                  }
-                },
-                "windowTop": {
-                  "tx": -27,
-                  "ty": -10,
-                  "width": "66px",
-                  "height": "66px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "111.06px",
-                    "top": "46.1px",
-                    "bottom": "95.29px",
-                    "width": "66px",
-                    "height": "66px",
-                    "transform": "translate(-50%, -50%)",
-                    "translate": "-27px -10px"
-                  }
-                },
-                "windowBottom": {
-                  "tx": -25,
-                  "ty": -36,
-                  "width": "68px",
-                  "height": "68px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "107.64px",
-                    "top": "154.3px",
-                    "bottom": "-17.83px",
-                    "width": "68px",
-                    "height": "68px",
-                    "transform": "translate(-50%, -50%)",
-                    "translate": "-25px -36px"
-                  }
-                },
-                "flangeTop": {
-                  "tx": -8,
-                  "ty": -13,
-                  "width": "15px",
-                  "height": "61px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "313.35px",
-                    "right": "8.59px",
-                    "top": "56.09px",
-                    "bottom": "92.35px",
-                    "width": "15px",
-                    "height": "61px",
-                    "translate": "-8px -13px"
-                  }
-                },
-                "flangeBottom": {
-                  "tx": -4,
-                  "ty": -38,
-                  "width": "15px",
-                  "height": "57px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "313.07px",
-                    "right": "8.59px",
-                    "top": "144.29px",
-                    "bottom": "5.71px",
-                    "width": "15px",
-                    "height": "57px",
-                    "translate": "-4px -38px"
-                  }
-                }
-              }
+              "buttonMode": "custom"
             }
           ],
-          "canvasWidth": 841,
-          "canvasHeight": 538,
+          "canvasWidth": 1444,
+          "canvasHeight": 727,
           "experiment": null,
-          "savedAt": 1780941368440
+          "savedAt": 1784843314703
         },
         {
-          "id": "scene-mpvj2rqt-hsjmj",
+          "id": "scene-mrxz1jct-7uoaz",
           "title": "Scene",
           "items": [
             {
-              "id": "qubit-mpvj37i1-icx",
-              "type": "qubit",
-              "left": 17,
-              "top": 194,
-              "width": 65,
-              "height": 65,
-              "z": 2,
-              "qubitId": 95916
-            },
-            {
-              "id": "qubit-mpvj3dg1-idq",
-              "type": "qubit",
-              "left": 17,
-              "top": 343,
-              "width": 65,
-              "height": 65,
-              "z": 3,
-              "qubitId": 95929
-            },
-            {
-              "id": "single-gate-mpvj3if7-ie5",
-              "type": "single-gate",
-              "left": 158,
-              "top": 148,
-              "width": 338,
-              "height": 208,
-              "z": 4,
-              "singleGateTick": 0
-            },
-            {
-              "id": "cnot-gate-mpvj3nyh-iey",
-              "type": "cnot-gate",
-              "left": 681,
-              "top": 207,
-              "width": 373,
-              "height": 209,
-              "z": 5,
-              "cnotLayout": {
-                "gate": {
-                  "tx": 0,
-                  "ty": 0,
-                  "width": "373px",
-                  "height": "209px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "681px",
-                    "top": "207px",
-                    "width": "373px",
-                    "height": "209px"
-                  }
-                },
-                "body": {
-                  "tx": 10,
-                  "ty": 3,
-                  "width": "327px",
-                  "height": "164px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "38.36px",
-                    "right": "22px",
-                    "top": "0px",
-                    "bottom": "0px",
-                    "width": "327px",
-                    "height": "164px",
-                    "translate": "10px 3px"
-                  }
-                },
-                "funnelTop": {
-                  "tx": 13,
-                  "ty": -17,
-                  "width": "62px",
-                  "height": "84px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "58.51px",
-                    "bottom": "82.58px",
-                    "width": "62px",
-                    "height": "84px",
-                    "translate": "13px -17px"
-                  }
-                },
-                "funnelBottom": {
-                  "tx": 14,
-                  "ty": -33,
-                  "width": "63px",
-                  "height": "94px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "150.47px",
-                    "bottom": "-9.38px",
-                    "width": "63px",
-                    "height": "94px",
-                    "translate": "14px -33px"
-                  }
-                },
-                "windowTop": {
-                  "tx": -27,
-                  "ty": -10,
-                  "width": "66px",
-                  "height": "66px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "111.06px",
-                    "top": "46.1px",
-                    "bottom": "95.29px",
-                    "width": "66px",
-                    "height": "66px",
-                    "transform": "translate(-50%, -50%)",
-                    "translate": "-27px -10px"
-                  }
-                },
-                "windowBottom": {
-                  "tx": -25,
-                  "ty": -36,
-                  "width": "68px",
-                  "height": "68px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "107.64px",
-                    "top": "154.3px",
-                    "bottom": "-17.83px",
-                    "width": "68px",
-                    "height": "68px",
-                    "transform": "translate(-50%, -50%)",
-                    "translate": "-25px -36px"
-                  }
-                },
-                "flangeTop": {
-                  "tx": -8,
-                  "ty": -13,
-                  "width": "15px",
-                  "height": "61px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "313.35px",
-                    "right": "8.59px",
-                    "top": "56.09px",
-                    "bottom": "92.35px",
-                    "width": "15px",
-                    "height": "61px",
-                    "translate": "-8px -13px"
-                  }
-                },
-                "flangeBottom": {
-                  "tx": -4,
-                  "ty": -38,
-                  "width": "15px",
-                  "height": "57px",
-                  "deleted": false,
-                  "inlineStyle": {
-                    "left": "313.07px",
-                    "right": "8.59px",
-                    "top": "144.29px",
-                    "bottom": "5.71px",
-                    "width": "15px",
-                    "height": "57px",
-                    "translate": "-4px -38px"
-                  }
-                }
-              }
-            },
-            {
-              "id": "single-gate-mpvj4ezl-j1x",
-              "type": "single-gate",
-              "left": 157,
-              "top": 301,
-              "width": 338,
-              "height": 208,
-              "z": 6,
-              "singleGateTick": 0
-            },
-            {
-              "id": "text-box-mpvj75z7-kgx",
+              "id": "text-box-mrxz224q-ag3",
               "type": "text-box",
-              "left": 99,
-              "top": 7,
-              "width": 758,
-              "height": 118,
-              "z": 7,
-              "text": "When the control qubit is blue it doesn't change the target qubit.",
+              "left": 80,
+              "top": 27,
+              "width": 1089,
+              "height": 153,
+              "z": 2,
+              "text": "Here's how the C-NOT gate works. The top qubit is the control qubit, it is unchanged by the C-NOT but it controls what happens to the bottom qubit, which is the target qubit. The rules are very simple: if the control qubit is blue the C-NOT gate does nothing; if the control qubit is red the C-NOT gate changes the target qubit from blue to red or from red to blue",
               "buttons": [
                 "back",
                 "next",
                 "show"
               ],
               "buttonMode": "custom"
+            },
+            {
+              "id": "qubit-mrxz6ttn-v4v",
+              "type": "qubit",
+              "left": 33,
+              "top": 271,
+              "width": 72,
+              "height": 72,
+              "z": 23,
+              "qubitId": 130527,
+              "roomQubitIndex": 0
+            },
+            {
+              "id": "qubit-mrxz6xk2-v5n",
+              "type": "qubit",
+              "left": 38,
+              "top": 426,
+              "width": 72,
+              "height": 72,
+              "z": 24,
+              "qubitId": 130528,
+              "roomQubitIndex": 1
+            },
+            {
+              "id": "single-gate-mrxza75c-xeq",
+              "type": "single-gate",
+              "left": 186,
+              "top": 239,
+              "width": 312,
+              "height": 130,
+              "z": 5,
+              "singleGateTick": 0
+            },
+            {
+              "id": "single-gate-mrxzac55-xg9",
+              "type": "single-gate",
+              "left": 188,
+              "top": 386,
+              "width": 312,
+              "height": 130,
+              "z": 6,
+              "singleGateTick": 0
+            },
+            {
+              "id": "cnot-gate-mrxzawds-xij",
+              "type": "cnot-gate",
+              "left": 653,
+              "top": 248,
+              "width": 420,
+              "height": 260,
+              "z": 7,
+              "cnotLayout": {
+                "gate": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "420px",
+                  "height": "260px",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "left": "653px",
+                    "top": "248px",
+                    "width": "420px",
+                    "height": "260px"
+                  }
+                },
+                "body": {
+                  "tx": 5,
+                  "ty": -1,
+                  "width": "356.01px",
+                  "height": "260px",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "left": "42px",
+                    "right": "22px",
+                    "top": "0px",
+                    "bottom": "0px",
+                    "width": "356.01px",
+                    "height": "260px",
+                    "translate": "5px -1px"
+                  }
+                },
+                "funnelTop": {
+                  "tx": 19,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "translate": "19px"
+                  }
+                },
+                "funnelBottom": {
+                  "tx": 19,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "translate": "19px 1px"
+                  }
+                },
+                "windowTop": {
+                  "tx": -11,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "translate": "-11px"
+                  }
+                },
+                "windowBottom": {
+                  "tx": -5,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "translate": "-5px 1px"
+                  }
+                },
+                "flangeTop": {
+                  "tx": 13,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "translate": "13px 1px"
+                  }
+                },
+                "flangeBottom": {
+                  "tx": 16,
+                  "ty": 3,
+                  "width": "",
+                  "height": "",
+                  "deleted": false,
+                  "inlineStyle": {
+                    "translate": "16px 3px"
+                  }
+                }
+              }
             }
           ],
-          "canvasWidth": 1311,
-          "canvasHeight": 553,
+          "canvasWidth": 1325,
+          "canvasHeight": 598,
           "experiment": {
             "version": 1,
-            "recordedAt": 1780338178513,
+            "recordedAt": 1784841012964,
             "initialQubits": [
               {
-                "itemId": "qubit-mpvj37i1-icx",
-                "logicalQubitId": 95916,
+                "itemId": "qubit-mrxz6ttn-v4v",
+                "logicalQubitId": 130527,
                 "center": {
-                  "x": 49.5,
-                  "y": 226.5
+                  "x": 68.66,
+                  "y": 306.66
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 0
               },
               {
-                "itemId": "qubit-mpvj3dg1-idq",
-                "logicalQubitId": 95929,
+                "itemId": "qubit-mrxz6xk2-v5n",
+                "logicalQubitId": 130528,
                 "center": {
-                  "x": 49.5,
-                  "y": 375.5
+                  "x": 73.66,
+                  "y": 461.66
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 1
               }
             ],
             "gateSettings": [
               {
-                "itemId": "single-gate-mpvj3if7-ie5",
+                "itemId": "single-gate-mrxza75c-xeq",
                 "tickIndex": 0
               },
               {
-                "itemId": "single-gate-mpvj4ezl-j1x",
+                "itemId": "single-gate-mrxzac55-xg9",
                 "tickIndex": 0
               }
             ],
             "actions": [
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvj37i1-icx",
-                "qubitLogicalId": 95916,
+                "qubitId": "qubit-mrxz6ttn-v4v",
+                "qubitLogicalId": 130527,
                 "path": [
                   {
-                    "x": 49.5,
-                    "y": 226.5,
+                    "x": 68.66,
+                    "y": 306.66,
                     "t": 0
                   },
                   {
-                    "x": 53.5,
-                    "y": 227.5,
-                    "t": 1171
+                    "x": 73.66,
+                    "y": 305.66,
+                    "t": 1339
                   },
                   {
-                    "x": 59.5,
-                    "y": 227.5,
-                    "t": 1277
+                    "x": 78.66,
+                    "y": 305.66,
+                    "t": 1355
                   },
                   {
-                    "x": 63.5,
-                    "y": 227.5,
-                    "t": 1293
+                    "x": 88.66,
+                    "y": 304.66,
+                    "t": 1371
                   },
                   {
-                    "x": 68.5,
-                    "y": 227.5,
-                    "t": 1310
+                    "x": 102.66,
+                    "y": 302.66,
+                    "t": 1388
                   },
                   {
-                    "x": 76.5,
-                    "y": 227.5,
-                    "t": 1326
+                    "x": 121.66,
+                    "y": 300.66,
+                    "t": 1404
                   },
                   {
-                    "x": 89.5,
-                    "y": 227.5,
-                    "t": 1343
+                    "x": 156.66,
+                    "y": 300.66,
+                    "t": 1430
                   },
                   {
-                    "x": 96.5,
-                    "y": 227.5,
-                    "t": 1360
+                    "x": 163.66,
+                    "y": 299.66,
+                    "t": 1454
                   },
                   {
-                    "x": 101.5,
-                    "y": 227.5,
-                    "t": 1377
-                  },
-                  {
-                    "x": 105.5,
-                    "y": 227.5,
-                    "t": 1393
-                  },
-                  {
-                    "x": 109.5,
-                    "y": 227.5,
-                    "t": 1410
-                  },
-                  {
-                    "x": 114.5,
-                    "y": 227.5,
-                    "t": 1427
-                  },
-                  {
-                    "x": 120.5,
-                    "y": 227.5,
-                    "t": 1443
-                  },
-                  {
-                    "x": 127.5,
-                    "y": 227.5,
-                    "t": 1460
-                  },
-                  {
-                    "x": 137.5,
-                    "y": 227.5,
-                    "t": 1477
-                  },
-                  {
-                    "x": 150.5,
-                    "y": 227.5,
-                    "t": 1493
-                  },
-                  {
-                    "x": 160.5,
-                    "y": 227.5,
-                    "t": 1510
-                  },
-                  {
-                    "x": 167.5,
-                    "y": 227.5,
-                    "t": 1527
+                    "x": 168.66,
+                    "y": 297.66,
+                    "t": 1721
                   }
                 ],
-                "t": 1527
+                "t": 1939
+              },
+              {
+                "type": "drag",
+                "qubitId": "qubit-mrxz6ttn-v4v",
+                "qubitLogicalId": 130527,
+                "path": [
+                  {
+                    "x": 169.66,
+                    "y": 297.66,
+                    "t": 0
+                  },
+                  {
+                    "x": 177.66,
+                    "y": 299.66,
+                    "t": 2271
+                  },
+                  {
+                    "x": 182.66,
+                    "y": 299.66,
+                    "t": 2288
+                  },
+                  {
+                    "x": 188.66,
+                    "y": 298.66,
+                    "t": 2305
+                  },
+                  {
+                    "x": 196.66,
+                    "y": 298.66,
+                    "t": 2338
+                  }
+                ],
+                "t": 2338
               },
               {
                 "type": "gate",
-                "qubitId": "qubit-mpvj37i1-icx",
-                "qubitLogicalId": 95916,
-                "gateId": "single-gate-mpvj3if7-ie5",
+                "qubitId": "qubit-mrxz6ttn-v4v",
+                "qubitLogicalId": 130527,
+                "roomQubitIndex": 0,
+                "gateId": "single-gate-mrxza75c-xeq",
                 "tickIndex": 0,
-                "t": 3151
+                "t": 3961
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvj3dg1-idq",
-                "qubitLogicalId": 95929,
+                "qubitId": "qubit-mrxz6xk2-v5n",
+                "qubitLogicalId": 130528,
                 "path": [
                   {
-                    "x": 49.5,
-                    "y": 375.5,
+                    "x": 73.66,
+                    "y": 461.66,
                     "t": 0
                   },
                   {
-                    "x": 52.5,
-                    "y": 379.5,
-                    "t": 5360
+                    "x": 78.66,
+                    "y": 459.66,
+                    "t": 3773
                   },
                   {
-                    "x": 57.5,
-                    "y": 382.5,
-                    "t": 5410
+                    "x": 86.66,
+                    "y": 459.66,
+                    "t": 3788
                   },
                   {
-                    "x": 62.5,
-                    "y": 386.5,
-                    "t": 5426
+                    "x": 93.66,
+                    "y": 459.66,
+                    "t": 3805
                   },
                   {
-                    "x": 67.5,
-                    "y": 388.5,
-                    "t": 5443
+                    "x": 103.66,
+                    "y": 457.66,
+                    "t": 3822
                   },
                   {
-                    "x": 75.5,
-                    "y": 389.5,
-                    "t": 5460
+                    "x": 116.66,
+                    "y": 455.66,
+                    "t": 3839
                   },
                   {
-                    "x": 85.5,
-                    "y": 389.5,
-                    "t": 5476
+                    "x": 127.66,
+                    "y": 454.66,
+                    "t": 3854
                   },
                   {
-                    "x": 94.5,
-                    "y": 389.5,
-                    "t": 5493
+                    "x": 136.66,
+                    "y": 454.66,
+                    "t": 3872
                   },
                   {
-                    "x": 102.5,
-                    "y": 389.5,
-                    "t": 5510
+                    "x": 146.66,
+                    "y": 453.66,
+                    "t": 3888
                   },
                   {
-                    "x": 111.5,
-                    "y": 390.5,
-                    "t": 5527
+                    "x": 151.66,
+                    "y": 452.66,
+                    "t": 3905
                   },
                   {
-                    "x": 115.5,
-                    "y": 391.5,
-                    "t": 5594
+                    "x": 155.66,
+                    "y": 451.66,
+                    "t": 3921
                   },
                   {
-                    "x": 122.5,
-                    "y": 392.5,
-                    "t": 5610
+                    "x": 160.66,
+                    "y": 450.66,
+                    "t": 3955
                   },
                   {
-                    "x": 135.5,
-                    "y": 395.5,
-                    "t": 5627
+                    "x": 169.66,
+                    "y": 449.66,
+                    "t": 3988
                   },
                   {
-                    "x": 145.5,
-                    "y": 395.5,
-                    "t": 5643
+                    "x": 174.66,
+                    "y": 447.66,
+                    "t": 4005
                   },
                   {
-                    "x": 152.5,
-                    "y": 395.5,
-                    "t": 5660
+                    "x": 178.66,
+                    "y": 445.66,
+                    "t": 4021
                   },
                   {
-                    "x": 157.5,
-                    "y": 395.5,
-                    "t": 5696
+                    "x": 184.66,
+                    "y": 443.66,
+                    "t": 4121
                   },
                   {
-                    "x": 162.5,
-                    "y": 393.5,
-                    "t": 5777
+                    "x": 189.66,
+                    "y": 441.66,
+                    "t": 4154
                   },
                   {
-                    "x": 165.5,
-                    "y": 389.5,
-                    "t": 5793
-                  },
-                  {
-                    "x": 169.5,
-                    "y": 387.5,
-                    "t": 5810
+                    "x": 197.66,
+                    "y": 441.66,
+                    "t": 4188
                   }
                 ],
-                "t": 5810
+                "t": 4188
               },
               {
                 "type": "gate",
-                "qubitId": "qubit-mpvj3dg1-idq",
-                "qubitLogicalId": 95929,
-                "gateId": "single-gate-mpvj4ezl-j1x",
+                "qubitId": "qubit-mrxz6xk2-v5n",
+                "qubitLogicalId": 130528,
+                "roomQubitIndex": 1,
+                "gateId": "single-gate-mrxzac55-xg9",
                 "tickIndex": 0,
-                "t": 7433
+                "t": 5812
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvj37i1-icx",
-                "qubitLogicalId": 95916,
+                "qubitId": "qubit-mrxz6ttn-v4v",
+                "qubitLogicalId": 130527,
                 "path": [
                   {
-                    "x": 632.5,
-                    "y": 229.5,
+                    "x": 637.66,
+                    "y": 300.66,
                     "t": 0
                   },
                   {
-                    "x": 636.5,
-                    "y": 231.5,
-                    "t": 9659
+                    "x": 639.66,
+                    "y": 305.66,
+                    "t": 7539
                   },
                   {
-                    "x": 639.5,
-                    "y": 234.5,
-                    "t": 9677
+                    "x": 641.66,
+                    "y": 309.66,
+                    "t": 7588
                   },
                   {
-                    "x": 652.5,
-                    "y": 242.5,
-                    "t": 9710
+                    "x": 643.66,
+                    "y": 313.66,
+                    "t": 7621
                   },
                   {
-                    "x": 658.5,
-                    "y": 245.5,
-                    "t": 9727
+                    "x": 647.66,
+                    "y": 317.66,
+                    "t": 7658
                   },
                   {
-                    "x": 663.5,
-                    "y": 248.5,
-                    "t": 9743
+                    "x": 650.66,
+                    "y": 320.66,
+                    "t": 7689
                   },
                   {
-                    "x": 669.5,
-                    "y": 251.5,
-                    "t": 9760
-                  },
-                  {
-                    "x": 673.5,
-                    "y": 253.5,
-                    "t": 9810
-                  },
-                  {
-                    "x": 680.5,
-                    "y": 255.5,
-                    "t": 9843
-                  },
-                  {
-                    "x": 684.5,
-                    "y": 255.5,
-                    "t": 10077
+                    "x": 656.66,
+                    "y": 325.66,
+                    "t": 7738
                   }
                 ],
-                "t": 10077
+                "t": 7822
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvj3dg1-idq",
-                "qubitLogicalId": 95929,
+                "qubitId": "qubit-mrxz6xk2-v5n",
+                "qubitLogicalId": 130528,
                 "path": [
                   {
-                    "x": 631.5,
-                    "y": 382.5,
+                    "x": 639.66,
+                    "y": 447.66,
                     "t": 0
                   },
                   {
-                    "x": 635.5,
-                    "y": 380.5,
-                    "t": 11477
+                    "x": 642.66,
+                    "y": 450.66,
+                    "t": 8556
                   },
                   {
-                    "x": 637.5,
-                    "y": 376.5,
-                    "t": 11510
+                    "x": 648.66,
+                    "y": 445.66,
+                    "t": 8622
                   },
                   {
-                    "x": 644.5,
-                    "y": 367.5,
-                    "t": 11543
-                  },
-                  {
-                    "x": 647.5,
-                    "y": 363.5,
-                    "t": 11560
-                  },
-                  {
-                    "x": 653.5,
-                    "y": 359.5,
-                    "t": 11577
-                  },
-                  {
-                    "x": 658.5,
-                    "y": 355.5,
-                    "t": 11594
-                  },
-                  {
-                    "x": 666.5,
-                    "y": 348.5,
-                    "t": 11627
-                  },
-                  {
-                    "x": 669.5,
-                    "y": 344.5,
-                    "t": 11660
-                  },
-                  {
-                    "x": 674.5,
-                    "y": 338.5,
-                    "t": 11693
+                    "x": 657.66,
+                    "y": 440.66,
+                    "t": 8655
                   }
                 ],
-                "t": 11711
+                "t": 8655
               },
               {
                 "type": "cnot",
-                "cnotId": "cnot-gate-mpvj3nyh-iey",
-                "topQubitId": "qubit-mpvj37i1-icx",
-                "bottomQubitId": "qubit-mpvj3dg1-idq",
-                "topQubitLogicalId": 95916,
-                "bottomQubitLogicalId": 95929,
-                "t": 12834
+                "cnotId": "cnot-gate-mrxzawds-xij",
+                "topQubitId": "qubit-mrxz6ttn-v4v",
+                "bottomQubitId": "qubit-mrxz6xk2-v5n",
+                "topQubitLogicalId": 130527,
+                "bottomQubitLogicalId": 130528,
+                "topRoomQubitIndex": 0,
+                "bottomRoomQubitIndex": 1,
+                "t": 9779
               }
             ]
           },
-          "savedAt": 1780941370180
+          "savedAt": 1784841131128
         },
         {
-          "id": "scene-mpvjdyb3-zr61g",
+          "id": "scene-mrxzbnih-vjst0",
           "title": "Scene",
           "items": [
             {
-              "id": "text-box-mpvje3w4-so4",
+              "id": "text-box-mrxzc1c2-y8t",
               "type": "text-box",
-              "left": 141,
-              "top": 19,
-              "width": 640,
-              "height": 123,
+              "left": 223,
+              "top": 16,
+              "width": 683,
+              "height": 137,
               "z": 2,
-              "text": "But when the control is red the target qubit changes from blue to red.",
+              "text": "The control qubit was blue and the target qubit was blue. Because the control qubit was blue the C-NOT gate did nothing to the target qubit. But if the control qubit is red... ",
               "buttons": [
                 "back",
                 "next",
@@ -4969,520 +4772,442 @@
               "buttonMode": "custom"
             },
             {
-              "id": "qubit-mpvjf961-v4t",
+              "id": "qubit-mrxzgi8i-18bu",
               "type": "qubit",
-              "left": 32,
-              "top": 237,
-              "width": 65,
-              "height": 65,
-              "z": 10,
-              "qubitId": 103010
+              "left": 1143,
+              "top": 240,
+              "width": 72,
+              "height": 72,
+              "z": 14,
+              "qubitId": 130529,
+              "roomQubitIndex": 0
             },
             {
-              "id": "qubit-mpvjfc8h-v58",
+              "id": "qubit-mrxzglg1-18cm",
               "type": "qubit",
-              "left": 25,
-              "top": 376,
-              "width": 65,
-              "height": 65,
-              "z": 11,
-              "qubitId": 103017
+              "left": 1146,
+              "top": 329,
+              "width": 72,
+              "height": 72,
+              "z": 15,
+              "qubitId": 130530,
+              "roomQubitIndex": 1
             },
             {
-              "id": "single-gate-mpvjfk2h-v5n",
+              "id": "single-gate-mrxzgo2w-18de",
               "type": "single-gate",
-              "left": 154,
-              "top": 192,
-              "width": 338,
-              "height": 208,
+              "left": 180,
+              "top": 181,
+              "width": 312,
+              "height": 130,
               "z": 5,
               "singleGateTick": 6
             },
             {
-              "id": "single-gate-mpvjfr68-v6u",
+              "id": "single-gate-mrxzgqp5-18e6",
               "type": "single-gate",
-              "left": 155,
-              "top": 329,
-              "width": 338,
-              "height": 208,
+              "left": 184,
+              "top": 328,
+              "width": 312,
+              "height": 130,
               "z": 6,
               "singleGateTick": 0
             },
             {
-              "id": "cnot-gate-mq5hsow7-z7g",
+              "id": "cnot-gate-mrxzh5ls-18ip",
               "type": "cnot-gate",
-              "left": 716,
-              "top": 241,
-              "width": 373,
-              "height": 209,
+              "left": 623,
+              "top": 189,
+              "width": 420,
+              "height": 260,
               "z": 7,
               "cnotLayout": {
                 "gate": {
                   "tx": 0,
                   "ty": 0,
-                  "width": "373px",
-                  "height": "209px",
+                  "width": "420px",
+                  "height": "260px",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "716px",
-                    "top": "241px",
-                    "width": "373px",
-                    "height": "209px"
+                    "left": "623px",
+                    "top": "189px",
+                    "width": "420px",
+                    "height": "260px"
                   }
                 },
                 "body": {
-                  "tx": 10,
-                  "ty": 3,
-                  "width": "327px",
-                  "height": "164px",
+                  "tx": 5,
+                  "ty": -1,
+                  "width": "356.01px",
+                  "height": "260px",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "38.36px",
+                    "left": "42px",
                     "right": "22px",
                     "top": "0px",
                     "bottom": "0px",
-                    "width": "327px",
-                    "height": "164px",
-                    "translate": "10px 3px"
+                    "width": "356.01px",
+                    "height": "260px",
+                    "translate": "5px -1px"
                   }
                 },
                 "funnelTop": {
-                  "tx": 13,
-                  "ty": -17,
-                  "width": "62px",
-                  "height": "84px",
+                  "tx": 19,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "58.51px",
-                    "bottom": "82.58px",
-                    "width": "62px",
-                    "height": "84px",
-                    "translate": "13px -17px"
+                    "translate": "19px"
                   }
                 },
                 "funnelBottom": {
-                  "tx": 14,
-                  "ty": -33,
-                  "width": "63px",
-                  "height": "94px",
+                  "tx": 19,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "150.47px",
-                    "bottom": "-9.38px",
-                    "width": "63px",
-                    "height": "94px",
-                    "translate": "14px -33px"
+                    "translate": "19px 1px"
                   }
                 },
                 "windowTop": {
-                  "tx": -27,
-                  "ty": -10,
-                  "width": "66px",
-                  "height": "66px",
+                  "tx": -11,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "111.06px",
-                    "top": "46.1px",
-                    "bottom": "95.29px",
-                    "width": "66px",
-                    "height": "66px",
-                    "transform": "translate(-50%, -50%)",
-                    "translate": "-27px -10px"
+                    "translate": "-11px"
                   }
                 },
                 "windowBottom": {
-                  "tx": -25,
-                  "ty": -36,
-                  "width": "68px",
-                  "height": "68px",
+                  "tx": -5,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "107.64px",
-                    "top": "154.3px",
-                    "bottom": "-17.83px",
-                    "width": "68px",
-                    "height": "68px",
-                    "transform": "translate(-50%, -50%)",
-                    "translate": "-25px -36px"
+                    "translate": "-5px 1px"
                   }
                 },
                 "flangeTop": {
-                  "tx": -8,
-                  "ty": -13,
-                  "width": "15px",
-                  "height": "61px",
+                  "tx": 13,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "313.35px",
-                    "right": "8.59px",
-                    "top": "56.09px",
-                    "bottom": "92.35px",
-                    "width": "15px",
-                    "height": "61px",
-                    "translate": "-8px -13px"
+                    "translate": "13px 1px"
                   }
                 },
                 "flangeBottom": {
-                  "tx": -4,
-                  "ty": -38,
-                  "width": "15px",
-                  "height": "57px",
+                  "tx": 16,
+                  "ty": 3,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "313.07px",
-                    "right": "8.59px",
-                    "top": "144.29px",
-                    "bottom": "5.71px",
-                    "width": "15px",
-                    "height": "57px",
-                    "translate": "-4px -38px"
+                    "translate": "16px 3px"
                   }
                 }
               }
             }
           ],
-          "canvasWidth": 1342,
-          "canvasHeight": 551,
+          "canvasWidth": 1228,
+          "canvasHeight": 562,
           "experiment": {
             "version": 1,
-            "recordedAt": 1780940238289,
+            "recordedAt": 1784841160060,
             "initialQubits": [
               {
-                "itemId": "qubit-mpvjf961-v4t",
-                "logicalQubitId": 103010,
+                "itemId": "qubit-mrxzgi8i-18bu",
+                "logicalQubitId": 130529,
                 "center": {
-                  "x": 64.5,
-                  "y": 269.5
+                  "x": 62.66,
+                  "y": 242.66
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 0
               },
               {
-                "itemId": "qubit-mpvjfc8h-v58",
-                "logicalQubitId": 103017,
+                "itemId": "qubit-mrxzglg1-18cm",
+                "logicalQubitId": 130530,
                 "center": {
-                  "x": 57.5,
-                  "y": 408.5
+                  "x": 65.66,
+                  "y": 393.66
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 1
               }
             ],
             "gateSettings": [
               {
-                "itemId": "single-gate-mpvjfk2h-v5n",
+                "itemId": "single-gate-mrxzgo2w-18de",
                 "tickIndex": 6
               },
               {
-                "itemId": "single-gate-mpvjfr68-v6u",
+                "itemId": "single-gate-mrxzgqp5-18e6",
                 "tickIndex": 0
               }
             ],
             "actions": [
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjf961-v4t",
-                "qubitLogicalId": 103010,
+                "qubitId": "qubit-mrxzgi8i-18bu",
+                "qubitLogicalId": 130529,
                 "path": [
                   {
-                    "x": 64.5,
-                    "y": 269.5,
+                    "x": 62.66,
+                    "y": 242.66,
                     "t": 0
                   },
                   {
-                    "x": 68.5,
-                    "y": 270.5,
-                    "t": 916
+                    "x": 69.66,
+                    "y": 243.66,
+                    "t": 2366
                   },
                   {
-                    "x": 73.5,
-                    "y": 270.5,
-                    "t": 972
+                    "x": 74.66,
+                    "y": 243.66,
+                    "t": 2383
                   },
                   {
-                    "x": 80.5,
-                    "y": 271.5,
-                    "t": 982
+                    "x": 87.66,
+                    "y": 243.66,
+                    "t": 2399
                   },
                   {
-                    "x": 92.5,
-                    "y": 271.5,
-                    "t": 1006
+                    "x": 98.66,
+                    "y": 243.66,
+                    "t": 2416
                   },
                   {
-                    "x": 108.5,
-                    "y": 271.5,
-                    "t": 1016
+                    "x": 109.66,
+                    "y": 243.66,
+                    "t": 2437
                   },
                   {
-                    "x": 128.5,
-                    "y": 271.5,
-                    "t": 1039
+                    "x": 126.66,
+                    "y": 243.66,
+                    "t": 2469
                   },
                   {
-                    "x": 145.5,
-                    "y": 269.5,
-                    "t": 1049
+                    "x": 132.66,
+                    "y": 242.66,
+                    "t": 2499
                   },
                   {
-                    "x": 160.5,
-                    "y": 268.5,
-                    "t": 1072
+                    "x": 136.66,
+                    "y": 242.66,
+                    "t": 2516
                   },
                   {
-                    "x": 164.5,
-                    "y": 268.5,
-                    "t": 1082
+                    "x": 140.66,
+                    "y": 241.66,
+                    "t": 2532
+                  },
+                  {
+                    "x": 146.66,
+                    "y": 240.66,
+                    "t": 2549
+                  },
+                  {
+                    "x": 153.66,
+                    "y": 238.66,
+                    "t": 2566
+                  },
+                  {
+                    "x": 160.66,
+                    "y": 237.66,
+                    "t": 2583
+                  },
+                  {
+                    "x": 164.66,
+                    "y": 235.66,
+                    "t": 2616
+                  },
+                  {
+                    "x": 169.66,
+                    "y": 235.66,
+                    "t": 2650
+                  },
+                  {
+                    "x": 175.66,
+                    "y": 235.66,
+                    "t": 2683
+                  },
+                  {
+                    "x": 180.66,
+                    "y": 234.66,
+                    "t": 2699
+                  },
+                  {
+                    "x": 195.66,
+                    "y": 233.66,
+                    "t": 2716
                   }
                 ],
-                "t": 1082
+                "t": 2717
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjfc8h-v58",
-                "qubitLogicalId": 103017,
+                "qubitId": "qubit-mrxzglg1-18cm",
+                "qubitLogicalId": 130530,
                 "path": [
                   {
-                    "x": 57.5,
-                    "y": 408.5,
+                    "x": 65.66,
+                    "y": 393.66,
                     "t": 0
                   },
                   {
-                    "x": 62.5,
-                    "y": 407.5,
-                    "t": 2016
+                    "x": 71.66,
+                    "y": 394.66,
+                    "t": 3735
                   },
                   {
-                    "x": 66.5,
-                    "y": 406.5,
-                    "t": 2072
+                    "x": 83.66,
+                    "y": 394.66,
+                    "t": 3749
                   },
                   {
-                    "x": 72.5,
-                    "y": 405.5,
-                    "t": 2105
+                    "x": 99.66,
+                    "y": 397.66,
+                    "t": 3766
                   },
                   {
-                    "x": 84.5,
-                    "y": 405.5,
-                    "t": 2116
+                    "x": 113.66,
+                    "y": 397.66,
+                    "t": 3783
                   },
                   {
-                    "x": 96.5,
-                    "y": 405.5,
-                    "t": 2139
+                    "x": 127.66,
+                    "y": 397.66,
+                    "t": 3800
                   },
                   {
-                    "x": 107.5,
-                    "y": 405.5,
-                    "t": 2149
+                    "x": 134.66,
+                    "y": 397.66,
+                    "t": 3816
                   },
                   {
-                    "x": 122.5,
-                    "y": 405.5,
-                    "t": 2172
+                    "x": 138.66,
+                    "y": 397.66,
+                    "t": 3833
                   },
                   {
-                    "x": 138.5,
-                    "y": 405.5,
-                    "t": 2182
+                    "x": 142.66,
+                    "y": 397.66,
+                    "t": 3900
                   },
                   {
-                    "x": 159.5,
-                    "y": 406.5,
-                    "t": 2206
+                    "x": 153.66,
+                    "y": 397.66,
+                    "t": 3916
                   },
                   {
-                    "x": 171.5,
-                    "y": 406.5,
-                    "t": 2216
+                    "x": 160.66,
+                    "y": 397.66,
+                    "t": 3933
+                  },
+                  {
+                    "x": 165.66,
+                    "y": 396.66,
+                    "t": 3950
+                  },
+                  {
+                    "x": 169.66,
+                    "y": 394.66,
+                    "t": 4017
+                  },
+                  {
+                    "x": 178.66,
+                    "y": 392.66,
+                    "t": 4050
+                  },
+                  {
+                    "x": 186.66,
+                    "y": 391.66,
+                    "t": 4066
+                  },
+                  {
+                    "x": 195.66,
+                    "y": 387.66,
+                    "t": 4083
                   }
                 ],
-                "t": 2216
+                "t": 4083
               },
               {
                 "type": "gate",
-                "qubitId": "qubit-mpvjf961-v4t",
-                "qubitLogicalId": 103010,
-                "gateId": "single-gate-mpvjfk2h-v5n",
+                "qubitId": "qubit-mrxzgi8i-18bu",
+                "qubitLogicalId": 130529,
+                "roomQubitIndex": 0,
+                "gateId": "single-gate-mrxzgo2w-18de",
                 "tickIndex": 6,
-                "t": 2706
+                "t": 4340
               },
               {
                 "type": "gate",
-                "qubitId": "qubit-mpvjfc8h-v58",
-                "qubitLogicalId": 103017,
-                "gateId": "single-gate-mpvjfr68-v6u",
+                "qubitId": "qubit-mrxzglg1-18cm",
+                "qubitLogicalId": 130530,
+                "roomQubitIndex": 1,
+                "gateId": "single-gate-mrxzgqp5-18e6",
                 "tickIndex": 0,
-                "t": 3838
+                "t": 5706
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjf961-v4t",
-                "qubitLogicalId": 103010,
+                "qubitId": "qubit-mrxzglg1-18cm",
+                "qubitLogicalId": 130530,
                 "path": [
                   {
-                    "x": 628.5,
-                    "y": 273.5,
+                    "x": 635.66,
+                    "y": 389.66,
                     "t": 0
                   },
                   {
-                    "x": 632.5,
-                    "y": 275.5,
-                    "t": 5701
-                  },
-                  {
-                    "x": 637.5,
-                    "y": 277.5,
-                    "t": 5732
-                  },
-                  {
-                    "x": 641.5,
-                    "y": 279.5,
-                    "t": 5755
-                  },
-                  {
-                    "x": 649.5,
-                    "y": 283.5,
-                    "t": 5765
-                  },
-                  {
-                    "x": 664.5,
-                    "y": 286.5,
-                    "t": 5789
-                  },
-                  {
-                    "x": 679.5,
-                    "y": 289.5,
-                    "t": 5799
-                  },
-                  {
-                    "x": 695.5,
-                    "y": 293.5,
-                    "t": 5822
-                  },
-                  {
-                    "x": 701.5,
-                    "y": 294.5,
-                    "t": 5832
-                  },
-                  {
-                    "x": 708.5,
-                    "y": 296.5,
-                    "t": 5872
-                  },
-                  {
-                    "x": 717.5,
-                    "y": 297.5,
-                    "t": 5882
-                  },
-                  {
-                    "x": 728.5,
-                    "y": 299.5,
-                    "t": 5905
+                    "x": 639.66,
+                    "y": 389.66,
+                    "t": 8233
                   }
                 ],
-                "t": 5905
-              },
-              {
-                "type": "drag",
-                "qubitId": "qubit-mpvjfc8h-v58",
-                "qubitLogicalId": 103017,
-                "path": [
-                  {
-                    "x": 629.5,
-                    "y": 410.5,
-                    "t": 0
-                  },
-                  {
-                    "x": 634.5,
-                    "y": 411.5,
-                    "t": 6799
-                  },
-                  {
-                    "x": 638.5,
-                    "y": 409.5,
-                    "t": 6822
-                  },
-                  {
-                    "x": 644.5,
-                    "y": 407.5,
-                    "t": 6832
-                  },
-                  {
-                    "x": 652.5,
-                    "y": 403.5,
-                    "t": 6855
-                  },
-                  {
-                    "x": 658.5,
-                    "y": 400.5,
-                    "t": 6866
-                  },
-                  {
-                    "x": 668.5,
-                    "y": 396.5,
-                    "t": 6889
-                  },
-                  {
-                    "x": 686.5,
-                    "y": 390.5,
-                    "t": 6899
-                  },
-                  {
-                    "x": 701.5,
-                    "y": 386.5,
-                    "t": 6923
-                  },
-                  {
-                    "x": 716.5,
-                    "y": 380.5,
-                    "t": 6932
-                  },
-                  {
-                    "x": 722.5,
-                    "y": 378.5,
-                    "t": 6955
-                  }
-                ],
-                "t": 6956
+                "t": 8234
               },
               {
                 "type": "cnot",
-                "cnotId": "cnot-gate-mq5hsow7-z7g",
-                "topQubitId": "qubit-mpvjf961-v4t",
-                "bottomQubitId": "qubit-mpvjfc8h-v58",
-                "topQubitLogicalId": 103010,
-                "bottomQubitLogicalId": 103017,
-                "t": 8079
+                "cnotId": "cnot-gate-mrxzh5ls-18ip",
+                "topQubitId": "qubit-mrxzgi8i-18bu",
+                "bottomQubitId": "qubit-mrxzglg1-18cm",
+                "topQubitLogicalId": 130529,
+                "bottomQubitLogicalId": 130530,
+                "topRoomQubitIndex": 0,
+                "bottomRoomQubitIndex": 1,
+                "t": 9356
               }
             ]
           },
-          "savedAt": 1780941371775
+          "savedAt": 1784841170717
         },
         {
-          "id": "scene-mpvjimau-ahut9",
+          "id": "scene-mrxzimr6-9s1fi",
           "title": "Scene",
           "items": [
             {
-              "id": "text-box-mpvjiwre-whk",
+              "id": "text-box-mrxziyhd-19h8",
               "type": "text-box",
-              "left": 49,
-              "top": 8,
-              "width": 992,
-              "height": 223,
+              "left": 83,
+              "top": 29,
+              "width": 898,
+              "height": 184,
               "z": 2,
-              "text": "As long as the control and target qubits are solid colors, either red or blue, the action of the C-NOT gate is straightforward: a blue control means \"do nothing to the target\" and a red one means \"flip the target between red and blue.\" And whatever happens, the control qubit is unchanged.\n\nWhat do you think would happen if the target qubit were purple – half blue and half red? Think about that before running the experiment.",
+              "text": "OK, that was pretty simple, almost not worth the trouble to show it! But remember, qubits aren't always red or blue, sometimes they're purple (until you measure them). What do you think would happen if the control qubit was purple? Think about that and try to predict the outcome before running the experiment.",
               "buttons": [
                 "back",
                 "next",
@@ -5491,685 +5216,579 @@
               "buttonMode": "custom"
             },
             {
-              "id": "qubit-mpvjoh4i-1c71",
-              "type": "qubit",
-              "left": 37,
-              "top": 249,
-              "width": 65,
-              "height": 65,
-              "z": 3,
-              "qubitId": 112486
-            },
-            {
-              "id": "qubit-mpvjol4q-1c7g",
-              "type": "qubit",
-              "left": 35,
-              "top": 410,
-              "width": 65,
-              "height": 65,
-              "z": 4,
-              "qubitId": 112493
-            },
-            {
-              "id": "single-gate-mpvjonyj-1c7v",
+              "id": "single-gate-mrxznyhk-1r7k",
               "type": "single-gate",
-              "left": 146,
-              "top": 210,
-              "width": 338,
-              "height": 208,
+              "left": 188,
+              "top": 268,
+              "width": 312,
+              "height": 130,
               "z": 5,
               "singleGateTick": 3
             },
             {
-              "id": "single-gate-mpvjosop-1c8a",
+              "id": "single-gate-mrxznzwx-1r8c",
               "type": "single-gate",
-              "left": 144,
-              "top": 366,
-              "width": 338,
-              "height": 208,
+              "left": 190,
+              "top": 406,
+              "width": 312,
+              "height": 130,
               "z": 6,
               "singleGateTick": 0
             },
             {
-              "id": "cnot-gate-mpvjpnkq-1cmp",
+              "id": "cnot-gate-mrxzom89-1rc4",
               "type": "cnot-gate",
-              "left": 657,
-              "top": 270,
-              "width": 373,
-              "height": 209,
+              "left": 667,
+              "top": 260,
+              "width": 418,
+              "height": 260,
               "z": 7,
               "cnotLayout": {
                 "gate": {
                   "tx": 0,
                   "ty": 0,
-                  "width": "373px",
-                  "height": "209px",
+                  "width": "418px",
+                  "height": "260px",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "657px",
-                    "top": "270px",
-                    "width": "373px",
-                    "height": "209px"
+                    "left": "667px",
+                    "top": "260px",
+                    "width": "418px",
+                    "height": "260px"
                   }
                 },
                 "body": {
-                  "tx": 10,
-                  "ty": 3,
-                  "width": "327px",
-                  "height": "164px",
+                  "tx": 5,
+                  "ty": -1,
+                  "width": "356.01px",
+                  "height": "260px",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "38.36px",
-                    "right": "22px",
+                    "left": "47.52px",
+                    "right": "16.18px",
                     "top": "0px",
                     "bottom": "0px",
-                    "width": "327px",
-                    "height": "164px",
-                    "translate": "10px 3px"
+                    "width": "356.01px",
+                    "height": "260px",
+                    "translate": "5px -1px"
                   }
                 },
                 "funnelTop": {
-                  "tx": 13,
-                  "ty": -17,
-                  "width": "62px",
-                  "height": "84px",
+                  "tx": 19,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "58.51px",
-                    "bottom": "82.58px",
-                    "width": "62px",
-                    "height": "84px",
-                    "translate": "13px -17px"
+                    "left": "-11.2px",
+                    "right": "375.2px",
+                    "top": "72.8px",
+                    "bottom": "85.21px",
+                    "translate": "19px"
                   }
                 },
                 "funnelBottom": {
-                  "tx": 14,
-                  "ty": -33,
-                  "width": "63px",
-                  "height": "94px",
+                  "tx": 19,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "-12.35px",
-                    "right": "353.19px",
-                    "top": "150.47px",
-                    "bottom": "-9.38px",
-                    "width": "63px",
-                    "height": "94px",
-                    "translate": "14px -33px"
+                    "left": "-11.2px",
+                    "right": "375.2px",
+                    "top": "187.2px",
+                    "bottom": "-29.19px",
+                    "translate": "19px 1px"
                   }
                 },
                 "windowTop": {
-                  "tx": -27,
-                  "ty": -10,
-                  "width": "66px",
-                  "height": "66px",
+                  "tx": -11,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "111.06px",
-                    "top": "46.1px",
-                    "bottom": "95.29px",
-                    "width": "66px",
-                    "height": "66px",
+                    "left": "188.33px",
+                    "right": "92.78px",
+                    "top": "83.22px",
+                    "bottom": "103.23px",
                     "transform": "translate(-50%, -50%)",
-                    "translate": "-27px -10px"
+                    "translate": "-11px"
                   }
                 },
                 "windowBottom": {
-                  "tx": -25,
-                  "ty": -36,
-                  "width": "68px",
-                  "height": "68px",
+                  "tx": -5,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "178.8px",
-                    "right": "107.64px",
-                    "top": "154.3px",
-                    "bottom": "-17.83px",
-                    "width": "68px",
-                    "height": "68px",
+                    "left": "188.33px",
+                    "right": "92.78px",
+                    "top": "171.22px",
+                    "bottom": "15.23px",
                     "transform": "translate(-50%, -50%)",
-                    "translate": "-25px -36px"
+                    "translate": "-5px 1px"
                   }
                 },
                 "flangeTop": {
-                  "tx": -8,
-                  "ty": -13,
-                  "width": "15px",
-                  "height": "61px",
+                  "tx": 13,
+                  "ty": 1,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "313.35px",
-                    "right": "8.59px",
-                    "top": "56.09px",
-                    "bottom": "92.35px",
-                    "width": "15px",
-                    "height": "61px",
-                    "translate": "-8px -13px"
+                    "left": "322.91px",
+                    "right": "9.95px",
+                    "top": "71.24px",
+                    "bottom": "105.21px",
+                    "translate": "13px 1px"
                   }
                 },
                 "flangeBottom": {
-                  "tx": -4,
-                  "ty": -38,
-                  "width": "15px",
-                  "height": "57px",
+                  "tx": 16,
+                  "ty": 3,
+                  "width": "",
+                  "height": "",
                   "deleted": false,
                   "inlineStyle": {
-                    "left": "313.07px",
-                    "right": "8.59px",
-                    "top": "144.29px",
-                    "bottom": "5.71px",
-                    "width": "15px",
-                    "height": "57px",
-                    "translate": "-4px -38px"
+                    "left": "322.91px",
+                    "right": "9.95px",
+                    "top": "183.19px",
+                    "bottom": "-6.74px",
+                    "translate": "16px 3px"
                   }
                 }
               }
             },
             {
-              "id": "double-measurement-mpvjtxsj-1dc2",
+              "id": "double-measurement-mrxzp91s-1rqe",
               "type": "double-measurement",
-              "left": 1118,
-              "top": 50,
-              "width": 520,
-              "height": 520,
+              "left": 1151,
+              "top": 6,
+              "width": 494,
+              "height": 546,
               "z": 8,
               "measurementLayout": {
                 "parts": {
-                  "capacity": {
-                    "tx": 0,
-                    "ty": 0,
-                    "width": "397px",
-                    "height": "60px",
-                    "deleted": false
-                  },
-                  "tubeRack": {
-                    "tx": -3,
-                    "ty": 16,
+                  "magnifier": {
+                    "tx": 37,
+                    "ty": 4,
                     "width": "",
                     "height": "",
                     "deleted": false
                   },
-                  "magnifier": {
-                    "tx": 0,
-                    "ty": 20,
-                    "width": "412px",
-                    "height": "185px",
-                    "deleted": false
-                  },
                   "measurementCount": {
-                    "tx": 474,
-                    "ty": 61,
-                    "width": "99px",
-                    "height": "24px",
+                    "tx": 2,
+                    "ty": 9,
+                    "width": "",
+                    "height": "",
                     "deleted": false
                   }
                 }
               }
+            },
+            {
+              "id": "qubit-mrxzs5gv-1s9x",
+              "type": "qubit",
+              "left": 47,
+              "top": 288,
+              "width": 72,
+              "height": 72,
+              "z": 22,
+              "qubitId": 130533,
+              "roomQubitIndex": 0
+            },
+            {
+              "id": "qubit-mrxzs76a-1sap",
+              "type": "qubit",
+              "left": 48,
+              "top": 423,
+              "width": 72,
+              "height": 72,
+              "z": 23,
+              "qubitId": 130534,
+              "roomQubitIndex": 0
             }
           ],
-          "canvasWidth": 1692,
-          "canvasHeight": 645,
+          "canvasWidth": 1651,
+          "canvasHeight": 558,
           "experiment": {
             "version": 1,
-            "recordedAt": 1780339100458,
+            "recordedAt": 1784840374346,
             "initialQubits": [
               {
-                "itemId": "qubit-mpvjoh4i-1c71",
-                "logicalQubitId": 112486,
+                "itemId": "qubit-mrxzs5gv-1s9x",
+                "logicalQubitId": 130533,
                 "center": {
-                  "x": 69.5,
-                  "y": 281.5
+                  "x": 82.66,
+                  "y": 323.66
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 0
               },
               {
-                "itemId": "qubit-mpvjol4q-1c7g",
-                "logicalQubitId": 112493,
+                "itemId": "qubit-mrxzs76a-1sap",
+                "logicalQubitId": 130534,
                 "center": {
-                  "x": 67.5,
-                  "y": 442.5
+                  "x": 83.66,
+                  "y": 458.66
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 0
               }
             ],
             "gateSettings": [
               {
-                "itemId": "single-gate-mpvjonyj-1c7v",
+                "itemId": "single-gate-mrxznyhk-1r7k",
                 "tickIndex": 3
               },
               {
-                "itemId": "single-gate-mpvjosop-1c8a",
+                "itemId": "single-gate-mrxznzwx-1r8c",
                 "tickIndex": 0
               }
             ],
             "actions": [
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjoh4i-1c71",
-                "qubitLogicalId": 112486,
+                "qubitId": "qubit-mrxzs5gv-1s9x",
+                "qubitLogicalId": 130533,
                 "path": [
                   {
-                    "x": 69.5,
-                    "y": 281.5,
+                    "x": 82.66,
+                    "y": 323.66,
                     "t": 0
                   },
                   {
-                    "x": 73.5,
-                    "y": 283.5,
-                    "t": 1492
+                    "x": 86.66,
+                    "y": 322.66,
+                    "t": 1243
                   },
                   {
-                    "x": 79.5,
-                    "y": 283.5,
-                    "t": 1593
+                    "x": 96.66,
+                    "y": 322.66,
+                    "t": 1276
                   },
                   {
-                    "x": 84.5,
-                    "y": 283.5,
-                    "t": 1609
+                    "x": 110.66,
+                    "y": 323.66,
+                    "t": 1293
                   },
                   {
-                    "x": 91.5,
-                    "y": 285.5,
-                    "t": 1626
+                    "x": 128.66,
+                    "y": 324.66,
+                    "t": 1309
                   },
                   {
-                    "x": 98.5,
-                    "y": 286.5,
-                    "t": 1643
+                    "x": 151.66,
+                    "y": 324.66,
+                    "t": 1326
                   },
                   {
-                    "x": 115.5,
-                    "y": 290.5,
-                    "t": 1660
+                    "x": 175.66,
+                    "y": 324.66,
+                    "t": 1343
                   },
                   {
-                    "x": 124.5,
-                    "y": 290.5,
-                    "t": 1676
-                  },
-                  {
-                    "x": 132.5,
-                    "y": 290.5,
-                    "t": 1693
-                  },
-                  {
-                    "x": 139.5,
-                    "y": 290.5,
-                    "t": 1709
-                  },
-                  {
-                    "x": 144.5,
-                    "y": 290.5,
-                    "t": 1726
-                  },
-                  {
-                    "x": 152.5,
-                    "y": 291.5,
-                    "t": 1743
-                  },
-                  {
-                    "x": 157.5,
-                    "y": 292.5,
-                    "t": 1759
+                    "x": 197.66,
+                    "y": 324.66,
+                    "t": 1360
                   }
                 ],
-                "t": 1759
+                "t": 1360
               },
               {
                 "type": "gate",
-                "qubitId": "qubit-mpvjoh4i-1c71",
-                "qubitLogicalId": 112486,
-                "gateId": "single-gate-mpvjonyj-1c7v",
+                "qubitId": "qubit-mrxzs5gv-1s9x",
+                "qubitLogicalId": 130533,
+                "roomQubitIndex": 0,
+                "gateId": "single-gate-mrxznyhk-1r7k",
                 "tickIndex": 3,
-                "t": 3383
+                "t": 2982
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjol4q-1c7g",
-                "qubitLogicalId": 112493,
+                "qubitId": "qubit-mrxzs76a-1sap",
+                "qubitLogicalId": 130534,
                 "path": [
                   {
-                    "x": 67.5,
-                    "y": 442.5,
+                    "x": 83.66,
+                    "y": 458.66,
                     "t": 0
                   },
                   {
-                    "x": 71.5,
-                    "y": 443.5,
-                    "t": 4194
+                    "x": 87.66,
+                    "y": 460.66,
+                    "t": 3710
                   },
                   {
-                    "x": 76.5,
-                    "y": 443.5,
-                    "t": 4226
+                    "x": 93.66,
+                    "y": 460.66,
+                    "t": 3826
                   },
                   {
-                    "x": 83.5,
-                    "y": 444.5,
-                    "t": 4243
+                    "x": 97.66,
+                    "y": 460.66,
+                    "t": 3843
                   },
                   {
-                    "x": 94.5,
-                    "y": 446.5,
-                    "t": 4260
+                    "x": 108.66,
+                    "y": 460.66,
+                    "t": 3860
                   },
                   {
-                    "x": 111.5,
-                    "y": 447.5,
-                    "t": 4276
+                    "x": 115.66,
+                    "y": 460.66,
+                    "t": 3876
                   },
                   {
-                    "x": 118.5,
-                    "y": 447.5,
-                    "t": 4293
+                    "x": 123.66,
+                    "y": 460.66,
+                    "t": 3893
                   },
                   {
-                    "x": 124.5,
-                    "y": 447.5,
-                    "t": 4310
+                    "x": 134.66,
+                    "y": 460.66,
+                    "t": 3910
                   },
                   {
-                    "x": 129.5,
-                    "y": 448.5,
-                    "t": 4326
+                    "x": 143.66,
+                    "y": 460.66,
+                    "t": 3926
                   },
                   {
-                    "x": 133.5,
-                    "y": 448.5,
-                    "t": 4343
+                    "x": 152.66,
+                    "y": 460.66,
+                    "t": 3943
                   },
                   {
-                    "x": 143.5,
-                    "y": 448.5,
-                    "t": 4359
+                    "x": 160.66,
+                    "y": 460.66,
+                    "t": 3960
                   },
                   {
-                    "x": 155.5,
-                    "y": 448.5,
-                    "t": 4376
+                    "x": 167.66,
+                    "y": 460.66,
+                    "t": 3976
+                  },
+                  {
+                    "x": 173.66,
+                    "y": 460.66,
+                    "t": 3993
+                  },
+                  {
+                    "x": 181.66,
+                    "y": 460.66,
+                    "t": 4010
+                  },
+                  {
+                    "x": 188.66,
+                    "y": 460.66,
+                    "t": 4026
+                  },
+                  {
+                    "x": 192.66,
+                    "y": 460.66,
+                    "t": 4043
+                  },
+                  {
+                    "x": 199.66,
+                    "y": 458.66,
+                    "t": 4126
                   }
                 ],
-                "t": 4376
+                "t": 4126
               },
               {
                 "type": "gate",
-                "qubitId": "qubit-mpvjol4q-1c7g",
-                "qubitLogicalId": 112493,
-                "gateId": "single-gate-mpvjosop-1c8a",
+                "qubitId": "qubit-mrxzs76a-1sap",
+                "qubitLogicalId": 130534,
+                "roomQubitIndex": 0,
+                "gateId": "single-gate-mrxznzwx-1r8c",
                 "tickIndex": 0,
-                "t": 5999
+                "t": 5748
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjoh4i-1c71",
-                "qubitLogicalId": 112486,
+                "qubitId": "qubit-mrxzs5gv-1s9x",
+                "qubitLogicalId": 130533,
                 "path": [
                   {
-                    "x": 620.5,
-                    "y": 291.5,
+                    "x": 639.66,
+                    "y": 329.66,
                     "t": 0
                   },
                   {
-                    "x": 624.5,
-                    "y": 292.5,
-                    "t": 7560
+                    "x": 643.66,
+                    "y": 331.66,
+                    "t": 8176
                   },
                   {
-                    "x": 631.5,
-                    "y": 295.5,
-                    "t": 7593
+                    "x": 647.66,
+                    "y": 331.66,
+                    "t": 8193
                   },
                   {
-                    "x": 637.5,
-                    "y": 298.5,
-                    "t": 7609
+                    "x": 652.66,
+                    "y": 332.66,
+                    "t": 8209
                   },
                   {
-                    "x": 642.5,
-                    "y": 300.5,
-                    "t": 7629
+                    "x": 658.66,
+                    "y": 333.66,
+                    "t": 8226
                   },
                   {
-                    "x": 646.5,
-                    "y": 304.5,
-                    "t": 7655
+                    "x": 665.66,
+                    "y": 334.66,
+                    "t": 8243
                   },
                   {
-                    "x": 660.5,
-                    "y": 312.5,
-                    "t": 7679
+                    "x": 670.66,
+                    "y": 336.66,
+                    "t": 8260
+                  },
+                  {
+                    "x": 676.66,
+                    "y": 336.66,
+                    "t": 8293
                   }
                 ],
-                "t": 7679
+                "t": 8293
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjol4q-1c7g",
-                "qubitLogicalId": 112493,
+                "qubitId": "qubit-mrxzs76a-1sap",
+                "qubitLogicalId": 130534,
                 "path": [
                   {
-                    "x": 618.5,
-                    "y": 447.5,
+                    "x": 641.66,
+                    "y": 467.66,
                     "t": 0
                   },
                   {
-                    "x": 621.5,
-                    "y": 450.5,
-                    "t": 8970
+                    "x": 645.66,
+                    "y": 469.66,
+                    "t": 10328
                   },
                   {
-                    "x": 625.5,
-                    "y": 446.5,
-                    "t": 9076
+                    "x": 650.66,
+                    "y": 469.66,
+                    "t": 10343
                   },
                   {
-                    "x": 630.5,
-                    "y": 441.5,
-                    "t": 9093
+                    "x": 658.66,
+                    "y": 468.66,
+                    "t": 10376
                   },
                   {
-                    "x": 634.5,
-                    "y": 438.5,
-                    "t": 9109
+                    "x": 664.66,
+                    "y": 466.66,
+                    "t": 10393
                   },
                   {
-                    "x": 637.5,
-                    "y": 434.5,
-                    "t": 9126
+                    "x": 669.66,
+                    "y": 463.66,
+                    "t": 10410
                   },
                   {
-                    "x": 643.5,
-                    "y": 429.5,
-                    "t": 9159
-                  },
-                  {
-                    "x": 646.5,
-                    "y": 425.5,
-                    "t": 9176
-                  },
-                  {
-                    "x": 651.5,
-                    "y": 418.5,
-                    "t": 9193
-                  },
-                  {
-                    "x": 654.5,
-                    "y": 413.5,
-                    "t": 9209
+                    "x": 674.66,
+                    "y": 461.66,
+                    "t": 10426
                   }
                 ],
-                "t": 9209
+                "t": 10443
               },
               {
                 "type": "cnot",
-                "cnotId": "cnot-gate-mpvjpnkq-1cmp",
-                "topQubitId": "qubit-mpvjoh4i-1c71",
-                "bottomQubitId": "qubit-mpvjol4q-1c7g",
-                "topQubitLogicalId": 112486,
-                "bottomQubitLogicalId": 112493,
-                "t": 10333
+                "cnotId": "cnot-gate-mrxzom89-1rc4",
+                "topQubitId": "qubit-mrxzs5gv-1s9x",
+                "bottomQubitId": "qubit-mrxzs76a-1sap",
+                "topQubitLogicalId": 130533,
+                "bottomQubitLogicalId": 130534,
+                "topRoomQubitIndex": 0,
+                "bottomRoomQubitIndex": 0,
+                "t": 11567
               },
               {
                 "type": "drag",
-                "qubitId": "qubit-mpvjoh4i-1c71",
-                "qubitLogicalId": 112486,
+                "qubitId": "qubit-mrxzs5gv-1s9x",
+                "qubitLogicalId": 130533,
                 "path": [
                   {
-                    "x": 1115.5,
-                    "y": 312.5,
+                    "x": 1228.66,
+                    "y": 348.66,
                     "t": 0
                   },
                   {
-                    "x": 1118.5,
-                    "y": 315.5,
-                    "t": 13258
-                  },
-                  {
-                    "x": 1122.5,
-                    "y": 318.5,
-                    "t": 13276
-                  },
-                  {
-                    "x": 1128.5,
-                    "y": 324.5,
-                    "t": 13293
-                  },
-                  {
-                    "x": 1136.5,
-                    "y": 329.5,
-                    "t": 13309
-                  },
-                  {
-                    "x": 1140.5,
-                    "y": 332.5,
-                    "t": 13326
-                  },
-                  {
-                    "x": 1148.5,
-                    "y": 338.5,
-                    "t": 13343
-                  },
-                  {
-                    "x": 1160.5,
-                    "y": 343.5,
-                    "t": 13361
-                  },
-                  {
-                    "x": 1192.5,
-                    "y": 357.5,
-                    "t": 13390
+                    "x": 1234.66,
+                    "y": 348.66,
+                    "t": 15378
                   }
                 ],
-                "t": 13390
-              },
-              {
-                "type": "drag",
-                "qubitId": "qubit-mpvjol4q-1c7g",
-                "qubitLogicalId": 112493,
-                "path": [
-                  {
-                    "x": 1115.5,
-                    "y": 394.5,
-                    "t": 0
-                  },
-                  {
-                    "x": 1118.5,
-                    "y": 399.5,
-                    "t": 14740
-                  },
-                  {
-                    "x": 1123.5,
-                    "y": 401.5,
-                    "t": 14756
-                  },
-                  {
-                    "x": 1129.5,
-                    "y": 405.5,
-                    "t": 14773
-                  },
-                  {
-                    "x": 1135.5,
-                    "y": 407.5,
-                    "t": 14790
-                  },
-                  {
-                    "x": 1144.5,
-                    "y": 409.5,
-                    "t": 14807
-                  },
-                  {
-                    "x": 1154.5,
-                    "y": 411.5,
-                    "t": 14823
-                  },
-                  {
-                    "x": 1166.5,
-                    "y": 414.5,
-                    "t": 14840
-                  }
-                ],
-                "t": 14840
+                "t": 15379
               },
               {
                 "type": "double-measure",
-                "measurementId": "double-measurement-mpvjtxsj-1dc2",
-                "leftQubitId": "qubit-mpvjol4q-1c7g",
-                "rightQubitId": "qubit-mpvjoh4i-1c71",
-                "leftQubitLogicalId": 112493,
-                "rightQubitLogicalId": 112486,
-                "topQubitId": "qubit-mpvjoh4i-1c71",
-                "bottomQubitId": "qubit-mpvjol4q-1c7g",
-                "topQubitLogicalId": 112486,
-                "bottomQubitLogicalId": 112493,
-                "t": 15765
+                "measurementId": "double-measurement-mrxzp91s-1rqe",
+                "leftQubitId": "qubit-mrxzs76a-1sap",
+                "rightQubitId": "qubit-mrxzs5gv-1s9x",
+                "leftQubitLogicalId": 130534,
+                "rightQubitLogicalId": 130533,
+                "topQubitId": "qubit-mrxzs5gv-1s9x",
+                "bottomQubitId": "qubit-mrxzs76a-1sap",
+                "topQubitLogicalId": 130533,
+                "bottomQubitLogicalId": 130534,
+                "t": 18070
               },
               {
                 "type": "experiment-count",
-                "measurementId": "double-measurement-mpvjtxsj-1dc2",
-                "iterations": 10,
-                "t": 19422
+                "measurementId": "double-measurement-mrxzp91s-1rqe",
+                "iterations": 5,
+                "t": 22483
+              },
+              {
+                "type": "experiment-count",
+                "measurementId": "double-measurement-mrxzp91s-1rqe",
+                "iterations": 10000,
+                "t": 42028
               }
             ]
           },
-          "savedAt": 1780941386238
+          "savedAt": 1784841208645
         },
         {
-          "id": "scene-mpvjy17c-h376a",
+          "id": "scene-mrxzvs53-bqzxn",
           "title": "Scene",
           "items": [
             {
-              "id": "text-box-mpvjy6f6-1ei4",
+              "id": "text-box-mrxzvwqc-1sth",
               "type": "text-box",
-              "left": 57,
-              "top": 19,
-              "width": 722,
-              "height": 276,
+              "left": 18,
+              "top": 96,
+              "width": 848,
+              "height": 206,
               "z": 2,
-              "text": "Did you notice anything strange about that last experiment? No? Here are some questions to ponder:\n\nWhat happens when the control qubit is purple and the target qubit is red?\nWhat happens when they're both purple?\nWhat if they're some other color –  closer to red or closer to blue?\n\nDo you think you could reproduce these results using just the flipper gates?",
+              "text": "When the control qubit is purple that means it's equally likely to measure red or blue. If it measures blue the blue target qubit is not affected and the register is put into the blue blue state; if it measures red the blue target qubit changes to red and the register is put into the red red state. So the colors are always the same.\nIs that what you predicted? What do you think would happen if the target qubit were red instead of blue? And what about all those other colors like redish purple? Your turn to experiment!",
               "buttons": [
-                "back",
                 "done"
               ],
-              "buttonMode": "custom"
+              "buttonMode": "done"
             }
           ],
-          "canvasWidth": 856,
-          "canvasHeight": 420,
+          "canvasWidth": 900,
+          "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1780940443118
+          "savedAt": 1784841289650
         }
       ],
-      "updatedAt": 1780941386238
+      "updatedAt": 1784843314703
     },
     {
       "version": 1,
@@ -6198,7 +5817,7 @@
           "canvasWidth": 1011,
           "canvasHeight": 420,
           "experiment": null,
-          "savedAt": 1780942027593
+          "savedAt": 1784843426011
         },
         {
           "id": "scene-mpvl703c-wpg7b",
@@ -6223,12 +5842,13 @@
             {
               "id": "qubit-mq5ig59f-23gt",
               "type": "qubit",
-              "left": 54,
-              "top": 291,
+              "left": 1141,
+              "top": 306,
               "width": 65,
               "height": 65,
-              "z": 28,
-              "qubitId": 218874
+              "z": 31,
+              "qubitId": 218874,
+              "roomQubitIndex": 0
             },
             {
               "id": "single-gate-mq5ige5z-248u",
@@ -6243,12 +5863,13 @@
             {
               "id": "qubit-mq5igida-249g",
               "type": "qubit",
-              "left": 59,
-              "top": 435,
+              "left": 1489,
+              "top": 460,
               "width": 65,
               "height": 65,
-              "z": 27,
-              "qubitId": 218875
+              "z": 33,
+              "qubitId": 218875,
+              "roomQubitIndex": 1
             },
             {
               "id": "single-gate-mq5igl2h-24a2",
@@ -6406,79 +6027,42 @@
               "width": 442,
               "height": 556,
               "z": 8,
-              "items": [
-                {
-                  "type": "measurement-capacity",
-                  "left": 52,
-                  "top": 0,
-                  "width": 330,
-                  "height": 70,
-                  "z": 1,
-                  "measurementRole": "capacity"
-                },
-                {
-                  "type": "double-tube-array",
-                  "left": 26,
-                  "top": 78,
-                  "width": 360,
-                  "height": 245,
-                  "z": 2,
-                  "measurementRole": "double-tubes"
-                },
-                {
-                  "type": "single-magnifier",
-                  "left": 102,
-                  "top": 343,
-                  "width": 208,
-                  "height": 156,
-                  "z": 3,
-                  "measurementRole": "single-magnifier"
-                },
-                {
-                  "type": "measurement-count-menu",
-                  "left": 156,
-                  "top": 494,
-                  "width": 110,
-                  "height": 62,
-                  "z": 5,
-                  "measurementRole": "iteration-count"
-                }
-              ],
-              "itemsWidth": 442,
-              "itemsHeight": 556,
               "measurementGroupId": "separate-two-qubit-measurement-mq5ijuvd",
-              "groupComponentId": "separate-two-qubit-measurement"
+              "groupComponentId": "separate-two-qubit-measurement",
+              "measurementRegisterQubitCount": 2
             }
           ],
           "canvasWidth": 1606,
           "canvasHeight": 618,
           "experiment": {
             "version": 1,
-            "recordedAt": 1780941978217,
+            "recordedAt": 1784843467226,
             "initialQubits": [
               {
                 "itemId": "qubit-mq5ig59f-23gt",
                 "logicalQubitId": 218874,
                 "center": {
-                  "x": 86.5,
-                  "y": 323.5
+                  "x": 88.16,
+                  "y": 325.16
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 0
               },
               {
                 "itemId": "qubit-mq5igida-249g",
                 "logicalQubitId": 218875,
                 "center": {
-                  "x": 91.5,
-                  "y": 467.5
+                  "x": 93.16,
+                  "y": 469.17
                 },
                 "vector": [
                   1,
                   0
-                ]
+                ],
+                "roomQubitIndex": 1
               }
             ],
             "gateSettings": [
@@ -6498,80 +6082,71 @@
                 "qubitLogicalId": 218874,
                 "path": [
                   {
-                    "x": 86.5,
-                    "y": 323.5,
+                    "x": 88.16,
+                    "y": 325.16,
                     "t": 0
                   },
                   {
-                    "x": 90.5,
-                    "y": 324.5,
-                    "t": 1124
+                    "x": 93.16,
+                    "y": 327.16,
+                    "t": 1285
                   },
                   {
-                    "x": 99.5,
-                    "y": 323.5,
-                    "t": 1154
+                    "x": 98.16,
+                    "y": 327.16,
+                    "t": 1368
                   },
                   {
-                    "x": 112.5,
-                    "y": 320.5,
-                    "t": 1170
+                    "x": 106.16,
+                    "y": 327.16,
+                    "t": 1385
                   },
                   {
-                    "x": 127.5,
-                    "y": 318.5,
-                    "t": 1186
+                    "x": 119.17,
+                    "y": 325.16,
+                    "t": 1401
                   },
                   {
-                    "x": 140.5,
-                    "y": 316.5,
-                    "t": 1204
+                    "x": 129.17,
+                    "y": 324.17,
+                    "t": 1418
                   },
                   {
-                    "x": 149.5,
-                    "y": 315.5,
-                    "t": 1220
+                    "x": 141.16,
+                    "y": 323.16,
+                    "t": 1435
                   },
                   {
-                    "x": 156.5,
-                    "y": 314.5,
-                    "t": 1239
+                    "x": 152.16,
+                    "y": 323.16,
+                    "t": 1452
                   },
                   {
-                    "x": 161.5,
-                    "y": 313.5,
-                    "t": 1270
+                    "x": 168.16,
+                    "y": 323.16,
+                    "t": 1468
+                  },
+                  {
+                    "x": 176.16,
+                    "y": 321.16,
+                    "t": 1485
+                  },
+                  {
+                    "x": 182.16,
+                    "y": 320.16,
+                    "t": 1501
                   }
                 ],
-                "t": 1413
+                "t": 1502
               },
               {
-                "type": "drag",
+                "type": "gate",
                 "qubitId": "qubit-mq5ig59f-23gt",
                 "qubitLogicalId": 218874,
-                "path": [
-                  {
-                    "x": 163.5,
-                    "y": 312.5,
-                    "t": 0
-                  },
-                  {
-                    "x": 167.5,
-                    "y": 314.5,
-                    "t": 2354
-                  },
-                  {
-                    "x": 171.5,
-                    "y": 313.5,
-                    "t": 2371
-                  },
-                  {
-                    "x": 176.5,
-                    "y": 313.5,
-                    "t": 2388
-                  }
-                ],
-                "t": 2414
+                "roomQubitIndex": 0,
+                "gateId": "single-gate-mq5ige5z-248u",
+                "tickIndex": 3,
+                "t": 3125
               },
               {
                 "type": "drag",
@@ -6579,73 +6154,86 @@
                 "qubitLogicalId": 218875,
                 "path": [
                   {
-                    "x": 91.5,
-                    "y": 467.5,
+                    "x": 93.16,
+                    "y": 469.17,
                     "t": 0
                   },
                   {
-                    "x": 97.5,
-                    "y": 465.5,
-                    "t": 3319
-                  },
-                  {
-                    "x": 104.5,
-                    "y": 463.5,
-                    "t": 3353
-                  },
-                  {
-                    "x": 108.5,
-                    "y": 463.5,
-                    "t": 3372
-                  },
-                  {
-                    "x": 116.5,
-                    "y": 463.5,
-                    "t": 3386
-                  },
-                  {
-                    "x": 127.5,
-                    "y": 462.5,
-                    "t": 3405
-                  },
-                  {
-                    "x": 146.5,
-                    "y": 459.5,
+                    "x": 97.16,
+                    "y": 471.16,
                     "t": 3419
                   },
                   {
-                    "x": 170.5,
-                    "y": 457.5,
-                    "t": 3438
+                    "x": 103.16,
+                    "y": 471.16,
+                    "t": 3518
                   },
                   {
-                    "x": 175.5,
-                    "y": 457.5,
-                    "t": 3455
+                    "x": 109.17,
+                    "y": 471.16,
+                    "t": 3535
                   },
                   {
-                    "x": 181.5,
-                    "y": 456.5,
-                    "t": 3469
+                    "x": 117.16,
+                    "y": 471.16,
+                    "t": 3551
+                  },
+                  {
+                    "x": 122.16,
+                    "y": 471.16,
+                    "t": 3568
+                  },
+                  {
+                    "x": 126.16,
+                    "y": 473.16,
+                    "t": 3585
+                  },
+                  {
+                    "x": 132.16,
+                    "y": 473.16,
+                    "t": 3601
+                  },
+                  {
+                    "x": 138.16,
+                    "y": 473.16,
+                    "t": 3618
+                  },
+                  {
+                    "x": 146.16,
+                    "y": 474.17,
+                    "t": 3635
+                  },
+                  {
+                    "x": 156.16,
+                    "y": 474.17,
+                    "t": 3651
+                  },
+                  {
+                    "x": 170.16,
+                    "y": 475.16,
+                    "t": 3668
+                  },
+                  {
+                    "x": 176.16,
+                    "y": 476.16,
+                    "t": 3685
+                  },
+                  {
+                    "x": 185.16,
+                    "y": 476.16,
+                    "t": 3701
                   }
                 ],
-                "t": 3469
-              },
-              {
-                "type": "gate",
-                "qubitId": "qubit-mq5ig59f-23gt",
-                "qubitLogicalId": 218874,
-                "gateId": "single-gate-mq5ige5z-248u",
-                "tickIndex": 3,
-                "t": 4037
+                "t": 3701
               },
               {
                 "type": "gate",
                 "qubitId": "qubit-mq5igida-249g",
                 "qubitLogicalId": 218875,
+                "roomQubitIndex": 1,
                 "gateId": "single-gate-mq5igl2h-24a2",
                 "tickIndex": 0,
-                "t": 5091
+                "t": 5325
               },
               {
                 "type": "drag",
@@ -6653,27 +6241,27 @@
                 "qubitLogicalId": 218874,
                 "path": [
                   {
-                    "x": 642.5,
-                    "y": 317.5,
+                    "x": 642.16,
+                    "y": 317.16,
                     "t": 0
                   },
                   {
-                    "x": 645.5,
-                    "y": 322.5,
-                    "t": 6753
+                    "x": 648.16,
+                    "y": 327.16,
+                    "t": 7285
                   },
                   {
-                    "x": 651.5,
-                    "y": 329.5,
-                    "t": 6788
+                    "x": 653.16,
+                    "y": 338.16,
+                    "t": 7301
                   },
                   {
-                    "x": 656.5,
-                    "y": 334.5,
-                    "t": 6803
+                    "x": 657.16,
+                    "y": 350.16,
+                    "t": 7320
                   }
                 ],
-                "t": 6803
+                "t": 7320
               },
               {
                 "type": "drag",
@@ -6681,32 +6269,42 @@
                 "qubitLogicalId": 218875,
                 "path": [
                   {
-                    "x": 642.5,
-                    "y": 463.5,
+                    "x": 642.16,
+                    "y": 463.16,
                     "t": 0
                   },
                   {
-                    "x": 648.5,
-                    "y": 455.5,
-                    "t": 7837
+                    "x": 645.16,
+                    "y": 466.16,
+                    "t": 8435
                   },
                   {
-                    "x": 651.5,
-                    "y": 447.5,
-                    "t": 7854
+                    "x": 651.16,
+                    "y": 461.16,
+                    "t": 8552
                   },
                   {
-                    "x": 656.5,
-                    "y": 440.5,
-                    "t": 7869
+                    "x": 655.16,
+                    "y": 457.16,
+                    "t": 8568
                   },
                   {
-                    "x": 659.5,
-                    "y": 433.5,
-                    "t": 7888
+                    "x": 659.17,
+                    "y": 453.16,
+                    "t": 8585
+                  },
+                  {
+                    "x": 663.16,
+                    "y": 445.16,
+                    "t": 8601
+                  },
+                  {
+                    "x": 666.16,
+                    "y": 442.16,
+                    "t": 8618
                   }
                 ],
-                "t": 7889
+                "t": 8618
               },
               {
                 "type": "cnot",
@@ -6715,7 +6313,9 @@
                 "bottomQubitId": "qubit-mq5igida-249g",
                 "topQubitLogicalId": 218874,
                 "bottomQubitLogicalId": 218875,
-                "t": 9012
+                "topRoomQubitIndex": 0,
+                "bottomRoomQubitIndex": 1,
+                "t": 9742
               },
               {
                 "type": "drag",
@@ -6723,186 +6323,109 @@
                 "qubitLogicalId": 218875,
                 "path": [
                   {
-                    "x": 1178.5,
-                    "y": 423.5,
+                    "x": 1178.16,
+                    "y": 422.16,
                     "t": 0
                   },
                   {
-                    "x": 1182.5,
-                    "y": 425.5,
-                    "t": 12658
+                    "x": 1184.17,
+                    "y": 426.16,
+                    "t": 12820
                   },
                   {
-                    "x": 1194.5,
-                    "y": 426.5,
-                    "t": 12688
+                    "x": 1192.16,
+                    "y": 427.16,
+                    "t": 12834
                   },
                   {
-                    "x": 1205.5,
-                    "y": 426.5,
-                    "t": 12703
+                    "x": 1199.17,
+                    "y": 428.16,
+                    "t": 12851
                   },
                   {
-                    "x": 1214.5,
-                    "y": 424.5,
-                    "t": 12722
+                    "x": 1208.16,
+                    "y": 430.16,
+                    "t": 12868
                   },
                   {
-                    "x": 1221.5,
-                    "y": 421.5,
-                    "t": 12736
+                    "x": 1215.16,
+                    "y": 431.16,
+                    "t": 12885
                   },
                   {
-                    "x": 1226.5,
-                    "y": 420.5,
-                    "t": 12824
+                    "x": 1222.16,
+                    "y": 431.16,
+                    "t": 12901
                   },
                   {
-                    "x": 1230.5,
-                    "y": 419.5,
-                    "t": 12837
+                    "x": 1230.16,
+                    "y": 431.16,
+                    "t": 12935
                   },
                   {
-                    "x": 1245.5,
-                    "y": 417.5,
-                    "t": 12853
+                    "x": 1235.16,
+                    "y": 431.16,
+                    "t": 12951
                   },
                   {
-                    "x": 1257.5,
-                    "y": 415.5,
-                    "t": 12872
+                    "x": 1246.16,
+                    "y": 432.16,
+                    "t": 12968
                   },
                   {
-                    "x": 1268.5,
-                    "y": 413.5,
-                    "t": 12886
+                    "x": 1254.17,
+                    "y": 432.16,
+                    "t": 12985
+                  },
+                  {
+                    "x": 1260.16,
+                    "y": 432.16,
+                    "t": 13002
+                  },
+                  {
+                    "x": 1264.17,
+                    "y": 432.16,
+                    "t": 13018
+                  },
+                  {
+                    "x": 1269.17,
+                    "y": 432.16,
+                    "t": 13051
+                  },
+                  {
+                    "x": 1276.16,
+                    "y": 432.16,
+                    "t": 13101
+                  },
+                  {
+                    "x": 1284.17,
+                    "y": 432.16,
+                    "t": 13118
                   }
                 ],
-                "t": 12887
+                "t": 13119
               },
               {
                 "type": "separated-pair-measure",
                 "measurementId": "component-group-mq5ijuvg-26t4",
                 "qubitId": "qubit-mq5igida-249g",
                 "logicalQubitId": 218875,
+                "roomQubitIndex": 1,
                 "partnerLogicalQubitId": 218874,
                 "magnifierIndex": 0,
-                "t": 13509
+                "orderIndex": 1,
+                "registerQubitCount": 2,
+                "t": 13741
               },
               {
-                "type": "drag",
-                "qubitId": "qubit-mq5ig59f-23gt",
-                "qubitLogicalId": 218874,
-                "path": [
-                  {
-                    "x": 1175.5,
-                    "y": 341.5,
-                    "t": 0
-                  },
-                  {
-                    "x": 1178.5,
-                    "y": 346.5,
-                    "t": 16053
-                  },
-                  {
-                    "x": 1180.5,
-                    "y": 351.5,
-                    "t": 16070
-                  },
-                  {
-                    "x": 1184.5,
-                    "y": 356.5,
-                    "t": 16086
-                  },
-                  {
-                    "x": 1187.5,
-                    "y": 361.5,
-                    "t": 16105
-                  },
-                  {
-                    "x": 1190.5,
-                    "y": 366.5,
-                    "t": 16121
-                  },
-                  {
-                    "x": 1194.5,
-                    "y": 372.5,
-                    "t": 16138
-                  },
-                  {
-                    "x": 1197.5,
-                    "y": 377.5,
-                    "t": 16172
-                  },
-                  {
-                    "x": 1201.5,
-                    "y": 383.5,
-                    "t": 16204
-                  },
-                  {
-                    "x": 1205.5,
-                    "y": 388.5,
-                    "t": 16221
-                  },
-                  {
-                    "x": 1206.5,
-                    "y": 392.5,
-                    "t": 16236
-                  },
-                  {
-                    "x": 1210.5,
-                    "y": 398.5,
-                    "t": 16271
-                  },
-                  {
-                    "x": 1213.5,
-                    "y": 401.5,
-                    "t": 16305
-                  },
-                  {
-                    "x": 1217.5,
-                    "y": 404.5,
-                    "t": 16336
-                  },
-                  {
-                    "x": 1222.5,
-                    "y": 407.5,
-                    "t": 16370
-                  },
-                  {
-                    "x": 1234.5,
-                    "y": 408.5,
-                    "t": 16454
-                  },
-                  {
-                    "x": 1241.5,
-                    "y": 409.5,
-                    "t": 16469
-                  },
-                  {
-                    "x": 1245.5,
-                    "y": 409.5,
-                    "t": 16623
-                  },
-                  {
-                    "x": 1262.5,
-                    "y": 409.5,
-                    "t": 16654
-                  }
-                ],
-                "t": 16654
-              },
-              {
-                "type": "separated-pair-measure",
+                "type": "experiment-count",
                 "measurementId": "component-group-mq5ijuvg-26t4",
-                "qubitId": "qubit-mq5ig59f-23gt",
-                "logicalQubitId": 218874,
-                "magnifierIndex": 0,
-                "t": 17276
+                "iterations": 5,
+                "t": 17752
               }
             ]
           },
-          "savedAt": 1780942030874
+          "savedAt": 1784843471540
         },
         {
           "id": "scene-mq5inazf-nw4hv",
@@ -6913,10 +6436,10 @@
               "type": "text-box",
               "left": 116,
               "top": 112,
-              "width": 604,
-              "height": 251,
+              "width": 0,
+              "height": 0,
               "z": 2,
-              "text": "That went by pretty quickly but I hope you noticed that once you measured one of the entangled qubits the other one suddenly changed its state from purple to either red or blue. Not only that, but the second qubit matched the color of the first. Do you think that will always happen? What would have happened if we had made the target qubit red instead of blue?",
+              "text": "That went by pretty quickly but I hope you noticed that once you measured one of the entangled qubits the other one suddenly changed its state from purple to either red or blue. Not only that, but the second qubit matched the color of the first. Do you think that will always happen?",
               "buttons": [
                 "next"
               ],
@@ -6926,7 +6449,7 @@
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1780942094760
+          "savedAt": 1784843522624
         },
         {
           "id": "scene-mpvlbwfl-9upvp",
@@ -7134,46 +6657,6 @@
               "width": 442,
               "height": 530,
               "z": 8,
-              "items": [
-                {
-                  "type": "measurement-capacity",
-                  "left": 52,
-                  "top": 0,
-                  "width": 330,
-                  "height": 70,
-                  "z": 1,
-                  "measurementRole": "capacity"
-                },
-                {
-                  "type": "double-tube-array",
-                  "left": 26,
-                  "top": 52,
-                  "width": 390,
-                  "height": 260,
-                  "z": 2,
-                  "measurementRole": "double-tubes"
-                },
-                {
-                  "type": "single-magnifier",
-                  "left": 117,
-                  "top": 333,
-                  "width": 208,
-                  "height": 156,
-                  "z": 3,
-                  "measurementRole": "single-magnifier"
-                },
-                {
-                  "type": "measurement-count-menu",
-                  "left": 156,
-                  "top": 468,
-                  "width": 110,
-                  "height": 62,
-                  "z": 5,
-                  "measurementRole": "iteration-count"
-                }
-              ],
-              "itemsWidth": 442,
-              "itemsHeight": 530,
               "measurementGroupId": "separate-two-qubit-measurement-mpvli990",
               "groupComponentId": "separate-two-qubit-measurement"
             }
@@ -8819,7 +8302,7 @@
               }
             ]
           },
-          "savedAt": 1780942114425
+          "savedAt": 1784838662798
         },
         {
           "id": "scene-mpvlok1u-wz0il",
@@ -8847,39 +8330,7 @@
           "savedAt": 1780942231456
         }
       ],
-      "updatedAt": 1780942231456
-    },
-    {
-      "version": 1,
-      "tabId": "editor-entanglement-3",
-      "title": "What's this?",
-      "scenes": [
-        {
-          "id": "scene-mqr0opvc-5kl8j",
-          "title": "Scene",
-          "items": [
-            {
-              "id": "text-box-mqr0r705-1q",
-              "type": "text-box",
-              "left": 224,
-              "top": 127,
-              "width": 447,
-              "height": 212,
-              "z": 2,
-              "text": "This tab is under construction.",
-              "buttons": [
-                "done"
-              ],
-              "buttonMode": "done"
-            }
-          ],
-          "canvasWidth": 900,
-          "canvasHeight": 560,
-          "experiment": null,
-          "savedAt": 1782241901945
-        }
-      ],
-      "updatedAt": 1782241901945
+      "updatedAt": 1784843522624
     }
   ]
 }

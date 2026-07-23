@@ -176,9 +176,114 @@
             "z": 602,
             "measurementLayout": {
               "parts": {
+                "capacity": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "tubeRack": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "tubeBB": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "tubeRB": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "tubeBR": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "tubeRR": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "countBB": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "countRB": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "countBR": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "countRR": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
                 "magnifier": {
-                  "tx": 39,
-                  "ty": 12,
+                  "tx": 37,
+                  "ty": 4,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "funnel": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "slotLeft": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "slotRight": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "platform": {
+                  "tx": 0,
+                  "ty": 0,
+                  "width": "",
+                  "height": "",
+                  "deleted": false
+                },
+                "measurementCount": {
+                  "tx": 2,
+                  "ty": 9,
                   "width": "",
                   "height": "",
                   "deleted": false
@@ -190,7 +295,7 @@
         "gridSnap": true,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1783955094597
+        "savedAt": 1784838568795
       }
     },
     {
@@ -240,158 +345,122 @@
             "type": "cnot-gate",
             "left": 598,
             "top": 208,
-            "width": 373,
-            "height": 209,
+            "width": 420,
+            "height": 260,
             "z": 1321,
             "cnotLayout": {
               "gate": {
                 "tx": 0,
                 "ty": 0,
-                "width": "373px",
-                "height": "209px",
+                "width": "420px",
+                "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
                   "left": "598px",
                   "top": "208px",
-                  "width": "373px",
-                  "height": "209px"
+                  "width": "420px",
+                  "height": "260px"
                 }
               },
               "body": {
-                "tx": 10,
-                "ty": 9,
-                "width": "327px",
-                "height": "163.98px",
+                "tx": 5,
+                "ty": -1,
+                "width": "356.01px",
+                "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "38.36px",
+                  "left": "42px",
+                  "right": "22px",
                   "top": "0px",
-                  "width": "327px",
-                  "height": "163.98px",
-                  "translate": "10px 9px"
+                  "bottom": "0px",
+                  "width": "356.01px",
+                  "height": "260px",
+                  "translate": "5px -1px"
                 }
               },
               "funnelTop": {
-                "tx": 13,
-                "ty": -17,
-                "width": "62px",
-                "height": "84px",
+                "tx": 19,
+                "ty": 0,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "-12.35px",
-                  "right": "353.19px",
-                  "top": "58.51px",
-                  "bottom": "82.58px",
-                  "width": "62px",
-                  "height": "84px",
-                  "translate": "13px -17px"
+                  "translate": "19px"
                 }
               },
               "funnelBottom": {
-                "tx": 14,
-                "ty": -33,
-                "width": "63px",
-                "height": "94px",
+                "tx": 19,
+                "ty": 1,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "-12.35px",
-                  "right": "353.19px",
-                  "top": "150.47px",
-                  "bottom": "-9.38px",
-                  "width": "63px",
-                  "height": "94px",
-                  "translate": "14px -33px"
+                  "translate": "19px 1px"
                 }
               },
               "windowTop": {
-                "tx": -27,
-                "ty": -10,
-                "width": "66px",
-                "height": "66px",
+                "tx": -11,
+                "ty": 0,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "178.8px",
-                  "right": "111.06px",
-                  "top": "46.1px",
-                  "bottom": "95.29px",
-                  "width": "66px",
-                  "height": "66px",
-                  "transform": "translate(-50%, -50%)",
-                  "translate": "-27px -10px"
+                  "translate": "-11px"
                 }
               },
               "windowBottom": {
-                "tx": -25,
-                "ty": -36,
-                "width": "68px",
-                "height": "68px",
+                "tx": -5,
+                "ty": 1,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "178.8px",
-                  "right": "107.64px",
-                  "top": "154.3px",
-                  "bottom": "-17.83px",
-                  "width": "68px",
-                  "height": "68px",
-                  "transform": "translate(-50%, -50%)",
-                  "translate": "-25px -36px"
+                  "translate": "-5px 1px"
                 }
               },
               "flangeTop": {
-                "tx": -8,
-                "ty": -13,
-                "width": "15px",
-                "height": "61px",
+                "tx": 13,
+                "ty": 1,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "313.35px",
-                  "right": "8.59px",
-                  "top": "56.09px",
-                  "bottom": "92.35px",
-                  "width": "15px",
-                  "height": "61px",
-                  "translate": "-8px -13px"
+                  "translate": "13px 1px"
                 }
               },
               "flangeBottom": {
-                "tx": -4,
-                "ty": -38,
-                "width": "15px",
-                "height": "57px",
+                "tx": 16,
+                "ty": 3,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "313.07px",
-                  "right": "8.59px",
-                  "top": "144.29px",
-                  "bottom": "5.71px",
-                  "width": "15px",
-                  "height": "57px",
-                  "translate": "-4px -38px"
+                  "translate": "16px 3px"
                 }
               }
             }
           },
           {
             "type": "double-measurement",
-            "left": 1066,
+            "left": 1040,
             "top": 52,
             "width": 546,
             "height": 650,
-            "z": 1316,
+            "z": 1355,
             "measurementLayout": {
               "parts": {
                 "magnifier": {
-                  "tx": 41,
-                  "ty": 15,
+                  "tx": 37,
+                  "ty": 4,
                   "width": "",
                   "height": "",
                   "deleted": false
                 },
                 "measurementCount": {
-                  "tx": 11,
-                  "ty": 90,
-                  "width": "82px",
-                  "height": "35px",
+                  "tx": -7,
+                  "ty": 89,
+                  "width": "79px",
+                  "height": "36px",
                   "deleted": false
                 }
               }
@@ -408,9 +477,9 @@
           }
         ],
         "gridSnap": true,
-        "canvasWidth": 1677,
-        "canvasHeight": 762,
-        "savedAt": 1784652558402
+        "canvasWidth": 1600,
+        "canvasHeight": 760,
+        "savedAt": 1784843149805
       }
     },
     {
@@ -460,135 +529,95 @@
             "type": "cnot-gate",
             "left": 649,
             "top": 218,
-            "width": 373,
-            "height": 209,
+            "width": 420,
+            "height": 260,
             "z": 615,
             "cnotLayout": {
               "gate": {
                 "tx": 0,
                 "ty": 0,
-                "width": "373px",
-                "height": "209px",
+                "width": "420px",
+                "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "649px",
-                  "top": "218px",
-                  "width": "373px",
-                  "height": "209px"
+                  "left": "598px",
+                  "top": "260px",
+                  "width": "420px",
+                  "height": "260px"
                 }
               },
               "body": {
-                "tx": 10,
-                "ty": 3,
-                "width": "327px",
-                "height": "164px",
+                "tx": 5,
+                "ty": -1,
+                "width": "356.01px",
+                "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "38.36px",
-                  "right": "22px",
+                  "left": "42px",
                   "top": "0px",
-                  "bottom": "0px",
-                  "width": "327px",
-                  "height": "164px",
-                  "translate": "10px 3px"
+                  "width": "356.01px",
+                  "height": "260px",
+                  "translate": "5px -1px"
                 }
               },
               "funnelTop": {
-                "tx": 13,
-                "ty": -17,
-                "width": "62px",
-                "height": "84px",
+                "tx": 19,
+                "ty": 0,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "-12.35px",
-                  "right": "353.19px",
-                  "top": "58.51px",
-                  "bottom": "82.58px",
-                  "width": "62px",
-                  "height": "84px",
-                  "translate": "13px -17px"
+                  "translate": "19px"
                 }
               },
               "funnelBottom": {
-                "tx": 14,
-                "ty": -33,
-                "width": "63px",
-                "height": "94px",
+                "tx": 19,
+                "ty": 1,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "-12.35px",
-                  "right": "353.19px",
-                  "top": "150.47px",
-                  "bottom": "-9.38px",
-                  "width": "63px",
-                  "height": "94px",
-                  "translate": "14px -33px"
+                  "translate": "19px 1px"
                 }
               },
               "windowTop": {
-                "tx": -27,
-                "ty": -10,
-                "width": "66px",
-                "height": "66px",
+                "tx": -11,
+                "ty": 0,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "178.8px",
-                  "right": "111.06px",
-                  "top": "46.1px",
-                  "bottom": "95.29px",
-                  "width": "66px",
-                  "height": "66px",
-                  "transform": "translate(-50%, -50%)",
-                  "translate": "-27px -10px"
+                  "translate": "-11px"
                 }
               },
               "windowBottom": {
-                "tx": -25,
-                "ty": -36,
-                "width": "68px",
-                "height": "68px",
+                "tx": -5,
+                "ty": 1,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "178.8px",
-                  "right": "107.64px",
-                  "top": "154.3px",
-                  "bottom": "-17.83px",
-                  "width": "68px",
-                  "height": "68px",
-                  "transform": "translate(-50%, -50%)",
-                  "translate": "-25px -36px"
+                  "translate": "-5px 1px"
                 }
               },
               "flangeTop": {
-                "tx": -8,
-                "ty": -13,
-                "width": "15px",
-                "height": "61px",
+                "tx": 13,
+                "ty": 1,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "313.35px",
-                  "right": "8.59px",
-                  "top": "56.09px",
-                  "bottom": "92.35px",
-                  "width": "15px",
-                  "height": "61px",
-                  "translate": "-8px -13px"
+                  "translate": "13px 1px"
                 }
               },
               "flangeBottom": {
-                "tx": -4,
-                "ty": -38,
-                "width": "15px",
-                "height": "57px",
+                "tx": 16,
+                "ty": 3,
+                "width": "",
+                "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "313.07px",
-                  "right": "8.59px",
-                  "top": "144.29px",
-                  "bottom": "5.71px",
-                  "width": "15px",
-                  "height": "57px",
-                  "translate": "-4px -38px"
+                  "translate": "16px 3px"
                 }
               }
             }
@@ -607,7 +636,7 @@
         "gridSnap": false,
         "canvasWidth": 1677,
         "canvasHeight": 762,
-        "savedAt": 1784652583502
+        "savedAt": 1784838662771
       }
     },
     {
@@ -648,95 +677,95 @@
             "type": "cnot-gate",
             "left": 186,
             "top": 294,
-            "width": 373,
-            "height": 209,
+            "width": 420,
+            "height": 260,
             "z": 1262,
             "cnotLayout": {
               "gate": {
                 "tx": 0,
                 "ty": 0,
-                "width": "373px",
-                "height": "209px",
+                "width": "420px",
+                "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "186px",
-                  "top": "294px",
-                  "width": "373px",
-                  "height": "209px"
+                  "left": "598px",
+                  "top": "260px",
+                  "width": "420px",
+                  "height": "260px"
                 }
               },
               "body": {
-                "tx": 0,
+                "tx": 5,
+                "ty": -1,
+                "width": "356.01px",
+                "height": "260px",
+                "deleted": false,
+                "inlineStyle": {
+                  "left": "42px",
+                  "top": "0px",
+                  "width": "356.01px",
+                  "height": "260px",
+                  "translate": "5px -1px"
+                }
+              },
+              "funnelTop": {
+                "tx": 19,
                 "ty": 0,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "42px",
-                  "right": "22px",
-                  "top": "0px",
-                  "bottom": "0px",
-                  "translate": "0px"
-                }
-              },
-              "funnelTop": {
-                "tx": 13,
-                "ty": 2,
-                "width": "",
-                "height": "",
-                "deleted": false,
-                "inlineStyle": {
-                  "translate": "13px 2px"
+                  "translate": "19px"
                 }
               },
               "funnelBottom": {
-                "tx": 15,
-                "ty": -6,
+                "tx": 19,
+                "ty": 1,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "15px -6px"
+                  "translate": "19px 1px"
                 }
               },
               "windowTop": {
-                "tx": -15,
-                "ty": 4,
+                "tx": -11,
+                "ty": 0,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-15px 4px"
+                  "translate": "-11px"
                 }
               },
               "windowBottom": {
-                "tx": -9,
-                "ty": 4,
+                "tx": -5,
+                "ty": 1,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-9px 4px"
+                  "translate": "-5px 1px"
                 }
               },
               "flangeTop": {
-                "tx": 14,
-                "ty": -3,
+                "tx": 13,
+                "ty": 1,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "14px -3px"
+                  "translate": "13px 1px"
                 }
               },
               "flangeBottom": {
-                "tx": 15,
-                "ty": -11,
+                "tx": 16,
+                "ty": 3,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "15px -11px"
+                  "translate": "16px 3px"
                 }
               }
             }
@@ -763,7 +792,7 @@
         "gridSnap": false,
         "canvasWidth": 1677,
         "canvasHeight": 762,
-        "savedAt": 1784653875512
+        "savedAt": 1784838823847
       }
     }
   ]
