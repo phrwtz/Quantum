@@ -4196,38 +4196,6 @@
     },
     {
       "version": 1,
-      "tabId": "editor-entanglement-3",
-      "title": "What's this?",
-      "scenes": [
-        {
-          "id": "scene-mqr0opvc-5kl8j",
-          "title": "Scene",
-          "items": [
-            {
-              "id": "text-box-mqr0r705-1q",
-              "type": "text-box",
-              "left": 224,
-              "top": 127,
-              "width": 447,
-              "height": 212,
-              "z": 2,
-              "text": "This tab is under construction.",
-              "buttons": [
-                "done"
-              ],
-              "buttonMode": "done"
-            }
-          ],
-          "canvasWidth": 900,
-          "canvasHeight": 560,
-          "experiment": null,
-          "savedAt": 1782241901945
-        }
-      ],
-      "updatedAt": 1782241901945
-    },
-    {
-      "version": 1,
       "tabId": "custom-entanglement-2",
       "title": "What's this?",
       "scenes": [
@@ -6547,6 +6515,74 @@
         }
       ],
       "updatedAt": 1784847915273
+    },
+    {
+      "version": 1,
+      "tabId": "editor-entanglement-3",
+      "title": "What's this?",
+      "scenes": [
+        {
+          "id": "scene-mqr0opvc-5kl8j",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mqr0r705-1q",
+              "type": "text-box",
+              "left": 63,
+              "top": 57,
+              "width": 705,
+              "height": 188,
+              "z": 2,
+              "text": "Now that you've seen that the measurment of one of a pair of entangled qubits can affect the state of the other qubit, an obvious question arises: what if the two qubits are widely separated? On this tab you'll get to run experiments to find out. You'll also get to see what happens when more than two qubits are entangled.",
+              "buttons": [
+                "next"
+              ],
+              "buttonMode": "next"
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": null,
+          "savedAt": 1784904150807
+        },
+        {
+          "id": "scene-mrz1o7io-m490n",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mrz1ocr5-lus",
+              "type": "text-box",
+              "left": 55,
+              "top": 28,
+              "width": 797,
+              "height": 293,
+              "z": 2,
+              "text": "Welcome to the mailbox component. When you drag a qubit into it, the qubit disappears. If another user logs into the Qubit Lab that user will receive the qubit on his or her Entanglement 3 tab. If you don't have another user handy, you can test this out simply by openng up another tab on your browser and pointing it to the same Qubit Lab website. Then by flipping back and forth between the two browser tabs you can see what users on two different computers would see.Note: since there are four ",
+              "buttons": [
+                "show",
+                "done"
+              ],
+              "buttonMode": "custom"
+            },
+            {
+              "id": "qubit-mrz1pxkx-m9t",
+              "type": "qubit",
+              "left": 59,
+              "top": 388,
+              "width": 72,
+              "height": 72,
+              "z": 3,
+              "qubitId": 130535,
+              "roomQubitIndex": 0
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": null,
+          "savedAt": 1784904587867
+        }
+      ],
+      "updatedAt": 1784904587867
     }
   ]
 }
