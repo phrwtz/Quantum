@@ -7556,7 +7556,7 @@ async function runMailboxReplayCoreSmoke(page) {
       canvas.append(qubit, mailbox);
       document.body.appendChild(canvas);
       prepareGeneratedLayoutCanvas(canvas);
-      return { canvas, qubit };
+      return { canvas, qubit, mailbox };
     };
     const experiment = {
       initialQubits: [
@@ -7586,6 +7586,18 @@ async function runMailboxReplayCoreSmoke(page) {
       ],
     };
     const animated = makeCanvas("mailbox-replay-smoke");
+    const funnel = animated.mailbox.querySelector(
+      '[data-role="mailbox-input-funnel"]',
+    );
+    const funnelCenter = generatedCanvasPointForElementCenter(
+      animated.canvas,
+      funnel,
+    );
+    experiment.actions[0].path[1] = {
+      x: funnelCenter.x,
+      y: funnelCenter.y,
+      t: 80,
+    };
     const animatedCompleted = await replayGeneratedRecordedExperimentAnimated(
       animated.canvas,
       experiment,
@@ -7597,6 +7609,21 @@ async function runMailboxReplayCoreSmoke(page) {
         .length,
     };
     animated.canvas.remove();
+    const dragOnly = makeCanvas("mailbox-drag-only-replay-smoke");
+    const dragOnlyCompleted = await replayGeneratedRecordedExperimentAnimated(
+      dragOnly.canvas,
+      {
+        ...experiment,
+        actions: experiment.actions.slice(0, 1),
+      },
+    );
+    const dragOnlyResult = {
+      completed: dragOnlyCompleted,
+      qubitConnected: dragOnly.qubit.isConnected,
+      qubitCount: dragOnly.canvas.querySelectorAll('[data-component="qubit"]')
+        .length,
+    };
+    dragOnly.canvas.remove();
     const staticReplay = makeCanvas("mailbox-static-replay-smoke");
     applyGeneratedRecordedExperimentStaticFinalVisualState(
       staticReplay.canvas,
@@ -7608,12 +7635,15 @@ async function runMailboxReplayCoreSmoke(page) {
         .length,
     };
     staticReplay.canvas.remove();
-    return { animatedResult, staticResult };
+    return { animatedResult, dragOnlyResult, staticResult };
   });
   if (
     result.animatedResult.completed !== true ||
     result.animatedResult.qubitConnected !== false ||
     result.animatedResult.qubitCount !== 0 ||
+    result.dragOnlyResult.completed !== true ||
+    result.dragOnlyResult.qubitConnected !== false ||
+    result.dragOnlyResult.qubitCount !== 0 ||
     result.staticResult.qubitConnected !== false ||
     result.staticResult.qubitCount !== 0
   ) {

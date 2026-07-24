@@ -17216,10 +17216,52 @@ async function replayGeneratedRecordedDragAction(canvas, action) {
     await moveGeneratedQubitToPoint(canvas, qubitItem, point.x, point.y, dt);
   }
   settleGeneratedQubitVisualState(qubitItem);
+  const finalPoint = points[points.length - 1];
+  const mailboxItem =
+    findBestGeneratedMailboxForQubit(canvas, qubitItem) ||
+    generatedItemsOfType(canvas, "mailbox").find((candidate) => {
+      const funnel = candidate.querySelector(
+        '[data-role="mailbox-input-funnel"]',
+      );
+      if (!(funnel instanceof HTMLElement)) {
+        return false;
+      }
+      const funnelCenter = generatedCanvasPointForElementCenter(canvas, funnel);
+      const tolerance =
+        Math.max(qubitItem.offsetWidth, qubitItem.offsetHeight, 40) * 1.5;
+      return (
+        Math.hypot(
+          finalPoint.x - funnelCenter.x,
+          finalPoint.y - funnelCenter.y,
+        ) <= tolerance
+      );
+    });
+  if (mailboxItem instanceof HTMLElement) {
+    await replayGeneratedMailboxIngress(mailboxItem, qubitItem);
+  }
   return true;
 }
 
-function replayGeneratedRecordedMailboxSendAction(canvas, action) {
+async function replayGeneratedMailboxIngress(mailboxItem, qubitItem) {
+  if (
+    !(mailboxItem instanceof HTMLElement) ||
+    !(qubitItem instanceof HTMLElement) ||
+    !qubitItem.isConnected
+  ) {
+    return true;
+  }
+  await animateMailboxQubitIntoMailbox({ mailboxItem, qubitItem });
+  const label = qubitDisplayLabelForItem(qubitItem);
+  setMailboxComponentStatus(mailboxItem, `Sent ${label} during replay`);
+  mailboxRoomConsumeSentQubit({ qubitItem });
+  return true;
+}
+
+async function replayGeneratedRecordedMailboxSendAction(
+  canvas,
+  action,
+  options = {},
+) {
   const qubitItem = generatedQubitItemForRecordedAction(
     canvas,
     action.qubitId,
@@ -17232,8 +17274,13 @@ function replayGeneratedRecordedMailboxSendAction(canvas, action) {
     generatedItemById(canvas, action.mailboxId) ||
     findBestGeneratedMailboxForQubit(canvas, qubitItem);
   if (mailboxItem instanceof HTMLElement) {
-    const label = qubitDisplayLabelForItem(qubitItem);
-    setMailboxComponentStatus(mailboxItem, `Sent ${label} during replay`);
+    if (options.animate === false) {
+      const label = qubitDisplayLabelForItem(qubitItem);
+      setMailboxComponentStatus(mailboxItem, `Sent ${label} during replay`);
+      mailboxRoomConsumeSentQubit({ qubitItem });
+      return true;
+    }
+    return replayGeneratedMailboxIngress(mailboxItem, qubitItem);
   }
   mailboxRoomConsumeSentQubit({ qubitItem });
   return true;
@@ -17503,7 +17550,7 @@ async function replayGeneratedRecordedExperimentAnimated(
     if (action.type === "drag") {
       await replayGeneratedRecordedDragAction(canvas, action);
     } else if (action.type === "mailbox-send") {
-      replayGeneratedRecordedMailboxSendAction(canvas, action);
+      await replayGeneratedRecordedMailboxSendAction(canvas, action);
     } else if (action.type === "gate-setting") {
       if (options.ignoreGateSettingActions) {
         continue;
@@ -18144,7 +18191,9 @@ function applyGeneratedRecordedExperimentStaticFinalVisualState(
       return;
     }
     if (action.type === "mailbox-send") {
-      replayGeneratedRecordedMailboxSendAction(canvas, action);
+      replayGeneratedRecordedMailboxSendAction(canvas, action, {
+        animate: false,
+      });
       return;
     }
     if (action.type === "gate-setting") {
