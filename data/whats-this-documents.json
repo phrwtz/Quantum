@@ -6543,7 +6543,7 @@
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1784904150807
+          "savedAt": 1784927357652
         },
         {
           "id": "scene-mrz1o7io-m490n",
@@ -6552,37 +6552,194 @@
             {
               "id": "text-box-mrz1ocr5-lus",
               "type": "text-box",
-              "left": 55,
-              "top": 28,
+              "left": 32,
+              "top": 27,
               "width": 797,
               "height": 293,
               "z": 2,
-              "text": "Welcome to the mailbox component. When you drag a qubit into it, the qubit disappears. If another user logs into the Qubit Lab that user will receive the qubit on his or her Entanglement 3 tab. If you don't have another user handy, you can test this out simply by openng up another tab on your browser and pointing it to the same Qubit Lab website. Then by flipping back and forth between the two browser tabs you can see what users on two different computers would see.Note: since there are four ",
+              "text": "Welcome to the mailbox component. When you drag a qubit into it, the qubit disappears. If another user logs into the Qubit Lab that user will receive the qubit on his or her Entanglement 3 tab. If you don't have another user handy, you can test this out simply by openng up another tab on your browser and pointing it to the same Qubit Lab website. Then by flipping back and forth between the two browser tabs you can see what users on two different computers would see.\n\n\nFor historical reasons, we have named the first person to log in \"Bob\" and the second person \"Alice.\"",
               "buttons": [
-                "show",
-                "done"
+                "next",
+                "show"
               ],
               "buttonMode": "custom"
             },
             {
               "id": "qubit-mrz1pxkx-m9t",
               "type": "qubit",
-              "left": 59,
-              "top": 388,
+              "left": 61,
+              "top": 402,
               "width": 72,
               "height": 72,
               "z": 3,
               "qubitId": 130535,
               "roomQubitIndex": 0
+            },
+            {
+              "id": "mailbox-mrzf0tom-ba",
+              "type": "mailbox",
+              "left": 263,
+              "top": 317,
+              "width": 373,
+              "height": 240,
+              "z": 4
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": {
+            "version": 1,
+            "recordedAt": 1784926307082,
+            "initialQubits": [
+              {
+                "itemId": "qubit-mrz1pxkx-m9t",
+                "logicalQubitId": 130535,
+                "center": {
+                  "x": 96.66,
+                  "y": 437.66
+                },
+                "vector": [
+                  1,
+                  0
+                ],
+                "roomQubitIndex": 0
+              }
+            ],
+            "gateSettings": [],
+            "actions": [
+              {
+                "type": "drag",
+                "qubitId": "qubit-mrz1pxkx-m9t",
+                "qubitLogicalId": 130535,
+                "path": [
+                  {
+                    "x": 96.66,
+                    "y": 437.66,
+                    "t": 0
+                  },
+                  {
+                    "x": 102.66,
+                    "y": 440.66,
+                    "t": 1344
+                  },
+                  {
+                    "x": 106.66,
+                    "y": 440.66,
+                    "t": 1358
+                  },
+                  {
+                    "x": 118.66,
+                    "y": 440.66,
+                    "t": 1374
+                  },
+                  {
+                    "x": 132.66,
+                    "y": 441.66,
+                    "t": 1391
+                  },
+                  {
+                    "x": 147.66,
+                    "y": 441.66,
+                    "t": 1408
+                  },
+                  {
+                    "x": 159.66,
+                    "y": 441.66,
+                    "t": 1425
+                  },
+                  {
+                    "x": 168.66,
+                    "y": 441.66,
+                    "t": 1440
+                  },
+                  {
+                    "x": 173.66,
+                    "y": 441.66,
+                    "t": 1458
+                  },
+                  {
+                    "x": 177.66,
+                    "y": 441.66,
+                    "t": 1475
+                  },
+                  {
+                    "x": 182.66,
+                    "y": 441.66,
+                    "t": 1492
+                  },
+                  {
+                    "x": 187.66,
+                    "y": 441.66,
+                    "t": 1507
+                  },
+                  {
+                    "x": 193.66,
+                    "y": 441.66,
+                    "t": 1525
+                  },
+                  {
+                    "x": 199.66,
+                    "y": 441.66,
+                    "t": 1541
+                  },
+                  {
+                    "x": 207.66,
+                    "y": 441.66,
+                    "t": 1558
+                  },
+                  {
+                    "x": 214.66,
+                    "y": 441.66,
+                    "t": 1573
+                  },
+                  {
+                    "x": 220.66,
+                    "y": 441.66,
+                    "t": 1608
+                  },
+                  {
+                    "x": 226.66,
+                    "y": 441.66,
+                    "t": 1641
+                  },
+                  {
+                    "x": 265.66,
+                    "y": 444.66,
+                    "t": 1642
+                  }
+                ],
+                "t": 1642
+              }
+            ]
+          },
+          "savedAt": 1784927358282
+        },
+        {
+          "id": "scene-mrzf3u56-n0g4m",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mrzf41wa-rt",
+              "type": "text-box",
+              "left": 27,
+              "top": 25,
+              "width": 774,
+              "height": 384,
+              "z": 2,
+              "text": "Between them Bob and Alice have a total of four qubits. A four-qubit register has sixteen states; accordingly, this tab comes equipped with sixteen tubes for counting the outcome of experiments. By convention, the experiment does not end until ALL FOUR QUBITS HAVE BEEN MEASURED. Once that happens either Alice or Bob can run the experiment again by clcking on the magnifier or changing the iteration count just as they can do on the other tabs. The animation won't run but the different outcomes will be counted and will show up in the tubes.\n\n\nNote that even though all four qubits must be measured they don't all need to be entangled. For instance, if Bob entangles his two qubits and sends one of them to Alice they will remain entangled and once the other two qubits have been measured the effect of that entanglement will show up in the counts.\n\n\nAnd of course you can entangle more than two qubits and in many different ways, often with surprising results. So many experiments, so little time!",
+              "buttons": [
+                "done"
+              ],
+              "buttonMode": "done"
             }
           ],
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1784904587867
+          "savedAt": 1784927414924
         }
       ],
-      "updatedAt": 1784904587867
+      "updatedAt": 1784927414924
     }
   ]
 }

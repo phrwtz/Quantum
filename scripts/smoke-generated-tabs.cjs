@@ -747,11 +747,43 @@ async function runEditorDoubleMeasurementSmoke(page) {
     "single-magnifier",
     "double-magnifier",
     "measurement-count-menu",
+    "mailbox",
   ].forEach((value) => {
     if (!componentOptions.includes(value)) {
-      throw new Error(`Missing measurement subcomponent option: ${value}`);
+      throw new Error(`Missing editor component option: ${value}`);
     }
   });
+
+  const mailboxEditorAvailability = await page.evaluate(() => {
+    const hasMailboxOption = (select) =>
+      select instanceof HTMLSelectElement &&
+      Array.from(select.options).some((option) => option.value === "mailbox");
+    const tabEditorPickers = Array.from(
+      document.querySelectorAll(
+        '[data-generated-editor-role="component-select"]',
+      ),
+    );
+    return {
+      componentEditor: hasMailboxOption(
+        document.querySelector("#playgroundComponentSelect"),
+      ),
+      whatsThisEditor: hasMailboxOption(
+        document.querySelector("#docEditorComponentSelect"),
+      ),
+      tabEditorCount: tabEditorPickers.length,
+      tabEditors: tabEditorPickers.every(hasMailboxOption),
+    };
+  });
+  if (
+    !mailboxEditorAvailability.componentEditor ||
+    !mailboxEditorAvailability.whatsThisEditor ||
+    mailboxEditorAvailability.tabEditorCount === 0 ||
+    !mailboxEditorAvailability.tabEditors
+  ) {
+    throw new Error(
+      `Mailbox missing from an editor component list: ${JSON.stringify(mailboxEditorAvailability)}`,
+    );
+  }
 
   const placeComponent = async (type, x, y) => {
     const currentCanvasBox = await canvas.boundingBox();
@@ -2549,6 +2581,106 @@ async function runDocEditorMeasurementRecordingSmoke(page) {
   ) {
     throw new Error(
       `Doc Editor high-count playback animated instead of batch-running: ${JSON.stringify({ playbackState, playbackAnimatedReplays })}`,
+    );
+  }
+}
+
+async function runDocEditorMailboxRecordingResetSmoke(page) {
+  await page.evaluate(() => {
+    window.writeQuantumContentState("generated-tabs", {
+      tabs: [
+        {
+          id: "doc-mailbox-recording",
+          label: "Doc Mailbox Recording",
+          layout: { items: [], canvasWidth: 760, canvasHeight: 420 },
+        },
+      ],
+    });
+    window.writeQuantumContentState("documents", {
+      documents: [
+        {
+          tabId: "doc-mailbox-recording",
+          title: "Mailbox Recording",
+          scenes: [
+            {
+              id: "doc-mailbox-scene",
+              title: "Scene 1",
+              canvasWidth: 760,
+              canvasHeight: 420,
+              items: [
+                {
+                  id: "doc-mailbox-q",
+                  type: "qubit",
+                  left: 80,
+                  top: 170,
+                  width: 52,
+                  height: 52,
+                },
+                {
+                  id: "doc-mailbox-box",
+                  type: "mailbox",
+                  left: 360,
+                  top: 90,
+                  width: 300,
+                  height: 200,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.evaluate(() => {
+    document.body.classList.add("workshop-unlocked");
+  });
+  await activateTab(page, "doc-editor");
+  await page.locator("#docEditorTabSelect").selectOption("doc-mailbox-recording");
+  await page.waitForSelector("#docEditorCanvas [data-component='qubit']");
+  await page.locator("#docEditorStartRecordingButton").click();
+  await wait(100);
+
+  await page.evaluate(() => {
+    const canvas = document.querySelector("#docEditorCanvas");
+    const qubit = canvas?.querySelector('[data-component="qubit"]');
+    const mailbox = canvas?.querySelector('[data-component="mailbox"]');
+    recordGeneratedExperimentAction(canvas, {
+      type: "mailbox-send",
+      mailboxId: mailbox?.dataset.generatedItemId,
+      qubitId: qubit?.dataset.generatedItemId,
+      qubitLogicalId: qubitLogicalIdForItem(qubit),
+    });
+    mailboxRoomConsumeSentQubit({ qubitItem: qubit });
+  });
+  await page.locator("#docEditorStopRecordingButton").click();
+  await wait(150);
+
+  const stoppedState = await page.evaluate(() => {
+    const canvas = document.querySelector("#docEditorCanvas");
+    const qubit = canvas?.querySelector('[data-component="qubit"]');
+    const documents =
+      window.readQuantumContentState("documents")?.documents || [];
+    const scene = documents.find(
+      (entry) => entry.tabId === "doc-mailbox-recording",
+    )?.scenes?.[0];
+    return {
+      qubitCount: canvas?.querySelectorAll('[data-component="qubit"]').length,
+      qubitLeft: Math.round(parseFloat(qubit?.style.left || "0")),
+      qubitTop: Math.round(parseFloat(qubit?.style.top || "0")),
+      actions: scene?.experiment?.actions?.map((action) => action.type),
+      recording: canvas?.classList.contains("generated-recording-active"),
+    };
+  });
+  if (
+    stoppedState.qubitCount !== 1 ||
+    Math.abs(stoppedState.qubitLeft - 80) > 4 ||
+    Math.abs(stoppedState.qubitTop - 170) > 4 ||
+    stoppedState.recording !== false ||
+    stoppedState.actions?.join(",") !== "mailbox-send"
+  ) {
+    throw new Error(
+      `Doc mailbox recording did not restore its initial qubit: ${JSON.stringify(stoppedState)}`,
     );
   }
 }
@@ -7916,6 +8048,14 @@ async function runSmokeTest(baseUrl) {
       await runDocEditorTwoQubitPlaybackSmoke(page);
       return { ok: true, twoQubitMeasurement: true };
     }
+    if (process.argv.includes("--doc-mailbox-recording-only")) {
+      const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+      await installBrowserLocalContentTrap(page);
+      await installContentApiHelpers(page);
+      await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+      await runDocEditorMailboxRecordingResetSmoke(page);
+      return { ok: true, docMailboxRecordingReset: true };
+    }
     if (process.argv.includes("--replay-core-only")) {
       const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
       await installBrowserLocalContentTrap(page);
@@ -7978,6 +8118,7 @@ async function runSmokeTest(baseUrl) {
     await runSequentialMeasurementEditorSmoke(page);
     await runEditorDocumentWorkflowSmoke(page);
     await runDocEditorMeasurementRecordingSmoke(page);
+    await runDocEditorMailboxRecordingResetSmoke(page);
     await runDocEditorTwoQubitPlaybackSmoke(page);
     await runDocEditorTextPersistenceSmoke(page);
 

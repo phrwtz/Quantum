@@ -13873,6 +13873,18 @@ function finishDocumentEditorRecording() {
   scene.experiment = cloneGeneratedExperiment(state.experiment);
   documentEditorState.document.updatedAt = Date.now();
   persistDocumentEditorDocument();
+  const missingInitialQubit = (state.experiment.initialQubits || []).some(
+    (entry) =>
+      entry?.itemId &&
+      !generatedQubitItemForRecordedAction(
+        docEditorCanvas,
+        entry.itemId,
+        entry.logicalQubitId,
+      ),
+  );
+  if (missingInitialQubit) {
+    renderDocumentEditorScene();
+  }
   if (isDocumentEditorTabActive()) {
     setLayoutEditEnabled(true);
   }
