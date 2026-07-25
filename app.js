@@ -6880,6 +6880,88 @@ function maybeRunRoomMeasurementControl(measurement, runtime) {
   return true;
 }
 
+function mailboxRoomApplyMeasuredColorsToSharedQubits(measurement) {
+  const numQubits = Math.max(
+    2,
+    Math.min(4, Number(measurement?.numQubits) || 4),
+  );
+  const measuredColors = new Map();
+  const measuredLogicalColors = new Map();
+  if (
+    typeof measurement?.lastOutcomeKey === "string" &&
+    measurement.lastOutcomeKey.length === numQubits
+  ) {
+    Array.from(measurement.lastOutcomeKey).forEach((value, index) => {
+      measuredColors.set(index, value === "r" ? "red" : "blue");
+    });
+  }
+  // A partially completed new run is newer than lastOutcomeKey.
+  Object.entries(measurement?.pending || {}).forEach(([index, entry]) => {
+    if (entry?.color === "blue" || entry?.color === "red") {
+      measuredColors.set(Number(index), entry.color);
+      const logicalQubitId = normalizeQubitId(entry.logicalQubitId);
+      if (logicalQubitId) {
+        measuredLogicalColors.set(logicalQubitId, entry.color);
+      }
+    }
+  });
+  if (measuredColors.size === 0) {
+    return false;
+  }
+
+  const appliedStates = new Set();
+  generatedQubitRuntimes.forEach((state, item) => {
+    const pairState = state?.pairState;
+    if (
+      !(item instanceof HTMLElement) ||
+      !item.isConnected ||
+      !pairState?.remoteEntanglementId ||
+      appliedStates.has(pairState)
+    ) {
+      return;
+    }
+    const measuredMember = [
+      ...(pairState.members || []).map((member) => ({
+        ...member,
+        roomQubitIndex: roomQubitIndexForItem(member?.item),
+      })),
+      ...(pairState.remoteMembers || []),
+    ].find((member) => {
+      const roomIndex = normalizeRoomQubitIndex(member?.roomQubitIndex);
+      const logicalQubitId = normalizeQubitId(
+        member?.qubitId || qubitLogicalIdForItem(member?.item),
+      );
+      return (
+        (measuredColors.has(roomIndex) ||
+          measuredLogicalColors.has(logicalQubitId)) &&
+        Number.isInteger(member?.qubitIndex)
+      );
+    });
+    if (!measuredMember) {
+      return;
+    }
+    const roomIndex = normalizeRoomQubitIndex(measuredMember.roomQubitIndex);
+    const logicalQubitId = normalizeQubitId(
+      measuredMember.qubitId ||
+        qubitLogicalIdForItem(measuredMember.item),
+    );
+    const color =
+      measuredLogicalColors.get(logicalQubitId) ||
+      measuredColors.get(roomIndex);
+    if (
+      sharedRegisterMeasureMember(
+        pairState,
+        measuredMember.qubitIndex,
+        color,
+      )
+    ) {
+      appliedStates.add(pairState);
+      syncGeneratedPairStateVisuals(pairState);
+    }
+  });
+  return appliedStates.size > 0;
+}
+
 function mailboxRoomApplyRoomMeasurement(measurement) {
   if (!measurement?.id) {
     return false;
@@ -6924,6 +7006,7 @@ function mailboxRoomApplyRoomMeasurement(measurement) {
   );
   maybeExpandGeneratedDoubleMeasurementTubeCapacity(runtime);
   updateGeneratedDoubleMeasurementTubeFills(runtime);
+  mailboxRoomApplyMeasuredColorsToSharedQubits(measurement);
   mailboxRoomApplyRecordedExperiment(measurement, runtime);
   if (
     measurement.completionId &&
@@ -7535,7 +7618,11 @@ function mailboxRoomImportPoint(canvas, roomQubitIndex = null) {
     const qubitRadius = 36;
     const mailboxGap = 22;
     const offset = qubitRadius + mailboxGap;
-    const landingY = origin.y + mailboxRoomLandingOffset(roomQubitIndex);
+    const landingY = clamp(
+      origin.y + mailboxRoomLandingOffset(roomQubitIndex),
+      qubitRadius,
+      canvas.clientHeight - qubitRadius,
+    );
     const candidates = [
       { x: mailboxBounds.right + offset, y: landingY },
       { x: mailboxBounds.left - offset, y: landingY },
@@ -7848,8 +7935,9 @@ function mailboxRoomMeasuredQubitCount() {
     return Math.max(0, Math.min(4, Number(completed.numQubits) || 4));
   }
   measurements.forEach((measurement) => {
-    Object.keys(measurement?.pending || {}).forEach((key) => {
-      const index = Number(key);
+    Object.entries(measurement?.pending || {}).forEach(([key, entry]) => {
+      const logicalIndex = normalizeQubitId(entry?.logicalQubitId);
+      const index = logicalIndex ? logicalIndex - 1 : Number(key);
       if (Number.isInteger(index) && index >= 0 && index < 4) {
         measuredIndexes.add(index);
       }
@@ -7859,7 +7947,10 @@ function mailboxRoomMeasuredQubitCount() {
     if (event?.type !== "roomMeasurement.updated") {
       return;
     }
-    const index = Number(event.payload?.qubitIndex);
+    const logicalIndex = normalizeQubitId(event.payload?.logicalQubitId);
+    const index = logicalIndex
+      ? logicalIndex - 1
+      : Number(event.payload?.qubitIndex);
     if (Number.isInteger(index) && index >= 0 && index < 4) {
       measuredIndexes.add(index);
     }
@@ -8292,8 +8383,10 @@ async function mailboxRoomRefresh({ render = true } = {}) {
           ? measurementsPayload.measurements
           : [],
       );
-  mailboxRoomApplyRoomMeasurements(mailboxRoomState.measurements);
   await mailboxRoomRefreshSharedEntanglements();
+  // Apply room outcomes after shared-register snapshots. The room measurement
+  // can be newer than a lagging shared snapshot and must win for local color.
+  mailboxRoomApplyRoomMeasurements(mailboxRoomState.measurements);
   try {
     mailboxRoomReceivePendingQubits();
   } catch (error) {
@@ -16321,12 +16414,15 @@ async function runGeneratedSeparatedPairMeasurementTransit(
   ) {
     return false;
   }
-  const orderIndex = generatedSeparatedPairOrderIndexForQubit(
-    canvas,
-    runtime,
-    qubitItem,
-    qubitState,
-  );
+  const orderIndex =
+    measurementRegisterCount > 2 && Number.isInteger(roomMeasurementIndex)
+      ? roomMeasurementIndex
+      : generatedSeparatedPairOrderIndexForQubit(
+          canvas,
+          runtime,
+          qubitItem,
+          qubitState,
+        );
   const sharedPairState =
     mailboxRoomIsJoined() && qubitState.pairState?.remoteEntanglementId
       ? qubitState.pairState
