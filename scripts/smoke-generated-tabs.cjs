@@ -5404,13 +5404,19 @@ async function openEntanglementThreeRoomPage(
     "#panel-editor-entanglement-3:not([hidden]) .generated-layout-canvas",
   );
   await page.waitForFunction(
-    () =>
-      document
-        .querySelector("#panel-editor-entanglement-3 .generated-experiment-status")
-        ?.textContent?.includes("room send-receive-room"),
+    () => mailboxRoomState.joined,
     null,
     { timeout: 8000 },
   );
+  await page.waitForSelector(".entanglement-three-notice-dialog button", {
+    timeout: 8000,
+  });
+  const noticeButton = page.locator(
+    ".entanglement-three-notice-dialog button",
+  );
+  if ((await noticeButton.count()) === 1) {
+    await noticeButton.click();
+  }
   return { context, page };
 }
 
@@ -5777,7 +5783,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           replayDisabled:
             document.querySelector(
               "#panel-editor-entanglement-3 .entanglement-room-review-btn",
-            )?.disabled ?? true,
+            )?.disabled ?? null,
         })),
       ),
     );
@@ -5791,9 +5797,9 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           ) !== 1 ||
           state.visibleCounts.length !== 1 ||
           state.visibleCounts[0][1] !== 1 ||
-          !state.status.includes("Measured 4/4") ||
+          state.status.trim() !== "Measured 4/4" ||
           state.experimentActions === 0 ||
-          state.replayDisabled,
+          state.replayDisabled !== null,
       )
     ) {
       throw new Error(
@@ -6100,44 +6106,6 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
     ) {
       throw new Error(
         `Entanglement 3 batch magnifier replay did not add shared counts: ${JSON.stringify(batchRepeatTotals)}`,
-      );
-    }
-
-    const replay = await bob.page.evaluate(async () => {
-      const ok = await replayMailboxRoomReviewActions();
-      return {
-        ok,
-        reviewRuns: mailboxRoomState.reviewRuns,
-        reviewCounts: mailboxRoomState.reviewCounts,
-        countsText: mailboxRoomReviewCountsText(),
-      };
-    });
-    const run = await bob.page.evaluate(() => {
-      const ok = runMailboxRoomReviewBatch();
-      return {
-        ok,
-        reviewRuns: mailboxRoomState.reviewRuns,
-        reviewCounts: mailboxRoomState.reviewCounts,
-        countsText: mailboxRoomReviewCountsText(),
-      };
-    });
-    const reviewTotal = Object.values(run.reviewCounts || {}).reduce(
-      (sum, count) => sum + Number(count || 0),
-      0,
-    );
-    const reviewNonZero = Object.values(run.reviewCounts || {}).filter(
-      (count) => Number(count) > 0,
-    ).length;
-    if (
-      !replay.ok ||
-      replay.reviewRuns !== 1 ||
-      !run.ok ||
-      run.reviewRuns !== 10001 ||
-      reviewTotal !== 10001 ||
-      reviewNonZero < 12
-    ) {
-      throw new Error(
-        `Entanglement 3 replay/run review flow failed: ${JSON.stringify({ replay, run })}`,
       );
     }
 

@@ -8276,55 +8276,11 @@ function renderEntanglementThreeRoomReviewStatus(status) {
     return false;
   }
   const measuredCount = mailboxRoomMeasuredQubitCount();
-  const ready = measuredCount >= 4;
-  const roomExperimentInProgress = mailboxRoomExperimentControlInProgress();
-  const backendStatus = mailboxRoomState.entanglementThreeBackendStatus;
-  const roomText =
-    backendStatus === "starting"
-      ? "Back end starting up"
-      : backendStatus === "unavailable"
-        ? "Back end not available"
-        : mailboxRoomIsJoined()
-          ? `You are ${mailboxRoomState.displayName || "in"} in room ${mailboxRoomState.roomId}`
-          : "You are not in a room";
-  const actions = mailboxRoomReviewActions();
-  const activeAction =
-    mailboxRoomState.replayActionIndex >= 0
-      ? actions[mailboxRoomState.replayActionIndex] || ""
-      : "";
   status.replaceChildren();
   status.classList.add("entanglement-room-review-status");
-  const room = document.createElement("span");
-  room.textContent = roomText;
   const measured = document.createElement("span");
   measured.textContent = `Measured ${measuredCount}/4`;
-  const counts = document.createElement("span");
-  counts.textContent = mailboxRoomReviewCountsText();
-  const replay = document.createElement("button");
-  replay.type = "button";
-  replay.className = "playground-tool-btn entanglement-room-review-btn";
-  replay.textContent = "Replay";
-  replay.disabled = !ready || mailboxRoomState.replaying || roomExperimentInProgress;
-  replay.addEventListener("click", (event) => {
-    event.stopPropagation();
-    replayMailboxRoomReviewActions().catch(() => {});
-  });
-  const run = document.createElement("button");
-  run.type = "button";
-  run.className = "playground-tool-btn entanglement-room-review-btn";
-  run.textContent = "Run";
-  run.disabled = !ready || mailboxRoomState.replaying || roomExperimentInProgress;
-  run.addEventListener("click", (event) => {
-    event.stopPropagation();
-    runMailboxRoomReviewBatch();
-  });
-  status.append(room, measured, counts, replay, run);
-  if (activeAction) {
-    const current = document.createElement("span");
-    current.className = "entanglement-room-review-action";
-    current.textContent = activeAction;
-    status.appendChild(current);
-  }
+  status.appendChild(measured);
   return true;
 }
 
