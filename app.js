@@ -302,6 +302,8 @@ const COMPONENT_GROUPS_CONTENT_FILE = "data/component-groups.json";
 const CONTENT_FILE_CACHE_BUST =
   document.documentElement?.dataset?.quantumContentVersion || "";
 const IS_STATIC_BUILD = Boolean(CONTENT_FILE_CACHE_BUST);
+const IS_PUBLIC_RENDER_SITE =
+  window.location.hostname === "qubit-lab-vawa.onrender.com";
 const PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE = "component-group";
 const PLAYGROUND_GRID_SIZE = 26;
 const PLAYGROUND_COMPONENT_LIBRARY = {
@@ -4473,6 +4475,7 @@ function captureMailboxSnapshot(item) {
 
 let mailboxSendDialog = null;
 let activeMailboxSendContext = null;
+let entanglementThreeEntryNoticeShown = false;
 let mailboxRoomState = {
   joined: false,
   roomId: "",
@@ -4501,6 +4504,45 @@ const mailboxRoomSendingKeys = new Set();
 const mailboxRoomReceivingEventIds = new Set();
 const mailboxRoomReceivedEventItems = new Map();
 let entanglementThreeSessionChannel = null;
+
+function showEntanglementThreeNotice(message) {
+  const existing = document.querySelector(".entanglement-three-notice");
+  existing?.remove();
+  const overlay = document.createElement("div");
+  overlay.className = "mailbox-send-overlay entanglement-three-notice";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Entanglement 3 notice");
+  const dialog = document.createElement("section");
+  dialog.className = "mailbox-send-form entanglement-three-notice-dialog";
+  const text = document.createElement("p");
+  text.className = "entanglement-three-notice-text";
+  text.textContent = String(message || "");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "OK";
+  const close = () => overlay.remove();
+  button.addEventListener("click", close);
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" || event.key === "Enter") {
+      event.preventDefault();
+      close();
+    }
+  });
+  dialog.append(text, button);
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  window.requestAnimationFrame(() => button.focus());
+  return overlay;
+}
+
+function showEntanglementThreeEntryNotice(message) {
+  if (entanglementThreeEntryNoticeShown) {
+    return null;
+  }
+  entanglementThreeEntryNoticeShown = true;
+  return showEntanglementThreeNotice(message);
+}
 let entanglementThreeClientSessionPromise = null;
 let entanglementThreeSessionStorageWasRead = false;
 const entanglementThreeWindowId = `ent3-window-${Date.now().toString(36)}-${Math.random()
@@ -8118,7 +8160,7 @@ async function autoJoinEntanglementThreeRoom(canvas) {
           clientSessionId,
           clientBuildVersion: CONTENT_FILE_CACHE_BUST || null,
           label: ENTANGLEMENT_THREE_ROOM_ID,
-          resetIfFull: true,
+          resetIfFull: false,
         },
       },
     );
@@ -8150,11 +8192,26 @@ async function autoJoinEntanglementThreeRoom(canvas) {
     await mailboxRoomRefresh({ render: false });
     ensureEntanglementThreeRoomExperimentRecording(canvas);
     updateEntanglementThreeRoomReviewToolbars();
+    const assignedName =
+      mailboxRoomState.displayName === "Alice" ? "Alice" : "Bob";
+    showEntanglementThreeEntryNotice(
+      `You are the ${assignedName === "Bob" ? "first" : "second"} person to enter the room. You have been assigned the name "${assignedName}." Live with it!`,
+    );
     return true;
   } catch (error) {
-    mailboxRoomState.entanglementThreeBackendStatus = "unavailable";
+    const roomIsFull = /room[_ ]full|already has Bob and Alice/i.test(
+      error?.message || "",
+    );
+    mailboxRoomState.entanglementThreeBackendStatus = roomIsFull
+      ? "full"
+      : "unavailable";
     console.warn?.("[Qubit Lab] Entanglement 3 backend unavailable", error);
     updateEntanglementThreeRoomReviewToolbars();
+    showEntanglementThreeEntryNotice(
+      roomIsFull
+        ? "Sorry, the room is full. You won't be able to mail qubits."
+        : "There is no connection to the back end. You won't be able to mail qubits.",
+    );
     return false;
   } finally {
     mailboxRoomState.entanglementThreeJoinStarted = false;
@@ -8162,15 +8219,20 @@ async function autoJoinEntanglementThreeRoom(canvas) {
 }
 
 function maybeAutoJoinEntanglementThreeRoom(tabTarget = "") {
+  const canvas = entanglementThreeCanvasForTab(tabTarget);
+  if (!(canvas instanceof HTMLElement)) {
+    return false;
+  }
   if (
     IS_STATIC_BUILD &&
     !localLabBackendUrlFromConfig() &&
     !localLabBackendUrlFromLocation()
   ) {
-    return false;
-  }
-  const canvas = entanglementThreeCanvasForTab(tabTarget);
-  if (!(canvas instanceof HTMLElement)) {
+    mailboxRoomState.entanglementThreeBackendStatus = "unavailable";
+    updateEntanglementThreeRoomReviewToolbars();
+    showEntanglementThreeEntryNotice(
+      "There is no connection to the back end. You won't be able to mail qubits.",
+    );
     return false;
   }
   autoJoinEntanglementThreeRoom(canvas).catch(() => {});
@@ -8662,20 +8724,6 @@ async function waitForEntanglementThreeRoomJoin(canvas, timeoutMs = 15000) {
   ) {
     await waitForDuration(50);
   }
-  if (!mailboxRoomIsJoined()) {
-    try {
-      await mailboxRoomJoin({
-        roomId: ENTANGLEMENT_THREE_ROOM_ID,
-        displayName: mailboxRoomDefaultDisplayName(),
-        allowAutoName: true,
-      });
-    } catch (error) {
-      console.warn?.(
-        "[Qubit Lab] Entanglement 3 fallback room join unavailable",
-        error,
-      );
-    }
-  }
   return mailboxRoomIsJoined();
 }
 
@@ -8684,9 +8732,10 @@ async function sendMailboxQubitWithoutDialog(context) {
   const qubitItem = context?.qubitItem;
   try {
     const canvas = generatedCanvasForItem(mailboxItem || qubitItem);
+    const isEntanglementThree = isEntanglementThreeCanvas(canvas);
     const roomReady = mailboxRoomIsJoined()
       ? Promise.resolve(true)
-      : isEntanglementThreeCanvas(canvas)
+      : isEntanglementThree
         ? waitForEntanglementThreeRoomJoin(canvas)
         : Promise.resolve(false);
     setMailboxComponentStatus(
@@ -8695,12 +8744,20 @@ async function sendMailboxQubitWithoutDialog(context) {
     );
     await animateMailboxQubitIntoMailbox(context);
     if (!(await roomReady)) {
-      mailboxRoomStoreLocalTransfer(context);
-      mailboxRoomConsumeSentQubit(context);
-      setMailboxComponentStatus(
-        mailboxItem,
-        `Sent ${mailboxRoomQubitLabel(context)} to the mailbox room`,
-      );
+      if (isEntanglementThree) {
+        mailboxRoomConsumeSentQubit(context);
+        setMailboxComponentStatus(mailboxItem, "That qubit is lost");
+        showEntanglementThreeNotice(
+          "You are not in a room That qubit is lost!",
+        );
+      } else {
+        mailboxRoomStoreLocalTransfer(context);
+        mailboxRoomConsumeSentQubit(context);
+        setMailboxComponentStatus(
+          mailboxItem,
+          `Sent ${mailboxRoomQubitLabel(context)} to the mailbox room`,
+        );
+      }
       return;
     }
     await mailboxRoomSendQubit(context, {
@@ -28580,17 +28637,29 @@ window.addEventListener("resize", () => {
 });
 
 function initialLocalTabTarget() {
-  if (localLabMailboxTokenFromLocation()) {
+  if (!IS_PUBLIC_RENDER_SITE && localLabMailboxTokenFromLocation()) {
     return "local-lab";
   }
   const hashTarget = window.location.hash.replace(/^#/, "");
-  if (hashTarget && document.getElementById(`panel-${hashTarget}`)) {
+  if (
+    hashTarget &&
+    !(IS_PUBLIC_RENDER_SITE && hashTarget === "local-lab") &&
+    document.getElementById(`panel-${hashTarget}`)
+  ) {
     return hashTarget;
   }
   const introductionEntry = (generatedTabsState.tabs || []).find(
     (entry) => isGeneratedLandingPageTab(entry),
   );
   return introductionEntry?.id || "plaground";
+}
+
+if (IS_PUBLIC_RENDER_SITE) {
+  const publicLocalLabTab = document.getElementById("tab-local-lab");
+  if (publicLocalLabTab instanceof HTMLElement) {
+    publicLocalLabTab.hidden = true;
+    publicLocalLabTab.setAttribute("aria-hidden", "true");
+  }
 }
 
 setActiveTab(initialLocalTabTarget());

@@ -2674,6 +2674,26 @@ body.layout-edit-active
   line-height: 1.2;
 }
 
+.entanglement-three-notice-dialog {
+  width: min(560px, 100%);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.entanglement-three-notice-text {
+  margin: 0 0 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.entanglement-three-notice-dialog button {
+  min-width: 7rem;
+  padding: 0.65rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
 .mailbox-send-field {
   display: grid;
   gap: 0.35rem;

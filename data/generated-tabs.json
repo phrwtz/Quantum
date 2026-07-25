@@ -688,8 +688,8 @@
                 "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "598px",
-                  "top": "260px",
+                  "left": "186px",
+                  "top": "294px",
                   "width": "420px",
                   "height": "260px"
                 }
@@ -702,7 +702,9 @@
                 "deleted": false,
                 "inlineStyle": {
                   "left": "42px",
+                  "right": "22px",
                   "top": "0px",
+                  "bottom": "0px",
                   "width": "356.01px",
                   "height": "260px",
                   "translate": "5px -1px"
@@ -780,19 +782,19 @@
           },
           {
             "type": "component-group",
-            "left": 635,
-            "top": 67,
+            "left": 615,
+            "top": 17,
             "width": 963,
             "height": 654,
-            "z": 1344,
+            "z": 1349,
             "measurementGroupId": "entanglement-3-register-measurement",
             "groupComponentId": "four-qubit-register-measurement"
           }
         ],
         "gridSnap": false,
-        "canvasWidth": 1677,
-        "canvasHeight": 762,
-        "savedAt": 1784838823847
+        "canvasWidth": 1600,
+        "canvasHeight": 760,
+        "savedAt": 1785002627814
       }
     }
   ]
