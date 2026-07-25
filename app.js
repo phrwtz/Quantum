@@ -8199,9 +8199,10 @@ async function autoJoinEntanglementThreeRoom(canvas) {
     );
     return true;
   } catch (error) {
-    const roomIsFull = /room[_ ]full|already has Bob and Alice/i.test(
-      error?.message || "",
-    );
+    const roomIsFull =
+      error?.code === "room_full" ||
+      error?.status === 409 ||
+      /room[_ ]full|already has Bob and Alice/i.test(error?.message || "");
     mailboxRoomState.entanglementThreeBackendStatus = roomIsFull
       ? "full"
       : "unavailable";
@@ -8280,9 +8281,12 @@ function renderEntanglementThreeRoomReviewStatus(status) {
   status.classList.add("entanglement-room-review-status");
   const measured = document.createElement("span");
   measured.textContent = `Measured ${measuredCount}/4`;
-  const identity = document.createElement("span");
-  identity.textContent = `You are ${mailboxRoomState.displayName || ""}`.trim();
-  status.append(measured, identity);
+  status.appendChild(measured);
+  if (mailboxRoomState.displayName) {
+    const identity = document.createElement("span");
+    identity.textContent = `You are ${mailboxRoomState.displayName}`;
+    status.appendChild(identity);
+  }
   return true;
 }
 
@@ -27191,11 +27195,14 @@ async function localLabRequest(path, options = {}) {
   }
   const payload = await localLabReadJsonResponse(response);
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       payload?.error?.message ||
         payload?.message ||
         `Backend request failed (${response.status})`,
     );
+    error.code = payload?.error?.code || "";
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
