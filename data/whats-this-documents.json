@@ -4196,6 +4196,231 @@
     },
     {
       "version": 1,
+      "tabId": "editor-entanglement-3",
+      "title": "What's this?",
+      "scenes": [
+        {
+          "id": "scene-mqr0opvc-5kl8j",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mqr0r705-1q",
+              "type": "text-box",
+              "left": 63,
+              "top": 57,
+              "width": 705,
+              "height": 188,
+              "z": 2,
+              "text": "Now that you've seen that the measurment of one of a pair of entangled qubits can affect the state of the other qubit, an obvious question arises: what if the two qubits are widely separated? On this tab you'll get to run experiments to find out. You'll also get to see what happens when more than two qubits are entangled.",
+              "buttons": [
+                "next"
+              ],
+              "buttonMode": "next"
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": null,
+          "savedAt": 1784927357652
+        },
+        {
+          "id": "scene-mrz1o7io-m490n",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mrz1ocr5-lus",
+              "type": "text-box",
+              "left": 32,
+              "top": 27,
+              "width": 797,
+              "height": 293,
+              "z": 2,
+              "text": "Welcome to the mailbox component. When you drag a qubit into it, the qubit disappears. If another user logs into the Qubit Lab that user will receive the qubit on his or her Entanglement 3 tab. If you don't have another user handy, you can test this out simply by openng up another tab on your browser and pointing it to the same Qubit Lab website. Then by flipping back and forth between the two browser tabs you can see what users on two different computers would see.\n\n\nFor historical reasons, we have named the first person to log in \"Bob\" and the second person \"Alice.\"",
+              "buttons": [
+                "next",
+                "show"
+              ],
+              "buttonMode": "custom"
+            },
+            {
+              "id": "qubit-mrz1pxkx-m9t",
+              "type": "qubit",
+              "left": 61,
+              "top": 402,
+              "width": 72,
+              "height": 72,
+              "z": 3,
+              "qubitId": 130535,
+              "roomQubitIndex": 0
+            },
+            {
+              "id": "mailbox-mrzf0tom-ba",
+              "type": "mailbox",
+              "left": 263,
+              "top": 317,
+              "width": 373,
+              "height": 240,
+              "z": 4
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": {
+            "version": 1,
+            "recordedAt": 1784926307082,
+            "initialQubits": [
+              {
+                "itemId": "qubit-mrz1pxkx-m9t",
+                "logicalQubitId": 130535,
+                "center": {
+                  "x": 96.66,
+                  "y": 437.66
+                },
+                "vector": [
+                  1,
+                  0
+                ],
+                "roomQubitIndex": 0
+              }
+            ],
+            "gateSettings": [],
+            "actions": [
+              {
+                "type": "drag",
+                "qubitId": "qubit-mrz1pxkx-m9t",
+                "qubitLogicalId": 130535,
+                "path": [
+                  {
+                    "x": 96.66,
+                    "y": 437.66,
+                    "t": 0
+                  },
+                  {
+                    "x": 102.66,
+                    "y": 440.66,
+                    "t": 1344
+                  },
+                  {
+                    "x": 106.66,
+                    "y": 440.66,
+                    "t": 1358
+                  },
+                  {
+                    "x": 118.66,
+                    "y": 440.66,
+                    "t": 1374
+                  },
+                  {
+                    "x": 132.66,
+                    "y": 441.66,
+                    "t": 1391
+                  },
+                  {
+                    "x": 147.66,
+                    "y": 441.66,
+                    "t": 1408
+                  },
+                  {
+                    "x": 159.66,
+                    "y": 441.66,
+                    "t": 1425
+                  },
+                  {
+                    "x": 168.66,
+                    "y": 441.66,
+                    "t": 1440
+                  },
+                  {
+                    "x": 173.66,
+                    "y": 441.66,
+                    "t": 1458
+                  },
+                  {
+                    "x": 177.66,
+                    "y": 441.66,
+                    "t": 1475
+                  },
+                  {
+                    "x": 182.66,
+                    "y": 441.66,
+                    "t": 1492
+                  },
+                  {
+                    "x": 187.66,
+                    "y": 441.66,
+                    "t": 1507
+                  },
+                  {
+                    "x": 193.66,
+                    "y": 441.66,
+                    "t": 1525
+                  },
+                  {
+                    "x": 199.66,
+                    "y": 441.66,
+                    "t": 1541
+                  },
+                  {
+                    "x": 207.66,
+                    "y": 441.66,
+                    "t": 1558
+                  },
+                  {
+                    "x": 214.66,
+                    "y": 441.66,
+                    "t": 1573
+                  },
+                  {
+                    "x": 220.66,
+                    "y": 441.66,
+                    "t": 1608
+                  },
+                  {
+                    "x": 226.66,
+                    "y": 441.66,
+                    "t": 1641
+                  },
+                  {
+                    "x": 265.66,
+                    "y": 444.66,
+                    "t": 1642
+                  }
+                ],
+                "t": 1642
+              }
+            ]
+          },
+          "savedAt": 1784927358282
+        },
+        {
+          "id": "scene-mrzf3u56-n0g4m",
+          "title": "Scene",
+          "items": [
+            {
+              "id": "text-box-mrzf41wa-rt",
+              "type": "text-box",
+              "left": 27,
+              "top": 25,
+              "width": 774,
+              "height": 384,
+              "z": 2,
+              "text": "Between them Bob and Alice have a total of four qubits. A four-qubit register has sixteen states; accordingly, this tab comes equipped with sixteen tubes for counting the outcome of experiments. By convention, the experiment does not end until ALL FOUR QUBITS HAVE BEEN MEASURED. Once that happens either Alice or Bob can run the experiment again by clcking on the magnifier or changing the iteration count just as they can do on the other tabs. The animation won't run but the different outcomes will be counted and will show up in the tubes.\n\n\nNote that even though all four qubits must be measured they don't all need to be entangled. For instance, if Bob entangles his two qubits and sends one of them to Alice they will remain entangled and once the other two qubits have been measured the effect of that entanglement will show up in the counts.\n\n\nAnd of course you can entangle more than two qubits and in many different ways, often with surprising results. So many experiments, so little time!",
+              "buttons": [
+                "done"
+              ],
+              "buttonMode": "done"
+            }
+          ],
+          "canvasWidth": 900,
+          "canvasHeight": 560,
+          "experiment": null,
+          "savedAt": 1784927414924
+        }
+      ],
+      "updatedAt": 1784927414924
+    },
+    {
+      "version": 1,
       "tabId": "custom-entanglement-2",
       "title": "What's this?",
       "scenes": [
@@ -4222,7 +4447,7 @@
           "canvasWidth": 1444,
           "canvasHeight": 727,
           "experiment": null,
-          "savedAt": 1784843314703
+          "savedAt": 1784999141488
         },
         {
           "id": "scene-mrxz1jct-7uoaz",
@@ -4717,7 +4942,7 @@
               }
             ]
           },
-          "savedAt": 1784841131128
+          "savedAt": 1784998900482
         },
         {
           "id": "scene-mrxzbnih-vjst0",
@@ -4742,8 +4967,8 @@
             {
               "id": "qubit-mrxzgi8i-18bu",
               "type": "qubit",
-              "left": 1143,
-              "top": 240,
+              "left": 27,
+              "top": 207,
               "width": 72,
               "height": 72,
               "z": 14,
@@ -4753,8 +4978,8 @@
             {
               "id": "qubit-mrxzglg1-18cm",
               "type": "qubit",
-              "left": 1146,
-              "top": 329,
+              "left": 30,
+              "top": 358,
               "width": 72,
               "height": 72,
               "z": 15,
@@ -5161,7 +5386,7 @@
               }
             ]
           },
-          "savedAt": 1784841170717
+          "savedAt": 1784998901701
         },
         {
           "id": "scene-mrxzimr6-9s1fi",
@@ -5359,22 +5584,22 @@
             {
               "id": "qubit-mrxzs5gv-1s9x",
               "type": "qubit",
-              "left": 47,
-              "top": 288,
-              "width": 72,
-              "height": 72,
-              "z": 22,
+              "left": 56,
+              "top": 299,
+              "width": 73,
+              "height": 73,
+              "z": 46,
               "qubitId": 130533,
               "roomQubitIndex": 0
             },
             {
               "id": "qubit-mrxzs76a-1sap",
               "type": "qubit",
-              "left": 48,
-              "top": 423,
+              "left": 56,
+              "top": 431,
               "width": 72,
               "height": 72,
-              "z": 23,
+              "z": 47,
               "qubitId": 130534,
               "roomQubitIndex": 0
             }
@@ -5383,14 +5608,14 @@
           "canvasHeight": 558,
           "experiment": {
             "version": 1,
-            "recordedAt": 1784840374346,
+            "recordedAt": 1784998948362,
             "initialQubits": [
               {
                 "itemId": "qubit-mrxzs5gv-1s9x",
                 "logicalQubitId": 130533,
                 "center": {
-                  "x": 82.66,
-                  "y": 323.66
+                  "x": 92.16,
+                  "y": 335.16
                 },
                 "vector": [
                   1,
@@ -5402,8 +5627,8 @@
                 "itemId": "qubit-mrxzs76a-1sap",
                 "logicalQubitId": 130534,
                 "center": {
-                  "x": 83.66,
-                  "y": 458.66
+                  "x": 91.66,
+                  "y": 466.66
                 },
                 "vector": [
                   1,
@@ -5429,47 +5654,100 @@
                 "qubitLogicalId": 130533,
                 "path": [
                   {
-                    "x": 82.66,
-                    "y": 323.66,
+                    "x": 92.16,
+                    "y": 335.16,
                     "t": 0
                   },
                   {
-                    "x": 86.66,
-                    "y": 322.66,
-                    "t": 1243
+                    "x": 99.16,
+                    "y": 334.16,
+                    "t": 1620
                   },
                   {
-                    "x": 96.66,
-                    "y": 322.66,
-                    "t": 1276
+                    "x": 105.16,
+                    "y": 333.16,
+                    "t": 1654
                   },
                   {
-                    "x": 110.66,
-                    "y": 323.66,
-                    "t": 1293
+                    "x": 110.16,
+                    "y": 333.16,
+                    "t": 1680
                   },
                   {
-                    "x": 128.66,
-                    "y": 324.66,
-                    "t": 1309
+                    "x": 122.16,
+                    "y": 333.16,
+                    "t": 1706
                   },
                   {
-                    "x": 151.66,
-                    "y": 324.66,
-                    "t": 1326
+                    "x": 129.16,
+                    "y": 333.16,
+                    "t": 1720
                   },
                   {
-                    "x": 175.66,
-                    "y": 324.66,
-                    "t": 1343
+                    "x": 142.16,
+                    "y": 334.16,
+                    "t": 1737
                   },
                   {
-                    "x": 197.66,
-                    "y": 324.66,
-                    "t": 1360
+                    "x": 162.16,
+                    "y": 335.16,
+                    "t": 1754
+                  },
+                  {
+                    "x": 190.16,
+                    "y": 335.16,
+                    "t": 1770
+                  },
+                  {
+                    "x": 204.16,
+                    "y": 335.16,
+                    "t": 1787
                   }
                 ],
-                "t": 1360
+                "t": 1787
+              },
+              {
+                "type": "drag",
+                "qubitId": "qubit-mrxzs76a-1sap",
+                "qubitLogicalId": 130534,
+                "path": [
+                  {
+                    "x": 91.66,
+                    "y": 466.66,
+                    "t": 0
+                  },
+                  {
+                    "x": 98.66,
+                    "y": 468.66,
+                    "t": 2920
+                  },
+                  {
+                    "x": 105.66,
+                    "y": 472.66,
+                    "t": 2937
+                  },
+                  {
+                    "x": 140.66,
+                    "y": 481.66,
+                    "t": 2954
+                  },
+                  {
+                    "x": 165.66,
+                    "y": 485.66,
+                    "t": 2971
+                  },
+                  {
+                    "x": 189.66,
+                    "y": 487.66,
+                    "t": 2987
+                  },
+                  {
+                    "x": 205.66,
+                    "y": 487.66,
+                    "t": 3004
+                  }
+                ],
+                "t": 3004
               },
               {
                 "type": "gate",
@@ -5478,100 +5756,7 @@
                 "roomQubitIndex": 0,
                 "gateId": "single-gate-mrxznyhk-1r7k",
                 "tickIndex": 3,
-                "t": 2982
-              },
-              {
-                "type": "drag",
-                "qubitId": "qubit-mrxzs76a-1sap",
-                "qubitLogicalId": 130534,
-                "path": [
-                  {
-                    "x": 83.66,
-                    "y": 458.66,
-                    "t": 0
-                  },
-                  {
-                    "x": 87.66,
-                    "y": 460.66,
-                    "t": 3710
-                  },
-                  {
-                    "x": 93.66,
-                    "y": 460.66,
-                    "t": 3826
-                  },
-                  {
-                    "x": 97.66,
-                    "y": 460.66,
-                    "t": 3843
-                  },
-                  {
-                    "x": 108.66,
-                    "y": 460.66,
-                    "t": 3860
-                  },
-                  {
-                    "x": 115.66,
-                    "y": 460.66,
-                    "t": 3876
-                  },
-                  {
-                    "x": 123.66,
-                    "y": 460.66,
-                    "t": 3893
-                  },
-                  {
-                    "x": 134.66,
-                    "y": 460.66,
-                    "t": 3910
-                  },
-                  {
-                    "x": 143.66,
-                    "y": 460.66,
-                    "t": 3926
-                  },
-                  {
-                    "x": 152.66,
-                    "y": 460.66,
-                    "t": 3943
-                  },
-                  {
-                    "x": 160.66,
-                    "y": 460.66,
-                    "t": 3960
-                  },
-                  {
-                    "x": 167.66,
-                    "y": 460.66,
-                    "t": 3976
-                  },
-                  {
-                    "x": 173.66,
-                    "y": 460.66,
-                    "t": 3993
-                  },
-                  {
-                    "x": 181.66,
-                    "y": 460.66,
-                    "t": 4010
-                  },
-                  {
-                    "x": 188.66,
-                    "y": 460.66,
-                    "t": 4026
-                  },
-                  {
-                    "x": 192.66,
-                    "y": 460.66,
-                    "t": 4043
-                  },
-                  {
-                    "x": 199.66,
-                    "y": 458.66,
-                    "t": 4126
-                  }
-                ],
-                "t": 4126
+                "t": 3411
               },
               {
                 "type": "gate",
@@ -5580,7 +5765,7 @@
                 "roomQubitIndex": 0,
                 "gateId": "single-gate-mrxznzwx-1r8c",
                 "tickIndex": 0,
-                "t": 5748
+                "t": 4627
               },
               {
                 "type": "drag",
@@ -5588,47 +5773,42 @@
                 "qubitLogicalId": 130533,
                 "path": [
                   {
-                    "x": 639.66,
-                    "y": 329.66,
+                    "x": 640.16,
+                    "y": 329.16,
                     "t": 0
                   },
                   {
-                    "x": 643.66,
-                    "y": 331.66,
-                    "t": 8176
+                    "x": 644.16,
+                    "y": 333.16,
+                    "t": 6572
                   },
                   {
-                    "x": 647.66,
-                    "y": 331.66,
-                    "t": 8193
+                    "x": 648.16,
+                    "y": 337.16,
+                    "t": 6587
                   },
                   {
-                    "x": 652.66,
-                    "y": 332.66,
-                    "t": 8209
+                    "x": 652.16,
+                    "y": 339.16,
+                    "t": 6604
                   },
                   {
-                    "x": 658.66,
-                    "y": 333.66,
-                    "t": 8226
+                    "x": 659.16,
+                    "y": 343.16,
+                    "t": 6620
                   },
                   {
-                    "x": 665.66,
-                    "y": 334.66,
-                    "t": 8243
+                    "x": 668.16,
+                    "y": 347.16,
+                    "t": 6637
                   },
                   {
-                    "x": 670.66,
-                    "y": 336.66,
-                    "t": 8260
-                  },
-                  {
-                    "x": 676.66,
-                    "y": 336.66,
-                    "t": 8293
+                    "x": 677.16,
+                    "y": 349.16,
+                    "t": 6662
                   }
                 ],
-                "t": 8293
+                "t": 6662
               },
               {
                 "type": "drag",
@@ -5641,37 +5821,22 @@
                     "t": 0
                   },
                   {
-                    "x": 645.66,
+                    "x": 652.66,
                     "y": 469.66,
-                    "t": 10328
+                    "t": 7555
                   },
                   {
-                    "x": 650.66,
+                    "x": 667.66,
                     "y": 469.66,
-                    "t": 10343
+                    "t": 7570
                   },
                   {
-                    "x": 658.66,
-                    "y": 468.66,
-                    "t": 10376
-                  },
-                  {
-                    "x": 664.66,
-                    "y": 466.66,
-                    "t": 10393
-                  },
-                  {
-                    "x": 669.66,
-                    "y": 463.66,
-                    "t": 10410
-                  },
-                  {
-                    "x": 674.66,
-                    "y": 461.66,
-                    "t": 10426
+                    "x": 682.66,
+                    "y": 469.66,
+                    "t": 7587
                   }
                 ],
-                "t": 10443
+                "t": 7587
               },
               {
                 "type": "cnot",
@@ -5682,7 +5847,7 @@
                 "bottomQubitLogicalId": 130534,
                 "topRoomQubitIndex": 0,
                 "bottomRoomQubitIndex": 0,
-                "t": 11567
+                "t": 8710
               },
               {
                 "type": "drag",
@@ -5690,17 +5855,17 @@
                 "qubitLogicalId": 130533,
                 "path": [
                   {
-                    "x": 1228.66,
-                    "y": 348.66,
+                    "x": 1229.16,
+                    "y": 348.16,
                     "t": 0
                   },
                   {
-                    "x": 1234.66,
-                    "y": 348.66,
-                    "t": 15378
+                    "x": 1233.16,
+                    "y": 349.16,
+                    "t": 11705
                   }
                 ],
-                "t": 15379
+                "t": 11706
               },
               {
                 "type": "double-measure",
@@ -5713,23 +5878,17 @@
                 "bottomQubitId": "qubit-mrxzs76a-1sap",
                 "topQubitLogicalId": 130533,
                 "bottomQubitLogicalId": 130534,
-                "t": 18070
+                "t": 13813
               },
               {
                 "type": "experiment-count",
                 "measurementId": "double-measurement-mrxzp91s-1rqe",
-                "iterations": 5,
-                "t": 22483
-              },
-              {
-                "type": "experiment-count",
-                "measurementId": "double-measurement-mrxzp91s-1rqe",
-                "iterations": 10000,
-                "t": 42028
+                "iterations": 10,
+                "t": 17396
               }
             ]
           },
-          "savedAt": 1784841208645
+          "savedAt": 1784998951971
         },
         {
           "id": "scene-mrxzvs53-bqzxn",
@@ -5753,10 +5912,10 @@
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1784841289650
+          "savedAt": 1784999031367
         }
       ],
-      "updatedAt": 1784843314703
+      "updatedAt": 1784999141488
     },
     {
       "version": 1,
@@ -5785,7 +5944,7 @@
           "canvasWidth": 1011,
           "canvasHeight": 420,
           "experiment": null,
-          "savedAt": 1784847898411
+          "savedAt": 1784999143499
         },
         {
           "id": "scene-mpvl703c-wpg7b",
@@ -5810,11 +5969,11 @@
             {
               "id": "qubit-mq5ig59f-23gt",
               "type": "qubit",
-              "left": 58,
-              "top": 295,
+              "left": 1489,
+              "top": 418,
               "width": 65,
               "height": 65,
-              "z": 39,
+              "z": 44,
               "qubitId": 218874,
               "roomQubitIndex": 0
             },
@@ -5831,11 +5990,11 @@
             {
               "id": "qubit-mq5igida-249g",
               "type": "qubit",
-              "left": 63,
-              "top": 439,
+              "left": 1489,
+              "top": 460,
               "width": 65,
               "height": 65,
-              "z": 38,
+              "z": 45,
               "qubitId": 218875,
               "roomQubitIndex": 1
             },
@@ -6004,14 +6163,14 @@
           "canvasHeight": 618,
           "experiment": {
             "version": 1,
-            "recordedAt": 1784845664308,
+            "recordedAt": 1784999187467,
             "initialQubits": [
               {
                 "itemId": "qubit-mq5ig59f-23gt",
                 "logicalQubitId": 218874,
                 "center": {
-                  "x": 90.16,
-                  "y": 327.16
+                  "x": 92.16,
+                  "y": 329.17
                 },
                 "vector": [
                   1,
@@ -6023,8 +6182,8 @@
                 "itemId": "qubit-mq5igida-249g",
                 "logicalQubitId": 218875,
                 "center": {
-                  "x": 95.16,
-                  "y": 471.16
+                  "x": 97.16,
+                  "y": 473.16
                 },
                 "vector": [
                   1,
@@ -6050,77 +6209,52 @@
                 "qubitLogicalId": 218874,
                 "path": [
                   {
-                    "x": 90.16,
-                    "y": 327.16,
+                    "x": 92.16,
+                    "y": 329.17,
                     "t": 0
                   },
                   {
-                    "x": 96.16,
-                    "y": 326.16,
-                    "t": 1202
+                    "x": 102.16,
+                    "y": 331.16,
+                    "t": 1118
                   },
                   {
-                    "x": 101.16,
-                    "y": 326.16,
-                    "t": 1235
-                  },
-                  {
-                    "x": 107.16,
-                    "y": 326.16,
-                    "t": 1252
-                  },
-                  {
-                    "x": 115.16,
-                    "y": 326.16,
-                    "t": 1268
+                    "x": 113.16,
+                    "y": 330.16,
+                    "t": 1150
                   },
                   {
                     "x": 122.16,
-                    "y": 326.16,
-                    "t": 1285
+                    "y": 327.16,
+                    "t": 1166
                   },
                   {
-                    "x": 135.16,
-                    "y": 326.16,
-                    "t": 1302
-                  },
-                  {
-                    "x": 140.16,
-                    "y": 326.16,
-                    "t": 1318
-                  },
-                  {
-                    "x": 144.17,
-                    "y": 326.16,
-                    "t": 1335
-                  },
-                  {
-                    "x": 149.17,
-                    "y": 326.16,
-                    "t": 1352
-                  },
-                  {
-                    "x": 156.16,
-                    "y": 326.16,
-                    "t": 1369
-                  },
-                  {
-                    "x": 164.17,
-                    "y": 325.16,
-                    "t": 1385
-                  },
-                  {
-                    "x": 170.16,
-                    "y": 325.16,
-                    "t": 1402
-                  },
-                  {
-                    "x": 174.17,
+                    "x": 138.16,
                     "y": 324.17,
-                    "t": 1435
+                    "t": 1183
+                  },
+                  {
+                    "x": 143.16,
+                    "y": 324.17,
+                    "t": 1205
+                  },
+                  {
+                    "x": 162.16,
+                    "y": 322.16,
+                    "t": 1229
+                  },
+                  {
+                    "x": 169.17,
+                    "y": 321.16,
+                    "t": 1255
+                  },
+                  {
+                    "x": 191.16,
+                    "y": 319.17,
+                    "t": 1283
                   }
                 ],
-                "t": 1503
+                "t": 1283
               },
               {
                 "type": "drag",
@@ -6128,62 +6262,72 @@
                 "qubitLogicalId": 218875,
                 "path": [
                   {
-                    "x": 95.16,
-                    "y": 471.16,
+                    "x": 97.16,
+                    "y": 473.16,
                     "t": 0
                   },
                   {
-                    "x": 100.16,
+                    "x": 104.17,
+                    "y": 474.17,
+                    "t": 2550
+                  },
+                  {
+                    "x": 113.16,
                     "y": 473.16,
-                    "t": 2619
+                    "t": 2566
                   },
                   {
-                    "x": 109.17,
-                    "y": 476.16,
-                    "t": 2635
+                    "x": 122.16,
+                    "y": 473.16,
+                    "t": 2583
                   },
                   {
-                    "x": 119.17,
-                    "y": 479.17,
-                    "t": 2652
+                    "x": 127.16,
+                    "y": 473.16,
+                    "t": 2600
                   },
                   {
-                    "x": 128.16,
-                    "y": 480.16,
-                    "t": 2668
+                    "x": 143.16,
+                    "y": 472.16,
+                    "t": 2617
                   },
                   {
-                    "x": 138.16,
-                    "y": 480.16,
-                    "t": 2685
+                    "x": 149.17,
+                    "y": 471.16,
+                    "t": 2633
                   },
                   {
-                    "x": 147.16,
-                    "y": 480.16,
-                    "t": 2702
+                    "x": 153.16,
+                    "y": 468.16,
+                    "t": 2650
                   },
                   {
-                    "x": 155.16,
-                    "y": 480.16,
-                    "t": 2719
+                    "x": 157.16,
+                    "y": 467.16,
+                    "t": 2666
                   },
                   {
-                    "x": 160.16,
-                    "y": 480.16,
-                    "t": 2735
+                    "x": 163.16,
+                    "y": 464.17,
+                    "t": 2699
                   },
                   {
-                    "x": 168.16,
-                    "y": 480.16,
-                    "t": 2752
+                    "x": 167.16,
+                    "y": 464.17,
+                    "t": 2717
                   },
                   {
-                    "x": 174.17,
-                    "y": 480.16,
-                    "t": 2768
+                    "x": 172.16,
+                    "y": 463.16,
+                    "t": 2750
+                  },
+                  {
+                    "x": 177.16,
+                    "y": 462.16,
+                    "t": 2800
                   }
                 ],
-                "t": 2785
+                "t": 2800
               },
               {
                 "type": "gate",
@@ -6192,7 +6336,7 @@
                 "roomQubitIndex": 0,
                 "gateId": "single-gate-mq5ige5z-248u",
                 "tickIndex": 3,
-                "t": 3125
+                "t": 2905
               },
               {
                 "type": "gate",
@@ -6201,7 +6345,7 @@
                 "roomQubitIndex": 1,
                 "gateId": "single-gate-mq5igl2h-24a2",
                 "tickIndex": 0,
-                "t": 4410
+                "t": 4423
               },
               {
                 "type": "drag",
@@ -6214,32 +6358,32 @@
                     "t": 0
                   },
                   {
-                    "x": 646.16,
+                    "x": 643.16,
                     "y": 321.16,
-                    "t": 6238
+                    "t": 5968
                   },
                   {
-                    "x": 648.16,
-                    "y": 325.16,
-                    "t": 6252
+                    "x": 643.16,
+                    "y": 326.16,
+                    "t": 6000
                   },
                   {
-                    "x": 651.16,
-                    "y": 328.16,
-                    "t": 6269
+                    "x": 646.16,
+                    "y": 329.17,
+                    "t": 6016
                   },
                   {
-                    "x": 654.17,
-                    "y": 332.16,
-                    "t": 6285
+                    "x": 653.16,
+                    "y": 337.16,
+                    "t": 6062
                   },
                   {
-                    "x": 658.16,
-                    "y": 338.16,
-                    "t": 6308
+                    "x": 657.16,
+                    "y": 341.16,
+                    "t": 6099
                   }
                 ],
-                "t": 6308
+                "t": 6100
               },
               {
                 "type": "drag",
@@ -6252,42 +6396,37 @@
                     "t": 0
                   },
                   {
+                    "x": 647.16,
+                    "y": 461.16,
+                    "t": 7133
+                  },
+                  {
                     "x": 649.17,
-                    "y": 465.16,
-                    "t": 7169
-                  },
-                  {
-                    "x": 654.17,
-                    "y": 465.16,
-                    "t": 7185
-                  },
-                  {
-                    "x": 660.16,
-                    "y": 464.17,
-                    "t": 7202
-                  },
-                  {
-                    "x": 665.16,
-                    "y": 460.16,
-                    "t": 7219
-                  },
-                  {
-                    "x": 666.16,
                     "y": 455.16,
-                    "t": 7235
+                    "t": 7150
                   },
                   {
-                    "x": 668.16,
-                    "y": 451.16,
-                    "t": 7252
+                    "x": 651.16,
+                    "y": 445.16,
+                    "t": 7166
                   },
                   {
-                    "x": 669.17,
-                    "y": 446.16,
-                    "t": 7285
+                    "x": 653.16,
+                    "y": 438.16,
+                    "t": 7200
+                  },
+                  {
+                    "x": 655.16,
+                    "y": 432.16,
+                    "t": 7216
+                  },
+                  {
+                    "x": 656.16,
+                    "y": 428.16,
+                    "t": 7250
                   }
                 ],
-                "t": 7286
+                "t": 7250
               },
               {
                 "type": "cnot",
@@ -6298,77 +6437,7 @@
                 "bottomQubitLogicalId": 218875,
                 "topRoomQubitIndex": 0,
                 "bottomRoomQubitIndex": 1,
-                "t": 8409
-              },
-              {
-                "type": "drag",
-                "qubitId": "qubit-mq5igida-249g",
-                "qubitLogicalId": 218875,
-                "path": [
-                  {
-                    "x": 1178.16,
-                    "y": 422.16,
-                    "t": 0
-                  },
-                  {
-                    "x": 1183.16,
-                    "y": 423.16,
-                    "t": 11985
-                  },
-                  {
-                    "x": 1189.17,
-                    "y": 425.16,
-                    "t": 12002
-                  },
-                  {
-                    "x": 1195.16,
-                    "y": 426.16,
-                    "t": 12019
-                  },
-                  {
-                    "x": 1210.16,
-                    "y": 429.17,
-                    "t": 12035
-                  },
-                  {
-                    "x": 1227.16,
-                    "y": 430.16,
-                    "t": 12052
-                  },
-                  {
-                    "x": 1245.16,
-                    "y": 432.16,
-                    "t": 12069
-                  },
-                  {
-                    "x": 1260.16,
-                    "y": 432.16,
-                    "t": 12085
-                  },
-                  {
-                    "x": 1270.16,
-                    "y": 432.16,
-                    "t": 12102
-                  },
-                  {
-                    "x": 1283.16,
-                    "y": 432.16,
-                    "t": 12119
-                  }
-                ],
-                "t": 12119
-              },
-              {
-                "type": "separated-pair-measure",
-                "measurementId": "component-group-mq5ijuvg-26t4",
-                "qubitId": "qubit-mq5igida-249g",
-                "logicalQubitId": 218875,
-                "roomQubitIndex": 1,
-                "partnerLogicalQubitId": 218874,
-                "magnifierIndex": 0,
-                "orderIndex": 1,
-                "registerQubitCount": 2,
-                "t": 12741
+                "t": 8373
               },
               {
                 "type": "drag",
@@ -6381,92 +6450,57 @@
                     "t": 0
                   },
                   {
-                    "x": 1177.16,
-                    "y": 344.17,
-                    "t": 13969
-                  },
-                  {
-                    "x": 1179.17,
-                    "y": 348.16,
-                    "t": 14002
-                  },
-                  {
                     "x": 1182.16,
+                    "y": 344.17,
+                    "t": 11833
+                  },
+                  {
+                    "x": 1189.17,
+                    "y": 347.16,
+                    "t": 11850
+                  },
+                  {
+                    "x": 1199.17,
                     "y": 353.16,
-                    "t": 14019
+                    "t": 11866
                   },
                   {
-                    "x": 1185.16,
-                    "y": 356.16,
-                    "t": 14035
+                    "x": 1213.16,
+                    "y": 358.16,
+                    "t": 11883
                   },
                   {
-                    "x": 1192.16,
-                    "y": 361.16,
-                    "t": 14053
+                    "x": 1229.17,
+                    "y": 366.16,
+                    "t": 11900
                   },
                   {
-                    "x": 1198.16,
-                    "y": 363.16,
-                    "t": 14068
+                    "x": 1245.16,
+                    "y": 372.16,
+                    "t": 11917
                   },
                   {
-                    "x": 1204.17,
-                    "y": 367.16,
-                    "t": 14085
-                  },
-                  {
-                    "x": 1210.16,
-                    "y": 370.16,
-                    "t": 14102
-                  },
-                  {
-                    "x": 1219.17,
-                    "y": 373.16,
-                    "t": 14119
-                  },
-                  {
-                    "x": 1230.16,
-                    "y": 380.16,
-                    "t": 14135
-                  },
-                  {
-                    "x": 1238.16,
-                    "y": 383.16,
-                    "t": 14152
-                  },
-                  {
-                    "x": 1247.16,
-                    "y": 387.16,
-                    "t": 14169
-                  },
-                  {
-                    "x": 1254.17,
-                    "y": 389.17,
-                    "t": 14186
-                  },
-                  {
-                    "x": 1262.16,
-                    "y": 392.16,
-                    "t": 14202
+                    "x": 1260.16,
+                    "y": 379.17,
+                    "t": 11933
                   },
                   {
                     "x": 1275.16,
-                    "y": 399.17,
-                    "t": 14219
+                    "y": 387.16,
+                    "t": 11950
                   },
                   {
-                    "x": 1285.16,
-                    "y": 403.16,
-                    "t": 14235
+                    "x": 1290.16,
+                    "y": 392.16,
+                    "t": 11966
                   },
                   {
-                    "x": 1296.16,
-                    "y": 407.16,
-                    "t": 14253
+                    "x": 1304.17,
+                    "y": 397.16,
+                    "t": 11983
                   }
                 ],
-                "t": 14254
+                "t": 11983
               },
               {
                 "type": "separated-pair-measure",
@@ -6474,20 +6508,95 @@
                 "qubitId": "qubit-mq5ig59f-23gt",
                 "logicalQubitId": 218874,
                 "roomQubitIndex": 0,
+                "partnerLogicalQubitId": 218875,
                 "magnifierIndex": 0,
                 "orderIndex": 0,
                 "registerQubitCount": 2,
-                "t": 14876
+                "t": 12605
+              },
+              {
+                "type": "drag",
+                "qubitId": "qubit-mq5igida-249g",
+                "qubitLogicalId": 218875,
+                "path": [
+                  {
+                    "x": 1178.16,
+                    "y": 422.16,
+                    "t": 0
+                  },
+                  {
+                    "x": 1184.17,
+                    "y": 424.17,
+                    "t": 14182
+                  },
+                  {
+                    "x": 1191.16,
+                    "y": 425.16,
+                    "t": 14216
+                  },
+                  {
+                    "x": 1197.16,
+                    "y": 426.16,
+                    "t": 14233
+                  },
+                  {
+                    "x": 1207.16,
+                    "y": 429.17,
+                    "t": 14250
+                  },
+                  {
+                    "x": 1218.16,
+                    "y": 430.16,
+                    "t": 14267
+                  },
+                  {
+                    "x": 1236.16,
+                    "y": 430.16,
+                    "t": 14283
+                  },
+                  {
+                    "x": 1252.16,
+                    "y": 430.16,
+                    "t": 14300
+                  },
+                  {
+                    "x": 1267.16,
+                    "y": 430.16,
+                    "t": 14316
+                  },
+                  {
+                    "x": 1277.16,
+                    "y": 430.16,
+                    "t": 14333
+                  },
+                  {
+                    "x": 1282.16,
+                    "y": 430.16,
+                    "t": 14350
+                  }
+                ],
+                "t": 14350
+              },
+              {
+                "type": "separated-pair-measure",
+                "measurementId": "component-group-mq5ijuvg-26t4",
+                "qubitId": "qubit-mq5igida-249g",
+                "logicalQubitId": 218875,
+                "roomQubitIndex": 1,
+                "magnifierIndex": 0,
+                "orderIndex": 1,
+                "registerQubitCount": 2,
+                "t": 14971
               },
               {
                 "type": "experiment-count",
                 "measurementId": "component-group-mq5ijuvg-26t4",
-                "iterations": 5,
-                "t": 20068
+                "iterations": 10,
+                "t": 18280
               }
             ]
           },
-          "savedAt": 1784847899508
+          "savedAt": 1784999190667
         },
         {
           "id": "scene-mry3ycak-72g92",
@@ -6511,235 +6620,10 @@
           "canvasWidth": 900,
           "canvasHeight": 560,
           "experiment": null,
-          "savedAt": 1784847915273
+          "savedAt": 1784999204806
         }
       ],
-      "updatedAt": 1784847915273
-    },
-    {
-      "version": 1,
-      "tabId": "editor-entanglement-3",
-      "title": "What's this?",
-      "scenes": [
-        {
-          "id": "scene-mqr0opvc-5kl8j",
-          "title": "Scene",
-          "items": [
-            {
-              "id": "text-box-mqr0r705-1q",
-              "type": "text-box",
-              "left": 63,
-              "top": 57,
-              "width": 705,
-              "height": 188,
-              "z": 2,
-              "text": "Now that you've seen that the measurment of one of a pair of entangled qubits can affect the state of the other qubit, an obvious question arises: what if the two qubits are widely separated? On this tab you'll get to run experiments to find out. You'll also get to see what happens when more than two qubits are entangled.",
-              "buttons": [
-                "next"
-              ],
-              "buttonMode": "next"
-            }
-          ],
-          "canvasWidth": 900,
-          "canvasHeight": 560,
-          "experiment": null,
-          "savedAt": 1784927357652
-        },
-        {
-          "id": "scene-mrz1o7io-m490n",
-          "title": "Scene",
-          "items": [
-            {
-              "id": "text-box-mrz1ocr5-lus",
-              "type": "text-box",
-              "left": 32,
-              "top": 27,
-              "width": 797,
-              "height": 293,
-              "z": 2,
-              "text": "Welcome to the mailbox component. When you drag a qubit into it, the qubit disappears. If another user logs into the Qubit Lab that user will receive the qubit on his or her Entanglement 3 tab. If you don't have another user handy, you can test this out simply by openng up another tab on your browser and pointing it to the same Qubit Lab website. Then by flipping back and forth between the two browser tabs you can see what users on two different computers would see.\n\n\nFor historical reasons, we have named the first person to log in \"Bob\" and the second person \"Alice.\"",
-              "buttons": [
-                "next",
-                "show"
-              ],
-              "buttonMode": "custom"
-            },
-            {
-              "id": "qubit-mrz1pxkx-m9t",
-              "type": "qubit",
-              "left": 61,
-              "top": 402,
-              "width": 72,
-              "height": 72,
-              "z": 3,
-              "qubitId": 130535,
-              "roomQubitIndex": 0
-            },
-            {
-              "id": "mailbox-mrzf0tom-ba",
-              "type": "mailbox",
-              "left": 263,
-              "top": 317,
-              "width": 373,
-              "height": 240,
-              "z": 4
-            }
-          ],
-          "canvasWidth": 900,
-          "canvasHeight": 560,
-          "experiment": {
-            "version": 1,
-            "recordedAt": 1784926307082,
-            "initialQubits": [
-              {
-                "itemId": "qubit-mrz1pxkx-m9t",
-                "logicalQubitId": 130535,
-                "center": {
-                  "x": 96.66,
-                  "y": 437.66
-                },
-                "vector": [
-                  1,
-                  0
-                ],
-                "roomQubitIndex": 0
-              }
-            ],
-            "gateSettings": [],
-            "actions": [
-              {
-                "type": "drag",
-                "qubitId": "qubit-mrz1pxkx-m9t",
-                "qubitLogicalId": 130535,
-                "path": [
-                  {
-                    "x": 96.66,
-                    "y": 437.66,
-                    "t": 0
-                  },
-                  {
-                    "x": 102.66,
-                    "y": 440.66,
-                    "t": 1344
-                  },
-                  {
-                    "x": 106.66,
-                    "y": 440.66,
-                    "t": 1358
-                  },
-                  {
-                    "x": 118.66,
-                    "y": 440.66,
-                    "t": 1374
-                  },
-                  {
-                    "x": 132.66,
-                    "y": 441.66,
-                    "t": 1391
-                  },
-                  {
-                    "x": 147.66,
-                    "y": 441.66,
-                    "t": 1408
-                  },
-                  {
-                    "x": 159.66,
-                    "y": 441.66,
-                    "t": 1425
-                  },
-                  {
-                    "x": 168.66,
-                    "y": 441.66,
-                    "t": 1440
-                  },
-                  {
-                    "x": 173.66,
-                    "y": 441.66,
-                    "t": 1458
-                  },
-                  {
-                    "x": 177.66,
-                    "y": 441.66,
-                    "t": 1475
-                  },
-                  {
-                    "x": 182.66,
-                    "y": 441.66,
-                    "t": 1492
-                  },
-                  {
-                    "x": 187.66,
-                    "y": 441.66,
-                    "t": 1507
-                  },
-                  {
-                    "x": 193.66,
-                    "y": 441.66,
-                    "t": 1525
-                  },
-                  {
-                    "x": 199.66,
-                    "y": 441.66,
-                    "t": 1541
-                  },
-                  {
-                    "x": 207.66,
-                    "y": 441.66,
-                    "t": 1558
-                  },
-                  {
-                    "x": 214.66,
-                    "y": 441.66,
-                    "t": 1573
-                  },
-                  {
-                    "x": 220.66,
-                    "y": 441.66,
-                    "t": 1608
-                  },
-                  {
-                    "x": 226.66,
-                    "y": 441.66,
-                    "t": 1641
-                  },
-                  {
-                    "x": 265.66,
-                    "y": 444.66,
-                    "t": 1642
-                  }
-                ],
-                "t": 1642
-              }
-            ]
-          },
-          "savedAt": 1784927358282
-        },
-        {
-          "id": "scene-mrzf3u56-n0g4m",
-          "title": "Scene",
-          "items": [
-            {
-              "id": "text-box-mrzf41wa-rt",
-              "type": "text-box",
-              "left": 27,
-              "top": 25,
-              "width": 774,
-              "height": 384,
-              "z": 2,
-              "text": "Between them Bob and Alice have a total of four qubits. A four-qubit register has sixteen states; accordingly, this tab comes equipped with sixteen tubes for counting the outcome of experiments. By convention, the experiment does not end until ALL FOUR QUBITS HAVE BEEN MEASURED. Once that happens either Alice or Bob can run the experiment again by clcking on the magnifier or changing the iteration count just as they can do on the other tabs. The animation won't run but the different outcomes will be counted and will show up in the tubes.\n\n\nNote that even though all four qubits must be measured they don't all need to be entangled. For instance, if Bob entangles his two qubits and sends one of them to Alice they will remain entangled and once the other two qubits have been measured the effect of that entanglement will show up in the counts.\n\n\nAnd of course you can entangle more than two qubits and in many different ways, often with surprising results. So many experiments, so little time!",
-              "buttons": [
-                "done"
-              ],
-              "buttonMode": "done"
-            }
-          ],
-          "canvasWidth": 900,
-          "canvasHeight": 560,
-          "experiment": null,
-          "savedAt": 1784927414924
-        }
-      ],
-      "updatedAt": 1784927414924
+      "updatedAt": 1784999204806
     }
   ]
 }

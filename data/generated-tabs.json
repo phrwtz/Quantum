@@ -527,11 +527,11 @@
           },
           {
             "type": "cnot-gate",
-            "left": 649,
-            "top": 218,
+            "left": 643,
+            "top": 165,
             "width": 420,
             "height": 260,
-            "z": 615,
+            "z": 1310,
             "cnotLayout": {
               "gate": {
                 "tx": 0,
@@ -540,8 +540,8 @@
                 "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "598px",
-                  "top": "260px",
+                  "left": "643px",
+                  "top": "165px",
                   "width": "420px",
                   "height": "260px"
                 }
@@ -634,9 +634,9 @@
           }
         ],
         "gridSnap": false,
-        "canvasWidth": 1677,
-        "canvasHeight": 762,
-        "savedAt": 1784838662771
+        "canvasWidth": 1600,
+        "canvasHeight": 760,
+        "savedAt": 1784999073746
       }
     },
     {
