@@ -8280,7 +8280,9 @@ function renderEntanglementThreeRoomReviewStatus(status) {
   status.classList.add("entanglement-room-review-status");
   const measured = document.createElement("span");
   measured.textContent = `Measured ${measuredCount}/4`;
-  status.appendChild(measured);
+  const identity = document.createElement("span");
+  identity.textContent = `You are ${mailboxRoomState.displayName || ""}`.trim();
+  status.append(measured, identity);
   return true;
 }
 

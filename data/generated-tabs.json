@@ -357,9 +357,10 @@
                 "deleted": false,
                 "inlineStyle": {
                   "left": "598px",
-                  "top": "208px",
+                  "top": "260px",
                   "width": "420px",
-                  "height": "260px"
+                  "height": "260px",
+                  "translate": "0px"
                 }
               },
               "body": {
@@ -399,23 +400,23 @@
                 }
               },
               "windowTop": {
-                "tx": -11,
-                "ty": 0,
+                "tx": -20,
+                "ty": -18,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-11px"
+                  "translate": "-20px -18px"
                 }
               },
               "windowBottom": {
-                "tx": -5,
-                "ty": 1,
+                "tx": -15,
+                "ty": 10,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-5px 1px"
+                  "translate": "-15px 10px"
                 }
               },
               "flangeTop": {
@@ -479,7 +480,7 @@
         "gridSnap": true,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1784843149805
+        "savedAt": 1785004212650
       }
     },
     {
@@ -540,10 +541,11 @@
                 "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "643px",
-                  "top": "165px",
+                  "left": "598px",
+                  "top": "260px",
                   "width": "420px",
-                  "height": "260px"
+                  "height": "260px",
+                  "translate": "0px"
                 }
               },
               "body": {
@@ -554,7 +556,9 @@
                 "deleted": false,
                 "inlineStyle": {
                   "left": "42px",
+                  "right": "22px",
                   "top": "0px",
+                  "bottom": "0px",
                   "width": "356.01px",
                   "height": "260px",
                   "translate": "5px -1px"
@@ -581,23 +585,23 @@
                 }
               },
               "windowTop": {
-                "tx": -11,
-                "ty": 0,
+                "tx": -20,
+                "ty": -18,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-11px"
+                  "translate": "-20px -18px"
                 }
               },
               "windowBottom": {
-                "tx": -5,
-                "ty": 1,
+                "tx": -15,
+                "ty": 10,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-5px 1px"
+                  "translate": "-15px 10px"
                 }
               },
               "flangeTop": {
@@ -636,7 +640,7 @@
         "gridSnap": false,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1784999073746
+        "savedAt": 1785004212650
       }
     },
     {
@@ -688,10 +692,11 @@
                 "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "186px",
-                  "top": "294px",
+                  "left": "598px",
+                  "top": "260px",
                   "width": "420px",
-                  "height": "260px"
+                  "height": "260px",
+                  "translate": "0px"
                 }
               },
               "body": {
@@ -731,23 +736,23 @@
                 }
               },
               "windowTop": {
-                "tx": -11,
-                "ty": 0,
+                "tx": -20,
+                "ty": -18,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-11px"
+                  "translate": "-20px -18px"
                 }
               },
               "windowBottom": {
-                "tx": -5,
-                "ty": 1,
+                "tx": -15,
+                "ty": 10,
                 "width": "",
                 "height": "",
                 "deleted": false,
                 "inlineStyle": {
-                  "translate": "-5px 1px"
+                  "translate": "-15px 10px"
                 }
               },
               "flangeTop": {
@@ -794,7 +799,7 @@
         "gridSnap": false,
         "canvasWidth": 1600,
         "canvasHeight": 760,
-        "savedAt": 1785002627814
+        "savedAt": 1785004212650
       }
     }
   ]

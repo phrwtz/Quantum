@@ -5797,7 +5797,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           ) !== 1 ||
           state.visibleCounts.length !== 1 ||
           state.visibleCounts[0][1] !== 1 ||
-          state.status.trim() !== "Measured 4/4" ||
+          state.status.trim() !== `Measured 4/4You are ${state.name}` ||
           state.experimentActions === 0 ||
           state.replayDisabled !== null,
       )
