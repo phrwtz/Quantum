@@ -145,6 +145,7 @@ async function openEntanglementThreePage(
     "#panel-editor-entanglement-3:not([hidden]) .generated-layout-canvas",
     { timeout: 20000 },
   );
+  let entryNotice = "";
   if (waitForRoom) {
     try {
       await page.waitForFunction(
@@ -169,6 +170,13 @@ async function openEntanglementThreePage(
         `Entanglement 3 did not join send-receive-room: ${JSON.stringify(debug)}; ${error.message}`,
       );
     }
+    await page.waitForSelector(".entanglement-three-notice-dialog button", {
+      timeout: 20000,
+    });
+    entryNotice =
+      (await page
+        .locator(".entanglement-three-notice-text")
+        .textContent()) || "";
     const noticeButton = page.locator(
       ".entanglement-three-notice-dialog button",
     );
@@ -176,7 +184,7 @@ async function openEntanglementThreePage(
       await noticeButton.click();
     }
   }
-  return { context, page, errors };
+  return { context, page, errors, entryNotice };
 }
 
 function startLocalBackendServer() {
@@ -335,6 +343,20 @@ test("hard-fresh deployed frontend tabs do not create duplicate mailbox send eve
       participants.slice().sort(),
       ["Alice", "Bob"],
       "two hard-fresh pages should auto-join as Bob and Alice",
+    );
+    const noticesByName = Object.fromEntries([
+      [participants[0], bob.entryNotice],
+      [participants[1], alice.entryNotice],
+    ]);
+    assert.equal(
+      noticesByName.Bob,
+      'You are the first person to enter the room. You have been assigned the name "Bob." You won\'t be able to mail qubits until Alice enters the room.',
+      "Bob should see the first-person room notice",
+    );
+    assert.equal(
+      noticesByName.Alice,
+      'You are the second person to enter the room. You have been assigned the name "Alice." Bob is already here so you two can start mailing qubits back and forth. Go for it!',
+      "Alice should see the second-person room notice",
     );
 
     const bobPage = participants[0] === "Bob" ? bob.page : alice.page;

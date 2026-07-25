@@ -8195,7 +8195,9 @@ async function autoJoinEntanglementThreeRoom(canvas) {
     const assignedName =
       mailboxRoomState.displayName === "Alice" ? "Alice" : "Bob";
     showEntanglementThreeEntryNotice(
-      `You are the ${assignedName === "Bob" ? "first" : "second"} person to enter the room. You have been assigned the name "${assignedName}." Live with it!`,
+      assignedName === "Bob"
+        ? 'You are the first person to enter the room. You have been assigned the name "Bob." You won\'t be able to mail qubits until Alice enters the room.'
+        : 'You are the second person to enter the room. You have been assigned the name "Alice." Bob is already here so you two can start mailing qubits back and forth. Go for it!',
     );
     return true;
   } catch (error) {
