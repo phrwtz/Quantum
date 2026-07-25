@@ -8199,14 +8199,25 @@ async function autoJoinEntanglementThreeRoom(canvas) {
     );
     return true;
   } catch (error) {
-    const roomIsFull =
+    let roomIsFull =
       error?.code === "room_full" ||
       error?.status === 409 ||
       /room[_ ]full|already has Bob and Alice/i.test(error?.message || "");
+    if (!roomIsFull) {
+      const occupants = await mailboxRoomParticipantsForRoom(
+        ENTANGLEMENT_THREE_ROOM_ID,
+      ).catch(() => null);
+      roomIsFull = Array.isArray(occupants) && occupants.length >= 2;
+    }
     mailboxRoomState.entanglementThreeBackendStatus = roomIsFull
       ? "full"
       : "unavailable";
-    console.warn?.("[Qubit Lab] Entanglement 3 backend unavailable", error);
+    console.warn?.(
+      roomIsFull
+        ? "[Qubit Lab] Entanglement 3 room is full"
+        : "[Qubit Lab] Entanglement 3 backend unavailable",
+      error,
+    );
     updateEntanglementThreeRoomReviewToolbars();
     showEntanglementThreeEntryNotice(
       roomIsFull

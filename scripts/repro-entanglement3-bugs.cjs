@@ -148,10 +148,7 @@ async function openEntanglementThreePage(
   if (waitForRoom) {
     try {
       await page.waitForFunction(
-        () =>
-          document
-            .querySelector("#panel-editor-entanglement-3 .generated-experiment-status")
-            ?.textContent?.includes("room send-receive-room"),
+        () => mailboxRoomState.joined,
         null,
         { timeout: 60000 },
       );
@@ -171,6 +168,12 @@ async function openEntanglementThreePage(
       throw new Error(
         `Entanglement 3 did not join send-receive-room: ${JSON.stringify(debug)}; ${error.message}`,
       );
+    }
+    const noticeButton = page.locator(
+      ".entanglement-three-notice-dialog button",
+    );
+    if ((await noticeButton.count()) === 1) {
+      await noticeButton.click();
     }
   }
   return { context, page, errors };
@@ -315,6 +318,7 @@ test("hard-fresh deployed frontend tabs do not create duplicate mailbox send eve
   const browser = await chromium.launch({ headless: true });
   let bob = null;
   let alice = null;
+  let third = null;
   try {
     bob = await openEntanglementThreePage(browser, targetUrl, {
       backendUrl: backend.baseUrl,
@@ -335,6 +339,21 @@ test("hard-fresh deployed frontend tabs do not create duplicate mailbox send eve
 
     const bobPage = participants[0] === "Bob" ? bob.page : alice.page;
     const alicePage = participants[0] === "Bob" ? alice.page : bob.page;
+    third = await openEntanglementThreePage(browser, targetUrl, {
+      backendUrl: backend.baseUrl,
+      waitForRoom: false,
+    });
+    await third.page.waitForSelector(".entanglement-three-notice-dialog", {
+      timeout: 20000,
+    });
+    const thirdNotice = await third.page
+      .locator(".entanglement-three-notice-text")
+      .textContent();
+    assert.equal(
+      thirdNotice,
+      "Sorry, the room is full. You won't be able to mail qubits.",
+      "third visitor should see the room-full notice",
+    );
     const message = `duplicate-send-repro-${Date.now().toString(36)}`;
 
     const sendResult = await bobPage.evaluate(async (sendMessage) => {
@@ -420,6 +439,7 @@ test("hard-fresh deployed frontend tabs do not create duplicate mailbox send eve
       "duplicate-send repro should not log browser errors",
     );
   } finally {
+    await third?.context.close();
     await bob?.context.close();
     await alice?.context.close();
     await browser.close();
