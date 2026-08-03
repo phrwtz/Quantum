@@ -42,65 +42,51 @@
           },
           {
             "type": "single-measurement",
-            "left": 780,
-            "top": 26,
-            "width": 442,
-            "height": 520,
-            "z": 899,
+            "left": 779,
+            "top": 59,
+            "width": 449,
+            "height": 550,
+            "z": 1111,
             "measurementLayout": {
               "parts": {
                 "capacity": {
-                  "tx": 0,
+                  "tx": 1,
                   "ty": 0,
                   "width": "",
                   "height": "",
                   "deleted": false
                 },
                 "tubeRack": {
-                  "tx": 0,
-                  "ty": 0,
+                  "tx": 8,
+                  "ty": 23,
                   "width": "",
                   "height": "",
                   "deleted": false
                 },
                 "blueTube": {
                   "tx": 0,
-                  "ty": 0,
+                  "ty": 10,
                   "width": "",
                   "height": "",
                   "deleted": false
                 },
                 "redTube": {
-                  "tx": 0,
-                  "ty": 0,
-                  "width": "",
-                  "height": "",
-                  "deleted": false
-                },
-                "blueTubeCount": {
-                  "tx": 0,
-                  "ty": 0,
-                  "width": "",
-                  "height": "",
-                  "deleted": false
-                },
-                "redTubeCount": {
-                  "tx": 0,
-                  "ty": 0,
+                  "tx": 5,
+                  "ty": 10,
                   "width": "",
                   "height": "",
                   "deleted": false
                 },
                 "magnifier": {
-                  "tx": 0,
-                  "ty": 0,
+                  "tx": -22,
+                  "ty": 59,
                   "width": "",
                   "height": "",
                   "deleted": false
                 },
                 "measurementCount": {
-                  "tx": 0,
-                  "ty": 0,
+                  "tx": -6,
+                  "ty": 54,
                   "width": "",
                   "height": "",
                   "deleted": false
@@ -115,13 +101,14 @@
             "width": 65,
             "height": 65,
             "z": 1073,
-            "qubitId": 351
+            "qubitId": 351,
+            "roomQubitIndex": 0
           }
         ],
         "gridSnap": false,
-        "canvasWidth": 1598,
+        "canvasWidth": 1504,
         "canvasHeight": 760,
-        "savedAt": 1783952152363
+        "savedAt": 1785772176505
       }
     },
     {
@@ -305,21 +292,21 @@
         "items": [
           {
             "type": "qubit",
-            "left": 26,
-            "top": 156,
+            "left": 29,
+            "top": 147,
             "width": 72,
             "height": 72,
-            "z": 1333,
+            "z": 1373,
             "qubitId": 130507,
             "roomQubitIndex": 0
           },
           {
             "type": "qubit",
-            "left": 26,
-            "top": 390,
+            "left": 34,
+            "top": 381,
             "width": 72,
             "height": 72,
-            "z": 589,
+            "z": 1379,
             "qubitId": 130508,
             "roomQubitIndex": 1
           },
@@ -343,11 +330,11 @@
           },
           {
             "type": "cnot-gate",
-            "left": 598,
-            "top": 208,
+            "left": 601,
+            "top": 172,
             "width": 420,
             "height": 260,
-            "z": 1321,
+            "z": 1370,
             "cnotLayout": {
               "gate": {
                 "tx": 0,
@@ -356,11 +343,10 @@
                 "height": "260px",
                 "deleted": false,
                 "inlineStyle": {
-                  "left": "598px",
-                  "top": "260px",
+                  "left": "601px",
+                  "top": "172px",
                   "width": "420px",
-                  "height": "260px",
-                  "translate": "0px"
+                  "height": "260px"
                 }
               },
               "body": {
@@ -477,10 +463,10 @@
             "measurementRole": "single-magnifier"
           }
         ],
-        "gridSnap": true,
-        "canvasWidth": 1600,
+        "gridSnap": false,
+        "canvasWidth": 1504,
         "canvasHeight": 760,
-        "savedAt": 1785004212650
+        "savedAt": 1785773065538
       }
     },
     {

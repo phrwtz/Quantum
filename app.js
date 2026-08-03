@@ -10220,11 +10220,20 @@ function syncGeneratedExperimentGateSettingsFromCanvas(canvas) {
 function markGeneratedReplayGateSettingsChanged(canvas) {
   const state = generatedExperimentStateForCanvas(canvas);
   if (!state || state.playing || state.recording || !state.experiment) {
-    return;
+    return false;
   }
+  const experiment = cloneGeneratedExperiment(state.experiment);
+  const liveGateTicks = generatedLiveGateTickMap(canvas);
+  resetGeneratedCanvasToRecordedSceneStart(canvas, experiment, {
+    gateTicks: liveGateTicks,
+  });
+  state.actions = [];
+  state.experiment = null;
   state.gateSettings = captureGeneratedGateSettings(canvas);
-  state.replayGateSettingsChanged = true;
+  state.replayGateSettingsChanged = false;
   state.playbackResultVisible = false;
+  updateGeneratedExperimentToolbar(canvas);
+  return true;
 }
 
 function updateGeneratedExperimentToolbar(canvas) {
@@ -10243,7 +10252,7 @@ function updateGeneratedExperimentToolbar(canvas) {
       : state.recording
         ? "Recording"
         : state.experiment
-          ? "Experiment ready"
+          ? "Experiment ready. Click on the magnifying glass or change the count to run it."
           : "No experiment recorded";
     state.status.textContent = statusText;
   }
@@ -13324,7 +13333,7 @@ function applyInlineDocumentRuntimeToolbar(tabId, canvas) {
     resetButton.dataset.docRuntimeBackButton = "true";
   }
   gatePanel
-    .querySelectorAll(":scope > .generated-document-toolbar")
+    .querySelectorAll(".generated-document-toolbar")
     .forEach((toolbar) => toolbar.remove());
 }
 
@@ -13341,7 +13350,7 @@ function refreshGeneratedDocumentToolbarForEntry(entry) {
     return false;
   }
   gatePanel
-    .querySelectorAll(":scope > .generated-document-toolbar")
+    .querySelectorAll(".generated-document-toolbar")
     .forEach((toolbar) => toolbar.remove());
   const canvas = gatePanel.querySelector(".generated-layout-canvas");
   const toolbar = createGeneratedDocumentToolbar(entry, canvas);
@@ -13355,10 +13364,11 @@ function refreshGeneratedDocumentToolbarForEntry(entry) {
   const experimentToolbar = gatePanel.querySelector(
     ":scope > .generated-experiment-toolbar",
   );
-  gatePanel.insertBefore(
-    toolbar,
-    experimentToolbar?.nextSibling || canvasViewport || null,
-  );
+  if (experimentToolbar instanceof HTMLElement) {
+    experimentToolbar.appendChild(toolbar);
+  } else {
+    gatePanel.insertBefore(toolbar, canvasViewport || null);
+  }
   return true;
 }
 
@@ -13668,6 +13678,10 @@ function handleGeneratedGateSettingChanged(canvas) {
   if (experimentState?.recording || experimentState?.playing) {
     updateDocEditorButtons();
     return;
+  }
+  const scene = activeDocumentEditorScene();
+  if (scene?.experiment && !experimentState?.experiment) {
+    scene.experiment = null;
   }
   markDocumentEditorCanvasEdited(canvas);
   saveCurrentDocumentEditorScene();

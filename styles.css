@@ -1977,13 +1977,24 @@ body.layout-edit-active .generated-editor-toolbar {
 }
 
 .generated-experiment-toolbar {
+  position: relative;
   display: flex;
+  align-items: center;
+}
+
+.generated-experiment-toolbar
+  > [data-generated-experiment-action="reset"] {
+  position: relative;
+  z-index: 1;
+  order: 1;
 }
 
 .generated-document-toolbar {
+  position: relative;
+  z-index: 1;
   display: flex;
-  justify-content: flex-start;
-  margin-top: -0.45rem;
+  order: 2;
+  margin: 0 0 0 0.6rem;
 }
 
 .generated-layout-canvas {
@@ -2028,7 +2039,17 @@ body.layout-edit-active .generated-editor-toolbar {
 }
 
 .generated-experiment-status {
-  font-size: 0.72rem;
+  position: absolute;
+  left: 50%;
+  order: 3;
+  min-width: 0;
+  max-width: calc(100% - 300px);
+  color: #d00000;
+  font-size: 20pt;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  transform: translateX(-50%);
 }
 
 .entanglement-room-review-status {

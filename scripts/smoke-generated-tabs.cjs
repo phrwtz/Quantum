@@ -1580,21 +1580,35 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const whatsThis = panel?.querySelector(
       '[data-generated-document-action="whats-this"]',
     );
+    const status = panel?.querySelector(".generated-experiment-status");
+    const viewport = panel?.querySelector(".generated-layout-viewport");
     const resetRect = reset?.getBoundingClientRect();
     const whatsRect = whatsThis?.getBoundingClientRect();
+    const statusRect = status?.getBoundingClientRect();
+    const viewportRect = viewport?.getBoundingClientRect();
     return {
       hasButton: Boolean(whatsThis),
-      belowReset:
-        Boolean(resetRect && whatsRect) && whatsRect.top >= resetRect.bottom,
-      leftAligned:
+      sameRow:
+        Boolean(resetRect && whatsRect && statusRect) &&
+        Math.abs(whatsRect.top - resetRect.top) <= 4 &&
+        Math.abs(statusRect.top - whatsRect.top) <= 8,
+      whatsThisRightOfReset:
         Boolean(resetRect && whatsRect) &&
-        Math.abs(whatsRect.left - resetRect.left) <= 16,
+        whatsRect.left >= resetRect.right &&
+        whatsRect.left - resetRect.right <= 20,
+      statusCentered:
+        Boolean(statusRect && viewportRect) &&
+        Math.abs(
+          statusRect.left + statusRect.width / 2 -
+            (viewportRect.left + viewportRect.width / 2),
+        ) <= 4,
     };
   }, saved.id);
   if (
     !whatsThisPlacement.hasButton ||
-    !whatsThisPlacement.belowReset ||
-    !whatsThisPlacement.leftAligned
+    !whatsThisPlacement.sameRow ||
+    !whatsThisPlacement.whatsThisRightOfReset ||
+    !whatsThisPlacement.statusCentered
   ) {
     throw new Error(
       `What's this button placement failed: ${JSON.stringify(whatsThisPlacement)}`,
@@ -4579,12 +4593,10 @@ async function runFileModeRepositoryContentSmoke(browser) {
               style?.backgroundColor === "rgb(230, 255, 204)" &&
               style?.backgroundImage === "none",
           ),
-        oneQubitStatusMatchesButtonFonts:
-          Number.isFinite(oneQubitStatusFont) &&
-          Number.isFinite(oneQubitResetFont) &&
-          Number.isFinite(oneQubitWhatsThisFont) &&
-          Math.abs(oneQubitStatusFont - oneQubitResetFont) < 0.01 &&
-          Math.abs(oneQubitStatusFont - oneQubitWhatsThisFont) < 0.01,
+        oneQubitStatusUsesProminentStyle:
+          Math.abs(oneQubitStatusFont - 26.6667) < 0.1 &&
+          getComputedStyle(oneQubitStatus).color === "rgb(208, 0, 0)" &&
+          Number(getComputedStyle(oneQubitStatus).fontWeight) >= 700,
       };
     });
     if (
@@ -4596,7 +4608,7 @@ async function runFileModeRepositoryContentSmoke(browser) {
       result.landingTourSignText !== "To the Tour" ||
       result.landingClosedSignText !== "Closed" ||
       !result.tourCanvasesPaleGreen ||
-      !result.oneQubitStatusMatchesButtonFonts ||
+      !result.oneQubitStatusUsesProminentStyle ||
       !result.oneQubitLastSceneHasMarker ||
       !result.oneQubitLastSceneHasEnding ||
       result.oneQubitLastSceneHasClue ||
@@ -7619,6 +7631,108 @@ async function runMailboxReplayCoreSmoke(page) {
   }
 }
 
+async function runGateRecordingInvalidationSmoke(page) {
+  const result = await page.evaluate(async () => {
+    const canvas = document.createElement("div");
+    canvas.className = "generated-layout-canvas playground-canvas";
+    canvas.dataset.generatedTabId = "gate-recording-invalidation-smoke";
+    canvas.style.width = "640px";
+    canvas.style.height = "320px";
+    const qubit = createGeneratedLayoutItemNode("qubit", {
+      id: "gate-recording-invalidation-qubit",
+      left: 40,
+      top: 96,
+      width: 52,
+      height: 52,
+      qubitId: 18,
+    });
+    const gate = createGeneratedLayoutItemNode("single-gate", {
+        id: "gate-recording-invalidation-gate",
+        left: 180,
+        top: 50,
+        width: 300,
+        height: 180,
+        singleGateTick: 0,
+      });
+    canvas.append(qubit, gate);
+    const toolbar = createGeneratedExperimentToolbar(canvas);
+    document.body.append(toolbar, canvas);
+    prepareGeneratedLayoutCanvas(canvas);
+    const state = generatedExperimentStateForCanvas(canvas);
+    state.experiment = {
+      initialQubits: [
+        {
+          itemId: "gate-recording-invalidation-qubit",
+          logicalQubitId: 18,
+          center: { x: 66, y: 122 },
+          vector: [1, 0],
+        },
+      ],
+      gateSettings: [
+        { itemId: "gate-recording-invalidation-gate", tickIndex: 0 },
+      ],
+      actions: [{ type: "gate-setting", tickIndex: 0 }],
+    };
+    setGeneratedQubitCenter(canvas, qubit, 520, 260);
+    const gateRuntime = initializeGeneratedSingleGateItem(gate);
+    setGeneratedGateRuntimeTick(gateRuntime, 3);
+    updateGeneratedExperimentToolbar(canvas);
+    const readyText = state.status?.textContent || "";
+    const erased = markGeneratedReplayGateSettingsChanged(canvas);
+    const erasedText = state.status?.textContent || "";
+    const resetCenter = generatedCanvasPointForElementCenter(canvas, qubit);
+    const idleChangeStartedRecording =
+      markGeneratedReplayGateSettingsChanged(canvas);
+    const recordingAfterIdleChange = state.recording;
+
+    beginGeneratedExperimentRecording(canvas);
+    setGeneratedGateRuntimeTick(gateRuntime, 2);
+    recordGeneratedGateSettingAction(canvas, gate, 2);
+    finishGeneratedExperimentRecording(canvas);
+    const recordedActions = state.experiment?.actions?.map((action) => ({
+      type: action.type,
+      tickIndex: action.tickIndex,
+    }));
+    setGeneratedGateRuntimeTick(gateRuntime, 0);
+    const replayCompleted = await replayGeneratedRecordedExperimentAnimated(
+      canvas,
+      state.experiment,
+    );
+    const result = {
+      erased,
+      readyText,
+      erasedText,
+      resetCenter,
+      idleChangeStartedRecording,
+      recordingAfterIdleChange,
+      recordedActions,
+      replayCompleted,
+      replayedTick: gateRuntime.activeTick,
+    };
+    toolbar.remove();
+    canvas.remove();
+    return result;
+  });
+  if (
+    result.erased !== true ||
+    !/Experiment ready/.test(result.readyText) ||
+    result.erasedText !== "No experiment recorded" ||
+    Math.abs(result.resetCenter.x - 66) > 2 ||
+    Math.abs(result.resetCenter.y - 122) > 2 ||
+    result.idleChangeStartedRecording !== false ||
+    result.recordingAfterIdleChange !== false ||
+    result.recordedActions?.length !== 1 ||
+    result.recordedActions[0]?.type !== "gate-setting" ||
+    result.recordedActions[0]?.tickIndex !== 2 ||
+    result.replayCompleted !== true ||
+    result.replayedTick !== 2
+  ) {
+    throw new Error(
+      `Gate setting did not invalidate its recording: ${JSON.stringify(result)}`,
+    );
+  }
+}
+
 async function runFourQubitRecordedReplaySmoke(page) {
   const result = await page.evaluate(() => {
     const rootHalf = Math.SQRT1_2;
@@ -8060,7 +8174,8 @@ async function runSmokeTest(baseUrl) {
       await installContentApiHelpers(page);
       await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
       await runMailboxReplayCoreSmoke(page);
-      return { ok: true, replayCore: true };
+      await runGateRecordingInvalidationSmoke(page);
+      return { ok: true, replayCore: true, gateRecordingInvalidation: true };
     }
     if (process.argv.includes("--four-replay-only")) {
       const page = await browser.newPage({
@@ -8609,26 +8724,32 @@ async function runSmokeTest(baseUrl) {
     );
     await page.mouse.up();
     await wait(250);
+    const settingStatusAfterTick = await page
+      .locator("#panel-editor-gate-setting .generated-experiment-status")
+      .textContent();
     const gateCountsAfterTick = await singleTubeCountsForPanel(
       page,
       "panel-editor-gate-setting",
     );
-    if (gateCountsAfterTick.total !== 0) {
+    if (
+      gateCountsAfterTick.total !== 0 ||
+      !/No experiment recorded/.test(settingStatusAfterTick || "")
+    ) {
       throw new Error(
-        `Gate setting change did not clear measurement counts: ${JSON.stringify(gateCountsAfterTick)}`,
+        `Gate setting change did not erase the experiment: ${JSON.stringify({ gateCountsAfterTick, settingStatusAfterTick })}`,
       );
     }
     await page
       .locator('#panel-editor-gate-setting [data-role="measurement-count"]')
       .selectOption("100");
-    const gateUpdatedCounts = await waitForSingleTubeTotal(
+    await wait(500);
+    const gateUpdatedCounts = await singleTubeCountsForPanel(
       page,
       "panel-editor-gate-setting",
-      100,
     );
-    if (gateUpdatedCounts.blue !== 100 || gateUpdatedCounts.red !== 0) {
+    if (gateUpdatedCounts.total !== 0) {
       throw new Error(
-        `Post-recording gate setting change did not start a fresh replay with the same path: ${JSON.stringify(gateUpdatedCounts)}`,
+        `Erased gate experiment still replayed after changing the count: ${JSON.stringify(gateUpdatedCounts)}`,
       );
     }
 
