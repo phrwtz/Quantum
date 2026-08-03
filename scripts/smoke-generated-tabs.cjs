@@ -6152,6 +6152,9 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
             sharedMeasurements: mailboxRoomState.measurements.length,
             experiment:
               generatedExperimentStateForCanvas(canvas)?.experiment || null,
+            recording: Boolean(
+              generatedExperimentStateForCanvas(canvas)?.recording,
+            ),
             reviewRuns: mailboxRoomState.reviewRuns,
           };
         }),
@@ -6171,6 +6174,7 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           site.measurementTotal !== 0 ||
           site.sharedMeasurements !== 0 ||
           site.experiment !== null ||
+          site.recording !== true ||
           site.reviewRuns !== 0,
       ) ||
       Object.keys(resetRoom.body.room?.roomMeasurements || {}).length !== 0 ||
@@ -8133,6 +8137,174 @@ async function runEntanglementThreeTransferredPurpleReplaySmoke(page) {
   }
 }
 
+async function runEntanglementThreeCrossedBellPairsReplaySmoke(page) {
+  const result = await page.evaluate(() => {
+    const originalMathRandom = Math.random;
+    const randomValues = [];
+    [
+      [0.25, 0.25],
+      [0.25, 0.75],
+      [0.75, 0.25],
+      [0.75, 0.75],
+    ].forEach((pair) => {
+      for (let index = 0; index < 250; index += 1) {
+        randomValues.push(...pair);
+      }
+    });
+    try {
+      Math.random = () =>
+        randomValues.length > 0 ? randomValues.shift() : 0.25;
+      const counts = mailboxRoomRecordedMeasurementCounts(
+        {
+          initialQubits: [
+            {
+              itemId: "bob-q0",
+              logicalQubitId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              vector: [1, 0],
+            },
+            {
+              itemId: "bob-q1",
+              logicalQubitId: 2,
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+              vector: [1, 0],
+            },
+            {
+              itemId: "alice-q2",
+              logicalQubitId: 3,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              vector: [1, 0],
+            },
+            {
+              itemId: "alice-q3",
+              logicalQubitId: 4,
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+              vector: [0, 1],
+            },
+          ],
+          actions: [
+            {
+              type: "gate",
+              qubitId: "bob-q0",
+              qubitLogicalId: 1,
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              tickIndex: 3,
+            },
+            {
+              type: "cnot",
+              topQubitId: "bob-q0",
+              bottomQubitId: "bob-q1",
+              topQubitLogicalId: 1,
+              bottomQubitLogicalId: 2,
+              topRoomQubitIndex: 0,
+              bottomRoomQubitIndex: 1,
+              roomParticipantId: "bob",
+            },
+            {
+              type: "gate",
+              qubitId: "alice-q2",
+              qubitLogicalId: 3,
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              tickIndex: 3,
+            },
+            {
+              type: "cnot",
+              topQubitId: "alice-q2",
+              bottomQubitId: "alice-q3",
+              topQubitLogicalId: 3,
+              bottomQubitLogicalId: 4,
+              topRoomQubitIndex: 2,
+              bottomRoomQubitIndex: 3,
+              roomParticipantId: "alice",
+            },
+            {
+              type: "mailbox-send",
+              qubitId: "alice-q3",
+              roomQubitIndex: 3,
+              roomParticipantId: "alice",
+            },
+            {
+              type: "mailbox-send",
+              qubitId: "bob-q1",
+              roomQubitIndex: 1,
+              roomParticipantId: "bob",
+            },
+            {
+              type: "separated-pair-measure",
+              qubitId: "bob-q0",
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              orderIndex: 0,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              qubitId: "bob-received-alice-q3",
+              roomQubitIndex: 3,
+              roomParticipantId: "bob",
+              orderIndex: 3,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              qubitId: "alice-received-bob-q1",
+              roomQubitIndex: 1,
+              roomParticipantId: "alice",
+              orderIndex: 1,
+              registerQubitCount: 4,
+            },
+            {
+              type: "separated-pair-measure",
+              qubitId: "alice-q2",
+              roomQubitIndex: 2,
+              roomParticipantId: "alice",
+              orderIndex: 2,
+              registerQubitCount: 4,
+            },
+          ],
+        },
+        1000,
+        { numQubits: 4 },
+      );
+      const startupCanvas = document.createElement("div");
+      startupCanvas.className = "generated-layout-canvas playground-canvas";
+      startupCanvas.dataset.generatedTabId = "editor-entanglement-3";
+      document.body.appendChild(startupCanvas);
+      const priorJoinStarted = mailboxRoomState.entanglementThreeJoinStarted;
+      mailboxRoomState.entanglementThreeJoinStarted = true;
+      const startupBlocked = !generatedCanvasAllowsRuntime(startupCanvas);
+      beginGeneratedExperimentRecording(startupCanvas);
+      const recordingAllowsRuntime = generatedCanvasAllowsRuntime(startupCanvas);
+      clearGeneratedExperimentStateForCanvas(startupCanvas);
+      mailboxRoomState.entanglementThreeJoinStarted = priorJoinStarted;
+      startupCanvas.remove();
+      return { counts, startupBlocked, recordingAllowsRuntime };
+    } finally {
+      Math.random = originalMathRandom;
+    }
+  });
+  const allowed = new Set(["bbbr", "bbrb", "rrbr", "rrrb"]);
+  const unexpected = Object.entries(result.counts || {}).filter(
+    ([key, value]) => Number(value) > 0 && !allowed.has(key),
+  );
+  if (
+    result.startupBlocked !== true ||
+    result.recordingAllowsRuntime !== true ||
+    unexpected.length > 0 ||
+    Array.from(allowed).some((key) => Number(result.counts?.[key] || 0) === 0)
+  ) {
+    throw new Error(
+      `Entanglement 3 crossed Bell-pair replay lost a correlation: ${JSON.stringify({ unexpected, counts: result.counts })}`,
+    );
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -8187,11 +8359,13 @@ async function runSmokeTest(baseUrl) {
       await runFourQubitRecordedReplaySmoke(page);
       await runEntanglementThreeRoomReplayIdentitySmoke(page);
       await runEntanglementThreeTransferredPurpleReplaySmoke(page);
+      await runEntanglementThreeCrossedBellPairsReplaySmoke(page);
       return {
         ok: true,
         fourReplay: true,
         entanglementThreeRoomReplay: true,
         entanglementThreeTransferredPurpleReplay: true,
+        entanglementThreeCrossedBellPairsReplay: true,
       };
     }
     if (process.argv.includes("--doc-text-only")) {

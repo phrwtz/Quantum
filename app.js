@@ -5903,6 +5903,7 @@ async function mailboxRoomApplyRoomReset(room, options = {}) {
     nextCanvas instanceof HTMLElement ? nextCanvas : canvas;
   mailboxRoomRebindContextForCanvas(assignmentCanvas);
   await mailboxRoomAssignLocalQubitsForRoom(assignmentCanvas).catch(() => []);
+  ensureEntanglementThreeRoomExperimentRecording(assignmentCanvas);
   renderMailboxRoomDialog();
   return true;
 }
@@ -10147,6 +10148,18 @@ function refreshGeneratedTabPanelFromState(tabId, state = generatedTabsState) {
 
 function generatedCanvasAllowsRuntime(canvas) {
   const state = generatedExperimentStateForCanvas(canvas);
+  if (
+    isEntanglementThreeCanvas(canvas) &&
+    mailboxRoomState.entanglementThreeJoinStarted &&
+    !state?.recording &&
+    !state?.experiment &&
+    !state?.playing
+  ) {
+    // Room identities must be assigned before the initial state is captured.
+    // Otherwise actions performed during auto-join affect the live run but are
+    // absent from the batch replay used by the iteration-count control.
+    return false;
+  }
   if (
     isEntanglementThreeCanvas(canvas) &&
     mailboxRoomExperimentControlInProgress() &&
