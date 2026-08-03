@@ -4501,6 +4501,7 @@ const mailboxRoomCompletedMeasurementControlIds = new Set();
 const mailboxRoomAppliedMeasurementVersions = new Map();
 const mailboxRoomSendingQubits = new WeakSet();
 const mailboxRoomSendingKeys = new Set();
+const mailboxRoomGateResetPromises = new WeakMap();
 const mailboxRoomReceivingEventIds = new Set();
 const mailboxRoomReceivedEventItems = new Map();
 let entanglementThreeSessionChannel = null;
@@ -5923,6 +5924,57 @@ async function mailboxRoomPublishRoomReset(canvas) {
     await mailboxRoomApplyRoomReset(room, { canvas, force: true });
   }
   return room;
+}
+
+function mailboxRoomInvalidateExperimentForGateChange(
+  canvas,
+  gateItem,
+  tickIndex,
+) {
+  if (
+    !mailboxRoomIsJoined() ||
+    !isEntanglementThreeCanvas(canvas) ||
+    isDocumentEditorCanvas(canvas) ||
+    isDocumentRuntimeCanvas(canvas) ||
+    !(gateItem instanceof HTMLElement)
+  ) {
+    return null;
+  }
+  const existing = mailboxRoomGateResetPromises.get(gateItem);
+  if (existing) {
+    return existing;
+  }
+  const panel = canvas.closest('[data-generated-layout-panel="true"]');
+  const gateId = ensureGeneratedItemId(gateItem, "single-gate");
+  const normalizedTick = normalizeTickIndex(tickIndex);
+  const promise = mailboxRoomPublishRoomReset(canvas)
+    .then(() => {
+      const nextCanvas = panel?.querySelector?.(
+        ".generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)",
+      );
+      const nextGate = generatedItemById(nextCanvas, gateId);
+      const nextRuntime = initializeGeneratedSingleGateItem(nextGate, {
+        singleGateTick: normalizedTick,
+      });
+      if (nextRuntime) {
+        setGeneratedGateRuntimeTick(nextRuntime, normalizedTick);
+      }
+      const state = generatedExperimentStateForCanvas(nextCanvas);
+      if (state) {
+        state.gateSettings = captureGeneratedGateSettings(nextCanvas);
+      }
+      updateGeneratedExperimentToolbar(nextCanvas);
+      return true;
+    })
+    .catch((error) => {
+      console.warn?.(
+        "[Qubit Lab] gate change could not reset the room experiment",
+        error,
+      );
+      return false;
+    });
+  mailboxRoomGateResetPromises.set(gateItem, promise);
+  return promise;
 }
 
 function mailboxRoomMeasurementSharedId(runtime, numQubits = null) {
@@ -11199,6 +11251,23 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
       runtime.lastRoomRecordedTick = null;
     });
   };
+  const handleGateSettingChanged = (canvas) => {
+    clearGeneratedMeasurementsForCanvas(canvas);
+    syncGeneratedExperimentGateSettingsFromCanvas(canvas);
+    const invalidated = markGeneratedReplayGateSettingsChanged(canvas);
+    recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
+    const roomReset = invalidated
+      ? mailboxRoomInvalidateExperimentForGateChange(
+          canvas,
+          item,
+          runtime.activeTick,
+        )
+      : null;
+    if (!roomReset && !mailboxRoomGateResetPromises.has(item)) {
+      recordRoomGateSettingIfChanged();
+    }
+    handleGeneratedGateSettingChanged(canvas);
+  };
   runtime.dial = createSingleQubitGateDial({
     ticksWrap,
     arrow: gateArrow,
@@ -11212,23 +11281,13 @@ function initializeGeneratedSingleGateItem(item, geometry = {}) {
       runtime.activeTick = normalizeTickIndex(tick);
       const canvas = generatedCanvasForItem(item);
       if (canvas && meta.changed && !meta.deferMeasurementClear) {
-        clearGeneratedMeasurementsForCanvas(canvas);
-        syncGeneratedExperimentGateSettingsFromCanvas(canvas);
-        markGeneratedReplayGateSettingsChanged(canvas);
-        recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
-        recordRoomGateSettingIfChanged();
-        handleGeneratedGateSettingChanged(canvas);
+        handleGateSettingChanged(canvas);
       }
     },
     onTickCommitted: ({ changed }) => {
       const canvas = generatedCanvasForItem(item);
       if (canvas && changed) {
-        clearGeneratedMeasurementsForCanvas(canvas);
-        syncGeneratedExperimentGateSettingsFromCanvas(canvas);
-        markGeneratedReplayGateSettingsChanged(canvas);
-        recordGeneratedGateSettingAction(canvas, item, runtime.activeTick);
-        recordRoomGateSettingIfChanged();
-        handleGeneratedGateSettingChanged(canvas);
+        handleGateSettingChanged(canvas);
       }
     },
   });

@@ -6121,12 +6121,24 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
       );
     }
 
-    await alice.page.evaluate(async () => {
+    const gateInvalidation = await alice.page.evaluate(async () => {
       const canvas = document.querySelector(
         "#panel-editor-entanglement-3 .generated-layout-canvas",
       );
-      await mailboxRoomPublishRoomReset(canvas);
+      const gate = canvas?.querySelector('[data-component="single-gate"]');
+      const invalidated = markGeneratedReplayGateSettingsChanged(canvas);
+      const reset = await mailboxRoomInvalidateExperimentForGateChange(
+        canvas,
+        gate,
+        3,
+      );
+      return { invalidated, reset };
     });
+    if (!gateInvalidation.invalidated || !gateInvalidation.reset) {
+      throw new Error(
+        `Entanglement 3 gate change did not invalidate the shared experiment: ${JSON.stringify(gateInvalidation)}`,
+      );
+    }
     await bob.page.evaluate(() => mailboxRoomRefresh({ render: false }));
     const resetSites = await Promise.all(
       [bob.page, alice.page].map((page) =>
@@ -6140,6 +6152,8 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           const runtime = initializeGeneratedSeparatedPairMeasurementItem(
             measurement,
           );
+          const gate = canvas?.querySelector('[data-component="single-gate"]');
+          const gateRuntime = initializeGeneratedSingleGateItem(gate);
           return {
             name: mailboxRoomState.displayName,
             labels: Array.from(
@@ -6155,6 +6169,8 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
             recording: Boolean(
               generatedExperimentStateForCanvas(canvas)?.recording,
             ),
+            iterations: runtime?.measurementCount?.value || "",
+            gateTick: gateRuntime?.activeTick,
             reviewRuns: mailboxRoomState.reviewRuns,
           };
         }),
@@ -6175,8 +6191,10 @@ async function runEntanglementThreeRoomMeasurementSmoke(browser, baseUrl) {
           site.sharedMeasurements !== 0 ||
           site.experiment !== null ||
           site.recording !== true ||
+          site.iterations !== "1" ||
           site.reviewRuns !== 0,
       ) ||
+      resetSites.find((site) => site.name === "Alice")?.gateTick !== 3 ||
       Object.keys(resetRoom.body.room?.roomMeasurements || {}).length !== 0 ||
       resetRoom.body.room?.recordedExperiment !== null ||
       Object.keys(resetRoom.body.room?.sharedEntanglements || {}).length !== 0 ||
