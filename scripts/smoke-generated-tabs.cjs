@@ -8305,6 +8305,93 @@ async function runEntanglementThreeCrossedBellPairsReplaySmoke(page) {
   }
 }
 
+async function runEntanglementThreeCrossParticipantGhzReplaySmoke(page) {
+  const result = await page.evaluate(() => {
+    const originalMathRandom = Math.random;
+    let sampleIndex = 0;
+    try {
+      Math.random = () =>
+        Math.floor(sampleIndex++ / 4) % 2 === 0 ? 0.25 : 0.75;
+      const counts = mailboxRoomRecordedMeasurementCounts(
+        {
+          initialQubits: Array.from({ length: 4 }, (_entry, index) => ({
+            itemId: `${index < 2 ? "bob" : "alice"}-q${index}`,
+            logicalQubitId: index + 1,
+            roomQubitIndex: index,
+            roomParticipantId: index < 2 ? "bob" : "alice",
+            vector: [1, 0],
+          })),
+          actions: [
+            {
+              type: "gate",
+              qubitId: "bob-q0",
+              roomQubitIndex: 0,
+              roomParticipantId: "bob",
+              tickIndex: 3,
+              roomActionAt: 1000,
+            },
+            // Alice's experiment can reach the backend before Bob's. Array
+            // order therefore differs from the real cross-participant order.
+            {
+              type: "cnot",
+              topQubitId: "alice-received-bob-q1",
+              bottomQubitId: "alice-q2",
+              topRoomQubitIndex: 1,
+              bottomRoomQubitIndex: 2,
+              roomParticipantId: "alice",
+              roomActionAt: 3000,
+            },
+            {
+              type: "cnot",
+              topQubitId: "alice-q2",
+              bottomQubitId: "alice-q3",
+              topRoomQubitIndex: 2,
+              bottomRoomQubitIndex: 3,
+              roomParticipantId: "alice",
+              roomActionAt: 4000,
+            },
+            {
+              type: "cnot",
+              topQubitId: "bob-q0",
+              bottomQubitId: "bob-q1",
+              topRoomQubitIndex: 0,
+              bottomRoomQubitIndex: 1,
+              roomParticipantId: "bob",
+              roomActionAt: 2000,
+            },
+            ...[0, 1, 2, 3].map((index) => ({
+              type: "separated-pair-measure",
+              qubitId: `measured-q${index}`,
+              roomQubitIndex: index,
+              orderIndex: index,
+              registerQubitCount: 4,
+              roomParticipantId: index === 0 ? "bob" : "alice",
+              roomActionAt: 5000 + index,
+            })),
+          ],
+        },
+        1000,
+        { numQubits: 4 },
+      );
+      return { counts };
+    } finally {
+      Math.random = originalMathRandom;
+    }
+  });
+  const unexpected = Object.entries(result.counts || {}).filter(
+    ([key, value]) => Number(value) > 0 && key !== "bbbb" && key !== "rrrr",
+  );
+  if (
+    unexpected.length > 0 ||
+    Number(result.counts?.bbbb || 0) !== 500 ||
+    Number(result.counts?.rrrr || 0) !== 500
+  ) {
+    throw new Error(
+      `Entanglement 3 GHZ replay used participant merge order: ${JSON.stringify({ unexpected, counts: result.counts })}`,
+    );
+  }
+}
+
 async function runSmokeTest(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -8360,12 +8447,14 @@ async function runSmokeTest(baseUrl) {
       await runEntanglementThreeRoomReplayIdentitySmoke(page);
       await runEntanglementThreeTransferredPurpleReplaySmoke(page);
       await runEntanglementThreeCrossedBellPairsReplaySmoke(page);
+      await runEntanglementThreeCrossParticipantGhzReplaySmoke(page);
       return {
         ok: true,
         fourReplay: true,
         entanglementThreeRoomReplay: true,
         entanglementThreeTransferredPurpleReplay: true,
         entanglementThreeCrossedBellPairsReplay: true,
+        entanglementThreeCrossParticipantGhzReplay: true,
       };
     }
     if (process.argv.includes("--doc-text-only")) {

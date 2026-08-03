@@ -5990,6 +5990,10 @@ function mailboxRoomRecordedExperimentForRuntime(runtime) {
   experiment.actions = experiment.actions.map((action) => ({
     ...action,
     roomParticipantId: action.roomParticipantId || participantId,
+    roomActionAt: Number.isFinite(Number(action.roomActionAt))
+      ? Number(action.roomActionAt)
+      : Math.max(0, Number(experiment.recordedAt) || 0) +
+        Math.max(0, Number(action.t) || 0),
   }));
   return experiment;
 }
@@ -6397,7 +6401,19 @@ function mailboxRoomRecordedReplayActions(actions) {
       const phaseDelta =
         mailboxRoomRecordedReplayActionPhase(left.action) -
         mailboxRoomRecordedReplayActionPhase(right.action);
-      return phaseDelta || left.index - right.index;
+      if (phaseDelta) {
+        return phaseDelta;
+      }
+      const leftAt = Number(left.action?.roomActionAt);
+      const rightAt = Number(right.action?.roomActionAt);
+      if (
+        Number.isFinite(leftAt) &&
+        Number.isFinite(rightAt) &&
+        leftAt !== rightAt
+      ) {
+        return leftAt - rightAt;
+      }
+      return left.index - right.index;
     })
     .map((entry) => entry.action);
 }
@@ -10020,6 +10036,7 @@ function generatedExperimentStateForCanvas(canvas) {
       toolbar: null,
       status: null,
       startedAt: 0,
+      startedAtEpoch: 0,
       initialQubits: [],
       gateSettings: [],
       suppressActionRecording: false,
@@ -10061,6 +10078,7 @@ function clearGeneratedExperimentStateForCanvas(canvas) {
   state.actions = [];
   state.experiment = null;
   state.startedAt = 0;
+  state.startedAtEpoch = 0;
   state.initialQubits = [];
   state.gateSettings = [];
   state.suppressActionRecording = false;
@@ -10294,7 +10312,7 @@ function currentGeneratedRecordingExperiment(canvas) {
   }
   return {
     version: 1,
-    recordedAt: Date.now(),
+    recordedAt: state.startedAtEpoch || Date.now(),
     initialQubits: state.initialQubits,
     gateSettings: state.gateSettings.map((entry) => ({ ...entry })),
     actions: cloneRecordedActions(state.actions),
@@ -10379,6 +10397,7 @@ function beginGeneratedExperimentRecording(canvas) {
   state.recording = true;
   state.actions = [];
   state.startedAt = performance.now();
+  state.startedAtEpoch = Date.now();
   state.initialQubits = captureGeneratedInitialQubits(canvas);
   state.gateSettings = captureGeneratedGateSettings(canvas);
   state.experiment = null;
