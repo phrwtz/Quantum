@@ -1373,6 +1373,48 @@ body.layout-edit-active #panel-plaground .playground-node.component-group * {
   align-content: center;
 }
 
+#panel-plaground
+  .playground-node.measurement-piece-magnifier-with-count,
+.generated-layout-canvas
+  .playground-node.measurement-piece-magnifier-with-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+#panel-plaground
+  .playground-node.measurement-piece-magnifier-with-count
+  .magnifier-iteration-count,
+.generated-layout-canvas
+  .playground-node.measurement-piece-magnifier-with-count
+  .magnifier-iteration-count {
+  flex: 0 0 auto;
+  width: 78px;
+}
+
+#panel-plaground
+  .playground-node.measurement-piece-tube-array-with-capacity,
+.generated-layout-canvas
+  .playground-node.measurement-piece-tube-array-with-capacity {
+  overflow: visible;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  justify-items: center;
+  gap: 0.45rem;
+}
+
+#panel-plaground
+  .playground-node.measurement-piece-tube-array-with-capacity
+  .tube-array-bundled-capacity,
+.generated-layout-canvas
+  .playground-node.measurement-piece-tube-array-with-capacity
+  .tube-array-bundled-capacity {
+  width: min(397px, 100%);
+}
+
 #panel-plaground .playground-node.measurement-piece .measurement-count {
   width: 78px;
 }
@@ -2034,8 +2076,25 @@ body.layout-edit-active .generated-editor-toolbar {
 #panel-editor-entanglement-3
   .generated-layout-viewport
   > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas) {
-  background: #e6ffcc;
-  background-size: auto;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.56),
+      rgba(228, 241, 251, 0.56)
+    ),
+    linear-gradient(90deg, rgba(84, 120, 148, 0.14) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(84, 120, 148, 0.14) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    26px 26px,
+    26px 26px;
+}
+
+#panel-custom-one-qubit,
+#panel-custom-two-qubits,
+#panel-custom-entanglement-2,
+#panel-custom-entanglement-3 {
+  background-color: #e4f1fb;
 }
 
 .generated-experiment-status {
@@ -2259,6 +2318,13 @@ body:not(.layout-edit-active)
   pointer-events: auto;
 }
 
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  .playground-node.qubit-source
+  .qubit-source-button {
+  pointer-events: auto;
+}
+
 .doc-runtime-canvas .playground-node,
 .doc-runtime-canvas .playground-node * {
   pointer-events: none !important;
@@ -2268,6 +2334,10 @@ body:not(.layout-edit-active)
 .doc-runtime-canvas .playground-node.playground-text-box .text-box-body,
 .doc-runtime-canvas .playground-node.playground-text-box .text-box-actions,
 .doc-runtime-canvas .playground-node.playground-text-box .text-box-action {
+  pointer-events: auto !important;
+}
+
+.doc-runtime-canvas .playground-node.qubit-source .qubit-source-button {
   pointer-events: auto !important;
 }
 
@@ -2307,6 +2377,31 @@ body:not(.layout-edit-active)
   .playground-node.component-group
   .measurement-piece-measurement-count-menu
   [data-role="measurement-count"] {
+  pointer-events: auto !important;
+}
+
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  > .playground-node[data-separated-pair-measurement="true"][data-component="single-magnifier"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  > .playground-node[data-separated-pair-measurement="true"][data-component="double-magnifier"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  > .playground-node[data-separated-pair-measurement="true"]
+  [data-role="measurement-tool"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  > .playground-node[data-separated-pair-measurement="true"]
+  [data-role="pair-lens"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  > .playground-node[data-separated-pair-measurement="true"]
+  [data-role="measurement-count"],
+body:not(.layout-edit-active)
+  .generated-layout-canvas
+  > .playground-node[data-separated-pair-measurement="true"]
+  [data-role="pair-measurement-count"] {
   pointer-events: auto !important;
 }
 
@@ -2419,6 +2514,7 @@ body.layout-edit-active
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.cnot-gate,
 .generated-layout-canvas .playground-node.qubit-mailbox,
+.generated-layout-canvas .playground-node.qubit-source,
 .generated-layout-canvas .playground-node.measurement-stage,
 .generated-layout-canvas .playground-node.pair-measurement,
 .generated-layout-canvas .playground-node.measurement-piece,
@@ -2434,6 +2530,7 @@ body.layout-edit-active
 .generated-layout-canvas .playground-node.window-wrap.single-qubit-gate,
 .generated-layout-canvas .playground-node.cnot-gate,
 .generated-layout-canvas .playground-node.qubit-mailbox,
+.generated-layout-canvas .playground-node.qubit-source,
 .generated-layout-canvas .playground-node.playground-text-box {
   width: 100%;
   height: 100%;
@@ -2532,6 +2629,112 @@ body.layout-edit-active
   min-height: 170px;
   overflow: visible;
   font-family: inherit;
+}
+
+.qubit-source {
+  position: relative;
+  box-sizing: border-box;
+  width: 373px;
+  height: 240px;
+  min-width: 260px;
+  min-height: 170px;
+  overflow: visible;
+  font-family: inherit;
+}
+
+.qubit-source-output-flange {
+  position: absolute;
+  right: calc(6% - 6px);
+  top: 52%;
+  z-index: 3;
+  width: 16px;
+  height: 78px;
+  transform: translateY(-50%);
+  border: 1px solid rgba(84, 99, 113, 0.92);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, #dce6ee 0%, #b4c2cf 55%, #8f9dad 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.2) 0 3px,
+      rgba(255, 255, 255, 0) 3px 8px
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(42, 63, 82, 0.24);
+}
+
+.qubit-source-button {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  z-index: 4;
+  width: min(28%, 82px);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  border: 3px solid #16499f;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #8fc0ff 0 9%, #266ff7 44%, #0b3caa 100%);
+  box-shadow:
+    inset 0 7px 12px rgba(255, 255, 255, 0.38),
+    inset 0 -9px 14px rgba(3, 28, 91, 0.38),
+    0 3px 6px rgba(20, 38, 55, 0.35);
+  cursor: pointer;
+}
+
+.qubit-source-button:hover {
+  filter: brightness(1.08);
+}
+
+.qubit-source-button:active {
+  transform: translate(-50%, -48%) scale(0.96);
+  box-shadow:
+    inset 0 8px 16px rgba(3, 28, 91, 0.42),
+    0 1px 3px rgba(20, 38, 55, 0.3);
+}
+
+.qubit-source-button:focus-visible {
+  outline: 4px solid rgba(255, 208, 53, 0.95);
+  outline-offset: 3px;
+}
+
+.qubit-source-button:disabled,
+.qubit-source-button:disabled:hover,
+.qubit-source-button:disabled:active {
+  transform: translate(-50%, -50%);
+  border-color: #626b73;
+  background: radial-gradient(circle at 34% 28%, #c8cdd1 0 9%, #8a9299 44%, #555d64 100%);
+  box-shadow:
+    inset 0 7px 12px rgba(255, 255, 255, 0.25),
+    inset 0 -9px 14px rgba(28, 34, 39, 0.3),
+    0 2px 4px rgba(20, 38, 55, 0.24);
+  filter: none;
+  cursor: not-allowed;
+}
+
+.multiple-qubits-adaptive-measurement .measurement-piece-single-tube-array .tube-label {
+  order: 1;
+}
+
+.multiple-qubits-adaptive-measurement .measurement-piece-single-tube-array .tube-count {
+  order: 2;
+}
+
+.generated-layout-canvas .playground-node.playground-qubit-shell.qubit-source-emitted {
+  animation: qubit-source-emit 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes qubit-source-emit {
+  from {
+    opacity: 0;
+    translate: -52px 0;
+    scale: 0.55;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
 }
 
 .mailbox-input-funnel {
@@ -3934,7 +4137,8 @@ body.layout-edit-active .pair-ejection-site {
 }
 
 #panel-plaground .single-qubit-gate .tube-platform-bay,
-.generated-layout-canvas .single-qubit-gate .tube-platform-bay {
+.generated-layout-canvas .single-qubit-gate .tube-platform-bay,
+.qubit-source .tube-platform-bay {
   position: absolute;
   right: 14px;
   top: 50%;
@@ -3948,15 +4152,24 @@ body.layout-edit-active .pair-ejection-site {
   pointer-events: none;
 }
 
+.qubit-source .tube-platform-bay {
+  right: calc(6% + 14px);
+  top: 52%;
+  z-index: 4;
+}
+
 #panel-plaground .single-qubit-gate .tube-platform-bay::before,
 .generated-layout-canvas .single-qubit-gate .tube-platform-bay::before,
 #panel-plaground .single-qubit-gate .tube-platform::after,
-.generated-layout-canvas .single-qubit-gate .tube-platform::after {
+.generated-layout-canvas .single-qubit-gate .tube-platform::after,
+.qubit-source .tube-platform-bay::before,
+.qubit-source .tube-platform::after {
   content: none;
 }
 
 #panel-plaground .single-qubit-gate .tube-platform,
-.generated-layout-canvas .single-qubit-gate .tube-platform {
+.generated-layout-canvas .single-qubit-gate .tube-platform,
+.qubit-source .tube-platform {
   --spring-height: 38px;
   --spring-length: 132px;
   position: absolute;
@@ -3982,7 +4195,8 @@ body.layout-edit-active .pair-ejection-site {
 }
 
 #panel-plaground .single-qubit-gate.platform-extended .tube-platform,
-.generated-layout-canvas .single-qubit-gate.platform-extended .tube-platform {
+.generated-layout-canvas .single-qubit-gate.platform-extended .tube-platform,
+.qubit-source.platform-extended .tube-platform {
   opacity: 1;
   transform: translateY(-50%) scaleX(1);
   transition:

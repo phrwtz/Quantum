@@ -15,6 +15,8 @@
     "test": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs && node scripts/test-quantum-core.cjs && node scripts/test-backend.cjs && node scripts/smoke-generated-tabs.cjs",
     "test:backend": "node scripts/test-backend.cjs",
     "test:editor": "node scripts/smoke-generated-tabs.cjs --editor-open-only",
+    "test:qubit-source": "node scripts/smoke-generated-tabs.cjs --qubit-source-only",
+    "test:entanglement-two-measurement": "node scripts/smoke-generated-tabs.cjs --entanglement-two-measurement-only",
     "test:entanglement3:repro": "node scripts/repro-entanglement3-bugs.cjs",
     "test:mailbox": "node scripts/smoke-generated-tabs.cjs --mailbox-only",
     "test:pages": "npm run test:static",

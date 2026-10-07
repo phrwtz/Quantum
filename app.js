@@ -333,7 +333,7 @@ const PLAYGROUND_COMPONENT_LIBRARY = {
   "double-tube-array": {
     label: "Four Testtube Array",
     width: 360,
-    height: 245,
+    height: 310,
   },
   "triple-tube-array": {
     label: "Eight Testtube Array",
@@ -348,12 +348,12 @@ const PLAYGROUND_COMPONENT_LIBRARY = {
   "single-magnifier": {
     label: "Single-Qubit Magnifier",
     width: 160,
-    height: 130,
+    height: 192,
   },
   "double-magnifier": {
     label: "Double-Qubit Magnifier",
     width: 340,
-    height: 190,
+    height: 252,
   },
   "measurement-count-menu": {
     label: "Iteration Count Menu",
@@ -362,6 +362,11 @@ const PLAYGROUND_COMPONENT_LIBRARY = {
   },
   mailbox: {
     label: "Qubit Mailbox",
+    width: 373,
+    height: 240,
+  },
+  "qubit-source": {
+    label: "Qubit Source",
     width: 373,
     height: 240,
   },
@@ -1306,6 +1311,13 @@ function registerMeasurementOutcomeKeysForItem(item) {
 }
 
 function forcedRegisterMeasurementQubitCountForRuntime(runtime) {
+  const tubeRackCount = Math.max(
+    0,
+    Math.min(4, Number(runtime?.forceRegisterQubitCount) || 0),
+  );
+  if (tubeRackCount >= 2) {
+    return tubeRackCount;
+  }
   const configuredCount = Math.max(
     0,
     Math.min(4, Number(runtime?.configuredRegisterQubitCount) || 0),
@@ -1394,7 +1406,9 @@ function isSeparatedPairMeasurementGroupDefinition(group) {
         "quadruple-tube-array",
       ].includes(item?.type),
     ) &&
-    group.items.some((item) => item?.type === "single-magnifier")
+    group.items.some((item) =>
+      ["single-magnifier", "double-magnifier"].includes(item?.type),
+    )
   );
 }
 
@@ -4442,7 +4456,40 @@ function createMeasurementPieceNode(type, geometry = {}) {
     );
     return wrapper;
   }
+  if (
+    ["double-tube-array", "triple-tube-array", "quadruple-tube-array"].includes(
+      type,
+    ) &&
+    geometry?.suppressBundledCapacity !== true
+  ) {
+    const capacity = clonePairMeasurementPart('[data-role="pair-capacity"]');
+    if (capacity instanceof HTMLElement) {
+      capacity.textContent =
+        type === "double-tube-array"
+          ? "The testtubes can each hold 5 qubit pairs."
+          : "The testtubes can each hold 5 counts.";
+      capacity.classList.add("tube-array-bundled-capacity");
+      wrapper.classList.add("measurement-piece-tube-array-with-capacity");
+      wrapper.appendChild(capacity);
+    }
+  }
   wrapper.appendChild(node);
+  if (
+    (type === "single-magnifier" || type === "double-magnifier") &&
+    geometry?.suppressBundledIterationCount !== true
+  ) {
+    const iterationCount =
+      type === "double-magnifier"
+        ? clonePairMeasurementPart('[data-role="pair-measurement-count"]')
+        : clonePlaygroundSourceElement(
+            cloneSingleQubitBlueprint('[data-role="measurement-count"]'),
+          );
+    if (iterationCount instanceof HTMLElement) {
+      iterationCount.classList.add("magnifier-iteration-count");
+      wrapper.classList.add("measurement-piece-magnifier-with-count");
+      wrapper.appendChild(iterationCount);
+    }
+  }
   return wrapper;
 }
 
@@ -4460,6 +4507,19 @@ function createMailboxElement() {
   node.addEventListener("click", (event) => {
     event.stopPropagation();
   });
+  return node;
+}
+
+function createQubitSourceElement() {
+  const node = document.createElement("section");
+  node.className = "qubit-source";
+  node.setAttribute("aria-label", "Qubit source");
+  node.innerHTML = [
+    '<div class="mailbox-shell" aria-hidden="true"></div>',
+    '<div class="qubit-source-output-flange" data-role="qubit-source-output" aria-hidden="true"></div>',
+    '<div class="tube-platform-bay" aria-hidden="true"><div class="tube-platform" data-role="tube-platform"></div></div>',
+    '<button class="qubit-source-button" data-role="qubit-source-button" type="button" aria-label="Emit a blue qubit" title="Emit a blue qubit"></button>',
+  ].join("");
   return node;
 }
 
@@ -7965,18 +8025,14 @@ function isEntanglementThreeCanvas(canvas) {
     return false;
   }
   const tabId = storageIdentifierKey(canvas.dataset.generatedTabId || "");
-  if (
-    tabId === "custom-entanglement-3" ||
-    tabId === "editor-entanglement-3"
-  ) {
+  if (tabId === "editor-entanglement-3") {
     return true;
   }
   const entry = generatedTabEntryForCanvas(canvas);
   if (storageLabelKey(entry?.label) === "entanglement 3") {
     return true;
   }
-  const panelId = storageIdentifierKey(canvas.closest("[id]")?.id || "");
-  return panelId.endsWith("entanglement-3");
+  return false;
 }
 
 function mailboxRoomMeasurementCounts() {
@@ -8304,6 +8360,7 @@ async function autoJoinEntanglementThreeRoom(canvas) {
 function maybeAutoJoinEntanglementThreeRoom(tabTarget = "") {
   const canvas = entanglementThreeCanvasForTab(tabTarget);
   if (!(canvas instanceof HTMLElement)) {
+    document.querySelector(".entanglement-three-notice")?.remove();
     return false;
   }
   if (
@@ -9182,7 +9239,7 @@ function isSeparatedPairMeasurementGroupElement(item) {
     return false;
   }
   const magnifierCount = item.querySelectorAll(
-    ':scope > .saved-group-child[data-component="single-magnifier"] [data-role="measurement-tool"]',
+    ':scope > .saved-group-child[data-component="single-magnifier"] [data-role="measurement-tool"], :scope > .saved-group-child[data-component="double-magnifier"] [data-role="pair-lens"]',
   ).length;
   if (magnifierCount < 1) {
     return false;
@@ -9531,7 +9588,13 @@ function createSavedGroupNode(group, geometry = {}) {
           finitePositiveNumber(group?.height, 240),
         ),
       )
-    : finitePositiveNumber(group?.height, 240);
+      : finitePositiveNumber(group?.height, 240);
+  const groupHasSeparateIterationCount = groupItems.some(
+    (item) => item?.type === "measurement-count-menu",
+  );
+  const groupHasSeparateCapacity = groupItems.some(
+    (item) => item?.type === "measurement-capacity",
+  );
   groupItems
     .slice()
     .sort((a, b) => (Number(a?.z) || 0) - (Number(b?.z) || 0))
@@ -9541,6 +9604,8 @@ function createSavedGroupNode(group, geometry = {}) {
       const childGeometry = {
         ...storedGeometry,
         groupRenderDepth: renderDepth + 1,
+        suppressBundledIterationCount: groupHasSeparateIterationCount,
+        suppressBundledCapacity: groupHasSeparateCapacity,
       };
       const child =
         createPlaygroundComponentNode(childType, childGeometry) ||
@@ -9599,6 +9664,8 @@ function createPlaygroundComponentNode(type, geometry = {}) {
     node = createCnotGateElement();
   } else if (type === "mailbox") {
     node = createMailboxElement();
+  } else if (type === "qubit-source") {
+    node = createQubitSourceElement();
   } else if (type === "single-measurement") {
     node = clonePlaygroundSourceElement(
       cloneSingleQubitBlueprint(".measurement-stage"),
@@ -9820,13 +9887,24 @@ function isGeneratedDoubleMeasurementItem(item) {
 }
 
 function isGeneratedSeparatedPairMeasurementItem(item) {
+  if (!isGeneratedLayoutItem(item)) {
+    return false;
+  }
+  if (item.dataset.component === PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE) {
+    return isSeparatedPairMeasurementGroupElement(item);
+  }
   if (
-    !isGeneratedLayoutItem(item) ||
-    item.dataset.component !== PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE
+    item.dataset.component !== "single-magnifier" &&
+    item.dataset.component !== "double-magnifier"
   ) {
     return false;
   }
-  return isSeparatedPairMeasurementGroupElement(item);
+  const canvas = generatedCanvasForItem(item);
+  return Boolean(
+    canvas?.querySelector(
+      ':scope > .playground-node[data-component="double-tube-array"], :scope > .playground-node[data-component="triple-tube-array"], :scope > .playground-node[data-component="quadruple-tube-array"]',
+    ),
+  );
 }
 
 function isGeneratedCnotItem(item) {
@@ -10325,6 +10403,12 @@ function updateGeneratedExperimentToolbar(canvas) {
     return;
   }
   if (state.status instanceof HTMLElement) {
+    const isDocumentScene = isDocumentRuntimeCanvas(canvas);
+    state.status.hidden = isDocumentScene;
+    if (isDocumentScene) {
+      state.status.textContent = "";
+      return;
+    }
     if (isEntanglementThreeCanvas(canvas)) {
       renderEntanglementThreeRoomReviewStatus(state.status);
       return;
@@ -11505,6 +11589,12 @@ function ensureGeneratedSeparatedSingleTubeRuntime(runtime) {
   if (!runtime?.item) {
     return null;
   }
+  if (
+    runtime.singleTubeRuntime?.item instanceof HTMLElement &&
+    runtime.singleTubeRuntime.item.isConnected
+  ) {
+    return runtime.singleTubeRuntime;
+  }
   const item = runtime.item;
   if (!item.querySelector('[data-role="tube-rack"]')) {
     appendSavedMeasurementPiece(item, "single-tube-array", {
@@ -11562,16 +11652,44 @@ function generatedSeparatedPairMeasurementMagnifiers(item) {
   if (!(item instanceof HTMLElement)) {
     return [];
   }
+  if (
+    item.dataset.component === "single-magnifier" ||
+    item.dataset.component === "double-magnifier"
+  ) {
+    const measurementTool = item.querySelector(
+      '[data-role="measurement-tool"], [data-role="pair-lens"]',
+    );
+    const measureLens = item.querySelector(
+      '[data-role="measure-lens"], [data-role="pair-lens"]',
+    );
+    return measurementTool instanceof HTMLElement
+      ? [
+          {
+            index: 0,
+            child: item,
+            measurementTool,
+            measureLens:
+              measureLens instanceof HTMLElement ? measureLens : measurementTool,
+          },
+        ]
+      : [];
+  }
   return Array.from(
     item.querySelectorAll(
-      '.saved-group-child[data-component="single-magnifier"]',
+      '.saved-group-child[data-component="single-magnifier"], .saved-group-child[data-component="double-magnifier"]',
     ),
   )
     .map((child, index) => {
-      const measurementTool = child.matches('[data-role="measurement-tool"]')
+      const measurementTool = child.matches(
+        '[data-role="measurement-tool"], [data-role="pair-lens"]',
+      )
         ? child
-        : child.querySelector('[data-role="measurement-tool"]');
-      const measureLens = child.querySelector('[data-role="measure-lens"]');
+        : child.querySelector(
+            '[data-role="measurement-tool"], [data-role="pair-lens"]',
+          );
+      const measureLens = child.querySelector(
+        '[data-role="measure-lens"], [data-role="pair-lens"]',
+      );
       if (!(measurementTool instanceof HTMLElement)) {
         return null;
       }
@@ -11596,12 +11714,26 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
   }
 
   const magnifiers = generatedSeparatedPairMeasurementMagnifiers(item);
-  const capacity = item.querySelector('[data-role="pair-capacity"]');
+  const looseCanvas =
+    item.dataset.component === "single-magnifier" ||
+    item.dataset.component === "double-magnifier"
+      ? generatedCanvasForItem(item)
+      : null;
+  const measurementScope = looseCanvas || item;
+  const capacity = measurementScope.querySelector(
+    looseCanvas
+      ? ':scope > .playground-node[data-component="measurement-capacity"] [data-role="pair-capacity"], :scope > .playground-node[data-component="double-tube-array"] [data-role="pair-capacity"], :scope > .playground-node[data-component="triple-tube-array"] [data-role="pair-capacity"], :scope > .playground-node[data-component="quadruple-tube-array"] [data-role="pair-capacity"]'
+      : '[data-role="pair-capacity"]',
+  );
   const measurementCount = item.querySelector(
-    '.saved-group-child[data-component="measurement-count-menu"] [data-role="measurement-count"], [data-role="pair-measurement-count"]',
+    '.saved-group-child[data-component="measurement-count-menu"] [data-role="measurement-count"], [data-role="measurement-count"], [data-role="pair-measurement-count"]',
   );
   const columns = Array.from(
-    item.querySelectorAll(".pair-tube-column[data-key]"),
+    measurementScope.querySelectorAll(
+      looseCanvas
+        ? ':scope > .playground-node[data-component="double-tube-array"] .pair-tube-column[data-key], :scope > .playground-node[data-component="triple-tube-array"] .pair-tube-column[data-key], :scope > .playground-node[data-component="quadruple-tube-array"] .pair-tube-column[data-key]'
+        : ".pair-tube-column[data-key]",
+    ),
   );
   if (magnifiers.length < 1) {
     return null;
@@ -11665,6 +11797,7 @@ function initializeGeneratedSeparatedPairMeasurementItem(item) {
     outcomeKeys: hasCompleteTubeRack ? requiredKeys : [],
     configuredRegisterQubitCount,
     registerQubitCount,
+    forceRegisterQubitCount: hasCompleteTubeRack ? registerQubitCount : 0,
     capacityUnit: registerQubitCount > 2 ? "counts" : "qubit pairs",
     tubePairCapacity: savedMeasurementCapacity(
       item.dataset.measurementTubeCapacity,
@@ -12366,6 +12499,291 @@ function clearGeneratedMeasurementApparatus(runtime, options = {}) {
   updateGeneratedMeasurementTubeFills(runtime);
 }
 
+function isMultipleQubitsCanvas(canvas) {
+  return (
+    isGeneratedLayoutCanvas(canvas) &&
+    !isDocumentEditorCanvas(canvas) &&
+    !isDocumentRuntimeCanvas(canvas) &&
+    storageLabelKey(generatedTabEntryForCanvas(canvas)?.label) ===
+      "multiple qubits"
+  );
+}
+
+function multipleQubitsMeasurementDefinition(qubitCount) {
+  const safeCount = clamp(Math.round(Number(qubitCount) || 1), 1, 4);
+  const widths = { 1: 420, 2: 500, 3: 700, 4: 940 };
+  const width = widths[safeCount];
+  const tubeTypes = {
+    1: "single-tube-array",
+    2: "double-tube-array",
+    3: "triple-tube-array",
+    4: "quadruple-tube-array",
+  };
+  const tubeType = tubeTypes[safeCount];
+  return {
+    id: `multiple-qubits-adaptive-measurement-${safeCount}`,
+    label: `${safeCount}-qubit adaptive measurement`,
+    width,
+    height: 510,
+    measurementRegisterQubitCount: safeCount >= 2 ? safeCount : undefined,
+    items: [
+      {
+        type: "measurement-capacity",
+        left: Math.round((width - 400) / 2),
+        top: 0,
+        width: 400,
+        height: 52,
+        z: 1,
+        measurementRole: "capacity",
+      },
+      {
+        type: tubeType,
+        left: safeCount === 1 ? Math.round((width - 220) / 2) : 20,
+        top: 58,
+        width: safeCount === 1 ? 220 : width - 40,
+        height: 218,
+        z: 2,
+        measurementRole: measurementPieceRoleForType(tubeType),
+      },
+      {
+        type: "single-magnifier",
+        left: Math.round((width - 160) / 2),
+        top: 294,
+        width: 160,
+        height: 130,
+        z: 3,
+        measurementRole: "single-magnifier",
+      },
+      {
+        type: "measurement-count-menu",
+        left: Math.round((width - 110) / 2),
+        top: 438,
+        width: 110,
+        height: 62,
+        z: 4,
+        measurementRole: "iteration-count",
+      },
+    ],
+  };
+}
+
+function emittedQubitsForMultipleQubitsCanvas(canvas) {
+  if (!isMultipleQubitsCanvas(canvas)) {
+    return [];
+  }
+  return Array.from(
+    canvas.querySelectorAll(
+      ':scope > .playground-node[data-component="qubit"][data-qubit-source-emitted="true"]',
+    ),
+  );
+}
+
+function updateMultipleQubitsSourceButtons(canvas, qubitCount) {
+  const limitReached = qubitCount >= 4;
+  generatedItemsOfType(canvas, "qubit-source").forEach((source) => {
+    const button = source.querySelector('[data-role="qubit-source-button"]');
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    button.disabled = limitReached;
+    button.setAttribute(
+      "aria-label",
+      limitReached ? "Four-qubit limit reached" : "Emit a blue qubit",
+    );
+    button.title = limitReached
+      ? "Four-qubit limit reached"
+      : "Emit a blue qubit";
+  });
+}
+
+function updateMultipleQubitsMeasurement(canvas) {
+  if (!isMultipleQubitsCanvas(canvas)) {
+    return null;
+  }
+  const qubitCount = Math.min(
+    4,
+    emittedQubitsForMultipleQubitsCanvas(canvas).length,
+  );
+  canvas
+    .querySelectorAll(':scope > [data-multiple-qubits-measurement="true"]')
+    .forEach((item) => {
+      generatedSeparatedPairMeasurementRuntimes.delete(item);
+      item.remove();
+    });
+  updateMultipleQubitsSourceButtons(canvas, qubitCount);
+  if (qubitCount === 0) {
+    return null;
+  }
+
+  const definition = multipleQubitsMeasurementDefinition(qubitCount);
+  const canvasWidth = Math.max(
+    1,
+    parseLayoutNumeric(canvas.style.width, canvas.scrollWidth || 1600),
+  );
+  const width = Math.min(definition.width, Math.max(400, canvasWidth - 40));
+  const staticItems = Array.from(
+    canvas.querySelectorAll(":scope > .playground-node"),
+  ).filter(
+    (item) =>
+      item.dataset.qubitSourceEmitted !== "true" &&
+      item.dataset.multipleQubitsMeasurement !== "true",
+  );
+  const staticBottom = staticItems.reduce(
+    (bottom, item) =>
+      Math.max(
+        bottom,
+        parseLayoutNumeric(item.style.top, item.offsetTop) +
+          parseLayoutNumeric(item.style.height, item.offsetHeight),
+      ),
+    0,
+  );
+  const top = staticBottom + 24;
+  const group = createSavedGroupNode(definition, {
+    measurementRegisterQubitCount: qubitCount >= 2 ? qubitCount : undefined,
+  });
+  group.classList.add(
+    "playground-node",
+    "multiple-qubits-adaptive-measurement",
+  );
+  group.dataset.component = PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE;
+  group.dataset.multipleQubitsMeasurement = "true";
+  group.dataset.generatedItemId = `multiple-qubits-measurement-${qubitCount}`;
+  group.style.left = `${Math.round((canvasWidth - width) / 2)}px`;
+  group.style.top = `${Math.round(top)}px`;
+  group.style.width = `${Math.round(width)}px`;
+  group.style.height = `${definition.height}px`;
+  group.style.zIndex = "1";
+  const capacity = group.querySelector('[data-role="pair-capacity"]');
+  if (capacity instanceof HTMLElement) {
+    capacity.textContent = `The testtubes can each hold ${INITIAL_TUBE_QUBIT_CAPACITY} count.`;
+  }
+  canvas.appendChild(group);
+  prepareGeneratedLayoutItem(group);
+  initializeGeneratedLayoutItemRuntime(group);
+  const measurementRuntime =
+    generatedSeparatedPairMeasurementRuntimes.get(group) ||
+    initializeGeneratedSeparatedPairMeasurementItem(group);
+  if (measurementRuntime) {
+    measurementRuntime.capacityUnit = "count";
+    updateGeneratedDoubleMeasurementTubeFills(measurementRuntime);
+    if (measurementRuntime.measurementCount instanceof HTMLSelectElement) {
+      measurementRuntime.measurementCount.addEventListener(
+        "change",
+        (event) => {
+          event.stopImmediatePropagation();
+          const iterations = Math.max(
+            1,
+            Number(measurementRuntime.measurementCount.value) || 1,
+          );
+          clearGeneratedSeparatedPairMeasurementApparatus(measurementRuntime);
+          runGeneratedRecordedExperiment(canvas, iterations).catch(() => {});
+        },
+        { capture: true },
+      );
+    }
+  }
+  const requiredHeight = top + definition.height + 24;
+  if (parseLayoutNumeric(canvas.style.height, canvas.offsetHeight) < requiredHeight) {
+    canvas.style.height = `${Math.ceil(requiredHeight)}px`;
+  }
+  return group;
+}
+
+async function emitBlueQubitFromSource(item) {
+  if (
+    !(item instanceof HTMLElement) ||
+    item.dataset.component !== "qubit-source" ||
+    layoutEditorState.enabled ||
+    item.dataset.qubitSourceBusy === "true"
+  ) {
+    return null;
+  }
+  const canvas = generatedCanvasForItem(item);
+  if (!isGeneratedLayoutCanvas(canvas)) {
+    return null;
+  }
+  if (
+    isMultipleQubitsCanvas(canvas) &&
+    emittedQubitsForMultipleQubitsCanvas(canvas).length >= 4
+  ) {
+    updateMultipleQubitsSourceButtons(canvas, 4);
+    return null;
+  }
+  const flange = item.querySelector('[data-role="qubit-source-output"]');
+  const platform = item.querySelector('[data-role="tube-platform"]');
+  if (!(flange instanceof HTMLElement) || !(platform instanceof HTMLElement)) {
+    return null;
+  }
+  item.dataset.qubitSourceBusy = "true";
+  const size = PLAYGROUND_COMPONENT_LIBRARY.qubit.width;
+  const qubit = createGeneratedLayoutItemNode("qubit", {
+    width: size,
+    height: size,
+    vector: [1, 0],
+  });
+  qubit.dataset.qubitSourceEmitted = "true";
+  qubit.dataset.qubitSourceId = ensureGeneratedItemId(item, "qubit-source");
+  canvas.appendChild(qubit);
+  prepareGeneratedLayoutItem(qubit);
+  initializeGeneratedLayoutItemRuntime(qubit);
+  ensureUniqueGeneratedLayoutItemIds(canvas);
+  ensureUniqueGeneratedLayoutQubitIds(canvas);
+  const qubitState = ensureGeneratedQubitRuntimeState(qubit);
+  const flangeCenter = generatedCanvasPointForElementCenter(canvas, flange);
+  const platformCenter = generatedCanvasPointForElementCenter(canvas, platform);
+  setGeneratedQubitCenter(
+    canvas,
+    qubit,
+    platformCenter.x,
+    flangeCenter.y,
+  );
+  bringGeneratedItemToFront(qubit);
+  updateMultipleQubitsMeasurement(canvas);
+  qubitState.transiting = true;
+  qubit.classList.add("generated-transit-active");
+  try {
+    await nextAnimationFrame();
+    item.classList.add("platform-extended");
+    await moveGeneratedQubitToPoint(
+      canvas,
+      qubit,
+      generatedCanvasXForElementRight(canvas, flange) + 100 + size / 2,
+      flangeCenter.y,
+      GATE_PLATFORM_EXTEND_MS,
+    );
+    settleGeneratedQubitVisualState(qubit);
+    item.classList.remove("platform-extended");
+    await waitForDuration(GATE_PLATFORM_RETRACT_MS);
+    return qubit;
+  } finally {
+    settleGeneratedQubitVisualState(qubit);
+    qubit.classList.remove("generated-transit-active");
+    item.classList.remove("platform-extended");
+    qubitState.transiting = false;
+    delete item.dataset.qubitSourceBusy;
+  }
+}
+
+function initializeGeneratedQubitSourceItem(item) {
+  if (
+    !(item instanceof HTMLElement) ||
+    item.dataset.component !== "qubit-source" ||
+    item.dataset.generatedQubitSourceRegistered === "true"
+  ) {
+    return;
+  }
+  const button = item.querySelector('[data-role="qubit-source-button"]');
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+  item.dataset.generatedQubitSourceRegistered = "true";
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    emitBlueQubitFromSource(item).catch(() => {});
+  });
+}
+
 function initializeGeneratedLayoutItemRuntime(item) {
   if (!(item instanceof HTMLElement)) {
     return;
@@ -12402,6 +12820,8 @@ function initializeGeneratedLayoutItemRuntime(item) {
     initializeGeneratedSeparatedPairMeasurementItem(item);
   } else if (isGeneratedCnotItem(item)) {
     initializeGeneratedCnotItem(item);
+  } else if (item.dataset.component === "qubit-source") {
+    initializeGeneratedQubitSourceItem(item);
   }
 }
 
@@ -16006,7 +16426,7 @@ function findBestGeneratedSeparatedPairMeasurementRuntimeForQubit(
   let bestOverlap = MEASUREMENT_OVERLAP_THRESHOLD;
   canvas
     .querySelectorAll(
-      `.playground-node[data-component="${PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE}"]`,
+      `.playground-node[data-component="${PLAYGROUND_SAVED_GROUP_COMPONENT_TYPE}"], :scope > .playground-node[data-component="single-magnifier"], :scope > .playground-node[data-component="double-magnifier"]`,
     )
     .forEach((item) => {
       if (!(item instanceof HTMLElement)) {
@@ -18165,13 +18585,18 @@ function replayGeneratedRecordedExperimentFast(
         if (!runtime) {
           return;
         }
-        const requiredCount = Math.max(
-          2,
-          forcedRegisterMeasurementQubitCountForRuntime(runtime),
-          Number(action.registerQubitCount) ||
-            runtime.registerQubitCount ||
-            2,
+        const recordedCount = Math.max(
+          1,
+          Number(action.registerQubitCount) || runtime.registerQubitCount || 1,
         );
+        const requiredCount =
+          recordedCount === 1
+            ? 1
+            : Math.max(
+                2,
+                forcedRegisterMeasurementQubitCountForRuntime(runtime),
+                recordedCount,
+              );
         const measurementId =
           action.measurementId ||
           ensureGeneratedItemId(runtime.item, "separated-pair-measurement");
@@ -18219,6 +18644,21 @@ function replayGeneratedRecordedExperimentFast(
           );
           vectors.set(action.qubitId, color === "blue" ? [1, 0] : [0, 1]);
           clearFastReplayStateForQubit(registers, action.qubitId);
+        }
+
+        if (requiredCount === 1) {
+          const singleRuntime = ensureGeneratedSeparatedSingleTubeRuntime(runtime);
+          if (!singleRuntime) {
+            return;
+          }
+          if (color === "blue") {
+            singleRuntime.blueTubeCount += 1;
+          } else {
+            singleRuntime.redTubeCount += 1;
+          }
+          maybeExpandGeneratedMeasurementTubeCapacity(singleRuntime);
+          measurementRuntimesToUpdate.add(singleRuntime);
+          return;
         }
 
         if (!Number.isFinite(orderIndex)) {
@@ -22725,6 +23165,66 @@ function setupPlagroundComposer() {
     item.addEventListener("touchstart", (event) => beginItemDrag(item, event), {
       passive: false,
     });
+    if (type === "qubit-source") {
+      const sourceButton = item.querySelector(
+        '[data-role="qubit-source-button"]',
+      );
+      sourceButton?.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (
+          layoutEditorState.enabled ||
+          item.dataset.qubitSourceBusy === "true"
+        ) {
+          return;
+        }
+        const flange = item.querySelector(
+          '[data-role="qubit-source-output"]',
+        );
+        const platform = item.querySelector('[data-role="tube-platform"]');
+        if (
+          !(flange instanceof HTMLElement) ||
+          !(platform instanceof HTMLElement)
+        ) {
+          return;
+        }
+        item.dataset.qubitSourceBusy = "true";
+        const qubitSize = PLAYGROUND_COMPONENT_LIBRARY.qubit.width;
+        const qubit = createItem("qubit", {
+          width: qubitSize,
+          height: qubitSize,
+        });
+        appendItemToCanvas(qubit);
+        const qubitState = ensurePlaygroundQubitRuntimeState(qubit);
+        const flangeCenter = canvasPointForElementCenter(flange);
+        const platformCenter = canvasPointForElementCenter(platform);
+        setPlaygroundQubitCenter(
+          qubit,
+          platformCenter.x,
+          flangeCenter.y,
+        );
+        bringToFront(qubit);
+        qubitState.transiting = true;
+        try {
+          await nextFrame();
+          item.classList.add("platform-extended");
+          await movePlaygroundQubitToPoint(
+            qubit,
+            canvasXForElementRight(flange) + 100 + qubitSize / 2,
+            flangeCenter.y,
+            GATE_PLATFORM_EXTEND_MS,
+          );
+          settlePlaygroundQubitVisualState(qubit);
+          item.classList.remove("platform-extended");
+          await wait(GATE_PLATFORM_RETRACT_MS);
+        } finally {
+          settlePlaygroundQubitVisualState(qubit);
+          item.classList.remove("platform-extended");
+          qubitState.transiting = false;
+          delete item.dataset.qubitSourceBusy;
+        }
+      });
+    }
 
     if (
       geometry &&

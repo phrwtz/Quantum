@@ -807,6 +807,27 @@ async function runEditorDoubleMeasurementSmoke(page) {
   const countPiece = page.locator(
     '#playgroundCanvas [data-component="measurement-count-menu"]',
   );
+  const bundledMagnifierCounts = await page.evaluate(() => {
+    const single = document.querySelector(
+      '#playgroundCanvas [data-component="single-magnifier"]',
+    );
+    const double = createPlaygroundComponentNode("double-magnifier");
+    return {
+      single: single?.querySelectorAll('[data-role="measurement-count"]')
+        .length || 0,
+      double:
+        double?.querySelectorAll('[data-role="pair-measurement-count"]')
+          .length || 0,
+    };
+  });
+  if (
+    bundledMagnifierCounts.single !== 1 ||
+    bundledMagnifierCounts.double !== 1
+  ) {
+    throw new Error(
+      `Magnifiers did not include iteration counts: ${JSON.stringify(bundledMagnifierCounts)}`,
+    );
+  }
   const groupCapacityCenter = await rectCenter(capacityPiece);
   const magnifierCenter = await rectCenter(magnifierPiece);
   const countCenter = await rectCenter(countPiece);
@@ -1625,11 +1646,14 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const reset = panel?.querySelector(
       '[data-generated-experiment-action="reset"]',
     );
+    const status = panel?.querySelector(".generated-experiment-status");
     return {
       overlayHidden: document.getElementById("docRuntimeOverlay")?.hidden,
       docRuntime: canvas?.dataset.docRuntimeCanvas || "",
       tabId: canvas?.dataset.generatedTabId || "",
       resetLabel: reset?.textContent?.trim() || "",
+      statusHidden: status?.hidden,
+      statusText: status?.textContent?.trim() || "",
       whatsThisButtons:
         panel?.querySelectorAll('[data-generated-document-action="whats-this"]')
           .length || 0,
@@ -1648,6 +1672,8 @@ async function runEditorDocumentWorkflowSmoke(page) {
     inlineDocState.docRuntime !== "true" ||
     inlineDocState.tabId !== saved.id ||
     inlineDocState.resetLabel !== "Back to the Doc Smoke A tab" ||
+    inlineDocState.statusHidden !== true ||
+    inlineDocState.statusText !== "" ||
     inlineDocState.whatsThisButtons !== 0 ||
     inlineDocState.qubits !== 0 ||
     inlineDocState.texts.join("|") !== "First doc scene."
@@ -1666,9 +1692,11 @@ async function runEditorDocumentWorkflowSmoke(page) {
     const reset = panel?.querySelector(
       '[data-generated-experiment-action="reset"]',
     );
+    const status = panel?.querySelector(".generated-experiment-status");
     return {
       docRuntime: canvas?.dataset.docRuntimeCanvas || "",
       resetLabel: reset?.textContent?.trim() || "",
+      statusHidden: status?.hidden,
       whatsThisButtons:
         panel?.querySelectorAll('[data-generated-document-action="whats-this"]')
           .length || 0,
@@ -1679,6 +1707,7 @@ async function runEditorDocumentWorkflowSmoke(page) {
   if (
     restoredAfterDoc.docRuntime ||
     restoredAfterDoc.resetLabel !== "Reset" ||
+    restoredAfterDoc.statusHidden !== false ||
     restoredAfterDoc.whatsThisButtons !== 1 ||
     restoredAfterDoc.qubits !== 1 ||
     restoredAfterDoc.textCount !== 2
@@ -7413,6 +7442,548 @@ async function runEditorOpenTabSmoke(browser, baseUrl) {
   }
 }
 
+async function runQubitSourceSmoke(browser, baseUrl) {
+  const page = await browser.newPage({ viewport: { width: 1200, height: 820 } });
+  try {
+    await installContentApiHelpers(page);
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => {
+      window.writeQuantumContentState("generated-tabs", {
+        tabs: [
+          {
+            id: "qubit-source-smoke",
+            label: "Multiple qubits",
+            layout: {
+              items: [
+                {
+                  id: "qubit-source-smoke-item",
+                  type: "qubit-source",
+                  left: 100,
+                  top: 100,
+                  width: 373,
+                  height: 240,
+                  z: 1,
+                },
+              ],
+              canvasWidth: 900,
+              canvasHeight: 560,
+            },
+          },
+        ],
+      });
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#tab-qubit-source-smoke").click();
+    const panel = page.locator("#panel-qubit-source-smoke");
+    const button = panel.locator('[data-role="qubit-source-button"]');
+    if (!(await button.isVisible())) {
+      throw new Error("Qubit Source button is not visible in the generated tab");
+    }
+    if ((await panel.locator('[data-component="qubit"]').count()) !== 0) {
+      throw new Error("Qubit Source smoke tab unexpectedly started with a qubit");
+    }
+    if (
+      (await panel.locator('[data-multiple-qubits-measurement="true"]').count()) !==
+      0
+    ) {
+      throw new Error("Multiple qubits tab displayed a measurement before emission");
+    }
+    const expectedTubeTypes = [
+      "single-tube-array",
+      "double-tube-array",
+      "triple-tube-array",
+      "quadruple-tube-array",
+    ];
+    const expectedTubeCounts = [2, 4, 8, 16];
+    for (let count = 1; count <= 4; count += 1) {
+      await button.click();
+      await page.waitForFunction(
+        (expected) =>
+          document.querySelectorAll(
+            '#panel-qubit-source-smoke [data-component="qubit"]',
+          ).length === expected,
+        count,
+      );
+      await page.waitForSelector(
+        '#panel-qubit-source-smoke [data-component="qubit-source"].platform-extended',
+      );
+      const measurement = panel.locator(
+        '[data-multiple-qubits-measurement="true"]',
+      );
+      const tubeType = await measurement
+        .locator(":scope > .saved-group-child")
+        .nth(1)
+        .getAttribute("data-component");
+      const tubeCount = await measurement
+        .locator(
+          count === 1 ? ".tube-column" : ".pair-tube-column[data-key]",
+        )
+        .count();
+      const capacityText = (
+        await measurement.locator('[data-role="pair-capacity"]').textContent()
+      )?.trim();
+      const iterationCount = measurement.locator(
+        '[data-component="measurement-count-menu"] [data-role="measurement-count"]',
+      );
+      if (
+        tubeType !== expectedTubeTypes[count - 1] ||
+        tubeCount !== expectedTubeCounts[count - 1] ||
+        capacityText !== "The testtubes can each hold 5 count." ||
+        (await iterationCount.count()) !== 1 ||
+        (await iterationCount.inputValue()) !== "1"
+      ) {
+        throw new Error(
+          `Adaptive measurement ${count} was invalid: ${JSON.stringify({ tubeType, tubeCount, capacityText, iterationCount: await iterationCount.count() })}`,
+        );
+      }
+      await page.waitForFunction(
+        () =>
+          !document.querySelector(
+            '#panel-qubit-source-smoke [data-component="qubit-source"][data-qubit-source-busy="true"]',
+          ),
+      );
+      if (count === 1) {
+        const qubitBox = await panel
+          .locator('[data-component="qubit"]')
+          .first()
+          .boundingBox();
+        const lensBox = await measurement
+          .locator('[data-role="measure-lens"]')
+          .boundingBox();
+        if (!qubitBox || !lensBox) {
+          throw new Error("Unable to locate the emitted qubit or adaptive lens");
+        }
+        await page.mouse.move(
+          qubitBox.x + qubitBox.width / 2,
+          qubitBox.y + qubitBox.height / 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          lensBox.x + lensBox.width / 2,
+          lensBox.y + lensBox.height / 2,
+          { steps: 12 },
+        );
+        await page.mouse.up();
+        await page.waitForFunction(
+          () =>
+            Array.from(
+              document.querySelectorAll(
+                '#panel-qubit-source-smoke [data-multiple-qubits-measurement="true"] .tube-count',
+              ),
+            ).reduce(
+              (sum, element) => sum + (Number(element.textContent) || 0),
+              0,
+            ) === 1,
+        );
+        await iterationCount.selectOption("100");
+        await page.waitForTimeout(1000);
+        const batchTotal = await page.evaluate(
+          () =>
+            Array.from(
+              document.querySelectorAll(
+                '#panel-qubit-source-smoke [data-multiple-qubits-measurement="true"] .tube-count',
+              ),
+            ).reduce(
+              (sum, element) => sum + (Number(element.textContent) || 0),
+              0,
+            ),
+        );
+        if (batchTotal !== 100) {
+          const diagnostics = await page.evaluate(() => {
+            const canvas = document.querySelector(
+              "#panel-qubit-source-smoke .generated-layout-canvas",
+            );
+            const state = generatedExperimentStateForCanvas(canvas);
+            const measurement = document.querySelector(
+              '#panel-qubit-source-smoke [data-multiple-qubits-measurement="true"]',
+            );
+            const runtime = initializeGeneratedSeparatedPairMeasurementItem(
+              measurement,
+            );
+            return {
+              selectValue: runtime?.measurementCount?.value || "",
+              hasExperiment: Boolean(state?.experiment),
+              actionTypes: (state?.experiment?.actions || []).map(
+                (action) => action.type,
+              ),
+              measurementActions: (state?.experiment?.actions || [])
+                .filter((action) => action.type === "separated-pair-measure")
+                .map((action) => ({
+                  registerQubitCount: action.registerQubitCount,
+                  measurementId: action.measurementId,
+                })),
+              recording: Boolean(state?.recording),
+              playing: Boolean(state?.playing),
+              registerQubitCount: runtime?.registerQubitCount,
+              singleCounts: runtime?.singleTubeRuntime
+                ? [
+                    runtime.singleTubeRuntime.blueTubeCount,
+                    runtime.singleTubeRuntime.redTubeCount,
+                  ]
+                : null,
+            };
+          });
+          throw new Error(
+            `Adaptive one-qubit 100-iteration replay produced ${batchTotal} counts: ${JSON.stringify(diagnostics)}`,
+          );
+        }
+      }
+    }
+    const emitted = panel.locator('[data-component="qubit"]');
+    const emittedState = await emitted.first().evaluate((item) => ({
+      vector: item.dataset.initialVector || "",
+      dragRegistered: item.dataset.generatedRuntimeDragRegistered || "",
+      left: Number.parseFloat(item.style.left),
+    }));
+    if (
+      emittedState.vector !== "[1,0]" ||
+      emittedState.dragRegistered !== "true" ||
+      !(emittedState.left > 473)
+    ) {
+      throw new Error(
+        `Qubit Source emitted an invalid qubit: ${JSON.stringify(emittedState)}`,
+      );
+    }
+    if (!(await button.isDisabled())) {
+      throw new Error("Qubit Source stayed enabled after emitting four qubits");
+    }
+  } finally {
+    await page.close();
+  }
+}
+
+async function runEntanglementTwoMeasurementSmoke(browser, baseUrl) {
+  const page = await browser.newPage({ viewport: { width: 1800, height: 1000 } });
+  try {
+    await installContentApiHelpers(page);
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => unlockWorkshop());
+    await activateTab(page, "custom-entanglement-3");
+    const panel = page.locator("#panel-custom-entanglement-3");
+    if (await page.locator(".entanglement-three-notice").count()) {
+      throw new Error("Entanglement 3 notice is blocking Entanglement 2");
+    }
+    const measurement = panel.locator(
+      '[data-component="component-group"][data-group-component-id="separate-two-qubit-measurement"]',
+    );
+    const lens = measurement.locator('[data-role="measure-lens"]');
+    if (!(await lens.isVisible())) {
+      throw new Error("Entanglement 2 saved magnifier is not visible");
+    }
+    const rebuiltMagnifierSupport = await page.evaluate(() => {
+      const canvas = document.querySelector(
+        "#panel-custom-entanglement-3 .generated-layout-canvas",
+      );
+      const rebuilt = createSavedGroupNode({
+        id: "rebuilt-entanglement-two-smoke",
+        width: 500,
+        height: 520,
+        items: [
+          {
+            type: "double-tube-array",
+            left: 20,
+            top: 20,
+            width: 460,
+            height: 240,
+          },
+          {
+            type: "double-magnifier",
+            left: 80,
+            top: 280,
+            width: 340,
+            height: 230,
+          },
+        ],
+      });
+      rebuilt.classList.add("playground-node");
+      rebuilt.dataset.component = "component-group";
+      rebuilt.style.left = "0px";
+      rebuilt.style.top = "0px";
+      rebuilt.style.width = "500px";
+      rebuilt.style.height = "520px";
+      canvas.appendChild(rebuilt);
+      prepareGeneratedLayoutItem(rebuilt);
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(rebuilt);
+      const result = {
+        runtime: Boolean(runtime),
+        magnifiers: runtime?.magnifiers?.length || 0,
+        hasIterationCount: Boolean(runtime?.measurementCount),
+      };
+      generatedSeparatedPairMeasurementRuntimes.delete(rebuilt);
+      rebuilt.remove();
+      return result;
+    });
+    if (
+      !rebuiltMagnifierSupport.runtime ||
+      rebuiltMagnifierSupport.magnifiers !== 1 ||
+      !rebuiltMagnifierSupport.hasIterationCount
+    ) {
+      throw new Error(
+        `Rebuilt Entanglement 2 magnifier was not operational: ${JSON.stringify(rebuiltMagnifierSupport)}`,
+      );
+    }
+    const looseMeasurementSupport = await page.evaluate(async () => {
+      const canvas = document.createElement("div");
+      canvas.className = "generated-layout-canvas playground-canvas";
+      canvas.dataset.generatedTabId = "loose-measurement-smoke";
+      Object.assign(canvas.style, {
+        position: "absolute",
+        left: "0px",
+        top: "0px",
+        width: "900px",
+        height: "700px",
+      });
+      const makeItem = (type, left, top, width, height) => {
+        const item = createPlaygroundComponentNode(type, {
+          left,
+          top,
+          width,
+          height,
+        });
+        item.classList.add("playground-node");
+        item.dataset.component = type;
+        Object.assign(item.style, {
+          left: `${left}px`,
+          top: `${top}px`,
+          width: `${width}px`,
+          height: `${height}px`,
+        });
+        return item;
+      };
+      const q1 = makeItem("qubit", 40, 400, 72, 72);
+      const q2 = makeItem("qubit", 140, 400, 72, 72);
+      const tubes = makeItem("double-tube-array", 400, 20, 400, 250);
+      const magnifier = makeItem("single-magnifier", 520, 330, 180, 210);
+      canvas.append(q1, q2, tubes, magnifier);
+      document.body.appendChild(canvas);
+      prepareGeneratedLayoutCanvas(canvas);
+      beginGeneratedExperimentRecording(canvas);
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(magnifier);
+      const pointerEvents = {
+        magnifier: getComputedStyle(magnifier).pointerEvents,
+        count: getComputedStyle(runtime.measurementCount).pointerEvents,
+      };
+      const capacityText = runtime.capacityElement?.textContent?.trim() || "";
+      const first = await runGeneratedSeparatedPairMeasurementTransit(
+        canvas,
+        q1,
+        runtime,
+        0,
+      );
+      const afterFirst = {
+        pending: runtime?.pendingMeasurements?.length || 0,
+        total: Object.values(runtime?.tubeCounts || {}).reduce(
+          (sum, count) => sum + count,
+          0,
+        ),
+        addedSingleTubeRack: Boolean(
+          magnifier.querySelector('[data-role="tube-rack"]'),
+        ),
+      };
+      const second = await runGeneratedSeparatedPairMeasurementTransit(
+        canvas,
+        q2,
+        runtime,
+        0,
+      );
+      const total = Object.values(runtime?.tubeCounts || {}).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+      runtime.measurementCount.value = "5";
+      runtime.measurementCount.dispatchEvent(
+        new Event("change", { bubbles: true }),
+      );
+      const replayDeadline = Date.now() + 10000;
+      let replayTotal = 0;
+      while (Date.now() < replayDeadline) {
+        replayTotal = Object.values(runtime?.tubeCounts || {}).reduce(
+          (sum, count) => sum + count,
+          0,
+        );
+        if (replayTotal === 5) {
+          break;
+        }
+        await waitForDuration(50);
+      }
+      generatedSeparatedPairMeasurementRuntimes.delete(magnifier);
+      canvas.remove();
+      return {
+        runtime: Boolean(runtime),
+        count: Boolean(runtime?.measurementCount),
+        pointerEvents,
+        capacityText,
+        first,
+        afterFirst,
+        second,
+        total,
+        replayTotal,
+      };
+    });
+    if (
+      !looseMeasurementSupport.runtime ||
+      !looseMeasurementSupport.count ||
+      looseMeasurementSupport.pointerEvents?.magnifier !== "auto" ||
+      looseMeasurementSupport.pointerEvents?.count !== "auto" ||
+      looseMeasurementSupport.capacityText !==
+        "The testtubes can each hold 5 qubit pairs." ||
+      !looseMeasurementSupport.first ||
+      looseMeasurementSupport.afterFirst?.pending !== 1 ||
+      looseMeasurementSupport.afterFirst?.total !== 0 ||
+      looseMeasurementSupport.afterFirst?.addedSingleTubeRack ||
+      !looseMeasurementSupport.second ||
+      looseMeasurementSupport.total !== 1 ||
+      looseMeasurementSupport.replayTotal !== 5
+    ) {
+      throw new Error(
+        `Loose Entanglement 2 apparatus was not operational: ${JSON.stringify(looseMeasurementSupport)}`,
+      );
+    }
+    const preparation = await page.evaluate(async () => {
+      const canvas = document.querySelector(
+        "#panel-custom-entanglement-3 .generated-layout-canvas",
+      );
+      const qubits = Array.from(
+        canvas?.querySelectorAll('[data-component="qubit"]') || [],
+      );
+      const gates = Array.from(
+        canvas?.querySelectorAll('[data-component="single-gate"]') || [],
+      );
+      const cnot = canvas?.querySelector('[data-component="cnot-gate"]');
+      if (!canvas || qubits.length !== 2 || gates.length !== 2 || !cnot) {
+        return { ok: false, reason: "missing saved experiment components" };
+      }
+      const gateResults = await Promise.all([
+        runGeneratedSingleGateTransit(
+          canvas,
+          qubits[0],
+          initializeGeneratedSingleGateItem(gates[0]),
+        ),
+        runGeneratedSingleGateTransit(
+          canvas,
+          qubits[1],
+          initializeGeneratedSingleGateItem(gates[1]),
+        ),
+      ]);
+      const cnotRuntime = initializeGeneratedCnotItem(cnot);
+      const ingressResults = await Promise.all([
+        runGeneratedCnotIngress(canvas, qubits[0], cnotRuntime, "top"),
+        runGeneratedCnotIngress(canvas, qubits[1], cnotRuntime, "bottom"),
+      ]);
+      const cycleResult = cnotRuntime.cyclePromise
+        ? await cnotRuntime.cyclePromise
+        : await runGeneratedCnotCycle(canvas, cnotRuntime);
+      return {
+        ok:
+          gateResults.every(Boolean) &&
+          ingressResults.every(Boolean) &&
+          Boolean(cycleResult),
+        gateResults,
+        ingressResults,
+        cycleResult,
+      };
+    });
+    if (!preparation.ok) {
+      throw new Error(
+        `Could not prepare Entanglement 2 measurement: ${JSON.stringify(preparation)}`,
+      );
+    }
+    const dragIntoLens = async (qubit) => {
+      const qubitBox = await qubit.boundingBox();
+      const lensBox = await lens.boundingBox();
+      if (!qubitBox || !lensBox) {
+        throw new Error("Unable to locate an Entanglement 2 qubit or magnifier");
+      }
+      await page.mouse.move(
+        qubitBox.x + qubitBox.width / 2,
+        qubitBox.y + qubitBox.height / 2,
+      );
+      await page.mouse.down();
+      await page.mouse.move(
+        lensBox.x + lensBox.width / 2,
+        lensBox.y + lensBox.height / 2,
+        { steps: 16 },
+      );
+      await page.mouse.up();
+    };
+    const qubits = panel.locator('[data-component="qubit"]');
+    await dragIntoLens(qubits.nth(0));
+    await page.waitForTimeout(1800);
+    await dragIntoLens(qubits.nth(1));
+    await page.waitForTimeout(3000);
+    const result = await page.evaluate(
+      () => {
+        const canvas = document.querySelector(
+          "#panel-custom-entanglement-3 .generated-layout-canvas",
+        );
+        const measurement = document.querySelector(
+          '#panel-custom-entanglement-3 [data-group-component-id="separate-two-qubit-measurement"]',
+        );
+        const runtime = initializeGeneratedSeparatedPairMeasurementItem(
+          measurement,
+        );
+        const state = generatedExperimentStateForCanvas(canvas);
+        const lens = measurement?.querySelector('[data-role="measure-lens"]');
+        const lensRect = lens?.getBoundingClientRect();
+        return {
+          total:
+        Array.from(
+          document.querySelectorAll(
+            '#panel-custom-entanglement-3 [data-group-component-id="separate-two-qubit-measurement"] .tube-count',
+          ),
+        ).reduce(
+          (sum, element) => sum + (Number(element.textContent) || 0),
+          0,
+        ),
+          hasRuntime: Boolean(runtime),
+          pending: runtime?.pendingMeasurements?.length || 0,
+          busy: Boolean(runtime?.busy),
+          magnifiers: runtime?.magnifiers?.length || 0,
+          actionTypes: (state?.experiment?.actions || []).map(
+            (action) => action.type,
+          ),
+          recording: Boolean(state?.recording),
+          layoutEditing: Boolean(layoutEditorState.enabled),
+          lensRect: lensRect
+            ? {
+                left: lensRect.left,
+                top: lensRect.top,
+                width: lensRect.width,
+                height: lensRect.height,
+              }
+            : null,
+          qubitRects: Array.from(
+            canvas?.querySelectorAll('[data-component="qubit"]') || [],
+          ).map((item) => {
+            const rect = item.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              rect.left + rect.width / 2,
+              rect.top + rect.height / 2,
+            );
+            return {
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+              dragRegistered: item.dataset.generatedRuntimeDragRegistered || "",
+              hitClass: hit?.className || "",
+              hitComponent: hit?.closest?.("[data-component]")?.dataset
+                ?.component || "",
+            };
+          }),
+        };
+      },
+    );
+    if (result.total !== 1) {
+      throw new Error(
+        `Entanglement 2 magnifier did not count a pair: ${JSON.stringify(result)}`,
+      );
+    }
+  } finally {
+    await page.close();
+  }
+}
+
 async function runQuantumInspectorSmoke(page) {
   const originalGeneratedTabs = await page.evaluate(() =>
     JSON.parse(JSON.stringify(window.readQuantumContentState("generated-tabs"))),
@@ -8420,6 +8991,14 @@ async function runSmokeTest(baseUrl) {
     if (process.argv.includes("--editor-open-only")) {
       await runEditorOpenTabSmoke(browser, baseUrl);
       return { ok: true, editorOpenTab: true };
+    }
+    if (process.argv.includes("--qubit-source-only")) {
+      await runQubitSourceSmoke(browser, baseUrl);
+      return { ok: true, qubitSource: true };
+    }
+    if (process.argv.includes("--entanglement-two-measurement-only")) {
+      await runEntanglementTwoMeasurementSmoke(browser, baseUrl);
+      return { ok: true, entanglementTwoMeasurement: true };
     }
     if (process.argv.includes("--workshop-only")) {
       await runWorkshopPasswordSessionSmoke(browser, baseUrl);
