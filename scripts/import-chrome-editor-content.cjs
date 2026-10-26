@@ -199,6 +199,87 @@ function readTableEntries(filePath) {
   return entries;
 }
 
+function readLengthPrefixedSlice(buffer, offset) {
+  const length = decodeVarint(buffer, offset);
+  if (!length) {
+    return null;
+  }
+  const end = length.offset + length.value;
+  if (end > buffer.length) {
+    return null;
+  }
+  return {
+    value: buffer.subarray(length.offset, end),
+    offset: end,
+  };
+}
+
+function readLogEntries(filePath) {
+  const fileBuffer = fs.readFileSync(filePath);
+  const entries = [];
+  const blockSize = 32768;
+  let blockOffset = 0;
+  let fragmentedRecord = [];
+  while (blockOffset < fileBuffer.length) {
+    const blockEnd = Math.min(blockOffset + blockSize, fileBuffer.length);
+    let offset = blockOffset;
+    while (offset + 7 <= blockEnd) {
+      const length = fileBuffer.readUInt16LE(offset + 4);
+      const type = fileBuffer[offset + 6];
+      offset += 7;
+      if (length === 0 && type === 0) {
+        break;
+      }
+      if (offset + length > blockEnd) {
+        break;
+      }
+      const fragment = fileBuffer.subarray(offset, offset + length);
+      offset += length;
+      if (type === 1) {
+        fragmentedRecord = [fragment];
+      } else if (type === 2) {
+        fragmentedRecord = [fragment];
+        continue;
+      } else if (type === 3) {
+        fragmentedRecord.push(fragment);
+        continue;
+      } else if (type === 4) {
+        fragmentedRecord.push(fragment);
+      } else {
+        fragmentedRecord = [];
+        continue;
+      }
+      const record = Buffer.concat(fragmentedRecord);
+      fragmentedRecord = [];
+      if (record.length < 12) {
+        continue;
+      }
+      const count = record.readUInt32LE(8);
+      let recordOffset = 12;
+      for (let index = 0; index < count && recordOffset < record.length; index += 1) {
+        const tag = record[recordOffset];
+        recordOffset += 1;
+        const key = readLengthPrefixedSlice(record, recordOffset);
+        if (!key) {
+          break;
+        }
+        recordOffset = key.offset;
+        if (tag === 0) {
+          continue;
+        }
+        const value = readLengthPrefixedSlice(record, recordOffset);
+        if (!value) {
+          break;
+        }
+        recordOffset = value.offset;
+        entries.push({ key: key.value, value: value.value });
+      }
+    }
+    blockOffset += blockSize;
+  }
+  return entries;
+}
+
 function userKeyFromInternalKey(key) {
   return key.length > 8 ? key.subarray(0, key.length - 8) : key;
 }
@@ -208,6 +289,13 @@ function decodeDomStorageValue(value) {
     value.length > 0 && (value[0] === 0 || value[0] === 1)
       ? value.subarray(1)
       : value;
+  if (
+    payload.length >= 2 &&
+    payload.length % 2 === 0 &&
+    payload[1] === 0
+  ) {
+    return payload.toString("utf16le");
+  }
   return payload.toString("utf8");
 }
 
@@ -231,12 +319,14 @@ function findStoredContent({ origin, contentName, chromeRoot }) {
   for (const levelDbDir of listLevelDbDirs(chromeRoot)) {
     const files = fs
       .readdirSync(levelDbDir)
-      .filter((name) => /\.(?:ldb|sst)$/.test(name))
+      .filter((name) => /\.(?:ldb|sst|log)$/.test(name))
       .map((name) => path.join(levelDbDir, name));
     for (const filePath of files) {
       let entries;
       try {
-        entries = readTableEntries(filePath);
+        entries = filePath.endsWith(".log")
+          ? readLogEntries(filePath)
+          : readTableEntries(filePath);
       } catch (_error) {
         continue;
       }
@@ -267,9 +357,16 @@ function findStoredContent({ origin, contentName, chromeRoot }) {
 
 function newestLayoutTimestamp(state) {
   const tabs = Array.isArray(state?.tabs) ? state.tabs : [];
+  const documents = Array.isArray(state?.documents) ? state.documents : [];
   return Math.max(
     0,
     ...tabs.map((tab) => Number(tab?.layout?.savedAt) || 0),
+    ...documents.flatMap((document) => [
+      Number(document?.updatedAt) || 0,
+      ...(Array.isArray(document?.scenes)
+        ? document.scenes.map((scene) => Number(scene?.savedAt) || 0)
+        : []),
+    ]),
   );
 }
 
