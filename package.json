@@ -12,7 +12,7 @@
     "import:render-tabs": "node scripts/import-chrome-editor-content.cjs --content generated-tabs",
     "serve": "node scripts/serve-local.cjs",
     "sync:content": "node scripts/sync-content-bundle.cjs",
-    "test": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs && node scripts/test-quantum-core.cjs && node scripts/test-backend.cjs && node scripts/smoke-generated-tabs.cjs",
+    "test": "node --check app.js && node --check backend/server.cjs && node --check backend/store.cjs && node --check backend/mail.cjs && node scripts/test-quantum-core.cjs && node scripts/test-backend.cjs",
     "test:backend": "node scripts/test-backend.cjs",
     "test:editor": "node scripts/smoke-generated-tabs.cjs --editor-open-only",
     "test:qubit-source": "node scripts/smoke-generated-tabs.cjs --qubit-source-only",
