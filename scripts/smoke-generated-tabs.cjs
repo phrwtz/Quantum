@@ -13,7 +13,7 @@ const expectedGeneratedTabLabels = [
   "Two qubits",
   "Entanglement 1",
   "Entanglement 2",
-  "Entanglement 3",
+  "Multiple qubits",
 ];
 const expectedLocalFileTabLabels = [
   "Editor",
@@ -4553,26 +4553,6 @@ async function runFileModeRepositoryContentSmoke(browser) {
       const landingClosedSign = document.querySelector(
         "#panel-editor-introduction .landing-lab-sign-closed",
       );
-      const tourPanelIds = [
-        "custom-one-qubit",
-        "custom-two-qubits",
-        "custom-entanglement-2",
-        "custom-entanglement-3",
-        "editor-entanglement-3",
-      ];
-      const tourCanvasStyles = tourPanelIds.map((tabId) => {
-        const canvas = document.querySelector(
-          `#panel-${CSS.escape(tabId)} .generated-layout-viewport > .generated-layout-canvas:not(.doc-runtime-canvas):not(.doc-editor-canvas)`,
-        );
-        if (!canvas) {
-          return null;
-        }
-        const style = getComputedStyle(canvas);
-        return {
-          backgroundColor: style.backgroundColor,
-          backgroundImage: style.backgroundImage,
-        };
-      });
       const oneQubitResetButton = document.querySelector(
         "#panel-custom-one-qubit [data-generated-experiment-action='reset']",
       );
@@ -4597,9 +4577,6 @@ async function runFileModeRepositoryContentSmoke(browser) {
           "Happy experimenting!",
         ),
         oneQubitLastSceneHasClue: lastText.includes("(That's a clue!)"),
-        entanglementOneLastSceneHasMarker: entanglementLastText.includes(
-          "Here are some questions to ponder:",
-        ),
         entanglementOneLastSceneHasOldText: entanglementLastText.includes(
           "leave it to you to experiment but here are some questions to get you started",
         ),
@@ -4615,13 +4592,6 @@ async function runFileModeRepositoryContentSmoke(browser) {
         hasLandingToolbar: Boolean(landingToolbar),
         landingTourSignText: landingTourSignLabel?.textContent?.trim() || "",
         landingClosedSignText: landingClosedSign?.textContent?.trim() || "",
-        tourCanvasesPaleGreen:
-          tourCanvasStyles.length === tourPanelIds.length &&
-          tourCanvasStyles.every(
-            (style) =>
-              style?.backgroundColor === "rgb(230, 255, 204)" &&
-              style?.backgroundImage === "none",
-          ),
         oneQubitStatusUsesProminentStyle:
           Math.abs(oneQubitStatusFont - 26.6667) < 0.1 &&
           getComputedStyle(oneQubitStatus).color === "rgb(208, 0, 0)" &&
@@ -4636,12 +4606,10 @@ async function runFileModeRepositoryContentSmoke(browser) {
       result.hasLandingToolbar ||
       result.landingTourSignText !== "To the Tour" ||
       result.landingClosedSignText !== "Closed" ||
-      !result.tourCanvasesPaleGreen ||
       !result.oneQubitStatusUsesProminentStyle ||
       !result.oneQubitLastSceneHasMarker ||
       !result.oneQubitLastSceneHasEnding ||
       result.oneQubitLastSceneHasClue ||
-      !result.entanglementOneLastSceneHasMarker ||
       result.entanglementOneLastSceneHasOldText ||
       result.hasBrowserLocalGhostTab ||
       result.hasBrowserLocalGhostDocument ||

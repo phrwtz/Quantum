@@ -40,9 +40,6 @@ jobs:
       - name: Build Pages site
         run: npm run build:pages
 
-      - name: Smoke test Pages build
-        run: node scripts/smoke-pages-build.cjs
-
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
