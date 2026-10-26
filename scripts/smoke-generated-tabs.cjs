@@ -7473,6 +7473,12 @@ async function runQubitSourceSmoke(browser, baseUrl) {
       "quadruple-tube-array",
     ];
     const expectedTubeCounts = [2, 4, 8, 16];
+    const expectedCapacityTexts = [
+      "The testtubes can each hold 5 qubits.",
+      "The testtubes can each hold 5 qubit pairs.",
+      "The testtubes can each hold 5 qubit triples.",
+      "The testtubes can each hold 5 qubit tetrads.",
+    ];
     const sourceLandings = [];
     for (let count = 1; count <= 4; count += 1) {
       await button.click();
@@ -7525,18 +7531,32 @@ async function runQubitSourceSmoke(browser, baseUrl) {
       const capacityText = (
         await measurement.locator('[data-role="pair-capacity"]').textContent()
       )?.trim();
+      const capacityLayout = await measurement
+        .locator('[data-role="pair-capacity"]')
+        .evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return {
+            width: element.getBoundingClientRect().width,
+            lineCount: Array.from(range.getClientRects()).filter(
+              (rect) => rect.width > 0 && rect.height > 0,
+            ).length,
+          };
+        });
       const iterationCount = measurement.locator(
         '[data-component="measurement-count-menu"] [data-role="measurement-count"]',
       );
       if (
         tubeType !== expectedTubeTypes[count - 1] ||
         tubeCount !== expectedTubeCounts[count - 1] ||
-        capacityText !== "The testtubes can each hold 5 count." ||
+        capacityText !== expectedCapacityTexts[count - 1] ||
+        (count >= 3 &&
+          (capacityLayout.width < 530 || capacityLayout.lineCount !== 1)) ||
         (await iterationCount.count()) !== 1 ||
         (await iterationCount.inputValue()) !== "1"
       ) {
         throw new Error(
-          `Adaptive measurement ${count} was invalid: ${JSON.stringify({ tubeType, tubeCount, capacityText, iterationCount: await iterationCount.count() })}`,
+          `Adaptive measurement ${count} was invalid: ${JSON.stringify({ tubeType, tubeCount, capacityText, capacityLayout, iterationCount: await iterationCount.count() })}`,
         );
       }
       await page.waitForFunction(
@@ -7740,6 +7760,163 @@ async function runQubitSourceSmoke(browser, baseUrl) {
       })),
     );
     assertVerticalLandingSlots(magnifierLandings, "Measurement magnifier");
+
+    const replayLifecycle = await panel.evaluate(async (panelElement) => {
+      let canvas = panelElement.querySelector(".generated-layout-canvas");
+      resetGeneratedTabForCanvas(canvas);
+      canvas = panelElement.querySelector(".generated-layout-canvas");
+      const source = canvas.querySelector('[data-component="qubit-source"]');
+      const sourceId = ensureGeneratedItemId(source, "qubit-source");
+      const actions = [];
+      for (let index = 0; index < 4; index += 1) {
+        actions.push({
+          type: "qubit-source-emit",
+          sourceId,
+          qubitId: `replay-source-qubit-${index}`,
+          qubitLogicalId: 9000 + index,
+          landingSlot: `q${index}`,
+          t: index,
+        });
+      }
+      for (let index = 0; index < 4; index += 1) {
+        actions.push({
+          type: "separated-pair-measure",
+          measurementId: "multiple-qubits-measurement-4",
+          qubitId: `replay-source-qubit-${index}`,
+          logicalQubitId: 9000 + index,
+          magnifierIndex: 0,
+          orderIndex: index,
+          registerQubitCount: 4,
+          t: 10 + index,
+        });
+      }
+      const state = generatedExperimentStateForCanvas(canvas);
+      state.experiment = {
+        version: 1,
+        recordedAt: Date.now(),
+        initialQubits: [],
+        gateSettings: captureGeneratedGateSettings(canvas),
+        actions,
+      };
+      let added = 0;
+      let removed = 0;
+      let measurementAdded = 0;
+      let measurementRemoved = 0;
+      const observer = new MutationObserver((records) => {
+        records.forEach((record) => {
+          record.addedNodes.forEach((node) => {
+            if (node?.dataset?.qubitSourceEmitted === "true") {
+              added += 1;
+            }
+            if (node?.dataset?.multipleQubitsMeasurement === "true") {
+              measurementAdded += 1;
+            }
+          });
+          record.removedNodes.forEach((node) => {
+            if (node?.dataset?.qubitSourceEmitted === "true") {
+              removed += 1;
+            }
+            if (node?.dataset?.multipleQubitsMeasurement === "true") {
+              measurementRemoved += 1;
+            }
+          });
+        });
+      });
+      observer.observe(canvas, { childList: true });
+      const completed = await runGeneratedRecordedExperiment(canvas, 5);
+      observer.disconnect();
+      const measurement = canvas.querySelector(
+        '[data-multiple-qubits-measurement="true"]',
+      );
+      const total = Array.from(
+        measurement?.querySelectorAll(".tube-count") || [],
+      ).reduce(
+        (sum, element) => sum + (Number(element.textContent) || 0),
+        0,
+      );
+      return {
+        completed,
+        added,
+        removed,
+        measurementAdded,
+        measurementRemoved,
+        remaining: canvas.querySelectorAll(
+          '[data-qubit-source-emitted="true"]',
+        ).length,
+        total,
+      };
+    });
+    if (
+      !replayLifecycle.completed ||
+      replayLifecycle.added !== 20 ||
+      replayLifecycle.removed !== 16 ||
+      replayLifecycle.measurementAdded !== 1 ||
+      replayLifecycle.measurementRemoved !== 0 ||
+      replayLifecycle.remaining !== 4 ||
+      replayLifecycle.total !== 5
+    ) {
+      throw new Error(
+        `Five-iteration source replay did not recreate qubits cleanly: ${JSON.stringify(replayLifecycle)}`,
+      );
+    }
+    const animatedEntanglement = await panel.evaluate(async (panelElement) => {
+      let canvas = panelElement.querySelector(".generated-layout-canvas");
+      resetGeneratedTabForCanvas(canvas);
+      canvas = panelElement.querySelector(".generated-layout-canvas");
+      const source = canvas.querySelector('[data-component="qubit-source"]');
+      const gate = canvas.querySelector('[data-component="single-gate"]');
+      const cnot = createGeneratedLayoutItemNode("cnot-gate", {
+        id: "qubit-source-smoke-cnot",
+        left: 930,
+        top: 100,
+        width: 240,
+        height: 190,
+      });
+      canvas.append(cnot);
+      prepareGeneratedLayoutItem(cnot);
+      initializeGeneratedLayoutItemRuntime(cnot);
+      const sourceId = ensureGeneratedItemId(source, "qubit-source");
+      const gateId = ensureGeneratedItemId(gate, "single-gate");
+      const cnotId = ensureGeneratedItemId(cnot, "cnot-gate");
+      const measurementId = "multiple-qubits-measurement-2";
+      const actions = [
+        { type: "qubit-source-emit", sourceId, qubitId: "entangled-q0", qubitLogicalId: 9100, landingSlot: "q0" },
+        { type: "qubit-source-emit", sourceId, qubitId: "entangled-q1", qubitLogicalId: 9101, landingSlot: "q1" },
+        { type: "gate-setting", gateId, tickIndex: 3 },
+        { type: "gate", gateId, qubitId: "entangled-q0", qubitLogicalId: 9100, tickIndex: 3 },
+        { type: "gate-setting", gateId, tickIndex: 6 },
+        { type: "gate", gateId, qubitId: "entangled-q1", qubitLogicalId: 9101, tickIndex: 6 },
+        { type: "cnot", cnotId, topQubitId: "entangled-q0", topQubitLogicalId: 9100, bottomQubitId: "entangled-q1", bottomQubitLogicalId: 9101 },
+        { type: "separated-pair-measure", measurementId, qubitId: "entangled-q0", logicalQubitId: 9100, magnifierIndex: 0, orderIndex: 0, registerQubitCount: 2 },
+        { type: "separated-pair-measure", measurementId, qubitId: "entangled-q1", logicalQubitId: 9101, magnifierIndex: 0, orderIndex: 1, registerQubitCount: 2 },
+      ];
+      const state = generatedExperimentStateForCanvas(canvas);
+      state.experiment = {
+        version: 1,
+        recordedAt: Date.now(),
+        initialQubits: [],
+        gateSettings: captureGeneratedGateSettings(canvas),
+        actions,
+      };
+      const completed = await runGeneratedRecordedExperiment(canvas, 10);
+      const measurement = canvas.querySelector(
+        '[data-multiple-qubits-measurement="true"]',
+      );
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(measurement);
+      return { completed, counts: { ...(runtime?.tubeCounts || {}) } };
+    });
+    if (
+      !animatedEntanglement.completed ||
+      animatedEntanglement.counts.bb !== 0 ||
+      animatedEntanglement.counts.rr !== 0 ||
+      (animatedEntanglement.counts.br || 0) +
+          (animatedEntanglement.counts.rb || 0) !==
+        10
+    ) {
+      throw new Error(
+        `Animated source CNOT replay lost entanglement: ${JSON.stringify(animatedEntanglement)}`,
+      );
+    }
   } finally {
     await page.close();
   }

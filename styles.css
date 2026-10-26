@@ -2572,6 +2572,13 @@ body.layout-edit-active
   line-height: 1.05;
 }
 
+.generated-layout-canvas
+  .multiple-qubits-adaptive-measurement
+  .measurement-piece-measurement-capacity
+  .pair-capacity {
+  width: 100%;
+}
+
 .generated-layout-canvas .playground-node .measurement-count,
 .generated-layout-canvas .playground-node .pair-measurement-count {
   width: 70px;
