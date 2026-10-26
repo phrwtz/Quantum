@@ -2720,6 +2720,16 @@ body.layout-edit-active
   cursor: not-allowed;
 }
 
+.qubit-source[data-qubit-source-busy="true"] .qubit-source-button:disabled,
+.qubit-source[data-qubit-source-busy="true"] .qubit-source-button:disabled:hover,
+.qubit-source[data-qubit-source-busy="true"] .qubit-source-button:disabled:active {
+  border-color: #ffffff;
+  background: #ffffff;
+  box-shadow: none;
+  filter: none;
+  cursor: wait;
+}
+
 .multiple-qubits-adaptive-measurement .measurement-piece-single-tube-array .tube-label {
   order: 1;
 }

@@ -7488,16 +7488,28 @@ async function runQubitSourceSmoke(browser, baseUrl) {
           ).length === expected,
         count,
       );
-      if (
-        await button.evaluate((element) =>
-          element.classList.contains("qubit-source-loaded"),
-        )
-      ) {
-        throw new Error("Qubit Source stayed visually loaded after ejection began");
-      }
       await page.waitForSelector(
         '#panel-qubit-source-smoke [data-component="qubit-source"].platform-extended',
       );
+      const busyButtonState = await button.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          disabled: element.disabled,
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+          ariaLabel: element.getAttribute("aria-label"),
+        };
+      });
+      if (
+        !busyButtonState.disabled ||
+        busyButtonState.backgroundColor !== "rgb(255, 255, 255)" ||
+        busyButtonState.backgroundImage !== "none" ||
+        busyButtonState.ariaLabel !== "Expelling blue qubit"
+      ) {
+        throw new Error(
+          `Qubit Source button did not show its white disabled state while busy: ${JSON.stringify(busyButtonState)}`,
+        );
+      }
       const measurement = panel.locator(
         '[data-multiple-qubits-measurement="true"]',
       );
@@ -7533,6 +7545,9 @@ async function runQubitSourceSmoke(browser, baseUrl) {
             '#panel-qubit-source-smoke [data-component="qubit-source"][data-qubit-source-busy="true"]',
           ),
       );
+      if (count < 4 && (await button.isDisabled())) {
+        throw new Error("Qubit Source button stayed disabled after expulsion");
+      }
       sourceLandings.push(
         await panel
           .locator('[data-component="qubit"]')

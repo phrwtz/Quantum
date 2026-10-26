@@ -12618,14 +12618,21 @@ function updateMultipleQubitsSourceButtons(canvas, qubitCount) {
     if (!(button instanceof HTMLButtonElement)) {
       return;
     }
-    button.disabled = limitReached;
+    const busy = source.dataset.qubitSourceBusy === "true";
+    button.disabled = limitReached || busy;
     button.setAttribute(
       "aria-label",
-      limitReached ? "Four-qubit limit reached" : "Emit a blue qubit",
+      busy
+        ? "Expelling blue qubit"
+        : limitReached
+          ? "Four-qubit limit reached"
+          : "Emit a blue qubit",
     );
-    button.title = limitReached
-      ? "Four-qubit limit reached"
-      : "Emit a blue qubit";
+    button.title = busy
+      ? "Expelling blue qubit"
+      : limitReached
+        ? "Four-qubit limit reached"
+        : "Emit a blue qubit";
   });
 }
 
@@ -12753,6 +12760,9 @@ async function emitBlueQubitFromSource(item) {
     return null;
   }
   item.dataset.qubitSourceBusy = "true";
+  button.disabled = true;
+  button.setAttribute("aria-label", "Expelling blue qubit");
+  button.title = "Expelling blue qubit";
   button.classList.add("qubit-source-loaded");
   let qubit = null;
   let qubitState = null;
@@ -12808,6 +12818,16 @@ async function emitBlueQubitFromSource(item) {
       qubitState.transiting = false;
     }
     delete item.dataset.qubitSourceBusy;
+    if (isMultipleQubitsCanvas(canvas)) {
+      updateMultipleQubitsSourceButtons(
+        canvas,
+        emittedQubitsForMultipleQubitsCanvas(canvas).length,
+      );
+    } else {
+      button.disabled = false;
+      button.setAttribute("aria-label", "Emit a blue qubit");
+      button.title = "Emit a blue qubit";
+    }
   }
 }
 
@@ -23249,6 +23269,9 @@ function setupPlagroundComposer() {
           return;
         }
         item.dataset.qubitSourceBusy = "true";
+        sourceButton.disabled = true;
+        sourceButton.setAttribute("aria-label", "Expelling blue qubit");
+        sourceButton.title = "Expelling blue qubit";
         sourceButton.classList.add("qubit-source-loaded");
         let qubit = null;
         let qubitState = null;
@@ -23291,6 +23314,9 @@ function setupPlagroundComposer() {
             qubitState.transiting = false;
           }
           delete item.dataset.qubitSourceBusy;
+          sourceButton.disabled = false;
+          sourceButton.setAttribute("aria-label", "Emit a blue qubit");
+          sourceButton.title = "Emit a blue qubit";
         }
       });
     }
