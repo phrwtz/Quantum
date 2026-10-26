@@ -7476,6 +7476,11 @@ async function runQubitSourceSmoke(browser, baseUrl) {
     const sourceLandings = [];
     for (let count = 1; count <= 4; count += 1) {
       await button.click();
+      if (
+        (await panel.locator('[data-component="qubit"]').count()) !== count
+      ) {
+        throw new Error("Qubit Source did not create its qubit on click");
+      }
       await page.waitForFunction(
         (expected) =>
           document.querySelectorAll(
@@ -7483,6 +7488,13 @@ async function runQubitSourceSmoke(browser, baseUrl) {
           ).length === expected,
         count,
       );
+      if (
+        await button.evaluate((element) =>
+          element.classList.contains("qubit-source-loaded"),
+        )
+      ) {
+        throw new Error("Qubit Source stayed visually loaded after ejection began");
+      }
       await page.waitForSelector(
         '#panel-qubit-source-smoke [data-component="qubit-source"].platform-extended',
       );
@@ -7683,6 +7695,36 @@ async function runQubitSourceSmoke(browser, baseUrl) {
       })),
     );
     assertVerticalLandingSlots(gateLandings, "Single Qubit Gate");
+
+    await panel.evaluate(async (panelElement) => {
+      const canvas = panelElement.querySelector(".generated-layout-canvas");
+      const measurement = panelElement.querySelector(
+        '[data-multiple-qubits-measurement="true"]',
+      );
+      const runtime = initializeGeneratedSeparatedPairMeasurementItem(
+        measurement,
+      );
+      const qubits = Array.from(
+        panelElement.querySelectorAll('[data-component="qubit"]'),
+      );
+      for (const qubit of qubits) {
+        await runGeneratedSeparatedPairMeasurementTransit(
+          canvas,
+          qubit,
+          runtime,
+          0,
+        );
+      }
+    });
+    const magnifierLandings = await emitted.evaluateAll((items) =>
+      items.map((item) => ({
+        slot: item.dataset.multipleQubitsLandingSlot || "",
+        centerX: Number.parseFloat(item.style.left) + item.offsetWidth / 2,
+        centerY: Number.parseFloat(item.style.top) + item.offsetHeight / 2,
+        diameter: item.offsetWidth,
+      })),
+    );
+    assertVerticalLandingSlots(magnifierLandings, "Measurement magnifier");
   } finally {
     await page.close();
   }

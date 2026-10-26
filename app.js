@@ -12744,38 +12744,47 @@ async function emitBlueQubitFromSource(item) {
   }
   const flange = item.querySelector('[data-role="qubit-source-output"]');
   const platform = item.querySelector('[data-role="tube-platform"]');
-  if (!(flange instanceof HTMLElement) || !(platform instanceof HTMLElement)) {
+  const button = item.querySelector('[data-role="qubit-source-button"]');
+  if (
+    !(flange instanceof HTMLElement) ||
+    !(platform instanceof HTMLElement) ||
+    !(button instanceof HTMLButtonElement)
+  ) {
     return null;
   }
   item.dataset.qubitSourceBusy = "true";
-  const size = PLAYGROUND_COMPONENT_LIBRARY.qubit.width;
-  const qubit = createGeneratedLayoutItemNode("qubit", {
-    width: size,
-    height: size,
-    vector: [1, 0],
-  });
-  qubit.dataset.qubitSourceEmitted = "true";
-  qubit.dataset.qubitSourceId = ensureGeneratedItemId(item, "qubit-source");
-  canvas.appendChild(qubit);
-  prepareGeneratedLayoutItem(qubit);
-  initializeGeneratedLayoutItemRuntime(qubit);
-  ensureUniqueGeneratedLayoutItemIds(canvas);
-  ensureUniqueGeneratedLayoutQubitIds(canvas);
-  const qubitState = ensureGeneratedQubitRuntimeState(qubit);
-  const flangeCenter = generatedCanvasPointForElementCenter(canvas, flange);
-  const platformCenter = generatedCanvasPointForElementCenter(canvas, platform);
-  setGeneratedQubitCenter(
-    canvas,
-    qubit,
-    platformCenter.x,
-    flangeCenter.y,
-  );
-  bringGeneratedItemToFront(qubit);
-  updateMultipleQubitsMeasurement(canvas);
-  qubitState.transiting = true;
-  qubit.classList.add("generated-transit-active");
+  button.classList.add("qubit-source-loaded");
+  let qubit = null;
+  let qubitState = null;
   try {
+    const size = PLAYGROUND_COMPONENT_LIBRARY.qubit.width;
+    qubit = createGeneratedLayoutItemNode("qubit", {
+      width: size,
+      height: size,
+      vector: [1, 0],
+    });
+    qubit.dataset.qubitSourceEmitted = "true";
+    qubit.dataset.qubitSourceId = ensureGeneratedItemId(item, "qubit-source");
+    canvas.appendChild(qubit);
+    prepareGeneratedLayoutItem(qubit);
+    initializeGeneratedLayoutItemRuntime(qubit);
+    ensureUniqueGeneratedLayoutItemIds(canvas);
+    ensureUniqueGeneratedLayoutQubitIds(canvas);
+    qubitState = ensureGeneratedQubitRuntimeState(qubit);
+    const flangeCenter = generatedCanvasPointForElementCenter(canvas, flange);
+    const platformCenter = generatedCanvasPointForElementCenter(canvas, platform);
+    setGeneratedQubitCenter(
+      canvas,
+      qubit,
+      platformCenter.x,
+      flangeCenter.y,
+    );
+    bringGeneratedItemToFront(qubit);
+    updateMultipleQubitsMeasurement(canvas);
+    qubitState.transiting = true;
+    qubit.classList.add("generated-transit-active");
     await nextAnimationFrame();
+    button.classList.remove("qubit-source-loaded");
     item.classList.add("platform-extended");
     await moveGeneratedQubitToPoint(
       canvas,
@@ -12789,10 +12798,15 @@ async function emitBlueQubitFromSource(item) {
     await waitForDuration(GATE_PLATFORM_RETRACT_MS);
     return qubit;
   } finally {
-    settleGeneratedQubitVisualState(qubit);
-    qubit.classList.remove("generated-transit-active");
+    button.classList.remove("qubit-source-loaded");
+    if (qubit instanceof HTMLElement) {
+      settleGeneratedQubitVisualState(qubit);
+      qubit.classList.remove("generated-transit-active");
+    }
     item.classList.remove("platform-extended");
-    qubitState.transiting = false;
+    if (qubitState) {
+      qubitState.transiting = false;
+    }
     delete item.dataset.qubitSourceBusy;
   }
 }
@@ -16916,9 +16930,18 @@ function generatedSeparatedPairMeasurementEjectionPoint(
   const toolRect = magnifier.measurementTool.getBoundingClientRect();
   const qubitRect = qubitItem.getBoundingClientRect();
   const safeLaneCount = Math.max(1, Number(laneCount) || 1);
-  const laneStep = Math.max(28, qubitRect.height * 0.64);
-  const laneOffset = Number.isFinite(orderIndex)
-    ? (orderIndex - (safeLaneCount - 1) / 2) * laneStep
+  const multipleQubitsSlotIndex = multipleQubitsLandingSlotIndex(
+    canvas,
+    qubitItem,
+  );
+  const landingIndex = Number.isInteger(multipleQubitsSlotIndex)
+    ? multipleQubitsSlotIndex
+    : orderIndex;
+  const laneStep = isMultipleQubitsCanvas(canvas)
+    ? qubitRect.height / 3
+    : Math.max(28, qubitRect.height * 0.64);
+  const laneOffset = Number.isFinite(landingIndex)
+    ? (landingIndex - (safeLaneCount - 1) / 2) * laneStep
     : 0;
   const centerY =
     toolRect.top +
@@ -23226,24 +23249,28 @@ function setupPlagroundComposer() {
           return;
         }
         item.dataset.qubitSourceBusy = "true";
-        const qubitSize = PLAYGROUND_COMPONENT_LIBRARY.qubit.width;
-        const qubit = createItem("qubit", {
-          width: qubitSize,
-          height: qubitSize,
-        });
-        appendItemToCanvas(qubit);
-        const qubitState = ensurePlaygroundQubitRuntimeState(qubit);
-        const flangeCenter = canvasPointForElementCenter(flange);
-        const platformCenter = canvasPointForElementCenter(platform);
-        setPlaygroundQubitCenter(
-          qubit,
-          platformCenter.x,
-          flangeCenter.y,
-        );
-        bringToFront(qubit);
-        qubitState.transiting = true;
+        sourceButton.classList.add("qubit-source-loaded");
+        let qubit = null;
+        let qubitState = null;
         try {
+          const qubitSize = PLAYGROUND_COMPONENT_LIBRARY.qubit.width;
+          qubit = createItem("qubit", {
+            width: qubitSize,
+            height: qubitSize,
+          });
+          appendItemToCanvas(qubit);
+          qubitState = ensurePlaygroundQubitRuntimeState(qubit);
+          const flangeCenter = canvasPointForElementCenter(flange);
+          const platformCenter = canvasPointForElementCenter(platform);
+          setPlaygroundQubitCenter(
+            qubit,
+            platformCenter.x,
+            flangeCenter.y,
+          );
+          bringToFront(qubit);
+          qubitState.transiting = true;
           await nextFrame();
+          sourceButton.classList.remove("qubit-source-loaded");
           item.classList.add("platform-extended");
           await movePlaygroundQubitToPoint(
             qubit,
@@ -23255,9 +23282,14 @@ function setupPlagroundComposer() {
           item.classList.remove("platform-extended");
           await wait(GATE_PLATFORM_RETRACT_MS);
         } finally {
-          settlePlaygroundQubitVisualState(qubit);
+          sourceButton.classList.remove("qubit-source-loaded");
+          if (qubit instanceof HTMLElement) {
+            settlePlaygroundQubitVisualState(qubit);
+          }
           item.classList.remove("platform-extended");
-          qubitState.transiting = false;
+          if (qubitState) {
+            qubitState.transiting = false;
+          }
           delete item.dataset.qubitSourceBusy;
         }
       });
