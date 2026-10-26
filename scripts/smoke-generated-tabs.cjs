@@ -7432,8 +7432,18 @@ async function runQubitSourceSmoke(browser, baseUrl) {
                   height: 240,
                   z: 1,
                 },
+                {
+                  id: "qubit-source-smoke-gate",
+                  type: "single-gate",
+                  left: 600,
+                  top: 100,
+                  width: 338,
+                  height: 208,
+                  z: 2,
+                  singleGateTick: 0,
+                },
               ],
-              canvasWidth: 900,
+              canvasWidth: 1200,
               canvasHeight: 560,
             },
           },
@@ -7463,6 +7473,7 @@ async function runQubitSourceSmoke(browser, baseUrl) {
       "quadruple-tube-array",
     ];
     const expectedTubeCounts = [2, 4, 8, 16];
+    const sourceLandings = [];
     for (let count = 1; count <= 4; count += 1) {
       await button.click();
       await page.waitForFunction(
@@ -7509,6 +7520,17 @@ async function runQubitSourceSmoke(browser, baseUrl) {
           !document.querySelector(
             '#panel-qubit-source-smoke [data-component="qubit-source"][data-qubit-source-busy="true"]',
           ),
+      );
+      sourceLandings.push(
+        await panel
+          .locator('[data-component="qubit"]')
+          .nth(count - 1)
+          .evaluate((item) => ({
+            slot: item.dataset.multipleQubitsLandingSlot || "",
+            centerX: Number.parseFloat(item.style.left) + item.offsetWidth / 2,
+            centerY: Number.parseFloat(item.style.top) + item.offsetHeight / 2,
+            diameter: item.offsetWidth,
+          })),
       );
       if (count === 1) {
         const qubitBox = await panel
@@ -7615,6 +7637,52 @@ async function runQubitSourceSmoke(browser, baseUrl) {
     if (!(await button.isDisabled())) {
       throw new Error("Qubit Source stayed enabled after emitting four qubits");
     }
+    const assertVerticalLandingSlots = (landings, stage) => {
+      const expectedSlots = ["q0", "q1", "q2", "q3"];
+      const xSpread =
+        Math.max(...landings.map((landing) => landing.centerX)) -
+        Math.min(...landings.map((landing) => landing.centerX));
+      const expectedSpacing = landings[0].diameter / 3;
+      const spacings = landings
+        .slice(1)
+        .map((landing, index) => landing.centerY - landings[index].centerY);
+      if (
+        landings.map((landing) => landing.slot).join("|") !==
+          expectedSlots.join("|") ||
+        xSpread > 1 ||
+        spacings.some((spacing) => Math.abs(spacing - expectedSpacing) > 1)
+      ) {
+        throw new Error(
+          `${stage} did not use vertical q0-q3 landing slots: ${JSON.stringify({ landings, xSpread, expectedSpacing, spacings })}`,
+        );
+      }
+    };
+    assertVerticalLandingSlots(sourceLandings, "Qubit Source");
+
+    await panel.evaluate(async (panelElement) => {
+      const canvas = panelElement.querySelector(".generated-layout-canvas");
+      const gate = panelElement.querySelector(
+        '[data-component="single-gate"]',
+      );
+      const runtime = initializeGeneratedSingleGateItem(gate, {
+        singleGateTick: 0,
+      });
+      const qubits = Array.from(
+        panelElement.querySelectorAll('[data-component="qubit"]'),
+      );
+      for (const qubit of qubits) {
+        await runGeneratedSingleGateTransit(canvas, qubit, runtime);
+      }
+    });
+    const gateLandings = await emitted.evaluateAll((items) =>
+      items.map((item) => ({
+        slot: item.dataset.multipleQubitsLandingSlot || "",
+        centerX: Number.parseFloat(item.style.left) + item.offsetWidth / 2,
+        centerY: Number.parseFloat(item.style.top) + item.offsetHeight / 2,
+        diameter: item.offsetWidth,
+      })),
+    );
+    assertVerticalLandingSlots(gateLandings, "Single Qubit Gate");
   } finally {
     await page.close();
   }

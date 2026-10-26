@@ -12578,6 +12578,39 @@ function emittedQubitsForMultipleQubitsCanvas(canvas) {
   );
 }
 
+function multipleQubitsLandingSlotIndex(canvas, qubit) {
+  if (!isMultipleQubitsCanvas(canvas) || !isGeneratedQubitItem(qubit)) {
+    return null;
+  }
+  const existing = /^q([0-3])$/.exec(
+    qubit.dataset.multipleQubitsLandingSlot || "",
+  );
+  if (existing) {
+    return Number(existing[1]);
+  }
+  const emitted = emittedQubitsForMultipleQubitsCanvas(canvas);
+  const index = emitted.indexOf(qubit);
+  if (index < 0 || index > 3) {
+    return null;
+  }
+  qubit.dataset.multipleQubitsLandingSlot = `q${index}`;
+  return index;
+}
+
+function multipleQubitsLandingY(canvas, qubit, centerY) {
+  const slotIndex = multipleQubitsLandingSlotIndex(canvas, qubit);
+  if (slotIndex === null) {
+    return centerY;
+  }
+  const diameter = Math.max(
+    1,
+    qubit.offsetWidth,
+    parseLayoutNumeric(qubit.style.width, 0),
+  );
+  const spacing = diameter / 3;
+  return centerY + (slotIndex - 1.5) * spacing;
+}
+
 function updateMultipleQubitsSourceButtons(canvas, qubitCount) {
   const limitReached = qubitCount >= 4;
   generatedItemsOfType(canvas, "qubit-source").forEach((source) => {
@@ -12748,7 +12781,7 @@ async function emitBlueQubitFromSource(item) {
       canvas,
       qubit,
       generatedCanvasXForElementRight(canvas, flange) + 100 + size / 2,
-      flangeCenter.y,
+      multipleQubitsLandingY(canvas, qubit, flangeCenter.y),
       GATE_PLATFORM_EXTEND_MS,
     );
     settleGeneratedQubitVisualState(qubit);
@@ -15115,7 +15148,11 @@ async function runGeneratedSingleGateTransit(canvas, qubitItem, gateRuntime) {
         generatedCanvasXForElementRight(canvas, gateRuntime.gateWindow) +
         100 +
         qubitItem.offsetWidth / 2,
-      y: retractedPlatformPoint.y,
+      y: multipleQubitsLandingY(
+        canvas,
+        qubitItem,
+        retractedPlatformPoint.y,
+      ),
     };
     await moveGeneratedQubitToPoint(
       canvas,
