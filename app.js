@@ -12319,6 +12319,7 @@ function initializeGeneratedDoubleMeasurementItem(item) {
       rb: Number.parseInt(countElements.rb.textContent || "0", 10) || 0,
       rr: Number.parseInt(countElements.rr.textContent || "0", 10) || 0,
     },
+    registerQubitCount: 2,
     tubePairCapacity: savedMeasurementCapacity(
       item.dataset.measurementTubeCapacity,
     ),
